@@ -1,0 +1,4 @@
+-i
+./source_is_dir
+--out:pp
+-

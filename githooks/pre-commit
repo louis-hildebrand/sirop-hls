@@ -67,7 +67,7 @@ if ! git diff --staged --quiet ./src/test/python; then
     cd ./src/test/python
     pyright .
     pylint .
-    cd -
+    cd - >/dev/null
 fi
 
 if ! git diff --staged --quiet ./src/e2e/python; then
@@ -77,7 +77,7 @@ if ! git diff --staged --quiet ./src/e2e/python; then
     cd ./src/e2e/python
     pyright .
     pylint . --rcfile ../../test/python/.pylintrc
-    cd -
+    cd - >/dev/null
 fi
 
 # If there are whitespace errors, print the offending file names and fail.

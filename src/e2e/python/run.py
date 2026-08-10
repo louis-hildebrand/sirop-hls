@@ -6,7 +6,9 @@ Script for running end-to-end tests.
 
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
+import filecmp
 import os
+import shutil
 import subprocess
 import sys
 
@@ -23,10 +25,16 @@ def look_for_unused_files() -> None:
     error_count = 0
     for (root, _, files) in os.walk(c.RESOURCES):
         root = Path(root)
-        if root.is_relative_to(c.ACTUAL_OUTPUTS):
+        should_ignore_root = any(
+            root.is_relative_to(ignored_dir)
+            for ignored_dir in c.IGNORE_DIRECTORIES
+        )
+        if should_ignore_root:
             continue
         files = [root.joinpath(f) for f in files]
         for f in files:
+            if f in c.IGNORE_FILES:
+                continue
             if f.name.endswith(".sirop"):
                 continue
             if f.name.endswith(".swp"):
@@ -34,9 +42,20 @@ def look_for_unused_files() -> None:
                 continue
             if f.name.endswith(".cliargs.txt"):
                 continue
-            if f.name.endswith(".eval.txt") and f.with_suffix("").with_suffix(".sirop").is_file():
+            if (
+                f.name.endswith(".stderr.txt")
+                and c.is_valid_source(f.with_suffix("").with_suffix(".sirop"))
+            ):
                 continue
-            if f.name.endswith(".repl.txt") and f.with_suffix("").with_suffix(".sirop").is_file():
+            if (
+                f.name.endswith(".eval.txt")
+                and c.is_valid_source(f.with_suffix("").with_suffix(".sirop"))
+            ):
+                continue
+            if (
+                f.name.endswith(".repl.txt")
+                and c.is_valid_source(f.with_suffix("").with_suffix(".sirop"))
+            ):
                 continue
             if vhdl.uses_file(f):
                 continue
@@ -57,6 +76,110 @@ def look_for_unused_files() -> None:
             f" Consider deleting or moving {it_or_them}."
         )
         sys.exit(1)
+
+
+def copy_files_that_shouldnt_be_overwritten() -> None:
+    """
+    Make copies of all the files in the DO_NOT_OVERWRITE_FILES list so we can
+    check that they haven't been overwritten afterwards.
+    """
+    for src in c.DO_NOT_OVERWRITE_FILES:
+        if not src.exists():
+            print(f"{src} does not exist. Check DO_NOT_OVERWRITE_FILES in constants.py.")
+            sys.exit(1)
+        dest = c.ACTUAL_OUTPUTS / src.relative_to(c.RESOURCES)
+        if dest.is_file():
+            dest.unlink()
+        if dest.is_dir():
+            shutil.rmtree(dest)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        src.copy(dest)
+
+
+def check_files_that_shouldnt_be_overwritten() -> int:
+    """
+    Compare the files in the DO_NOT_OVERWRITE_FILES list with the copies made
+    earlier, and exit with an error if their contents have changed.
+    """
+
+    def same_dir(dircmp: filecmp.dircmp) -> bool:
+        return (
+            not dircmp.left_only
+            and not dircmp.right_only
+            and not dircmp.diff_files
+            and not dircmp.funny_files
+            and all(same_dir(subdircmp) for subdircmp in dircmp.subdirs.values())
+        )
+
+    print()
+    print("Checking that files have not been overwritten...")
+    print()
+    error_count = 0
+    for src in c.DO_NOT_OVERWRITE_FILES:
+        print(f"{src.relative_to(c.RESOURCES)} ... ", end="")
+        dest = c.ACTUAL_OUTPUTS / src.relative_to(c.RESOURCES)
+        if src.is_dir():
+            cmp = filecmp.dircmp(src, dest, shallow=False)
+            ok = same_dir(cmp)
+        elif src.is_file():
+            ok = filecmp.cmp(src, dest, shallow=False)
+        else:
+            print(
+                f"{src} is neither a file nor a directory."
+                " Check DO_NOT_OVERWRITE_FILES in constants.py."
+            )
+            sys.exit(1)
+        if ok:
+            print("OK")
+        else:
+            print("CHANGED")
+            error_count += 1
+    return error_count
+
+
+def test_plain(expected_stderr_file: Path, cli_args: list[str]) -> bool:
+    """
+    Test that running the compiler with the given CLI arguments produces the expected output on
+    stderr.
+    """
+    name = expected_stderr_file.with_suffix("").with_suffix("").relative_to(c.RESOURCES).as_posix()
+    print(f"{name} (stderr) ... ", end="", flush=True)
+    if not cli_args:
+        print("MISSING CLI ARGS")
+        return False
+    source_path = expected_stderr_file.with_suffix("").with_suffix(".sirop")
+    if source_path not in c.MISSING_FILES:
+        cli_args = cli_args + ["-i", source_path.as_posix()]
+    cli_args = ["java", "-jar", c.JAR.as_posix()] + cli_args
+    result = subprocess.run(
+        cli_args,
+        encoding="utf-8",
+        capture_output=True,
+        check=False,
+    )
+    # Save actual stdout
+    actual_stdout_file = c.ACTUAL_OUTPUTS / f"{name}.stdout.txt"
+    actual_stdout_file.parent.mkdir(exist_ok=True, parents=True)
+    actual_stdout_file.write_text(result.stdout, encoding="utf-8")
+    # Save actual stderr
+    actual_stderr_file = c.ACTUAL_OUTPUTS / f"{name}.stderr.txt"
+    actual_stderr_file.parent.mkdir(exist_ok=True, parents=True)
+    actual_stderr_file.write_text(result.stderr, encoding="utf-8")
+    # Check status code
+    expected_code = 1 if expected_stderr_file.parent.name.endswith("Error") else 0
+    if result.returncode != expected_code:
+        print(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
+        return False
+    # Check stderr
+    expected_stderr = expected_stderr_file.read_text(encoding="utf-8")
+    if result.stderr != expected_stderr:
+        print(
+            f"WRONG STDERR (compare {expected_stderr_file.relative_to(c.ROOT)})"
+            f" with {actual_stderr_file.relative_to(c.ROOT)})"
+        )
+        return False
+    print("OK")
+    return True
 
 
 def test_eval(eval_output: Path, cli_args: list[str]) -> bool:
@@ -153,6 +276,7 @@ def main(test_sources: list[Path], skip_vsim: bool) -> None:
     Script entry point.
     """
     look_for_unused_files()
+    copy_files_that_shouldnt_be_overwritten()
     os.chdir(c.ROOT)
     print("Building Scala project...")
     subprocess.run(["sbt", "assembly"], check=True, capture_output=True)
@@ -163,12 +287,14 @@ def main(test_sources: list[Path], skip_vsim: bool) -> None:
         check=True
     )
     compiler_version = compiler_version.stdout.strip()
+    print()
     print(f"Testing v{compiler_version}")
     print(f"Found {len(test_sources)} .sirop files to test")
     print()
     error_count = 0
     for test in test_sources:
         ran = False
+        os.chdir(test.parent)
         if (cli_args_file := test.with_suffix(".cliargs.txt")).is_file():
             cli_args = cli_args_file.read_text(encoding="utf-8").splitlines()
         else:
@@ -181,6 +307,11 @@ def main(test_sources: list[Path], skip_vsim: bool) -> None:
         if (repl_output := test.with_suffix(".repl.txt")).is_file():
             ran = True
             ok = test_repl(repl_output, compiler_version, cli_args=cli_args)
+            if not ok:
+                error_count += 1
+        if (stderr_file := test.with_suffix(".stderr.txt")).is_file():
+            ran = True
+            ok = test_plain(stderr_file, cli_args=cli_args)
             if not ok:
                 error_count += 1
         if vhdl.can_run(test):
@@ -198,9 +329,10 @@ def main(test_sources: list[Path], skip_vsim: bool) -> None:
             ok = skip_vsim or vsim.run(test, cli_args=cli_args)
             if not ok:
                 error_count += 1
-        if not ran:
+        if not ran and test not in c.IGNORE_FILES:
             print(f"ERROR: Nothing to do for file {test.relative_to(c.ROOT)}")
             error_count += 1
+    error_count += check_files_that_shouldnt_be_overwritten()
     if error_count > 0:
         test_or_tests = "test" if error_count == 1 else "tests"
         print()
@@ -230,12 +362,12 @@ def _parse_args() -> Namespace:
     )
     args = parser.parse_args()
     if not args.test_sources:
-        args.test_sources = sorted(c.RESOURCES.glob("**/*.sirop"))
+        args.test_sources = sorted(list(c.RESOURCES.glob("**/*.sirop")) + c.MISSING_FILES)
     if not args.test_sources:
         parser.error("no test cases found")
     args.test_sources = [p.resolve() for p in args.test_sources]
     for p in args.test_sources:
-        if not p.is_file():
+        if not p.is_file() and not p in c.MISSING_FILES:
             parser.error(f"file {p} does not exist or is not a file")
         if not p.name.endswith(".sirop"):
             parser.error(f"invalid path {p}: all paths should end in .sirop")

@@ -1,0 +1,1 @@
+FileError: --out:trace path already exists: '../../../../src/e2e/resources/FileError/do_not_overwrite/'. Add the --overwrite flag if you want to overwrite it.

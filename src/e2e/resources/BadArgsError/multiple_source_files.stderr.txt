@@ -1,0 +1,3 @@
+Invalid command-line arguments: at most one input file is allowed, but more than one was given
+
+Usage: sirop -s (sirop|aetherling|stored) [-i INPUT] [OPTION]... [-h|--help] [--version]
