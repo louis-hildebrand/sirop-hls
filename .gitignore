@@ -60,6 +60,9 @@ metals.sbt
 # Vim
 *.swp
 
+# Obsidian
+.obsidian/
+
 # Custom
 /img/
 .venv/
