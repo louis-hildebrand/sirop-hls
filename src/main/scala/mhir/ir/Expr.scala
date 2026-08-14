@@ -951,8 +951,6 @@ case class StmBuild(
     this.accumulators.keySet ++ this.producers.keySet
   }
 
-  // TODO: Check whether these methods are really needed
-
   def initOrStm(x: Param): Expr = {
     val (init, _) = this.accumulators.getOrElse(x, this.producers(x))
     init

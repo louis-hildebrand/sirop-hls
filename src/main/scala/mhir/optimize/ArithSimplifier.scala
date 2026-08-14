@@ -690,9 +690,6 @@ private[optimize] object ArithSimplifier {
             case Not(e) => terms.contains(e)
             case _      => false
           }) =>
-        println(
-          s"contradictory OR terms: ${terms.map(_.toString).mkString(", ")}"
-        )
         True
       case Or(LessThan(e1, c1: IntCst), LessThan(e2, c2: IntCst)) if e1 == e2 =>
         assert(c1.hasType)
