@@ -924,7 +924,7 @@ object Parser {
       )
     }
     val (_, rest15) = expect(RightCurlyToken, rest14)
-    val sbuild = StmBuild(n, data, valid, accumulators ++ producers)()
+    val sbuild = StmBuild(n, data, valid, accumulators, producers)()
     (sbuild, rest15)
   }
 

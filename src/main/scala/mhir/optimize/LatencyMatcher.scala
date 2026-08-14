@@ -78,41 +78,26 @@ class EnabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
               "stream producers in expression do not match latency node" +
                 s" (${s.producers.keySet} vs ${producersLat.keySet})"
             )
-            val newEquations = s.equations
-              // Recursive call
-              .map({
-                case (x, (p, ready)) if x.typ.isInstanceOf[TyStm] =>
-                  x -> (matchLatencies(p, producersLat(x)), ready)
-                case eqn => eqn
-              })
-              // Insert no-op nodes if needed
-              .map({
-                case (x, (p, ready)) if x.typ.isInstanceOf[TyStm] =>
-                  (outLat, producersLat(x).latency) match {
-                    case (Some(outLat), Some(pLat)) =>
-                      assert(
-                        selfLat.nonEmpty,
-                        "missing self latency for sbuild node"
-                      )
-                      assert(
-                        outLat >= pLat + selfLat.get,
-                        "consumer's latency is too small"
-                      )
-                      x -> (increaseLatency(
-                        p,
-                        outLat - selfLat.get - pLat
-                      ), ready)
-                    case _ =>
-                      x -> (p, ready)
-                  }
-                case eqn => eqn
-              })
-            StmBuild(
-              s.n,
-              s.data,
-              s.valid,
-              newEquations
-            )().tchk()
+            s.mapProducers({ case (x, (p0, ready)) =>
+              val p = matchLatencies(p0, producersLat(x))
+              (outLat, producersLat(x).latency) match {
+                case (Some(outLat), Some(pLat)) =>
+                  assert(
+                    selfLat.nonEmpty,
+                    "missing self latency for sbuild node"
+                  )
+                  assert(
+                    outLat >= pLat + selfLat.get,
+                    "consumer's latency is too small"
+                  )
+                  x -> (increaseLatency(
+                    p,
+                    outLat - selfLat.get - pLat
+                  ), ready)
+                case _ =>
+                  x -> (p, ready)
+              }
+            }).tchk()
           case LatencyLetStm(_, inLat, outLat) =>
             assert(
               e.isInstanceOf[LetStm],
@@ -137,7 +122,8 @@ class EnabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
         n,
         StmData(acc)(),
         True,
-        Map[Param, (Expr, Expr)](
+        accumulators = Map(),
+        producers = Map[Param, (Expr, Expr)](
           acc -> (increaseLatency(s, delay - 1), True)
         )
       )().tchk()

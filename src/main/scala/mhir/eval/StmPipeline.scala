@@ -6,6 +6,8 @@ import mhir.ir._
 import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
 import mhir.typecheck.{TypeCheck, TypeError}
 
+import scala.annotation.tailrec
+
 /** A streaming pipeline.
   *
   * @note
@@ -49,7 +51,8 @@ class StmPipeline(
     newPipe
   }
 
-  def stepUntilFirstValid(): StmPipeline = {
+  @tailrec
+  private def stepUntilFirstValid(): StmPipeline = {
     if (this.sink.valid(StmNodeId(""))) {
       this
     } else {
@@ -282,11 +285,9 @@ object StmPipeline {
           s"Stream length evaluated to $e. It must evaluate to an integer."
         )
     }
-    val (inputStreams, accumulators) =
-      s.equations.partition({ case (x, _) => x.typ.isInstanceOf[TyStm] })
-    val readyByInput = inputStreams
+    val readyByInput = s.producers
       .map({ case (x, (_, ready)) => x -> ready })
-    val inputs = inputStreams.map({ case (x, (z, _)) =>
+    val inputs = s.producers.map({ case (x, (z, _)) =>
       x -> init(pipe, z, idByVar, loc, handshake = handshake)
     })
     StmBuildNode(
@@ -297,14 +298,13 @@ object StmPipeline {
         data = s.data,
         valid = s.valid,
         inputs = inputs,
-        nextByDataAcc = accumulators.map({ case (x, (_, next)) =>
-          x -> next
-        }),
+        nextByDataAcc = s.accumulators
+          .map({ case (x, (_, next)) => x -> next }),
         readyByInput = readyByInput,
         typ = s.typ.asInstanceOf[TyStm]
       ),
       n = n,
-      acc = accumulators.map({
+      acc = s.accumulators.map({
         case (x, (Undefined(typ), _)) =>
           logger.debug(
             s"Undefined initial value for accumulator $x will be replaced by default value."

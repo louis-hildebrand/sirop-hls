@@ -136,7 +136,8 @@ class NameSimplifierTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           a -> (id(U8)(C(0)(U8)), Sum(C(1)(U8), a)()),
           b -> (True, id(TyBool)(!b))
-        )
+        ),
+        Map()
       )().tchk()
     }
     val simplified = NS.simplify(original)
@@ -175,7 +176,8 @@ class NameSimplifierTests extends AnyFunSuite {
           a -> (C(0)(U8), Sum(C(1)(U8), a)()),
           b1 -> (True, !b1),
           b2 -> (False, !b2)
-        )
+        ),
+        Map()
       )().tchk()
     }
     val simplified = NS.simplify(original)
@@ -212,7 +214,8 @@ class NameSimplifierTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           xAcc -> (C(0)(U8), Sum(C(1)(U8), xAcc)())
-        )
+        ),
+        Map()
       )()
     }
     val simplified = NS.simplify(original)
@@ -231,7 +234,8 @@ class NameSimplifierTests extends AnyFunSuite {
         xFree equ C(1)(U8),
         Map[Param, (Expr, Expr)](
           xAcc -> (C(0)(U8), Sum(C(1)(U8), xAcc)())
-        )
+        ),
+        Map()
       )()
     }
     val simplified = NS.simplify(original)
@@ -250,7 +254,8 @@ class NameSimplifierTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           xAcc -> (C(0)(U8), Sum(xFree, xAcc)())
-        )
+        ),
+        Map()
       )()
     }
     val simplified = NS.simplify(original)

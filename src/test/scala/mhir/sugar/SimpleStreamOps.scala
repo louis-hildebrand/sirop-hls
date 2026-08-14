@@ -31,7 +31,8 @@ object SimpleCount {
       n,
       i,
       True,
-      Map[Param, (Expr, Expr)](i -> (C(0)(n.typ), Sum(C(1)(n.typ), i)()))
+      Map[Param, (Expr, Expr)](i -> (C(0)(n.typ), Sum(C(1)(n.typ), i)())),
+      Map()
     )().tchk().lower
   }
 }
@@ -44,6 +45,7 @@ object SimpleMap {
       n,
       f(StmData(sAcc)()),
       True,
+      Map(),
       Map[Param, (Expr, Expr)](
         sAcc -> (input, True)
       )
@@ -64,16 +66,17 @@ object SimpleNop {
 
 object SimpleZip {
   def apply(inputs: Expr*): Expr = {
-    val accumulators = inputs.zipWithIndex.map({ case (in, i) =>
+    val producers = inputs.zipWithIndex.map({ case (in, i) =>
       val TyStm(t, _) = in.typ
       Param(s"s$i")(TyStm(t, -1))
     })
     val TyStm(_, n) = inputs.head.typ
     StmBuild(
       n,
-      Tuple(accumulators.map(StmData(_)()): _*)(),
+      Tuple(producers.map(StmData(_)()): _*)(),
       True,
-      accumulators
+      Map(),
+      producers
         .zip(inputs)
         .map({ case (acc, in) => acc -> (in, True) })
         .toMap
@@ -93,7 +96,9 @@ object SimpleConcat {
       Mux(i < n0, StmData(s0)(), StmData(s1)())(),
       True,
       Map[Param, (Expr, Expr)](
-        i -> (C(0)(U32), Sum(C(1)(U32), i)()),
+        i -> (C(0)(U32), Sum(C(1)(U32), i)())
+      ),
+      Map[Param, (Expr, Expr)](
         s0 -> (in0, i < n0),
         s1 -> (in1, i >= n0)
       )

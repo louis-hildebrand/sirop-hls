@@ -33,7 +33,8 @@ class ExprTests extends AnyFunSuite {
       (x % 2 === 0) && c,
       Map[Param, (Expr, Expr)](
         x -> (C(0)(U8), Sum(x, z)())
-      )
+      ),
+      Map()
     )().tchk()
     assert(s0.freeVars == Set(y, z, c))
 
@@ -44,7 +45,8 @@ class ExprTests extends AnyFunSuite {
       (x % 2 === 0) && c,
       Map[Param, (Expr, Expr)](
         x -> (C(0)(U8), Sum(x, z)())
-      )
+      ),
+      Map()
     )().tchk()
     assert(s1.freeVars == Set(x, y, z, c))
 
@@ -55,7 +57,8 @@ class ExprTests extends AnyFunSuite {
       (x % 2 === 0) && c,
       Map[Param, (Expr, Expr)](
         x -> (x, Sum(x, z)())
-      )
+      ),
+      Map()
     )().tchk()
     assert(s2.freeVars == Set(x, y, z, c))
   }
@@ -106,7 +109,7 @@ class ExprTests extends AnyFunSuite {
   }
 
   test("LetStm:Equals") {
-    val in = StmBuild(5, C(42)(U16), True)()
+    val in = StmBuild(5, C(42)(U16), True, Map(), Map())()
     val s0 = Param("s")()
     val s1 = Param("s")()
     val e0 = LetStm(1, s0, in, StmZip(s0, s0)())()
@@ -117,8 +120,8 @@ class ExprTests extends AnyFunSuite {
   }
 
   test("LetStm:NotEquals:DifferentInput") {
-    val in0 = StmBuild(5, C(42)(I8), True)()
-    val in1 = StmBuild(5, C(-1)(I8), True)()
+    val in0 = StmBuild(5, C(42)(I8), True, Map(), Map())()
+    val in1 = StmBuild(5, C(-1)(I8), True, Map(), Map())()
     val s0 = Param("s")()
     val s1 = Param("s")()
     val e0 = LetStm(1, s0, in0, StmZip(s0, s0)())()
@@ -128,7 +131,7 @@ class ExprTests extends AnyFunSuite {
   }
 
   test("LetStm:NotEquals:DifferentOutput") {
-    val in = StmBuild(5, C(42)(U16), True)()
+    val in = StmBuild(5, C(42)(U16), True, Map(), Map())()
     val s0 = Param("s")()
     val s1 = Param("s")()
     val e0 = LetStm(1, s0, in, StmZip(s0, s0)())()
@@ -140,9 +143,9 @@ class ExprTests extends AnyFunSuite {
   test("StmBuild:Equals:NoAccumulatorVars") {
     val v = Param("v")()
     val s1 =
-      StmBuild(3, VecAccess(v, C(1)(U8))(), True, Map[Param, (Expr, Expr)]())()
+      StmBuild(3, VecAccess(v, C(1)(U8))(), True, Map(), Map())()
     val s2 =
-      StmBuild(3, VecAccess(v, C(1)(U16))(), True, Map[Param, (Expr, Expr)]())()
+      StmBuild(3, VecAccess(v, C(1)(U16))(), True, Map(), Map())()
     assert(s1 == s2)
     assert(s2 == s1)
     assert(s1.hashCode == s2.hashCode)
@@ -154,9 +157,9 @@ class ExprTests extends AnyFunSuite {
     val j = Param("j")()
     val z = Param("z")()
     val s1 =
-      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)))()
+      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)), Map())()
     val s2 =
-      StmBuild(n, j, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)))()
+      StmBuild(n, j, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)), Map())()
     assert(s1 == s2)
     assert(s2 == s1)
     assert(s1.hashCode == s2.hashCode)
@@ -172,14 +175,16 @@ class ExprTests extends AnyFunSuite {
         n,
         j - i,
         True,
-        Map[Param, (Expr, Expr)](i -> (z, i + 1), j -> (0, j * 2))
+        Map[Param, (Expr, Expr)](i -> (z, i + 1), j -> (0, j * 2)),
+        Map()
       )()
     val s2 =
       StmBuild(
         n,
         i - j,
         True,
-        Map[Param, (Expr, Expr)](j -> (z, j + 1), i -> (0, i * 2))
+        Map[Param, (Expr, Expr)](j -> (z, j + 1), i -> (0, i * 2)),
+        Map()
       )()
     assert(s1 == s2)
     assert(s2 == s1)
@@ -199,7 +204,8 @@ class ExprTests extends AnyFunSuite {
         a -> (0, a + 1),
         c -> (1, c + 2),
         d -> (2, d + 3)
-      )
+      ),
+      Map()
     )()
     val s2 = StmBuild(
       n,
@@ -209,7 +215,8 @@ class ExprTests extends AnyFunSuite {
         a -> (0, a + 1),
         d -> (2, d + 3),
         c -> (1, c + 2)
-      )
+      ),
+      Map()
     )()
     assert(s1 == s2)
     assert(s2 == s1)
@@ -223,7 +230,8 @@ class ExprTests extends AnyFunSuite {
         4,
         i,
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1)),
+        Map()
       )()
     val typed = untyped.tchk()
     assert(typed.hashCode == untyped.hashCode)
@@ -239,6 +247,7 @@ class ExprTests extends AnyFunSuite {
         10,
         StmData(a)(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](a -> (s, True))
       )()
     }
@@ -247,6 +256,7 @@ class ExprTests extends AnyFunSuite {
       10,
       StmData(s)(),
       True,
+      Map(),
       Map[Param, (Expr, Expr)](s -> (s, True))
     )()
     val f2 = Function(s, stm2)()
@@ -259,9 +269,9 @@ class ExprTests extends AnyFunSuite {
     val j = Param("j")()
     val z = Param("z")()
     val s1 =
-      StmBuild(i, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)))()
+      StmBuild(i, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)), Map())()
     val s2 =
-      StmBuild(j, j, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)))()
+      StmBuild(j, j, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)), Map())()
     assert(s1 != s2)
     assert(s2 != s1)
   }
@@ -272,9 +282,9 @@ class ExprTests extends AnyFunSuite {
     val j = Param("j")()
     val z = Param("z")()
     val s1 =
-      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)))()
+      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)), Map())()
     val s2 =
-      StmBuild(n, i, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)))()
+      StmBuild(n, i, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)), Map())()
     assert(s1 != s2)
     assert(s2 != s1)
   }
@@ -289,14 +299,16 @@ class ExprTests extends AnyFunSuite {
         n,
         i - j,
         True,
-        Map[Param, (Expr, Expr)](i -> (z, i + 1), j -> (0, j * 2))
+        Map[Param, (Expr, Expr)](i -> (z, i + 1), j -> (0, j * 2)),
+        Map()
       )()
     val s2 =
       StmBuild(
         n,
         i - j,
         True,
-        Map[Param, (Expr, Expr)](j -> (z, j + 1), i -> (0, i * 2))
+        Map[Param, (Expr, Expr)](j -> (z, j + 1), i -> (0, i * 2)),
+        Map()
       )()
     assert(s1 != s2)
     assert(s2 != s1)
@@ -307,9 +319,9 @@ class ExprTests extends AnyFunSuite {
     val i = Param("i")()
     val j = Param("j")()
     val s1 =
-      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (i, i + 1)))()
+      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (i, i + 1)), Map())()
     val s2 =
-      StmBuild(n, j, True, Map[Param, (Expr, Expr)](j -> (j, j + 1)))()
+      StmBuild(n, j, True, Map[Param, (Expr, Expr)](j -> (j, j + 1)), Map())()
     assert(s1 != s2)
     assert(s2 != s1)
   }
@@ -326,7 +338,8 @@ class ExprTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         i -> (z, i + 1),
         j -> (z, j - 1)
-      )
+      ),
+      Map()
     )()
     val s2 = StmBuild(
       n,
@@ -335,7 +348,8 @@ class ExprTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         i -> (z, j + 1),
         j -> (z, i - 1)
-      )
+      ),
+      Map()
     )()
     assert(s1 != s2)
     assert(s2 != s1)
@@ -355,11 +369,14 @@ class ExprTests extends AnyFunSuite {
         a -> (z, a + 1),
         r0 -> (1, a * 2),
         r1 -> (z, a - 1)
-      )
+      ),
+      Map()
     )()
     val renamed = original.renameVars
     assert(original == renamed)
-    assert(original.accVars.intersect(renamed.accVars).isEmpty)
+    assert(
+      original.namesDefinedHere.intersect(renamed.namesDefinedHere).isEmpty
+    )
   }
 
   test("StmBuild:AddOutputCounter") {
@@ -371,7 +388,8 @@ class ExprTests extends AnyFunSuite {
       n,
       data,
       valid,
-      Map[Param, (Expr, Expr)](outCtr -> (IntCst(10)(U8), outCtr * 2))
+      Map[Param, (Expr, Expr)](outCtr -> (IntCst(10)(U8), outCtr * 2)),
+      Map()
     )().tchk().asInstanceOf[StmBuild]
 
     val actual = s.addOutputCounter(outCtr)
@@ -387,12 +405,13 @@ class ExprTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         i -> (IntCst(10)(U8), i * 2),
         outCtr -> (expectedOutCtrSeed, expectedOutCtrNext)
-      )
+      ),
+      Map()
     )()
     assert(actual == expected)
     // The new stream must use the exact parameter `outCtr`, not a fresh one
-    assert(actual.seedByVar(outCtr) == expectedOutCtrSeed)
-    assert(actual.nextByVar(outCtr) == expectedOutCtrNext)
+    assert(actual.initOrStm(outCtr) == expectedOutCtrSeed)
+    assert(actual.nextOrReady(outCtr) == expectedOutCtrNext)
   }
 
   test("StmBuild:AddInputCounter") {
@@ -414,11 +433,13 @@ class ExprTests extends AnyFunSuite {
       FunCall(f, i)(),
       Map[Param, (Expr, Expr)](
         i -> (IntCst(3)(U8), i + 1),
+        inCtr -> (IntCst(1)(U8), inCtr + 2)
+      ),
+      Map[Param, (Expr, Expr)](
         s -> (
           input,
           FunCall(f, i)() || FunCall(g, inCtr)()
-        ),
-        inCtr -> (IntCst(1)(U8), inCtr + 2)
+        )
       )
     )().tchk(context, Map()).asInstanceOf[StmBuild]
 
@@ -429,10 +450,13 @@ class ExprTests extends AnyFunSuite {
     // The existing bound variable should be renamed
     // I need to find the new parameters representing `i` and `inCtr` so that
     // I can check that the new input counter is updated correctly.
-    val freshI =
-      actual.seedByVar.find({ case (_, z) => z == IntCst(3)() }).get._1
+    val freshI = actual.accumulators
+      .collectFirst({ case (x, (z, _)) if z == C(3)() => x })
+      .get
     // Call this one `j` to avoid confusion
-    val j = actual.seedByVar.find({ case (_, z) => z == IntCst(1)() }).get._1
+    val j = actual.accumulators
+      .collectFirst({ case (x, (z, _)) if z == C(1)() => x })
+      .get
     val expectedInCtrSeed = IntCst(0)()
     val expectedInCtrNext =
       Mux(
@@ -447,17 +471,19 @@ class ExprTests extends AnyFunSuite {
         FunCall(f, freshI)(),
         Map[Param, (Expr, Expr)](
           freshI -> (3, freshI + 1),
+          j -> (1, j + 2),
+          inCtr -> (0, expectedInCtrNext)
+        ),
+        Map[Param, (Expr, Expr)](
           s -> (
             input,
             FunCall(f, freshI)() || FunCall(g, j)()
-          ),
-          j -> (1, j + 2),
-          inCtr -> (0, expectedInCtrNext)
+          )
         )
       )()
     // The new stream must use the exact parameter `inCtr`, not a fresh one
-    assert(actual.seedByVar(inCtr) == expectedInCtrSeed)
-    assert(actual.nextByVar(inCtr) == expectedInCtrNext)
+    assert(actual.initOrStm(inCtr) == expectedInCtrSeed)
+    assert(actual.nextOrReady(inCtr) == expectedInCtrNext)
     assert(actual == expected)
   }
 
@@ -474,7 +500,8 @@ class ExprTests extends AnyFunSuite {
         a -> (b, a + 1 + outside),
         b -> (0, b + c + FunCall(Function(a, a)(), 1)()),
         c -> (1, b * b)
-      )
+      ),
+      Map()
     )()
     val expectedDependencies = {
       DiGraph(
@@ -491,7 +518,7 @@ class ExprTests extends AnyFunSuite {
         )
       )
     }
-    assert(s.accVarDependencies == expectedDependencies)
+    assert(s.internalDependencies == expectedDependencies)
   }
 
   test("StmBuild:OutputDependencies") {
@@ -507,7 +534,8 @@ class ExprTests extends AnyFunSuite {
         a -> (b, a + 1 + outside),
         b -> (0, b + c + FunCall(Function(a, a)(), 1)()),
         c -> (1, b * b)
-      )
+      ),
+      Map()
     )()
     // The output does NOT depend on `c` because the occurrence of `c` in
     // `Function(c, c)` is bound

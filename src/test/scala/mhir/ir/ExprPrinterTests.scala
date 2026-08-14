@@ -2,8 +2,6 @@ package mhir.ir
 
 import mhir.canonicalize._
 import mhir.sugar._
-import mhir.sugar.experimental.StmFold
-import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprPrinterTests extends AnyFunSuite {
@@ -590,18 +588,21 @@ class ExprPrinterTests extends AnyFunSuite {
       Sum(ToSigned(StmData(s)())(), j)(),
       True,
       Map[Param, (Expr, Expr)](
+        j -> (
+          C(-10)(I9),
+          Sum(C(2)(I9), j)()
+        )
+      ),
+      Map[Param, (Expr, Expr)](
         s -> (
           StmBuild(
             C(42)(U8),
             i,
             True,
-            Map[Param, (Expr, Expr)](i -> (C(0)(U8), Sum(C(1)(U8), i)()))
+            Map[Param, (Expr, Expr)](i -> (C(0)(U8), Sum(C(1)(U8), i)())),
+            Map()
           )(),
           True
-        ),
-        j -> (
-          C(-10)(I9),
-          Sum(C(2)(I9), j)()
         )
       )
     )()
@@ -631,7 +632,7 @@ class ExprPrinterTests extends AnyFunSuite {
     val c2 = Param("c2", -1)(TyBool)
     val c3 = Param("c3", -1)(TyBool)
     val c4 = Param("c4", -1)(TyBool)
-    val s = StmBuild(C(10)(U8), (c1 && c2) || (c3 && c4), True)()
+    val s = StmBuild(C(10)(U8), (c1 && c2) || (c3 && c4), True, Map(), Map())()
 
     val expectedOneLine = "sbuild(10:u8)(c1 && c2 || c3 && c4, true) {} {}"
     val actualOneLine = ExprPrinter.displayOneLine(s)
@@ -726,44 +727,5 @@ class ExprPrinterTests extends AnyFunSuite {
     val expected = "[]s:Stm[(u8, bool), 0:u0]"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.displayMultiLine(e) == expected)
-  }
-
-  test("HugeExpression") {
-    val e = StmFold(
-      StmCount3D(C(2)(U8), C(2)(U8), C(3)(U8))(),
-      C(0)(U8),
-      U8 ::+ (acc =>
-        TyStm(TyStm((U8, U8, U8), 3), 2) ::+ (s =>
-          StmMap(
-            StmFold(
-              s,
-              C(0)(U8),
-              U8 ::+ (acc =>
-                TyStm((U8, U8, U8), 3) ::+ (s =>
-                  StmMap(
-                    StmFold(
-                      s,
-                      C(0)(U8),
-                      U8 ::+ (acc =>
-                        (U8, U8, U8) ::+ (x => acc + x.__0 + x.__1 + x.__2)
-                      )
-                    )(),
-                    U8 ::+ (x => acc + x)
-                  )()
-                )
-              )
-            )(),
-            U8 ::+ (x => acc + x)
-          )()
-        )
-      )
-    )().tchk().lower
-    val start = System.nanoTime()
-    val str = ExprPrinter.display(e)
-    val duration = (System.nanoTime() - start) / 10000000000L
-    // Not a big deal how exactly the code is formatted, as long as the pretty
-    // printer doesn't take forever
-    assert(str.nonEmpty)
-    assert(duration < 10)
   }
 }

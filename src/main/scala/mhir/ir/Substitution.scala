@@ -82,7 +82,7 @@ private[ir] trait Substitution {
                   val rhsFreeVars = subs.toSeq
                     .flatMap({ case (_, rhs) => rhs.freeVars })
                     .toSet
-                  val renamings = s.accVars
+                  val renamings = s.namesDefinedHere
                     .flatMap({ x =>
                       val wouldCapture = rhsFreeVars.contains(x)
                       if (wouldCapture) Some(x -> x.freshCopy) else None
@@ -94,7 +94,7 @@ private[ir] trait Substitution {
                       // free on the left-hand side are no longer needed: that
                       // variable is bound now.
                       .filter({ case (lhs, _) =>
-                        lhs.freeVars.intersect(s.accVars).isEmpty
+                        lhs.freeVars.intersect(s.namesDefinedHere).isEmpty
                       })
                       .++(renamings)
                   StmBuild(
@@ -105,15 +105,23 @@ private[ir] trait Substitution {
                     s.n.subPreserveType(subs),
                     s.data.subPreserveType(newSubs),
                     s.valid.subPreserveType(newSubs),
-                    s.equations.map({ case (x, (z, next)) =>
+                    s.accumulators.map({ case (x, (init, next)) =>
                       // There may be substitutions to do in the type
                       val renamedX = renamings.getOrElse(x, x)
-                      val newX = Param(renamedX.prefix, renamedX.id)(
-                        renamedX.typ.substitute(subs)
-                      )
-                      val newZ = z.subPreserveType(subs)
+                      val newTyp = renamedX.typ.substitute(subs)
+                      val newX = Param(renamedX.prefix, renamedX.id)(newTyp)
+                      val newInit = init.subPreserveType(subs)
                       val newNext = next.subPreserveType(newSubs)
-                      newX -> (newZ, newNext)
+                      newX -> (newInit, newNext)
+                    }),
+                    s.producers.map({ case (x, (stm, ready)) =>
+                      // There may be substitutions to do in the type
+                      val renamedX = renamings.getOrElse(x, x)
+                      val newTyp = renamedX.typ.substitute(subs)
+                      val newX = Param(renamedX.prefix, renamedX.id)(newTyp)
+                      val newStm = stm.subPreserveType(subs)
+                      val newReady = ready.subPreserveType(newSubs)
+                      newX -> (newStm, newReady)
                     })
                   )(s.typ.substitute(subs), annotations = s.annotations)
                 }
@@ -200,7 +208,7 @@ private[ir] trait Substitution {
                 val rhsFreeVars = subs.toSeq
                   .flatMap({ case (_, rhs) => rhs.freeVars })
                   .toSet
-                val renamings = s.accVars
+                val renamings = s.namesDefinedHere
                   .flatMap({ x =>
                     val wouldCapture = rhsFreeVars.contains(x)
                     if (wouldCapture) Some(x -> x.freshCopy) else None
@@ -212,7 +220,7 @@ private[ir] trait Substitution {
                     // free on the left-hand side are no longer needed: that
                     // variable is bound now.
                     .filter({ case (lhs, _) =>
-                      lhs.freeVars.intersect(s.accVars).isEmpty
+                      lhs.freeVars.intersect(s.namesDefinedHere).isEmpty
                     })
                     .++(renamings)
                 StmBuild(
@@ -223,15 +231,23 @@ private[ir] trait Substitution {
                   s.n.subAndEraseType(subs),
                   s.data.subAndEraseType(newSubs),
                   s.valid.subAndEraseType(newSubs),
-                  s.equations.map({ case (x, (z, next)) =>
+                  s.accumulators.map({ case (x, (init, next)) =>
                     // There may be substitutions to do in the type
                     val renamedX = renamings.getOrElse(x, x)
-                    val newX = Param(renamedX.prefix, renamedX.id)(
-                      renamedX.typ.substitute(subs)
-                    )
-                    val newZ = z.subAndEraseType(subs)
+                    val newTyp = renamedX.typ.substitute(subs)
+                    val newX = Param(renamedX.prefix, renamedX.id)(newTyp)
+                    val newInit = init.subAndEraseType(subs)
                     val newNext = next.subAndEraseType(newSubs)
-                    newX -> (newZ, newNext)
+                    newX -> (newInit, newNext)
+                  }),
+                  s.producers.map({ case (x, (stm, ready)) =>
+                    // There may be substitutions to do in the type
+                    val renamedX = renamings.getOrElse(x, x)
+                    val newTyp = renamedX.typ.substitute(subs)
+                    val newX = Param(renamedX.prefix, renamedX.id)(newTyp)
+                    val newStm = stm.subAndEraseType(subs)
+                    val newReady = ready.subAndEraseType(newSubs)
+                    newX -> (newStm, newReady)
                   })
                 )(annotations = s.annotations)
               case InterpretAs(e, targetTyp) =>

@@ -495,7 +495,8 @@ class TypecheckerTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           a -> (C(0)(), Mux(b, a + 2, a + 1)()),
           b -> (False, Not(b)() || (a % 4 === 0))
-        )
+        ),
+        Map()
       )()
     val checked = original.tchk(Map(n -> U16), Map())
     assert(checked.typ == TyStm(U8, n.rebuild(U16)))
@@ -512,11 +513,13 @@ class TypecheckerTests extends AnyFunSuite {
       a,
       True,
       Map[Param, (Expr, Expr)](
-        s -> (input, a % 2 === 0),
         a -> (
           ReshapeData(0, I16)(),
           Mux(a % 2 === 0, a + StmData(s)(), a + 1)()
         )
+      ),
+      Map[Param, (Expr, Expr)](
+        s -> (input, a % 2 === 0)
       )
     )()
     val checked = original.tchk(Map(input -> TyStm(I16, n)), Map())
@@ -535,6 +538,7 @@ class TypecheckerTests extends AnyFunSuite {
         n,
         Tuple(StmData(s1)(), StmData(s2)())(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s1 -> (x, True),
           s2 -> (x, True)
@@ -678,25 +682,31 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("StmBuild:NonIntLength") {
-    val e = StmBuild(True, 5, True)()
+    val e = StmBuild(True, 5, True, Map(), Map())()
     assertThrows[TypeError](e.tchk())
   }
 
   test("StmBuild:NonBoolValid") {
-    val e = StmBuild(42, Tuple(43, 44)(), 45)()
+    val e = StmBuild(42, Tuple(43, 44)(), 45, Map(), Map())()
     assertThrows[TypeError](e.tchk())
   }
 
   test("StmBuild:InitWrongType") {
     val a = Param("a")(U8)
-    val e =
-      StmBuild(4, a, True, Map[Param, (Expr, Expr)](a -> (True, C(0)(U8))))()
+    val e = StmBuild(
+      4,
+      a,
+      True,
+      Map[Param, (Expr, Expr)](a -> (True, C(0)(U8))),
+      Map()
+    )()
     assertThrows[TypeError](e.tchk())
   }
 
   test("StmBuild:NextWrongType") {
     val a = Param("a")()
-    val e = StmBuild(2, 5, True, Map[Param, (Expr, Expr)](a -> (0, True)))()
+    val e =
+      StmBuild(2, 5, True, Map[Param, (Expr, Expr)](a -> (0, True)), Map())()
     assertThrows[TypeError](e.tchk())
   }
 
@@ -709,7 +719,8 @@ class TypecheckerTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         a -> (VecBuild(10, U8 ::+ (i => i))(),
         VecBuild(11, U8 ::+ (i => i))())
-      )
+      ),
+      Map()
     )()
     assertThrows[TypeError](e.tchk())
   }

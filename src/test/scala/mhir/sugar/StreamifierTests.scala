@@ -4,7 +4,6 @@ import mhir.canonicalize._
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
 import mhir.sugar.Streamifier.Streamify
-import mhir.sugar.experimental.StmFold
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -72,6 +71,7 @@ class StreamifierTests extends AnyFunSuite {
           n,
           C(5)(U8) + StmData(x)(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             x -> (s, True)
           )
@@ -107,6 +107,7 @@ class StreamifierTests extends AnyFunSuite {
             10,
             StmData(x)(),
             True,
+            Map(),
             Map[Param, (Expr, Expr)](x -> (x, True))
           )()
         )
@@ -125,6 +126,7 @@ class StreamifierTests extends AnyFunSuite {
             10,
             StmData(y)(),
             True,
+            Map(),
             Map[Param, (Expr, Expr)](y -> (y, True))
           )()
         )
@@ -142,7 +144,8 @@ class StreamifierTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           i -> (c, i + C(1)(U8))
-        )
+        ),
+        Map()
       )()
     )).tchk().lower
     val actual = f.streamify.asInstanceOf[Function]
@@ -176,9 +179,9 @@ class StreamifierTests extends AnyFunSuite {
     val f = {
       val c = Param("c")(U8)
       val n1 = 3
-      val cst1 = StmBuild(n1, c, True)()
+      val cst1 = StmBuild(n1, c, True, Map(), Map())()
       val n2 = 5
-      val cst2 = StmBuild(n2, C(42)(U8), True)()
+      val cst2 = StmBuild(n2, C(42)(U8), True, Map(), Map())()
       val concat = {
         val t = Param("t")(U8)
         val s0 = Param("s0")(TyStm(U8, -1))
@@ -188,7 +191,9 @@ class StreamifierTests extends AnyFunSuite {
           Mux(t lt C(n1)(U8), StmData(s0)(), StmData(s1)())(),
           True,
           Map[Param, (Expr, Expr)](
-            t -> (C(0)(U8), Sum(C(1)(U8), t)()),
+            t -> (C(0)(U8), Sum(C(1)(U8), t)())
+          ),
+          Map[Param, (Expr, Expr)](
             s0 -> (cst1, t lt C(n1)(U8)),
             s1 -> (cst2, t geq C(n1)(U8))
           )
@@ -228,13 +233,15 @@ class StreamifierTests extends AnyFunSuite {
           True,
           Map[Param, (Expr, Expr)](
             isFirstStep -> (True, False),
-            cBuf -> (Undefined(U8), Mux(isFirstStep, StmData(cStm)(), cBuf)()),
+            cBuf -> (Undefined(U8), Mux(isFirstStep, StmData(cStm)(), cBuf)())
+          ),
+          Map[Param, (Expr, Expr)](
             cStm -> (c, isFirstStep)
           )
         )()
       }
       val n2 = 5
-      val cst2 = StmBuild(n2, C(42)(U8), True)()
+      val cst2 = StmBuild(n2, C(42)(U8), True, Map(), Map())()
       val concat = {
         val t = Param("t")(U8)
         val s0 = Param("s0")(TyStm(U8, -1))
@@ -244,7 +251,9 @@ class StreamifierTests extends AnyFunSuite {
           Mux(t lt C(n1)(U8), StmData(s0)(), StmData(s1)())(),
           True,
           Map[Param, (Expr, Expr)](
-            t -> (C(0)(U8), Sum(C(1)(U8), t)()),
+            t -> (C(0)(U8), Sum(C(1)(U8), t)())
+          ),
+          Map[Param, (Expr, Expr)](
             s0 -> (cst1, t lt C(n1)(U8)),
             s1 -> (cst2, t geq C(n1)(U8))
           )
@@ -267,8 +276,10 @@ class StreamifierTests extends AnyFunSuite {
       Mux(even === b, StmData(s)(), C(42)(U8))(),
       True,
       Map[Param, (Expr, Expr)](
-        s -> (StmCount(C(n)(U8))(), even === b),
         b -> (True, !b)
+      ),
+      Map[Param, (Expr, Expr)](
+        s -> (StmCount(C(n)(U8))(), even === b)
       )
     )()
     val originalFunc = Function(even, originalStm)().tchk().lower
@@ -296,9 +307,11 @@ class StreamifierTests extends AnyFunSuite {
       Mux(evenAcc === b, StmData(s)(), C(42)(U8))(),
       True,
       Map[Param, (Expr, Expr)](
-        s -> (StmCount(C(n)(U8))(), evenAcc === b),
         b -> (True, !b),
         evenAcc -> (even, evenAcc)
+      ),
+      Map[Param, (Expr, Expr)](
+        s -> (StmCount(C(n)(U8))(), evenAcc === b)
       )
     )()
     val originalFunc = Function(even, originalStm)().tchk().lower
@@ -389,7 +402,7 @@ class StreamifierTests extends AnyFunSuite {
   test("FreeVar:u8") {
     val n = 11
     val c = Param("c")(U8)
-    val original = StmBuild(n, c, True)().tchk().lower
+    val original = StmBuild(n, c, True, Map(), Map())().tchk().lower
     val actual = original.streamify
     assert(actual == original)
   }
@@ -403,6 +416,7 @@ class StreamifierTests extends AnyFunSuite {
       n,
       Sum(C(5)(U8), StmData(acc)())(),
       True,
+      Map(),
       Map[Param, (Expr, Expr)](
         acc -> (s, True)
       )
@@ -420,12 +434,17 @@ class StreamifierTests extends AnyFunSuite {
   }
 
   // The lengths of non-top-level streams should not depend on any input.
-  // TODO: Maybe it would be possible to allow it by fusion. But there's no
+  // NOTE: Maybe it would be possible to allow it by fusion. But there's no
   //       clear use case for it, as far as I know, and it's extra complexity.
   test("ProducerStreamLengthDependingOnInput") {
-    val f = (U8 ::+ (n => StmFold(StmCount(n)(), C(0)(U8), PlusFunction(U8))()))
-      .tchk()
-      .lower
+    val f =
+      (U8 ::+ (n =>
+        StmFold1D(
+          StmCount(n)(),
+          C(0)(U8),
+          (U8, U8) ::+ (x => Sum(x.__0, x.__1)())
+        )()
+      )).tchk().lower
     val exc = intercept[IllegalArgumentException](f.streamify)
     assert(exc.getMessage.startsWith("Types cannot depend on any inputs."))
   }

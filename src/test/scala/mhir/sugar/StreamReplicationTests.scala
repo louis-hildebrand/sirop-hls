@@ -21,6 +21,7 @@ class StreamReplicationTests extends AnyFunSuite {
           n,
           StmData(s)() % 2 === 0,
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s -> (x, True)
           )
@@ -33,6 +34,7 @@ class StreamReplicationTests extends AnyFunSuite {
           n,
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s0 -> (map, True),
             s1 -> (x, True)
@@ -86,7 +88,8 @@ class StreamReplicationTests extends AnyFunSuite {
           True,
           Map[Param, (Expr, Expr)](
             a -> (C(0)(U8), Sum(C(1)(U8), a)())
-          )
+          ),
+          Map()
         )()
       }
       val zip = {
@@ -96,6 +99,7 @@ class StreamReplicationTests extends AnyFunSuite {
           n,
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s0 -> (ctr, True),
             s1 -> (input, True)

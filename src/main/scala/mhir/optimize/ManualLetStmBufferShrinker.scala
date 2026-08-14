@@ -22,20 +22,9 @@ class ManualLetStmBufferShrinker(maxBufSize: Int) extends LetStmBufferShrinker {
   private def doShrinkBuffers(e: Expr): Expr = {
     val result = e match {
       case s: StmBuild =>
-        val newEquations = s.equations
-          .map({
-            case (x, (stm, ready)) if x.typ.isInstanceOf[TyStm] =>
-              x -> (doShrinkBuffers(stm), ready)
-            case (x, (z, next)) =>
-              assert(x.typ.isData)
-              x -> (z, next)
-          })
-        StmBuild(
-          n = s.n,
-          data = s.data,
-          valid = s.valid,
-          equations = newEquations
-        )()
+        s.mapProducers({ case (x, (stm, ready)) =>
+          x -> (doShrinkBuffers(stm), ready)
+        })
       case LetStm(bufSize, x, in, out) =>
         val in1 = doShrinkBuffers(in)
         val out1 = doShrinkBuffers(out)

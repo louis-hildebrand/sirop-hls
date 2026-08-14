@@ -50,9 +50,17 @@ case class UnusedDataAnalysis(target: Param) {
 
   def findUnused(s: StmBuild): UseStatus = {
     require(target.typ.isInstanceOf[TyStm])
-    require(s.accVars.contains(target))
+    require(s.namesDefinedHere.contains(target))
     val TyStm(dataTyp, _) = target.typ
-    (s.data +: s.valid +: s.nextByVar.values.toSeq)
+    val expressionsToCheck = {
+      // No need to check the producers' `ready` expressions: they're not
+      // allowed to use sdata
+      s.data +: s.valid +:
+        s.accumulators
+          .map({ case (_, (_, next)) => next })
+          .toSeq
+    }
+    expressionsToCheck
       .foldLeft(init(dataTyp))({ case (acc, e) =>
         this.findUses(e, acc, Seq())
       })

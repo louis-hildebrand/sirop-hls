@@ -68,7 +68,8 @@ class SubstitutionTests extends AnyFunSuite {
           )()
         ),
         y -> (x.__1 / 2 + z, y + 2 + z)
-      )
+      ),
+      Map()
     )()
     val original = Tuple(2 * x.__1 * z, stm)().tchk(context, Map())
     val subs = Map[Expr, Expr](x.__1 -> y, z -> IntCst(99)(U8))
@@ -88,7 +89,8 @@ class SubstitutionTests extends AnyFunSuite {
             )()
           ),
           y2 -> (y / 2 + IntCst(99)(), y2 + 2 + IntCst(99)())
-        )
+        ),
+        Map()
       )()
     )()
 
@@ -105,8 +107,10 @@ class SubstitutionTests extends AnyFunSuite {
       StmData(s)(),
       True,
       Map[Param, (Expr, Expr)](
-        s -> (s, True),
         n -> (C(0)(U8), Sum(C(1)(U8), n)())
+      ),
+      Map[Param, (Expr, Expr)](
+        s -> (s, True)
       )
     )().tchk()
     val n2 = Param("n2")(U8)
@@ -120,8 +124,10 @@ class SubstitutionTests extends AnyFunSuite {
         StmData(ss)(),
         True,
         Map[Param, (Expr, Expr)](
-          ss -> (s2, True),
           nn -> (C(0)(U8), Sum(C(1)(U8), nn)())
+        ),
+        Map[Param, (Expr, Expr)](
+          ss -> (s2, True)
         )
       )()
     }
@@ -186,6 +192,7 @@ class SubstitutionTests extends AnyFunSuite {
           n,
           Sum(StmData(s0Var)(), StmData(s1Var)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s0Var -> (x, True),
             s1Var -> (a, True)
@@ -199,6 +206,7 @@ class SubstitutionTests extends AnyFunSuite {
           n,
           Sum(C(1)(U16), StmData(sVar)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](sVar -> (x, True))
         )()
         LetStm(1, nextX, map, before(nextX, a, numBefore - 1, numAfter))()
@@ -214,6 +222,7 @@ class SubstitutionTests extends AnyFunSuite {
           n,
           Sum(C(2)(U16), StmData(sVar)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](sVar -> (x, True))
         )()
         LetStm(1, nextX, map, after(nextX, numAfter - 1))()
@@ -287,7 +296,8 @@ class SubstitutionTests extends AnyFunSuite {
           VecBuild(n, U8 ::+ (i => i))(),
           VecShiftLeft(v, IntCst(42)(U8))()
         )
-      )
+      ),
+      Map()
     )().tchk()
 
     val actual = e.subPreserveType(n -> (m + k).tchk())
@@ -301,13 +311,15 @@ class SubstitutionTests extends AnyFunSuite {
           VecBuild(m + k, U8 ::+ (i => i))(),
           VecShiftLeft(v, IntCst(42)(U8))()
         )
-      )
+      ),
+      Map()
     )()
     assert(actual == expected)
     val expectedStmType = TyStm(U8, m + k)
     assert(actual.typ == expectedStmType)
     val expectedVecType = TyVec(U8, m + k)
-    val actualVecParam = actual.asInstanceOf[StmBuild].equations.toSeq.head._1
+    val (actualVecParam, _) =
+      actual.asInstanceOf[StmBuild].accumulators.toSeq.head
     assert(actualVecParam.typ == expectedVecType)
   }
 
@@ -334,6 +346,7 @@ class SubstitutionTests extends AnyFunSuite {
         4,
         StmData(s)(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](s -> (s1, True))
       )()
     }
@@ -344,11 +357,12 @@ class SubstitutionTests extends AnyFunSuite {
         4,
         StmData(s)(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](s -> (s2, True))
       )()
     }
     assert(actual == expected)
-    val actualInputStm = actual.equations.toSeq.head._2._1
+    val (_, (actualInputStm, _)) = actual.producers.toSeq.head
     assert(actualInputStm == s2)
     assert(actualInputStm.typ == TyStm(U8, 20))
   }

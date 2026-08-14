@@ -15,33 +15,26 @@ object StmAccRemovalPass {
 
   /** For each accumulator element that definitely never changes, replace each
     * use of that variable with its constant value and remove the variable from
-    * the set of equations for the stream.
+    * the set of accumulators for the stream.
     */
-  def removeConstantVars(stm: StmBuild): StmBuild = {
-    val constantVars = findConstantAccumulatorElems(
+  def removeConstantAccumulators(stm: StmBuild): StmBuild = {
+    val constantVars = findConstantAccumulators(
       stm,
       // Replacing all uses with the initial value probably wouldn't work if
       // the element is a stream
-      candidates = stm.accVars.filter(_.typ.isData)
+      candidates = stm.accumulators.map({ case (x, _) => x }).toSet
     )
-    val replacements = stm.seedByVar
-      .filter({ case (x, _) => constantVars.contains(x) })
+    val replacements = stm.accumulators
+      .collect({ case (x, (z, _)) if constantVars.contains(x) => x -> z })
     stm.replaceVars(replacements)
   }
 
-  /** Remove unused accumulator elements from the given stream. This pass
-    * assumes the stream is already in canonical form (e.g., the accumulator is
-    * a flat tuple).
+  /** Remove unused accumulator elements from the given stream.
     */
   def removeUnusedVars(stm: StmBuild): StmBuild = {
     val usedElems =
-      stm.accVarDependencies.transitiveDependencies(stm.outputDependencies)
-    StmBuild(
-      stm.n,
-      stm.data,
-      stm.valid,
-      stm.equations.filter({ case (x, _) => usedElems.contains(x) })
-    )()
+      stm.internalDependencies.transitiveDependencies(stm.outputDependencies)
+    stm.removeVarsExcept(usedElems)
   }
 
   def deduplicateVars(stm: StmBuild): StmBuild = {
@@ -90,7 +83,7 @@ object StmAccRemovalPass {
   }
 
   @tailrec
-  private def findConstantAccumulatorElems(
+  private def findConstantAccumulators(
       stm: StmBuild,
       candidates: Set[Param]
   ): Set[Param] = {
@@ -100,21 +93,24 @@ object StmAccRemovalPass {
     if (candidates.isEmpty) {
       Set()
     } else {
-      val currentValByVar = stm.seedByVar.map({ case (x, z) =>
-        if (candidates.contains(x)) x -> z
-        else x -> Param("unknown")(x.typ)
-      })
-      val nextValByVar = stm.nextByVar.map({ case (x, next) =>
-        x -> PartialEvalPass.partialEval(
-          next.subPreserveType(currentValByVar.toMap[Expr, Expr])
-        )
+      val initByAccumulator =
+        stm.accumulators.map({ case (x, (init, _)) =>
+          if (candidates.contains(x)) {
+            x -> init
+          } else {
+            x -> Param("unknown")(x.typ)
+          }
+        })
+      val subs = initByAccumulator.toMap[Expr, Expr]
+      val nextByAccumulator = stm.accumulators.map({ case (x, (_, next)) =>
+        x -> PartialEvalPass.partialEval(next.subPreserveType(subs))
       })
       val constantVars =
-        candidates.filter(x => nextValByVar(x) == currentValByVar(x))
-      if (constantVars == candidates) {
+        candidates.filter(x => nextByAccumulator(x) == initByAccumulator(x))
+      if (constantVars.size == candidates.size) {
         constantVars
       } else {
-        findConstantAccumulatorElems(stm, candidates = constantVars)
+        findConstantAccumulators(stm, candidates = constantVars)
       }
     }
   }
@@ -146,7 +142,7 @@ object StmAccRemovalPass {
         .toMap[Expr, Expr]
       val nextByVar = cls
         .map({ x =>
-          val next = stm.nextByVar(x)
+          val next = stm.nextOrReady(x)
           val nextWithSub = next.subPreserveType(subs)
           val simplifiedNext =
             try {
@@ -187,8 +183,8 @@ object StmAccRemovalPass {
     }
 
     val initialEquivClasses =
-      stm.seedByVar
-        .filter({ case (x, _) => x.typ.isData })
+      stm.accumulators
+        .map({ case (x, (init, _)) => x -> init })
         .groupBy({ case (_, z) => z })
         .map({ case (_, eqns) => eqns.map({ case (x, _) => x }).toSet })
         .toSet
@@ -196,8 +192,7 @@ object StmAccRemovalPass {
   }
 
   private def findDuplicateInputs(stm: StmBuild): Set[Set[Param]] = {
-    stm.equations
-      .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+    stm.producers
       .groupBy({ case (_, (s, ready)) => (s, ready) })
       .map({ case (_, eqns) => eqns.map({ case (x, _) => x }).toSet })
       .toSet

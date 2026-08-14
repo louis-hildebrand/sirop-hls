@@ -40,7 +40,6 @@ class LatencyMatcherTests extends AnyFunSuite {
           buf,
           i === C(0)(U8),
           Map[Param, (Expr, Expr)](
-            s -> (zip, i === C(0)(U8)),
             i -> (
               C(0)(U8),
               Mux(
@@ -54,6 +53,9 @@ class LatencyMatcherTests extends AnyFunSuite {
               AllZero((U8, U8)).lower,
               Mux(i === C(0)(U8), StmData(s)(), buf)()
             )
+          ),
+          Map[Param, (Expr, Expr)](
+            s -> (zip, i === C(0)(U8))
           )
         )()
       }
@@ -153,9 +155,11 @@ class LatencyMatcherTests extends AnyFunSuite {
           buf,
           i === 2,
           Map[Param, (Expr, Expr)](
-            sAcc -> (s, i === 0),
             i -> (C(0)(U8), Mux(i === 2, C(0)(U8), Sum(C(1)(U8), i)())()),
             buf -> (C(0)(U8), Mux(i === 0, StmData(sAcc)(), buf)())
+          ),
+          Map[Param, (Expr, Expr)](
+            sAcc -> (s, i === 0)
           )
         )().tchk()
       }
@@ -188,7 +192,8 @@ class LatencyMatcherTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           i -> (C(0)(U8), Sum(C(1)(U8), i)())
-        )
+        ),
+        Map()
       )()
     }
     val original = {
@@ -202,9 +207,11 @@ class LatencyMatcherTests extends AnyFunSuite {
           acc + StmData(s)(),
           t === C(m - 1)(U8),
           Map[Param, (Expr, Expr)](
-            s -> (x, True),
             acc -> (C(0)(U8), acc + StmData(s)()),
             t -> (C(0)(U8), Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)())
+          ),
+          Map[Param, (Expr, Expr)](
+            s -> (x, True)
           )
         )().tchk()
       }
@@ -218,12 +225,14 @@ class LatencyMatcherTests extends AnyFunSuite {
           VecShiftLeft(acc, StmData(s)())(),
           t === C(m - 1)(U8),
           Map[Param, (Expr, Expr)](
-            s -> (x, True),
             acc -> (
               VecBuild(m, U8 ::+ (_ => AllZero(U8)))(),
               VecShiftLeft(acc, StmData(s)())()
             ),
             t -> (C(0)(U8), Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)())
+          ),
+          Map[Param, (Expr, Expr)](
+            s -> (x, True)
           )
         )().tchk()
       }

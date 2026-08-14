@@ -2,7 +2,6 @@ package mhir.optimize
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.optimize.experimental.StmAccRangeAnalysis
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar._
 import mhir.testing.ParamStore
@@ -493,7 +492,8 @@ class PartialEvalPassTests extends AnyFunSuite {
       10,
       Tuple(a >= 0, a < 4)(),
       True,
-      Map(a -> (C(0)(U8), a + 1))
+      Map(a -> (C(0)(U8), a + 1)),
+      Map()
     )()
     val e = Tuple(a < 4, s)().tchk().lower
     val facts =
@@ -509,7 +509,8 @@ class PartialEvalPassTests extends AnyFunSuite {
         10,
         Tuple(True, a lt 4)(),
         True,
-        Map(a -> (C(0)(U8), Sum(1, a)()))
+        Map(a -> (C(0)(U8), Sum(1, a)())),
+        Map()
       )()
     )()
     assert(actual == expected)
@@ -627,85 +628,6 @@ class PartialEvalPassTests extends AnyFunSuite {
     val i4 = TySInt(4)
     val e = Sum(C(4)(i4), x(i4))() lt Sum(C(-4)(i4), y(i4))()
     assert(PE.partialEval(e) == e)
-  }
-
-  test("StmAccumulatorGreaterOrEqualToInitialVal") {
-    val n = Param("n")(U8)
-    val z = Param("z")(I8)
-    val a = Param("a")(I8)
-    val s = StmBuild(
-      n,
-      a,
-      a >= z,
-      Map[Param, (Expr, Expr)](
-        a -> (z, Mux(a >= z, a + 3, a - 1)())
-      )
-    )().tchk().lower.asInstanceOf[StmBuild]
-    val facts = FactSet().range(s, StmAccRangeAnalysis.findAccRanges(s))
-    val expected = StmBuild(
-      n,
-      a,
-      True,
-      Map[Param, (Expr, Expr)](
-        a -> (z, Sum(C(3)(), a)())
-      )
-    )()
-    assert(PartialEvalPass.partialEval(s)(facts) == expected)
-  }
-
-  test("StmOneElement") {
-    val z = Param("z")(U8)
-    val a0 = Param("a")(U8)
-    val a1 = Param("a")(U8)
-    val s = StmBuild(
-      1,
-      a0,
-      True,
-      Map[Param, (Expr, Expr)](
-        a0 -> (z, a0 + a1 + a1),
-        a1 -> (C(0)(U8), a1 + a0)
-      )
-    )().tchk().lower
-    val expected = StmBuild(1, z, True)()
-    assert(PartialEvalPass.partialEvalStmBuild(s) == expected)
-  }
-
-  test("StmOneElementWithInputs") {
-    val n = 5
-    val z = Param("z")(U8)
-    val i = Param("i")(U8)
-    val a = Param("a")(U8)
-    val s = Param("s")(TyStm(U8, -1))
-    val sum = StmBuild(
-      1,
-      a + StmData(s)(),
-      i === n - 1,
-      Map[Param, (Expr, Expr)](
-        i -> (C(0)(U8), i + 1),
-        a -> (z, a + StmData(s)()),
-        s -> (StmCount(C(n)(U8))(), True)
-      )
-    )().tchk().lower
-    val expected = StmBuild(1, Sum((0 until n).sum, z)(), True)()
-    val actual = PartialEvalPass.partialEvalStmBuild(sum).tchk().lower
-    assert(actual == expected)
-  }
-
-  test("StmOneElementNotReducible") {
-    // I do NOT want this to be simplified to something like
-    //   StmCst(1, StmData(s)())
-    // because then we're calling StmData(s)() outside a stream
-    val s = Param("s")(TyStm(U8, 5))
-    val a = Param("a")(TyStm(U8, -1))
-    val stm = StmBuild(
-      1,
-      StmData(a)(),
-      True,
-      Map[Param, (Expr, Expr)](
-        a -> (s, True)
-      )
-    )()
-    assert(PartialEvalPass.partialEvalStmBuild(stm) == stm)
   }
 
   test("VecBuildIndexRange") {

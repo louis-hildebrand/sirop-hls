@@ -190,7 +190,8 @@ class EvalTests extends AnyFunSuite {
         5,
         i + 42,
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(9)(U16), 2 * i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(9)(U16), 2 * i + 1)),
+        Map()
       )()
     val expected = StmLiteral(9 + 42, 19 + 42, 39 + 42, 79 + 42, 159 + 42)()
     val actual = mhir.eval.eval(s)
@@ -198,7 +199,7 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("ObviousInfiniteLoop") {
-    val s = StmBuild(1, 0, False, Map[Param, (Expr, Expr)]())()
+    val s = StmBuild(1, 0, False, Map(), Map())()
     val exc = intercept[DeadlockError](mhir.eval.eval(s))
     assert(exc.reasons == Seq(PipelineFixpoint))
   }
@@ -211,7 +212,8 @@ class EvalTests extends AnyFunSuite {
       a % 2 === 1,
       Map[Param, (Expr, Expr)](
         a -> (ReshapeData(0, U32)(), a + 2)
-      )
+      ),
+      Map()
     )().tchk()
     val exc = intercept[DeadlockError](mhir.eval.eval(s))
     assert(exc.reasons == Seq(TooManySteps))
@@ -223,8 +225,9 @@ class EvalTests extends AnyFunSuite {
       1,
       StmData(s)(),
       True,
+      Map(),
       Map[Param, (Expr, Expr)](
-        s -> (StmBuild(1, 0, False)(), True)
+        s -> (StmBuild(1, 0, False, Map(), Map())(), True)
       )
     )()
     val exc = intercept[DeadlockError](mhir.eval.eval(stm))
@@ -238,8 +241,9 @@ class EvalTests extends AnyFunSuite {
         2,
         StmData(s)(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
-          s -> (StmBuild(1, 0, True)(), True)
+          s -> (StmBuild(1, 0, True, Map(), Map())(), True)
         )
       )()
     }
@@ -743,7 +747,8 @@ class EvalTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           i -> (C(0)(U8), Sum(C(1)(U8), i)())
-        )
+        ),
+        Map()
       )()
     }
     val s = Param("s")(TyStm(U8, 5))
@@ -755,6 +760,7 @@ class EvalTests extends AnyFunSuite {
         5,
         Tuple(StmData(s0)(), StmData(s1)())(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s0 -> (s, True),
           s1 -> (s, True)
@@ -783,7 +789,8 @@ class EvalTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           i -> (C(0)(U8), Sum(C(1)(U8), i)())
-        )
+        ),
+        Map()
       )()
     }
     val s = Param("s")(TyStm(U8, 5))
@@ -794,6 +801,7 @@ class EvalTests extends AnyFunSuite {
         5,
         Sum(C(5)(U8), StmData(a)())(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           a -> (s, True)
         )
@@ -807,6 +815,7 @@ class EvalTests extends AnyFunSuite {
         5,
         Tuple(StmData(s0)(), StmData(s1)())(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s0 -> (s, True),
           s1 -> (plusFive, True)
@@ -824,6 +833,7 @@ class EvalTests extends AnyFunSuite {
           Sum(Prod(C(3)(U8), StmData(a)().__0)(), StmData(a)().__1)()
         )(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           a -> (LetStm(1, s, count, zipped)(), True)
         )
@@ -850,7 +860,8 @@ class EvalTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           i -> (C(0)(U8), Sum(C(1)(U8), i)())
-        )
+        ),
+        Map()
       )()
     }
     val s = Param("s")(TyStm(U8, 5))
@@ -864,7 +875,9 @@ class EvalTests extends AnyFunSuite {
         Mux(t lt C(5)(U8), StmData(s0)(), StmData(s1)())(),
         True,
         Map[Param, (Expr, Expr)](
-          t -> (C(0)(U8), Sum(C(1)(U8), t)()),
+          t -> (C(0)(U8), Sum(C(1)(U8), t)())
+        ),
+        Map[Param, (Expr, Expr)](
           s0 -> (s, t lt C(5)(U8)),
           s1 -> (s, t geq C(5)(U8))
         )
@@ -886,7 +899,8 @@ class EvalTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           i -> (C(0)(U8), Sum(C(1)(U8), i)())
-        )
+        ),
+        Map()
       )()
     }
     val s = Param("s")(TyStm(U8, n))
@@ -900,7 +914,9 @@ class EvalTests extends AnyFunSuite {
         Mux(t lt C(n)(U8), StmData(s0)(), StmData(s1)())(),
         True,
         Map[Param, (Expr, Expr)](
-          t -> (C(0)(U8), Sum(C(1)(U8), t)()),
+          t -> (C(0)(U8), Sum(C(1)(U8), t)())
+        ),
+        Map[Param, (Expr, Expr)](
           s0 -> (s, t lt C(n)(U8)),
           s1 -> (s, t geq C(n)(U8))
         )
@@ -928,7 +944,8 @@ class EvalTests extends AnyFunSuite {
           True,
           Map[Param, (Expr, Expr)](
             i -> (C(0)(U8), Sum(C(1)(U8), i)())
-          )
+          ),
+          Map()
         )().tchk()
       }
       val x = Param("s")(TyStm(U8, n * m))
@@ -952,7 +969,9 @@ class EvalTests extends AnyFunSuite {
                 C(0)(U8),
                 Sum(StmData(s)(), acc)()
               )()
-            ),
+            )
+          ),
+          Map(
             s -> (x, True)
           )
         )().tchk()
@@ -968,7 +987,9 @@ class EvalTests extends AnyFunSuite {
             t -> (
               C(0)(U8),
               Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
-            ),
+            )
+          ),
+          Map[Param, (Expr, Expr)](
             s -> (x, True)
           )
         )().tchk()
@@ -980,6 +1001,7 @@ class EvalTests extends AnyFunSuite {
           n,
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s0 -> (rowSums, True),
             s1 -> (rowHeads, True)
@@ -1008,13 +1030,15 @@ class EvalTests extends AnyFunSuite {
           n,
           a,
           True,
-          Map[Param, (Expr, Expr)](a -> (C(0)(U8), Sum(C(1)(U8), a)()))
+          Map[Param, (Expr, Expr)](a -> (C(0)(U8), Sum(C(1)(U8), a)())),
+          Map()
         )().tchk()
       }
       StmBuild(
         n,
         StmData(s)(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](s -> (count, False))
       )().tchk()
     }

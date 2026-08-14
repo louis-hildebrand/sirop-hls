@@ -53,16 +53,11 @@ object LetStmMover {
     val result = e match {
       case s: StmBuild =>
         def pullOutLet(s: StmBuild): Expr = {
-          val x = s.seedByVar
-            .find({
-              case (_, _: LetStm) => true
-              case _              => false
-            })
-            .map(_._1)
+          val x = s.producers.collectFirst({ case (x, (_: LetStm, _)) => x })
           x match {
             case Some(x) =>
               val LetStm(bufSize, y, in, out) =
-                s.seedByVar(x).asInstanceOf[LetStm]
+                s.initOrStm(x).asInstanceOf[LetStm]
               val newY = y.freshCopy
               val newOut = out.tchk().subPreserveType(y -> newY)
               LetStm(
@@ -70,37 +65,22 @@ object LetStmMover {
                 newY,
                 in,
                 pullOutLet(
-                  StmBuild(
-                    s.n,
-                    s.data,
-                    s.valid,
-                    s.equations.map({ case (x2, (z, next)) =>
-                      if (x2 == x) {
-                        x2 -> (newOut, next)
-                      } else {
-                        x2 -> (z, next)
-                      }
-                    })
-                  )()
+                  s.mapProducers({ case (y, (stm, ready)) =>
+                    if (y == x) {
+                      y -> (newOut, ready)
+                    } else {
+                      y -> (stm, ready)
+                    }
+                  })
                 )
               )()
             case None =>
               s
           }
         }
-        val withTransformedProducers =
-          StmBuild(
-            s.n,
-            s.data,
-            s.valid,
-            s.equations.map({ case (x, (z, next)) =>
-              x.typ match {
-                case TyData(_) => x -> (z, next)
-                case _: TyStm  => x -> (moveUp(z), next)
-                case _         => ???
-              }
-            })
-          )()
+        val withTransformedProducers = s.mapProducers({
+          case (x, (stm, ready)) => x -> (moveUp(stm), ready)
+        })
         pullOutLet(withTransformedProducers)
       case LetStm(bufSize, x, in, out) =>
         def pullOutLet(let: LetStm): Expr = {
@@ -171,27 +151,18 @@ object LetStmMover {
           def pullOutStmBuild(let: LetStm): Expr = {
             let.out match {
               case s: StmBuild =>
-                val count = s.seedByVar.count({ case (y, z) =>
-                  y.typ.isInstanceOf[TyStm] && z.freeVars.contains(x)
-                })
+                val count = s.producers.values
+                  .count({ case (stm, _) => stm.freeVars.contains(x) })
                 if (count == 1) {
-                  StmBuild(
-                    s.n,
-                    s.data,
-                    s.valid,
-                    s.equations.map({
-                      case (y, (z, ready))
-                          if y.typ.isInstanceOf[TyStm]
-                            && z.freeVars.contains(x) =>
-                        y -> (
-                          pullOutStmBuild(
-                            LetStm(let.bufSize, let.x, let.in, z)()
-                          ),
-                          ready
-                        )
-                      case eqn => eqn
-                    })
-                  )()
+                  s.mapProducers({
+                    case (y, (stm, ready)) if stm.freeVars.contains(x) =>
+                      y -> (
+                        pullOutStmBuild(
+                          LetStm(let.bufSize, let.x, let.in, stm)()
+                        ),
+                        ready
+                      )
+                  })
                 } else {
                   let
                 }

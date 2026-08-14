@@ -238,7 +238,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
           True,
           Map[Param, (Expr, Expr)](
             acc -> (i, acc + 3)
-          )
+          ),
+          Map()
         )()
       })
     )().tchk()
@@ -725,7 +726,9 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
             i,
             i < k,
             Map[Param, (Expr, Expr)](
-              i -> (C(0)(U8), i + 1),
+              i -> (C(0)(U8), i + 1)
+            ),
+            Map[Param, (Expr, Expr)](
               s -> (sIn, i === k)
             )
           )()
@@ -2211,7 +2214,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val a = StmCount(4)()
     val b = {
       val b = Param("b")(TyBool)
-      StmBuild(n, b, True, Map[Param, (Expr, Expr)](b -> (True, !b)))()
+      StmBuild(n, b, True, Map[Param, (Expr, Expr)](b -> (True, !b)), Map())()
     }
     val s = StmZip(a, b)()
       .tchk(Map(), constValues)

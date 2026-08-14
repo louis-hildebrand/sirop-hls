@@ -23,8 +23,8 @@ trait StmLiteralUtils {
       }
       val TyStm(t, n) = this.stm.typ
       val lowered = this.stm.elems match {
-        case Seq()  => StmBuild(0, AllZero(t).lower, True)()
-        case Seq(e) => StmBuild(1, e, True)()
+        case Seq()  => StmBuild(0, AllZero(t).lower, True, Map(), Map())()
+        case Seq(e) => StmBuild(1, e, True, Map(), Map())()
         case _      =>
           // The index type must be at least wide enough to fit the value 1, since
           // the index accumulator is updated by i + 1
@@ -38,7 +38,8 @@ trait StmLiteralUtils {
             Map[Param, (Expr, Expr)](
               i -> (C(0)(idxTyp), Sum(C(1)(idxTyp), i)()),
               v -> (VecLiteral(this.stm.elems: _*)(TyVec(t, n)), v)
-            )
+            ),
+            Map()
           )()
       }
       assert(

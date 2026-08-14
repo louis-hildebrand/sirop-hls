@@ -102,24 +102,20 @@ object FlattenPipeline {
           s"expression $s does not correspond to latency node $latency"
         )
         val lat @ LatencyStmBuild(_, _, producerLatencies) = latency
-        for (eqn <- s.equations) {
-          eqn match {
-            case (x, (p, ready)) if x.typ.isInstanceOf[TyStm] =>
-              val (sink, nodes) = makePipeline(p, producerLatencies(x))
-              newNodes ++= nodes
-              newProducers += x -> (sink, ready)
-            case (x, (_: Undefined, next)) =>
-              assert(x.typ.isData)
-              val acc = ExprAccumulator(None, ExprIntermediate(next))
-              newAccumulators += (x -> acc)
-            case (x, (init, next)) =>
-              assert(x.typ.isData)
-              val acc = ExprAccumulator(
-                Some(ExprIntermediate(init)),
-                ExprIntermediate(next)
-              )
-              newAccumulators += (x -> acc)
-          }
+        for ((x, (stm, ready)) <- s.producers) {
+          val (sink, nodes) = makePipeline(stm, producerLatencies(x))
+          newNodes ++= nodes
+          newProducers += x -> (sink, ready)
+        }
+        for ((x, (init, next)) <- s.accumulators) {
+          val acc = ExprAccumulator(
+            init match {
+              case _: Undefined => None
+              case init         => Some(ExprIntermediate(init))
+            },
+            ExprIntermediate(next)
+          )
+          newAccumulators += (x -> acc)
         }
         val genSbuild = GenStmBuild(
           data = s.data,

@@ -384,6 +384,7 @@ class SugarTests extends AnyFunSuite {
         n,
         Tuple(StmData(s1)(), StmData(s2)())(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s1 -> (x, True),
           s2 -> (x, True)

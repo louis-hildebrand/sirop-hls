@@ -121,8 +121,8 @@ class LatencyAnalysis(handshake: Boolean) {
     s.valid match {
       case True => Some(1)
       case Equal(t: Param, IntCst(k))
-          if s.accVars.contains(t) && (k + 1).isValidInt =>
-        s.equations.get(t) match {
+          if s.namesDefinedHere.contains(t) && (k + 1).isValidInt =>
+        s.accumulators.get(t) match {
           case Some(
                 (
                   IntCst(0),

@@ -131,16 +131,15 @@ case class SimpleDelayCostModel(madd: Boolean) {
           childDelay + 3
         }
       case s: StmBuild =>
-        (cost(staticVars, varCosts)(s.data) +: cost(staticVars, varCosts)(
-          s.valid
-        ) +: s.equations
-          .map({
-            case (x, (s, _)) if x.typ.isInstanceOf[TyStm] =>
-              cost(staticVars, varCosts)(s)
-            case (_, (_, next)) =>
-              cost(staticVars, varCosts)(next)
-          })
-          .toSeq).max
+        val expressionsToCheck = {
+          s.accumulators
+            .map({ case (_, (_, next)) => next })
+            .++(s.producers.map({ case (_, (stm, _)) => stm }))
+            .toSet
+            .+(s.data)
+            .+(s.valid)
+        }
+        expressionsToCheck.map(cost(staticVars, varCosts)).max
       case LetStm(_, _, in, out) =>
         math.max(
           cost(staticVars, varCosts)(in),

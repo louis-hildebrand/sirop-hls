@@ -45,20 +45,9 @@ class StaticLetStmBufferShrinker(
               "stream producers in expression do not match latency node" +
                 s" (${s.producers.keySet} vs ${producersLat.keySet})"
             )
-            val newEquations = s.equations
-              .map({
-                case (x, (stm, ready)) if x.typ.isInstanceOf[TyStm] =>
-                  x -> (shrinkBuffers(stm, producersLat(x)), ready)
-                case (x, (z, next)) =>
-                  assert(x.typ.isData)
-                  x -> (z, next)
-              })
-            StmBuild(
-              n = s.n,
-              data = s.data,
-              valid = s.valid,
-              equations = newEquations
-            )()
+            s.mapProducers({ case (x, (stm, ready)) =>
+              x -> (shrinkBuffers(stm, producersLat(x)), ready)
+            })
           case LatencyLetStm(latency, inLat, outLat) =>
             assert(
               e.isInstanceOf[LetStm],

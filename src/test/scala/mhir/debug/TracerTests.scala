@@ -39,7 +39,8 @@ class TracerTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         i -> (IntCst(0)(U8), i + 1),
         j -> (IntCst(10)(U8), j + i)
-      )
+      ),
+      Map()
     )().tchk().lower.asInstanceOf[StmBuild]
 
     val fullTrace = Tracer.traceAll(s, handshake = true)
@@ -61,7 +62,8 @@ class TracerTests extends AnyFunSuite {
         n,
         ReshapeData(i, I32)(),
         True,
-        Map[Param, (Expr, Expr)](i -> (C(42)(U8), i + 1))
+        Map[Param, (Expr, Expr)](i -> (C(42)(U8), i + 1)),
+        Map()
       )()
     val s = Param("s", -1)(TyStm(I32, -1))
     val v = Param("v", -1)(TyVec(I32, n))
@@ -74,7 +76,6 @@ class TracerTests extends AnyFunSuite {
       )(),
       t === n - 1,
       Map[Param, (Expr, Expr)](
-        s -> (input, True),
         v -> (
           VecBuild(n, Function(i, AllZero(I32))())(),
           VecBuild(
@@ -86,6 +87,9 @@ class TracerTests extends AnyFunSuite {
           )()
         ),
         t -> (IntCst(0)(U8), t + 1)
+      ),
+      Map[Param, (Expr, Expr)](
+        s -> (input, True)
       )
     )().tchk().lower.asInstanceOf[StmBuild]
 
@@ -107,7 +111,8 @@ class TracerTests extends AnyFunSuite {
         2,
         i,
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1))
+        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1)),
+        Map()
       )()
     }
     val stm2 = {
@@ -117,13 +122,15 @@ class TracerTests extends AnyFunSuite {
         2,
         StmData(s)(),
         StmData(s)() % 3 === 0,
+        Map(),
         Map[Param, (Expr, Expr)](
           s -> (
             StmBuild(
               4,
               j,
               True,
-              Map[Param, (Expr, Expr)](j -> (IntCst(42)(U8), j + 1))
+              Map[Param, (Expr, Expr)](j -> (IntCst(42)(U8), j + 1)),
+              Map()
             )(),
             True
           )
@@ -139,7 +146,9 @@ class TracerTests extends AnyFunSuite {
         Mux(b, StmData(s1)(), StmData(s2)())(),
         True,
         Map[Param, (Expr, Expr)](
-          b -> (True, !b),
+          b -> (True, !b)
+        ),
+        Map[Param, (Expr, Expr)](
           s1 -> (stm1, b),
           s2 -> (stm2, !b)
         )
@@ -174,7 +183,8 @@ class TracerTests extends AnyFunSuite {
           True,
           Map[Param, (Expr, Expr)](
             i -> (C(2)(U16), Sum(C(1)(U16), i)())
-          )
+          ),
+          Map()
         )()
       }
       val s = Param("s")(TyStm(U16, 5))
@@ -185,6 +195,7 @@ class TracerTests extends AnyFunSuite {
           5,
           Sum(C(5)(U16), StmData(a)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             a -> (s, True)
           )
@@ -198,6 +209,7 @@ class TracerTests extends AnyFunSuite {
           5,
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s0 -> (s, True),
             s1 -> (plusFive, True)
@@ -212,7 +224,6 @@ class TracerTests extends AnyFunSuite {
           acc,
           True,
           Map[Param, (Expr, Expr)](
-            sAcc -> (LetStm(1, s, count, zipped)(), True),
             acc -> (
               Tuple(C(0)(U16), C(1)(U16))(),
               Tuple(
@@ -220,6 +231,9 @@ class TracerTests extends AnyFunSuite {
                 acc.__1 * StmData(sAcc)().__1
               )()
             )
+          ),
+          Map[Param, (Expr, Expr)](
+            sAcc -> (LetStm(1, s, count, zipped)(), True)
           )
         )().tchk()
       }
@@ -254,7 +268,8 @@ class TracerTests extends AnyFunSuite {
           True,
           Map[Param, (Expr, Expr)](
             i -> (C(2)(U16), Sum(C(1)(U16), i)())
-          )
+          ),
+          Map()
         )()
       }
       val s = Param("s")(TyStm(U16, 5))
@@ -265,6 +280,7 @@ class TracerTests extends AnyFunSuite {
           5,
           Sum(C(5)(U16), StmData(a)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             a -> (s, True)
           )
@@ -277,6 +293,7 @@ class TracerTests extends AnyFunSuite {
           5,
           StmData(sAcc)(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             sAcc -> (s, True)
           )
@@ -290,6 +307,7 @@ class TracerTests extends AnyFunSuite {
           5,
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s0 -> (nop, True),
             s1 -> (plusFive, True)
@@ -304,7 +322,6 @@ class TracerTests extends AnyFunSuite {
           acc,
           True,
           Map[Param, (Expr, Expr)](
-            sAcc -> (LetStm(0, s, count, zipped)(), True),
             acc -> (
               Tuple(C(0)(U16), C(1)(U16))(),
               Tuple(
@@ -312,6 +329,9 @@ class TracerTests extends AnyFunSuite {
                 acc.__1 * StmData(sAcc)().__1
               )()
             )
+          ),
+          Map[Param, (Expr, Expr)](
+            sAcc -> (LetStm(0, s, count, zipped)(), True)
           )
         )().tchk()
       }
@@ -372,7 +392,8 @@ class TracerTests extends AnyFunSuite {
           True,
           Map[Param, (Expr, Expr)](
             i -> (C(0)(U8), Sum(C(1)(U8), i)())
-          )
+          ),
+          Map()
         )().tchk()
       }
       val x = Param("s")(TyStm(U8, n * m))
@@ -396,7 +417,9 @@ class TracerTests extends AnyFunSuite {
                 C(0)(U8),
                 Sum(StmData(s)(), acc)()
               )()
-            ),
+            )
+          ),
+          Map(
             s -> (x, True)
           )
         )().tchk()
@@ -412,7 +435,9 @@ class TracerTests extends AnyFunSuite {
             t -> (
               C(0)(U8),
               Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
-            ),
+            )
+          ),
+          Map[Param, (Expr, Expr)](
             s -> (x, True)
           )
         )().tchk()
@@ -424,6 +449,7 @@ class TracerTests extends AnyFunSuite {
           n,
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s0 -> (rowSums, True),
             s1 -> (rowHeads, True)

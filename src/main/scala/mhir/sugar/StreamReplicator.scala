@@ -78,6 +78,7 @@ object StreamReplicator {
               n,
               VecBuild(m, m.typ ::+ (_ => StmData(s)()))(),
               True,
+              Map(),
               Map[Param, (Expr, Expr)](
                 s -> (x, True)
               )
@@ -145,37 +146,34 @@ object StreamReplicator {
         }
       case (_, SharedScope) => None
     })
-    val newEquations = stm.equations.map({ case (x, (z, next)) =>
+    val newAccumulators = stm.accumulators.map({ case (x, (z, next)) =>
       val newX = oldToNewVar(x)
-      x.typ match {
-        case _: TyStm =>
-          if (next.freeVars.contains(i)) {
-            throw new IllegalArgumentException(
-              "Input stream `ready` cannot depend on the vector index."
-                + s" (Found vector index $i and `ready` expression $next.)"
-            )
+      scopes(x) match {
+        case SharedScope => newX -> (z, next.subPreserveType(subs))
+        case PrivateScope =>
+          val newZ = z match {
+            case _: Undefined => Undefined(TyVec(x.typ, m))
+            case _            => VecBuild(m, Function(i, z)())()
           }
-          val newZ = scopes(x) match {
-            case PrivateScope => z.replicate(m, i, varsToReplicate)
-            case SharedScope  => z
-          }
-          newX -> (newZ, next)
-        case TyData(_) =>
-          scopes(x) match {
-            case SharedScope => newX -> (z, next.subPreserveType(subs))
-            case PrivateScope =>
-              val newZ = z match {
-                case _: Undefined => Undefined(TyVec(x.typ, m))
-                case _            => VecBuild(m, Function(i, z)())()
-              }
-              newX -> (
-                newZ,
-                VecBuild(m, Function(i, next.subPreserveType(subs))())()
-              )
-          }
-        case t =>
-          throw new IllegalArgumentException(s"Invalid accumulator type $t.")
+          newX -> (
+            newZ,
+            VecBuild(m, Function(i, next.subPreserveType(subs))())()
+          )
       }
+    })
+    val newProducers = stm.producers.map({ case (x, (z, next)) =>
+      val newX = oldToNewVar(x)
+      if (next.freeVars.contains(i)) {
+        throw new IllegalArgumentException(
+          "Input stream `ready` cannot depend on the vector index."
+            + s" (Found vector index $i and `ready` expression $next.)"
+        )
+      }
+      val newZ = scopes(x) match {
+        case PrivateScope => z.replicate(m, i, varsToReplicate)
+        case SharedScope  => z
+      }
+      newX -> (newZ, next)
     })
     val newData = {
       val validDependsOnI = stm.valid.freeVars
@@ -188,9 +186,13 @@ object StreamReplicator {
       }
       VecBuild(m, Function(i, stm.data.subPreserveType(subs))())()
     }
-    val s = StmBuild(stm.n, newData, stm.valid, newEquations)(
-      annotations = stm.annotations
-    )
+    val s = StmBuild(
+      stm.n,
+      newData,
+      stm.valid,
+      newAccumulators,
+      newProducers
+    )(annotations = stm.annotations)
     assert(
       !s.freeVars.contains(i),
       "there should be no more free occurrences of the vector index i"
@@ -234,11 +236,12 @@ object StreamReplicator {
       }
     }
 
-    val dependencies = stm.equations.map({ case (x, (_, next)) =>
-      x -> next.freeVars.intersect(stm.accVars)
-    })
+    val dependencies = (stm.accumulators ++ stm.producers)
+      .map({ case (x, (_, next)) =>
+        x -> next.freeVars.intersect(stm.namesDefinedHere)
+      })
     propagateScopes(
-      scopeByVar = stm.equations
+      scopeByVar = (stm.accumulators ++ stm.producers)
         .map({ case (x, (z, next)) =>
           val dependsOnI = (next.freeVars.contains(i)
             || z.freeVars.intersect(varsToReplicate + i).nonEmpty)

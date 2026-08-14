@@ -29,6 +29,7 @@ class UnusedDataRemoverTests extends AnyFunSuite {
           n,
           Tuple(StmData(s1)().__0, StmData(s2)().__1)(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s1 -> (SimpleNop(SimpleNop(x)), True),
             s2 -> (SimpleNop(SimpleNop(x)), True)
@@ -129,10 +130,12 @@ class UnusedDataRemoverTests extends AnyFunSuite {
         )(),
         StmData(p)().__2.__1 geq C(0)(I16),
         Map[Param, (Expr, Expr)](
-          p -> (input, True),
           sum -> (C(0)(I16), Sum(sum, StmData(p)().__1.__0)()),
           prod -> (C(0)(I16), Prod(prod, StmData(p)().__1.__1.__0)()),
           min -> (C(0)(I16), Sum(sum, StmData(p)().__1.__1.__1)())
+        ),
+        Map(
+          p -> (input, True)
         )
       )().tchk().asInstanceOf[StmBuild]
     }

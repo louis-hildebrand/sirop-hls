@@ -42,20 +42,12 @@ class GreedyStmFusionPass(
     require(stm.hasType)
     val result = stm match {
       case s: StmBuild =>
-        val candidates = s.seedByVar.flatMap({
-          case (x, _: StmBuild) => Some(x)
-          case _                => None
-        })
-        val withFusedProducers = StmBuild(
-          s.n,
-          s.data,
-          s.valid,
-          s.equations.map({
-            case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
-              x -> (fuse(s), ready)
-            case eqn => eqn
-          })
-        )().tchk().asInstanceOf[StmBuild]
+        val candidates = s.producers
+          .collect({ case (x, (_: StmBuild, _)) => x })
+        val withFusedProducers = s
+          .mapProducers({ case (x, (s, ready)) => x -> (fuse(s), ready) })
+          .tchk()
+          .asInstanceOf[StmBuild]
         candidates.foldLeft(withFusedProducers)({ case (acc, x) =>
           val fused = simplifier.simplify(acc.fuseWith(x), skipConst = true)()
           val oldDelay = delayCostModel.cost(acc)

@@ -332,7 +332,7 @@ object ExprPrinter {
           parentPrecedence = Precedence.Max
         )
         s"vbuild($nStr) { $fStr\n}"
-      case StmBuild(n, data, valid, equations) =>
+      case stm: StmBuild =>
         // Don't use a multi-line string with .stripMargin here because one of
         // the sub-expressions may have a line starting with '|'.
         // Example:
@@ -340,7 +340,8 @@ object ExprPrinter {
         //     || c3 && c4
         val w1 = maxWidth - "sbuild()".length
         val (nStr, w2) = {
-          val s = display(n, maxWidth = w1, parentPrecedence = Precedence.Max)
+          val s =
+            display(stm.n, maxWidth = w1, parentPrecedence = Precedence.Max)
           if (s.contains("\n")) {
             (s"(\n${indent(s)}\n)", maxWidth - 1)
           } else {
@@ -348,19 +349,20 @@ object ExprPrinter {
           }
         }
         val outStr = {
-          val dataStr = displayOneLine(data, parentPrecedence = Precedence.Max)
+          val dataStr =
+            displayOneLine(stm.data, parentPrecedence = Precedence.Max)
           val validStr =
-            displayOneLine(valid, parentPrecedence = Precedence.Max)
+            displayOneLine(stm.valid, parentPrecedence = Precedence.Max)
           if ("(, )".length + dataStr.length + validStr.length <= w2) {
             s"($dataStr, $validStr)"
           } else {
             val dataStr = display(
-              data,
+              stm.data,
               maxWidth = maxWidth - Indent.length - ",".length,
               parentPrecedence = Precedence.Max
             )
             val validStr = display(
-              valid,
+              stm.valid,
               maxWidth = maxWidth - Indent.length,
               parentPrecedence = Precedence.Max
             )
@@ -368,12 +370,10 @@ object ExprPrinter {
           }
         }
         val accumulatorsStr = {
-          val accumulators = equations
-            .filter({ case (x, _) => !x.typ.isInstanceOf[TyStm] })
-          if (accumulators.isEmpty) {
+          if (stm.accumulators.isEmpty) {
             "{}"
           } else {
-            accumulators.toSeq
+            stm.accumulators.toSeq
               .sortBy({ case (x, _) => x.name })
               .map({ case (x, (z, next)) =>
                 val xStr = s"(${x.name} : ${x.typ})"
@@ -394,12 +394,10 @@ object ExprPrinter {
           }
         }
         val producersStr = {
-          val producers = equations
-            .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
-          if (producers.isEmpty) {
+          if (stm.producers.isEmpty) {
             "{}"
           } else {
-            producers.toSeq
+            stm.producers.toSeq
               .sortBy({ case (x, _) => x.name })
               .map({ case (x, (stm, ready)) =>
                 val xStr = s"(${x.name} : ${x.typ})"
@@ -662,13 +660,12 @@ object ExprPrinter {
           case _ =>
             s"iff ($cStr) then { $tStr } else { $fStr }"
         }
-      case StmBuild(n, data, valid, equations) =>
-        val nStr = displayOneLine(n, Precedence.Max)
-        val dataStr = displayOneLine(data, Precedence.Max)
-        val validStr = displayOneLine(valid, Precedence.Max)
+      case stm: StmBuild =>
+        val nStr = displayOneLine(stm.n, Precedence.Max)
+        val dataStr = displayOneLine(stm.data, Precedence.Max)
+        val validStr = displayOneLine(stm.valid, Precedence.Max)
         val accumulatorsStr = {
-          val s = equations.toSeq
-            .filter({ case (x, _) => !x.typ.isInstanceOf[TyStm] })
+          val s = stm.accumulators.toSeq
             .sortBy({ case (x, _) => x.name })
             .map({ case (x, (z, next)) =>
               s"(${x.name} : ${x.typ}) = { init: ${displayOneLine(z, Precedence.Max)}, next: ${displayOneLine(next, Precedence.Max)} }"
@@ -677,8 +674,7 @@ object ExprPrinter {
           if (s == "{  }") "{}" else s
         }
         val producersStr = {
-          val s = equations.toSeq
-            .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+          val s = stm.producers.toSeq
             .sortBy({ case (x, _) => x.name })
             .map({ case (x, (z, next)) =>
               s"(${x.name} : ${x.typ}) = { stm: ${displayOneLine(z, Precedence.Max)}, ready: ${displayOneLine(next, Precedence.Max)} }"
@@ -883,27 +879,8 @@ object ExprPrinter {
         s"Or(${terms.map(e => showScala(e)).mkString(",")})(${showScala(or.typ)})"
       case m @ Mux(c, t, f) =>
         s"Mux(${showScala(c)},${showScala(t)},${showScala(f)})(${showScala(m.typ)})"
-      case s @ StmBuild(n, data, valid, eqns) =>
-        val paramDecls =
-          s.accVars
-            .map({ x =>
-              val typStr = showScala(x.typ)
-              s"""val ${x.name} = Param(\"${x.prefix}\", ${x.id})($typStr)"""
-            })
-            .mkString(" ; ")
-        val nStr = showScala(n)
-        val dataStr = showScala(data)
-        val validStr = showScala(valid)
-        val typStr = showScala(s.typ)
-        val equationsStr = {
-          val equationStrings = {
-            eqns.map({ case (x, (z, next)) =>
-              s"${showScala(x)}->(${showScala(z)},${showScala(next)})"
-            })
-          }
-          s"Map[Param, (Expr, Expr)](${equationStrings.mkString(",")})"
-        }
-        s"{ $paramDecls ; StmBuild($nStr,$dataStr,$validStr,$equationsStr)($typStr) }"
+      case _: StmBuild =>
+        ???
       case let @ LetStm(bufSize, x, in, out) =>
         val bufSizeStr = showScala(bufSize)
         val xStr = showScala(x)

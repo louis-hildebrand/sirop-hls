@@ -1,9 +1,9 @@
 package mhir.optimize
 
-import mhir.typecheck._
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.sugar._
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
@@ -141,7 +141,8 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           i -> (C(0)(U8), Sum(C(1)(U8), i)())
-        )
+        ),
+        Map()
       )()
     }
     val original = {
@@ -155,9 +156,11 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
           acc + StmData(s)(),
           t === C(m - 1)(U8),
           Map[Param, (Expr, Expr)](
-            s -> (x, True),
             acc -> (C(0)(U8), acc + StmData(s)()),
             t -> (C(0)(U8), Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)())
+          ),
+          Map[Param, (Expr, Expr)](
+            s -> (x, True)
           )
         )().tchk()
       }
@@ -170,12 +173,14 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
           VecShiftLeft(acc, StmData(s)())(),
           t === C(m - 1)(U8),
           Map[Param, (Expr, Expr)](
-            s -> (x, True),
             acc -> (
               VecBuild(m, U8 ::+ (_ => AllZero(U8)))(),
               VecShiftLeft(acc, StmData(s)())()
             ),
             t -> (C(0)(U8), Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)())
+          ),
+          Map[Param, (Expr, Expr)](
+            s -> (x, True)
           )
         )().tchk()
       }
@@ -213,6 +218,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
           n,
           StmData(s)(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](s -> (x, True))
         )().tchk()
       }
@@ -226,7 +232,6 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
           Sum(StmData(s)(), acc)(),
           i equ C(m - 1)(U8),
           Map[Param, (Expr, Expr)](
-            s -> (x, True),
             i -> (
               C(0)(U8),
               Mux(i equ C(m - 1)(U8), C(0)(U8), Sum(C(1)(U8), i)())()
@@ -235,6 +240,9 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
               C(0)(U8),
               Mux(i equ C(m - 1)(U8), C(0)(U8), Sum(StmData(s)(), acc)())()
             )
+          ),
+          Map[Param, (Expr, Expr)](
+            s -> (x, True)
           )
         )().tchk()
       }
@@ -284,7 +292,9 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
                 C(0)(U8),
                 Sum(StmData(s)(), acc)()
               )()
-            ),
+            )
+          ),
+          Map[Param, (Expr, Expr)](
             s -> (x, True)
           )
         )().tchk()
@@ -300,7 +310,9 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
             t -> (
               C(0)(U8),
               Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
-            ),
+            )
+          ),
+          Map[Param, (Expr, Expr)](
             s -> (x, True)
           )
         )().tchk()

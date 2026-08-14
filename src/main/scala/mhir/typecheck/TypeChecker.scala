@@ -481,92 +481,101 @@ trait TypeChecker {
           }
 
         case s: StmBuild =>
-          val newContext = s.accVars.foldLeft(context)({ case (ctx, x) =>
-            x.typ match {
-              case Missing =>
-                throw new TypeError(
-                  s"Missing type annotation for accumulator $x."
-                )
-              case _: TyStm =>
-                ctx + (x -> x.typ)
-              case t if t.isData =>
-                ctx + (x -> x.typ)
-              case t =>
-                throw new TypeError(
-                  s"Invalid type $t for accumulator $x."
-                    + s" Accumulators can only be streams or data."
-                )
-            }
-          })
-          val newN = s.n.tchk(context, constValues).expectUInt()
-          val newEquations = s.equations.map({
-            case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
-              val newS = s.tchk(context, constValues)
-              val TyStm(elemTyp, _) = x.typ
-              newS.typ match {
-                case TyStm(t, _) =>
-                  if (!t.equalsGivenConstants(elemTyp, constValues)) {
-                    throw new TypeError(
-                      s"stream for producer $x has type $t." +
-                        s" Expected a stream of type $elemTyp",
-                      TypeChecker.relevantBindings(constValues, t, elemTyp)
-                    )
-                  }
+          val newContext = s.namesDefinedHere.foldLeft(context)({
+            case (ctx, x) =>
+              x.typ match {
+                case Missing =>
+                  throw new TypeError(
+                    s"Missing type annotation for accumulator $x."
+                  )
+                case _: TyStm =>
+                  ctx + (x -> x.typ)
+                case t if t.isData =>
+                  ctx + (x -> x.typ)
                 case t =>
                   throw new TypeError(
-                    s"stream for producer $x has type $t. Expected a stream"
+                    s"Invalid type $t for accumulator $x."
+                      + s" Accumulators can only be streams or data."
                   )
               }
-              val newReady = ready.tchk(newContext, constValues)
-              if (newReady.typ != TyBool) {
-                throw new TypeError(
-                  s"ready expression for producer $x has type ${newReady.typ}."
-                    + s" Expected type $TyBool",
-                  TypeChecker.relevantBindings(constValues, newReady.typ, x.typ)
-                )
-              }
-              x -> (newS, newReady)
-            case (x, (z, next)) if x.typ.isData =>
-              val newZ = (z, x.typ) match {
-                // TODO: Generalize this by using ReshapeData?
-                //       But then there will be a circular dependency between
-                //       the type checker and the lowering package :(
-                case (IntCst(z), typ: TyAnyInt) if typ.contains(z) =>
-                  IntCst(z)(x.typ)
-                case _ =>
-                  val newZ = z.tchk(context, constValues)
-                  if (!newZ.typ.equalsGivenConstants(x.typ, constValues)) {
-                    throw new TypeError(
-                      s"seed for accumulator $x has type ${newZ.typ}."
-                        + s" Expected type ${x.typ}.",
-                      TypeChecker.relevantBindings(constValues, newZ.typ, x.typ)
-                    )
-                  }
-                  newZ
-              }
-              val newNext = next.tchk(newContext, constValues)
-              if (!newNext.typ.equalsGivenConstants(x.typ, constValues)) {
-                throw new TypeError(
-                  s"next value for accumulator $x has type ${newNext.typ}."
-                    + s" Expected type ${x.typ}",
-                  TypeChecker.relevantBindings(constValues, newNext.typ, x.typ)
-                )
-              }
-              x -> (newZ, newNext)
-            case (x, _) =>
+          })
+          val newN = s.n.tchk(context, constValues).expectUInt()
+          val newAccumulators = s.accumulators.map({ case (x, (z, next)) =>
+            if (!x.typ.isData) {
               throw new TypeError(
-                s"variable $x in sbuild has type ${x.typ}." +
-                  s" Expected a stream or data."
+                s"Type ${x.typ} (of $x) is not allowed for an accumulator"
               )
+            }
+            val newZ = (z, x.typ) match {
+              // TODO: Generalize this by using ReshapeData?
+              //       But then there will be a circular dependency between
+              //       the type checker and the lowering package :(
+              case (IntCst(z), typ: TyAnyInt) if typ.contains(z) =>
+                IntCst(z)(x.typ)
+              case _ =>
+                val newZ = z.tchk(context, constValues)
+                if (!newZ.typ.equalsGivenConstants(x.typ, constValues)) {
+                  throw new TypeError(
+                    s"seed for accumulator $x has type ${newZ.typ}."
+                      + s" Expected type ${x.typ}.",
+                    TypeChecker.relevantBindings(constValues, newZ.typ, x.typ)
+                  )
+                }
+                newZ
+            }
+            val newNext = next.tchk(newContext, constValues)
+            if (!newNext.typ.equalsGivenConstants(x.typ, constValues)) {
+              throw new TypeError(
+                s"next value for accumulator $x has type ${newNext.typ}."
+                  + s" Expected type ${x.typ}",
+                TypeChecker.relevantBindings(constValues, newNext.typ, x.typ)
+              )
+            }
+            x -> (newZ, newNext)
+          })
+          val newProducers = s.producers.map({ case (x, (s, ready)) =>
+            if (!x.typ.isInstanceOf[TyStm]) {
+              throw new TypeError(
+                s"Type ${x.typ} (of $x) is not allowed for a producer"
+              )
+            }
+            val newS = s.tchk(context, constValues)
+            val TyStm(elemTyp, _) = x.typ
+            newS.typ match {
+              case TyStm(t, _) =>
+                if (!t.equalsGivenConstants(elemTyp, constValues)) {
+                  throw new TypeError(
+                    s"stream for producer $x has type $t." +
+                      s" Expected a stream of type $elemTyp",
+                    TypeChecker.relevantBindings(constValues, t, elemTyp)
+                  )
+                }
+              case t =>
+                throw new TypeError(
+                  s"stream for producer $x has type $t. Expected a stream"
+                )
+            }
+            val newReady = ready.tchk(newContext, constValues)
+            if (newReady.typ != TyBool) {
+              throw new TypeError(
+                s"ready expression for producer $x has type ${newReady.typ}."
+                  + s" Expected type $TyBool",
+                TypeChecker.relevantBindings(constValues, newReady.typ, x.typ)
+              )
+            }
+            x -> (newS, newReady)
           })
           val newData = s.data.tchk(newContext, constValues)
           val newValid = s.valid
             .tchk(newContext, constValues)
             .expectType(TyBool, constValues)
-          StmBuild(newN, newData, newValid, newEquations)(
-            TyStm(newData.typ, newN),
-            s.annotations
-          )
+          StmBuild(
+            newN,
+            newData,
+            newValid,
+            newAccumulators,
+            newProducers
+          )(TyStm(newData.typ, newN), s.annotations)
         case sn @ StmData(s) =>
           val newS = s.tchk(context, constValues)
           newS.typ match {

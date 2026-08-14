@@ -29,10 +29,12 @@ class UnusedDataAnalysisTests extends AnyFunSuite {
         )(),
         StmData(p)().__2.__1 geq C(0)(I16),
         Map[Param, (Expr, Expr)](
-          p -> (s, True),
           sum -> (C(0)(I16), Sum(sum, StmData(p)().__1.__0)()),
           prod -> (C(0)(I16), Prod(prod, StmData(p)().__1.__1.__0)()),
           min -> (C(0)(I16), Sum(sum, StmData(p)().__1.__1.__1)())
+        ),
+        Map[Param, (Expr, Expr)](
+          p -> (s, True)
         )
       )().tchk().asInstanceOf[StmBuild]
     }

@@ -16,6 +16,27 @@ sealed trait StmBuildSimplifier {
   def simplify(stm: StmBuild, skipConst: Boolean = false)(
       facts: FactSet = FactSet()
   ): StmBuild
+
+  protected def partialEvalStmBuild(
+      s: StmBuild
+  )(implicit facts: FactSet): StmBuild = {
+    StmBuild(
+      PE.partialEval(s.n),
+      PE.partialEval(s.data),
+      PE.partialEval(s.valid),
+      s.accumulators.map({ case (x, (z, next)) =>
+        val newZ = PE.partialEval(z)
+        val newNext = PE.partialEval(next)
+        x -> (newZ, newNext)
+      }),
+      s.producers.map({ case (x, (s, ready)) =>
+        // Don't re-traverse input streams: they've already been
+        // simplified
+        val newReady = PE.partialEval(ready)
+        x -> (s, newReady)
+      })
+    )().tchk().asInstanceOf[StmBuild]
+  }
 }
 
 object StmBuildSimplifier {
@@ -68,7 +89,10 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
         s1
       } else {
         time("removing constant accumulators") {
-          StmAccRemovalPass.removeConstantVars(s1).tchk().asInstanceOf[StmBuild]
+          StmAccRemovalPass
+            .removeConstantAccumulators(s1)
+            .tchk()
+            .asInstanceOf[StmBuild]
         }
       }
       val s3 = time("deduplicating accumulators") {
@@ -99,29 +123,8 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
     }
   }
 
-  private def partialEvalStmBuild(
-      s: StmBuild
-  )(implicit facts: FactSet): StmBuild = {
-    StmBuild(
-      PE.partialEval(s.n),
-      PE.partialEval(s.data),
-      PE.partialEval(s.valid),
-      s.equations.map({
-        case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
-          // Don't re-traverse input streams: they've already been
-          // simplified
-          val newReady = PE.partialEval(ready)
-          x -> (s, newReady)
-        case (x, (z, next)) =>
-          val newZ = PE.partialEval(z)
-          val newNext = PE.partialEval(next)
-          x -> (newZ, newNext)
-      })
-    )().tchk().asInstanceOf[StmBuild]
-  }
-
   private def shrinkCounters(s: StmBuild): StmBuild = {
-    s.equations
+    s.accumulators
       .filter({ case (x, _) => x.typ.isInstanceOf[TyAnyInt] })
       .foldLeft(s)({
         case (
@@ -159,11 +162,14 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
               s1.n,
               s1.data.subPreserveType(subs),
               s1.valid.subPreserveType(subs),
-              s1.equations
+              s1.accumulators
                 .filter({ case (y, _) => y != x })
                 .map({ case (y, (z, next)) =>
                   y -> (z, next.subPreserveType(subs))
-                })
+                }),
+              s1.producers.map({ case (y, (stm, ready)) =>
+                y -> (stm, ready.subPreserveType(subs))
+              })
             )().tchk().asInstanceOf[StmBuild]
           }
         case (acc, _) => acc
@@ -178,21 +184,6 @@ object DisabledStmBuildSimplifier extends StmBuildSimplifier {
       stm: StmBuild,
       skipConst: Boolean = false
   )(facts: FactSet): StmBuild = {
-    StmBuild(
-      PE.partialEval(stm.n),
-      PE.partialEval(stm.data),
-      PE.partialEval(stm.valid),
-      stm.equations.map({
-        case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
-          // Don't re-traverse input streams: they've already been
-          // simplified
-          val newReady = PE.partialEval(ready)
-          x -> (s, newReady)
-        case (x, (z, next)) =>
-          val newZ = PE.partialEval(z)
-          val newNext = PE.partialEval(next)
-          x -> (newZ, newNext)
-      })
-    )().tchk().asInstanceOf[StmBuild]
+    partialEvalStmBuild(stm)(facts)
   }
 }
