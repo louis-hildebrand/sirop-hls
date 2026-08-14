@@ -113,8 +113,7 @@ object StmAccRemovalPass {
       })
       val constantVars =
         candidates.filter(x => nextByAccumulator(x) == initByAccumulator(x))
-      // TODO: Speed this up by comparing sizes instead of contents?
-      if (constantVars == candidates) {
+      if (constantVars.size == candidates.size) {
         constantVars
       } else {
         findConstantAccumulators(stm, candidates = constantVars)
