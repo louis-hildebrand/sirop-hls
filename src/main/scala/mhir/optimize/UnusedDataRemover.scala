@@ -99,17 +99,14 @@ object EnabledUnusedDataRemover extends UnusedDataRemover {
           })
         // Recurse after handling this sbuild, not beforehand, so that
         // information about unused data propagates from sink back to source
-        StmBuild(
-          s2.n,
-          s2.data,
-          s2.valid,
-          s2.accumulators,
-          s2.producers.map({
+        s2
+          .mapProducers({
             case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
               x -> (doRemoveUnusedData(s), ready)
             case eqn => eqn
           })
-        )().tchk().asInstanceOf[StmBuild]
+          .tchk()
+          .asInstanceOf[StmBuild]
       case e =>
         e.map(doRemoveUnusedData)
     }

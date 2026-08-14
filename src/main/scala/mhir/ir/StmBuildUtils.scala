@@ -6,6 +6,16 @@ trait StmBuildUtils {
     */
   implicit class StmBuildUtilsImplicit(stm: StmBuild) {
 
+    def removeVarsExcept(keep: Set[Param]): StmBuild = {
+      StmBuild(
+        this.stm.n,
+        this.stm.data,
+        this.stm.valid,
+        this.stm.accumulators.filter({ case (x, _) => keep.contains(x) }),
+        this.stm.producers.filter({ case (x, _) => keep.contains(x) })
+      )(annotations = this.stm.annotations)
+    }
+
     /** Construct a new <code>StmBuild</code> that is equivalent to this one but
       * where all the accumulator and producer variables have been replaced by
       * fresh variables.
@@ -91,8 +101,6 @@ trait StmBuildUtils {
         )(annotations = this.stm.annotations)
       }
     }
-
-    def replaceVar(x: Param, e: Expr): StmBuild = replaceVars(Map(x -> e))
 
     /** Add a new equation to this stream whose value is the number of valid
       * outputs that this stream has <i>previously</i> produced.
@@ -195,6 +203,18 @@ trait StmBuildUtils {
         newAccumulators,
         this.stm.producers
       )(t, annotations = this.stm.annotations)
+    }
+
+    def mapProducers(
+        f: (Param, (Expr, Expr)) => (Param, (Expr, Expr))
+    ): StmBuild = {
+      StmBuild(
+        this.stm.n,
+        this.stm.data,
+        this.stm.valid,
+        this.stm.accumulators,
+        this.stm.producers.map(f.tupled)
+      )(annotations = this.stm.annotations)
     }
 
     /** Find the direct dependencies between variables defined in this

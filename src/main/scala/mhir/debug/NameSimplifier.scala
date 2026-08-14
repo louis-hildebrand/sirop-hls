@@ -100,19 +100,7 @@ object NameSimplifier {
                 acc.renameVars(subs)
               }
             })
-          StmBuild(
-            n = simplify(renamed.n),
-            data = simplify(renamed.data),
-            valid = simplify(renamed.valid),
-            accumulators = renamed.accumulators
-              .map({ case (x, (init, next)) =>
-                x -> (simplify(init), simplify(next))
-              }),
-            producers = renamed.producers
-              .map({ case (x, (stm, ready)) =>
-                x -> (simplify(stm), simplify(ready))
-              })
-          )()
+          renamed.map(simplify)
         case VecBuild(n, f) =>
           // Rename function parameter because the t ::+ (x => ...) Scala
           // shorthand just chooses a prefix of `x`, but `i` or `j` would be

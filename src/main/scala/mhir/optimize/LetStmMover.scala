@@ -65,34 +65,22 @@ object LetStmMover {
                 newY,
                 in,
                 pullOutLet(
-                  StmBuild(
-                    s.n,
-                    s.data,
-                    s.valid,
-                    s.accumulators,
-                    s.producers.map({ case (y, (stm, ready)) =>
-                      if (y == x) {
-                        y -> (newOut, ready)
-                      } else {
-                        y -> (stm, ready)
-                      }
-                    })
-                  )()
+                  s.mapProducers({ case (y, (stm, ready)) =>
+                    if (y == x) {
+                      y -> (newOut, ready)
+                    } else {
+                      y -> (stm, ready)
+                    }
+                  })
                 )
               )()
             case None =>
               s
           }
         }
-        val withTransformedProducers =
-          StmBuild(
-            s.n,
-            s.data,
-            s.valid,
-            accumulators = s.accumulators,
-            producers = s.producers
-              .map({ case (x, (stm, ready)) => x -> (moveUp(stm), ready) })
-          )()
+        val withTransformedProducers = s.mapProducers({
+          case (x, (stm, ready)) => x -> (moveUp(stm), ready)
+        })
         pullOutLet(withTransformedProducers)
       case LetStm(bufSize, x, in, out) =>
         def pullOutLet(let: LetStm): Expr = {
@@ -166,21 +154,15 @@ object LetStmMover {
                 val count = s.producers.values
                   .count({ case (stm, _) => stm.freeVars.contains(x) })
                 if (count == 1) {
-                  StmBuild(
-                    s.n,
-                    s.data,
-                    s.valid,
-                    s.accumulators,
-                    s.producers.map({
-                      case (y, (stm, ready)) if stm.freeVars.contains(x) =>
-                        y -> (
-                          pullOutStmBuild(
-                            LetStm(let.bufSize, let.x, let.in, stm)()
-                          ),
-                          ready
-                        )
-                    })
-                  )()
+                  s.mapProducers({
+                    case (y, (stm, ready)) if stm.freeVars.contains(x) =>
+                      y -> (
+                        pullOutStmBuild(
+                          LetStm(let.bufSize, let.x, let.in, stm)()
+                        ),
+                        ready
+                      )
+                  })
                 } else {
                   let
                 }

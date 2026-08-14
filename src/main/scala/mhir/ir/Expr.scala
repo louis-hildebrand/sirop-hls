@@ -63,18 +63,24 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case Function(x, e) => e.freeVars - x
       case LetStm(bufSize, x, in, out) =>
         bufSize.freeVars ++ in.freeVars ++ (out.freeVars - x)
-      case stm @ StmBuild(n, data, valid, accumulators, producers) =>
+      case stm: StmBuild =>
         (
           // Free variables in the stream length and seeds are definitely free,
           // even if they are bound by the stream
-          n.freeVars
-            ++ accumulators.flatMap({ case (_, (init, _)) => init.freeVars })
-            ++ producers.flatMap({ case (_, (stm, _)) => stm.freeVars })
+          stm.n.freeVars
+            ++ stm.accumulators.flatMap({ case (_, (init, _)) =>
+              init.freeVars
+            })
+            ++ stm.producers.flatMap({ case (_, (stm, _)) => stm.freeVars })
             // There may be bound variables in the output and "next" functions
             ++ (
-              data.freeVars ++ valid.freeVars ++
-                producers.flatMap({ case (_, (_, ready)) => ready.freeVars }) ++
-                accumulators.flatMap({ case (_, (_, next)) => next.freeVars })
+              stm.data.freeVars ++ stm.valid.freeVars ++
+                stm.producers.flatMap({ case (_, (_, ready)) =>
+                  ready.freeVars
+                }) ++
+                stm.accumulators.flatMap({ case (_, (_, next)) =>
+                  next.freeVars
+                })
             ).diff(stm.namesDefinedHere)
         )
       case e if e.children.isEmpty => Set.empty
@@ -89,21 +95,21 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case Function(x, e) => e.freeVarsInTypes - x
       case LetStm(bufSize, x, in, out) =>
         bufSize.freeVarsInTypes ++ in.freeVarsInTypes ++ (out.freeVarsInTypes - x)
-      case stm @ StmBuild(n, data, valid, accumulators, producers) =>
+      case stm: StmBuild =>
         (
           // Free variables in the stream length and seeds are definitely free,
           // even if they are bound by the stream
-          n.freeVarsInTypes
-            ++ accumulators
+          stm.n.freeVarsInTypes
+            ++ stm.accumulators
               .flatMap({ case (_, (init, _)) => init.freeVarsInTypes })
-            ++ producers
+            ++ stm.producers
               .flatMap({ case (_, (stm, _)) => stm.freeVarsInTypes })
             // There may be bound variables in the output and "next" functions
             ++ (
-              data.freeVarsInTypes ++ valid.freeVarsInTypes
-                ++ accumulators
+              stm.data.freeVarsInTypes ++ stm.valid.freeVarsInTypes
+                ++ stm.accumulators
                   .flatMap({ case (_, (_, next)) => next.freeVarsInTypes })
-                ++ producers
+                ++ stm.producers
                   .flatMap({ case (_, (_, ready)) => ready.freeVarsInTypes })
             ).diff(stm.namesDefinedHere)
         )

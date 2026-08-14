@@ -34,13 +34,7 @@ object StmAccRemovalPass {
   def removeUnusedVars(stm: StmBuild): StmBuild = {
     val usedElems =
       stm.internalDependencies.transitiveDependencies(stm.outputDependencies)
-    StmBuild(
-      stm.n,
-      stm.data,
-      stm.valid,
-      stm.accumulators.filter({ case (x, _) => usedElems.contains(x) }),
-      stm.producers.filter({ case (x, _) => usedElems.contains(x) })
-    )()
+    stm.removeVarsExcept(usedElems)
   }
 
   def deduplicateVars(stm: StmBuild): StmBuild = {
