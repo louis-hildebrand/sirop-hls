@@ -492,7 +492,8 @@ class PartialEvalPassTests extends AnyFunSuite {
       10,
       Tuple(a >= 0, a < 4)(),
       True,
-      Map(a -> (C(0)(U8), a + 1))
+      Map(a -> (C(0)(U8), a + 1)),
+      Map()
     )()
     val e = Tuple(a < 4, s)().tchk().lower
     val facts =
@@ -508,7 +509,8 @@ class PartialEvalPassTests extends AnyFunSuite {
         10,
         Tuple(True, a lt 4)(),
         True,
-        Map(a -> (C(0)(U8), Sum(1, a)()))
+        Map(a -> (C(0)(U8), Sum(1, a)())),
+        Map()
       )()
     )()
     assert(actual == expected)
@@ -639,9 +641,10 @@ class PartialEvalPassTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         a0 -> (z, a0 + a1 + a1),
         a1 -> (C(0)(U8), a1 + a0)
-      )
+      ),
+      Map()
     )().tchk().lower
-    val expected = StmBuild(1, z, True)()
+    val expected = StmBuild(1, z, True, Map(), Map())()
     assert(PartialEvalPass.partialEvalStmBuild(s) == expected)
   }
 
@@ -657,11 +660,13 @@ class PartialEvalPassTests extends AnyFunSuite {
       i === n - 1,
       Map[Param, (Expr, Expr)](
         i -> (C(0)(U8), i + 1),
-        a -> (z, a + StmData(s)()),
+        a -> (z, a + StmData(s)())
+      ),
+      Map[Param, (Expr, Expr)](
         s -> (StmCount(C(n)(U8))(), True)
       )
     )().tchk().lower
-    val expected = StmBuild(1, Sum((0 until n).sum, z)(), True)()
+    val expected = StmBuild(1, Sum((0 until n).sum, z)(), True, Map(), Map())()
     val actual = PartialEvalPass.partialEvalStmBuild(sum).tchk().lower
     assert(actual == expected)
   }
@@ -676,6 +681,7 @@ class PartialEvalPassTests extends AnyFunSuite {
       1,
       StmData(a)(),
       True,
+      Map(),
       Map[Param, (Expr, Expr)](
         a -> (s, True)
       )

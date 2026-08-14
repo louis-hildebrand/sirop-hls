@@ -48,6 +48,7 @@ trait Lowering {
                 n,
                 Mux(cond, StmData(sT)(), StmData(sF)())(),
                 True,
+                Map(),
                 Map[Param, (Expr, Expr)](
                   sT -> (t, True),
                   sF -> (f, True)

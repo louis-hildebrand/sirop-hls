@@ -78,17 +78,21 @@ object EnabledUnusedDataRemover extends UnusedDataRemover {
                   producer.n,
                   newProducerData,
                   producer.valid,
-                  producer.equations
+                  producer.accumulators,
+                  producer.producers
                 )().tchk()
-                val newEquations =
-                  (consumer.equations - x).map({ case (y, (z, next)) =>
-                    y -> (z, next.subAndEraseType(x -> newX).tchk())
-                  }) + (newX -> (newProducer, ready))
                 StmBuild(
                   consumer.n,
                   consumer.data.subAndEraseType(x -> newX).tchk(),
                   consumer.valid.subAndEraseType(x -> newX).tchk(),
-                  newEquations
+                  consumer.accumulators.map({ case (y, (init, next)) =>
+                    y -> (init, next.subAndEraseType(x -> newX).tchk())
+                  }),
+                  (consumer.producers - x)
+                    .map({ case (y, (stm, ready)) =>
+                      y -> (stm, ready.subAndEraseType(x -> newX).tchk())
+                    })
+                    .+(newX -> (newProducer, ready))
                 )().tchk().asInstanceOf[StmBuild]
               }
             case (acc, _) => acc
@@ -99,7 +103,8 @@ object EnabledUnusedDataRemover extends UnusedDataRemover {
           s2.n,
           s2.data,
           s2.valid,
-          s2.equations.map({
+          s2.accumulators,
+          s2.producers.map({
             case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
               x -> (doRemoveUnusedData(s), ready)
             case eqn => eqn

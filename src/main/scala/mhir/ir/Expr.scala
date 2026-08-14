@@ -63,19 +63,19 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case Function(x, e) => e.freeVars - x
       case LetStm(bufSize, x, in, out) =>
         bufSize.freeVars ++ in.freeVars ++ (out.freeVars - x)
-      case stm @ StmBuild(n, data, valid, eqns) =>
+      case stm @ StmBuild(n, data, valid, accumulators, producers) =>
         (
           // Free variables in the stream length and seeds are definitely free,
           // even if they are bound by the stream
           n.freeVars
-            ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (z, _))) =>
-              fvs ++ z.freeVars
-            })
+            ++ accumulators.flatMap({ case (_, (init, _)) => init.freeVars })
+            ++ producers.flatMap({ case (_, (stm, _)) => stm.freeVars })
             // There may be bound variables in the output and "next" functions
-            ++ (data.freeVars ++ valid.freeVars
-              ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (_, next))) =>
-                fvs ++ next.freeVars
-              })).diff(stm.accVars)
+            ++ (
+              data.freeVars ++ valid.freeVars ++
+                producers.flatMap({ case (_, (_, ready)) => ready.freeVars }) ++
+                accumulators.flatMap({ case (_, (_, next)) => next.freeVars })
+            ).diff(stm.namesDefinedHere)
         )
       case e if e.children.isEmpty => Set.empty
       case e                       => e.children.map(_.freeVars).reduce(_ ++ _)
@@ -89,19 +89,23 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
       case Function(x, e) => e.freeVarsInTypes - x
       case LetStm(bufSize, x, in, out) =>
         bufSize.freeVarsInTypes ++ in.freeVarsInTypes ++ (out.freeVarsInTypes - x)
-      case stm @ StmBuild(n, data, valid, eqns) =>
+      case stm @ StmBuild(n, data, valid, accumulators, producers) =>
         (
           // Free variables in the stream length and seeds are definitely free,
           // even if they are bound by the stream
           n.freeVarsInTypes
-            ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (z, _))) =>
-              fvs ++ z.freeVarsInTypes
-            })
+            ++ accumulators
+              .flatMap({ case (_, (init, _)) => init.freeVarsInTypes })
+            ++ producers
+              .flatMap({ case (_, (stm, _)) => stm.freeVarsInTypes })
             // There may be bound variables in the output and "next" functions
-            ++ (data.freeVarsInTypes ++ valid.freeVarsInTypes
-              ++ eqns.foldLeft(Set[Param]())({ case (fvs, (_, (_, next))) =>
-                fvs ++ next.freeVarsInTypes
-              })).diff(stm.accVars)
+            ++ (
+              data.freeVarsInTypes ++ valid.freeVarsInTypes
+                ++ accumulators
+                  .flatMap({ case (_, (_, next)) => next.freeVarsInTypes })
+                ++ producers
+                  .flatMap({ case (_, (_, ready)) => ready.freeVarsInTypes })
+            ).diff(stm.namesDefinedHere)
         )
       case e if e.children.isEmpty => Set.empty
       case e => e.children.map(_.freeVarsInTypes).reduce(_ ++ _)
@@ -718,7 +722,8 @@ case object False extends BoolCst
   * both branches will always be evaluated. In practice, this simply means that
   * you must be careful about side effects in a [[Mux]]. If there is an error in
   * the branch that is <i>not</i> selected (e.g., an out-of-bounds vector
-  * access), then that branch's value may be undefined but it will be discarded.
+  * access), then that branch's value may be undefined, but it will be
+  * discarded.
   *
   * @param c
   *   the condition.
@@ -879,64 +884,83 @@ object Undefined {
   }
 }
 
-/** Constructs a fixed-length stream of elements.
+/** Expression that constructs a fixed-length stream.
   *
   * Streams are collections that do <i>not</i> support random access. You can
   * only ever access the next element of a stream, and once you read the element
-  * it will only be available for one step.
+  * it will only be available for one time step.
   *
   * @param n
-  *   the length of the stream. This must <i>not</i> depend on any of this
-  *   stream's accumulators.
+  *   the length of the stream. This must <i>not</i> depend on any of the
+  *   accumulators or producers.
   * @param data
   *   an expression for the next output of this stream. This may depend on any
-  *   of this stream's accumulators.
+  *   of the accumulators and producers.
   * @param valid
   *   an expression indicating whether the next output of this stream is valid.
   *   If not, then the value of [[data]] doesn't matter. This may depend on any
-  *   of this stream's accumulators.
-  * @param equations
-  *   a set of accumulators within this stream. Each accumulator has (1) a
-  *   [[Param]] representing it, (2) an initial value, and (3) an update
-  *   expression. The update expression may depend on any of this stream's
-  *   accumulators, but the initial value must <i>not</i> depend on any of this
-  *   stream's accumulators.
+  *   of the accumulators and producers.
+  * @param accumulators
+  *   a set of accumulators, which basically represent some internal state. Each
+  *   accumulator has (1) a [[Param]] representing it, (2) an initial value
+  *   (which <i>cannot</i> use any of the accumulators or producers), and (3) a
+  *   `next` expression (which may use any of the accumulators and producers).
+  * @param producers
+  *   a set of stream producers that this expression reads. Each producer is
+  *   bound to a [[Param]] and has (1) the stream itself (which <i>cannot</i>
+  *   depend on any of the accumulators or producers), along with (2) a `ready`
+  *   expression. The data from the producer stream will only be consumed when
+  *   `ready` evaluates to `true`.
   */
 case class StmBuild(
     n: Expr /* Int */,
     data: Expr /* B */,
     valid: Expr /* Bool */,
-    equations: Map[Param, (Expr, Expr)] = Map() /* (A, A) */
+    accumulators: Map[Param, (Expr, Expr)], /* (A, A) */
+    producers: Map[Param, (Expr, Expr)] /* (A, bool) */
 )(typ: Type = Missing, val annotations: Set[StmBuildAnnotation] = Set())
     extends Expr(
-      Seq(n, data, valid) ++ equations.flatMap({ case (x, (z, next)) =>
-        Seq(x, z, next)
-      }): _*
+      Seq(n, data, valid)
+        ++ accumulators
+          .flatMap({ case (x, (init, next)) => Seq(x, init, next) })
+        ++ producers
+          .flatMap({ case (x, (stm, ready)) => Seq(x, stm, ready) }): _*
     )(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq(n, data, valid, eqns @ _*) if eqns.length % 3 == 0 =>
-        val equations = (0 until eqns.length / 3)
-          .map(i => {
-            val x = eqns(3 * i).asInstanceOf[Param]
-            val z = eqns(3 * i + 1)
-            val next = eqns(3 * i + 2)
-            x -> (z, next)
-          })
-          .toMap
-        StmBuild(n, data, valid, equations)(typ, this.annotations)
+        var accumulators = Map[Param, (Expr, Expr)]()
+        var producers = Map[Param, (Expr, Expr)]()
+        for (i <- 0 until eqns.length / 3) {
+          val x = eqns(3 * i).asInstanceOf[Param]
+          (x.typ, eqns(3 * i + 1), eqns(3 * i + 2)) match {
+            case (_: TyStm, stm, ready) =>
+              producers += (x -> (stm, ready))
+            case (TyData(_), init, next) =>
+              accumulators += (x -> (init, next))
+            case _ =>
+              throw new BadRebuildError(this, newChildren)
+          }
+        }
+        StmBuild(n, data, valid, accumulators, producers)(typ, this.annotations)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
 
-  lazy val accVars: Set[Param] = equations.keySet
-  lazy val seedByVar: Map[Param, Expr] =
-    equations.map({ case (x, (v, _)) => x -> v })
-  lazy val nextByVar: Map[Param, Expr] =
-    equations.map({ case (x, (_, next)) => x -> next })
+  lazy val namesDefinedHere: Set[Param] = {
+    this.accumulators.keySet ++ this.producers.keySet
+  }
 
-  def producers: Map[Param, (Expr, Expr)] = {
-    this.equations.filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+  // TODO: Check whether these methods are really needed
+
+  def initOrStm(x: Param): Expr = {
+    val (init, _) = this.accumulators.getOrElse(x, this.producers(x))
+    init
+  }
+
+  def nextOrReady(x: Param): Expr = {
+    val (_, next) = this.accumulators.getOrElse(x, this.producers(x))
+    next
   }
 
   /** Checks for structural equality, ignoring order of equations and names of
@@ -949,19 +973,21 @@ case class StmBuild(
           true
         } else if (this.n != that.n) {
           false
-        } else if (this.equations.size != that.equations.size) {
+        } else if (this.accumulators.size != that.accumulators.size) {
+          false
+        } else if (this.producers.size != that.producers.size) {
           false
         } else if (this.hashCode != that.hashCode) {
           false
         } else {
-          assert(this.accVars.size == that.accVars.size)
+          assert(this.namesDefinedHere.size == that.namesDefinedHere.size)
           existsVarRenamingThatMakesEqual(
             // Use the accumulator names as a hint for finding the right
             // pairing (if one exists).
             // If two streams are equal, I think they'll *usually* have the
             // same, or at least very similar, accumulator names
-            domain = this.accVars.toSeq.sortBy(_.name),
-            codomain = that.accVars.toSeq.sortBy(_.name),
+            domain = this.namesDefinedHere.toSeq.sortBy(_.name),
+            codomain = that.namesDefinedHere.toSeq.sortBy(_.name),
             map = Map(),
             inverse = Map(),
             that
@@ -974,21 +1000,27 @@ case class StmBuild(
   override lazy val hashCode: Int = {
     // This implementation should be correct, but it may cause excessive
     // collisions since it maps all variables to the same one variable.
+    implicit val c: Canonicalizer = NoOpCanonicalizer
     val subs: Map[Expr, Expr] =
-      this.accVars.map(x => x -> StmBuild.HashCodeParam.rebuild(x.typ)).toMap
+      this.namesDefinedHere
+        .map(x => x -> StmBuild.HashCodeParam.rebuild(x.typ))
+        .toMap
     val len = this.n
-    val data = this.data.subAndEraseType(subs)(NoOpCanonicalizer)
-    val valid = this.valid.subAndEraseType(subs)(NoOpCanonicalizer)
-    val eqns = this.equations.toSeq
-      .map({ case (_, (z, next)) =>
-        (z, next.subAndEraseType(subs)(NoOpCanonicalizer))
-      })
-    val eqnsBag =
-      eqns.toSet.map((x: (Expr, Expr)) => x -> eqns.count(y => x == y)).toMap
-    // Be careful not to remove equations due to the fact that they'll all use
-    // the same param now!
-    assert(eqnsBag.values.sum == this.equations.size)
-    (len, data, valid, eqnsBag).hashCode
+    val data = this.data.subAndEraseType(subs)
+    val valid = this.valid.subAndEraseType(subs)
+    val accumulators = this.accumulators.toSeq
+      .map({ case (_, (init, next)) => (init, next.subAndEraseType(subs)) })
+    val accumulatorBag =
+      accumulators.groupBy(x => x).map({ case (k, v) => k -> v.size })
+    val producers = this.producers.toSeq
+      .map({ case (_, (stm, ready)) => (stm, ready.subAndEraseType(subs)) })
+    val producerBag =
+      producers.groupBy(x => x).map({ case (k, v) => k -> v.size })
+    // Be careful not to remove accumulators or producers due to the fact that
+    // they'll all use the same param now!
+    assert(accumulatorBag.values.sum == this.accumulators.size)
+    assert(producerBag.values.sum == this.producers.size)
+    (len, data, valid, accumulatorBag, producerBag).hashCode
   }
 
   /** Basically just brute-force check through all the possible mappings from
@@ -1004,6 +1036,7 @@ case class StmBuild(
       inverse: Map[Param, Param],
       that: StmBuild
   ): Boolean = {
+    implicit val c: Canonicalizer = NoOpCanonicalizer
     if (map.size == domain.size) {
       // We have a full candidate mapping, so check equality
       assert(domain.forall(x => inverse(map(x)) == x))
@@ -1024,26 +1057,24 @@ case class StmBuild(
           y -> fresh.rebuild(y.typ)
         })
       val eqnsMatch = map.forall({ case (x, y) =>
-        (this.nextByVar(x).subAndEraseType(thisSubs)(NoOpCanonicalizer)
-          == that.nextByVar(y).subAndEraseType(thatSubs)(NoOpCanonicalizer))
+        (this.nextOrReady(x).subAndEraseType(thisSubs)
+          == that.nextOrReady(y).subAndEraseType(thatSubs))
       })
-      val thisOutput =
-        (
-          this.data.subAndEraseType(thisSubs)(NoOpCanonicalizer),
-          this.valid.subAndEraseType(thisSubs)(NoOpCanonicalizer)
-        )
-      val thatOutput =
-        (
-          that.data.subAndEraseType(thatSubs)(NoOpCanonicalizer),
-          that.valid.subAndEraseType(thatSubs)(NoOpCanonicalizer)
-        )
+      val thisOutput = (
+        this.data.subAndEraseType(thisSubs),
+        this.valid.subAndEraseType(thisSubs)
+      )
+      val thatOutput = (
+        that.data.subAndEraseType(thatSubs),
+        that.valid.subAndEraseType(thatSubs)
+      )
       eqnsMatch && thisOutput == thatOutput
     } else {
       // Don't have a full candidate mapping yet, so recurse
       val x = domain(map.size)
       codomain.exists(y => {
         (!inverse.isDefinedAt(y)
-        && this.seedByVar(x) == that.seedByVar(y)
+        && this.initOrStm(x) == that.initOrStm(y)
         && existsVarRenamingThatMakesEqual(
           domain,
           codomain,

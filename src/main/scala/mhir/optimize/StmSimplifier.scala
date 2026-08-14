@@ -61,12 +61,15 @@ case class EnabledStmSimplifier(
   private def simplifyStmBuild(e: Expr)(implicit facts: FactSet): Expr = {
     val result = e match {
       case s: StmBuild =>
-        val newEquations = s.equations.map({
-          case (x, (producer, next)) if x.typ.isInstanceOf[TyStm] =>
+        val newS = StmBuild(
+          s.n,
+          s.data,
+          s.valid,
+          s.accumulators,
+          s.producers.map({ case (x, (producer, next)) =>
             x -> (simplifyStmBuild(producer), next)
-          case eqn => eqn
-        })
-        val newS = StmBuild(s.n, s.data, s.valid, newEquations)()
+          })
+        )()
         stmBuildSimplifier.simplify(newS)(facts)
       case e =>
         e.map(simplifyStmBuild)

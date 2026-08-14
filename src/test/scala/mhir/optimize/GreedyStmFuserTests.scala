@@ -49,7 +49,8 @@ class GreedyStmFuserTests extends AnyFunSuite {
           True,
           Map[Param, (Expr, Expr)](
             a -> (C(-4)(I16), Sum(C(2)(I16), a)())
-          )
+          ),
+          Map()
         )().tchk()
       }
       val vecAccessStm = {
@@ -58,6 +59,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
           n,
           VecAccess(StmData(s)(), 0)(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](s -> (vecStm, True))
         )().tchk()
       }
@@ -79,7 +81,8 @@ class GreedyStmFuserTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           a -> (C(-4)(I16), Sum(C(2)(I16), a)())
-        )
+        ),
+        Map()
       )().tchk()
     }
     assert(actual == expected)
@@ -98,7 +101,8 @@ class GreedyStmFuserTests extends AnyFunSuite {
           n,
           a,
           True,
-          Map[Param, (Expr, Expr)](a -> (C(0)(U8), Sum(C(1)(U8), a)()))
+          Map[Param, (Expr, Expr)](a -> (C(0)(U8), Sum(C(1)(U8), a)())),
+          Map()
         )().tchk()
       }
       val countPlusOne = {
@@ -107,6 +111,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
           n,
           Sum(C(1)(U8), StmData(s)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s -> (count, True)
           )
@@ -120,6 +125,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
           n,
           Tuple(StmData(s0)(), StmData(s1)(), StmData(s2)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s0 -> (count, True),
             s1 -> (input, True),
@@ -149,7 +155,9 @@ class GreedyStmFuserTests extends AnyFunSuite {
         Tuple(a, StmData(s)(), Sum(C(1)(U8), a)())(),
         True,
         Map[Param, (Expr, Expr)](
-          a -> (C(0)(U8), Sum(C(1)(U8), a)()),
+          a -> (C(0)(U8), Sum(C(1)(U8), a)())
+        ),
+        Map[Param, (Expr, Expr)](
           s -> (input, True)
         )
       )().tchk()
@@ -176,6 +184,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
             )
           )(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s -> (input, True)
           )
@@ -187,6 +196,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
           n,
           VecAccess(StmData(s)(), 0)() * VecAccess(StmData(s)(), 1)(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s -> (s2, True)
           )

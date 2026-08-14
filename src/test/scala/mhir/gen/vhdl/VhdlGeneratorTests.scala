@@ -37,7 +37,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         i -> (C(-8)(I8), TruncateTo(SafeSum(i, 1)(), 8)()),
         j -> (C(0)(U8), TruncateTo(SafeSum(j, 1)(), 8)())
-      )
+      ),
+      Map()
     )().tchk().lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
@@ -60,7 +61,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         i -> (C(0)(I8), Mux(j === m, i + 1, i)()),
         j -> (C(1)(I8), Mux(j === m, C(1)(I8), j + 1)())
-      )
+      ),
+      Map()
     )().tchk().lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
@@ -78,6 +80,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
           Bits(Tuple(StmData(p)(), C(42)(U16))())()
         )(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           p -> (s, True)
         )
@@ -126,7 +129,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
           AllZero(i.typ),
           Bits(WrappingSum(C(1)(U8), InterpretAs(i, U8)())())()
         )
-      )
+      ),
+      Map()
     )().tchk().lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
@@ -175,7 +179,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         i -> (C(0)(u4), Sum(C(1)(u4), i)()),
         j -> (C(-8)(i4), Sum(C(1)(i4), j)())
-      )
+      ),
+      Map()
     )().tchk().lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
@@ -195,7 +200,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
         y -> (C(65534)(U16), WrappingSum(y, C(1)(U16))()),
         z -> (C(32765)(I16), WrappingSum(z, C(1)(I16))()),
         w -> (C(-32766)(I16), WrappingSum(w, C(-1)(I16))())
-      )
+      ),
+      Map()
     )().tchk().lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
@@ -215,7 +221,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
         y -> (C(2)(U16), WrappingDiff(y, C(1)(U16))()),
         z -> (C(-32766)(I16), WrappingDiff(z, C(1)(I16))()),
         w -> (C(32765)(I16), WrappingDiff(w, C(-1)(I16))())
-      )
+      ),
+      Map()
     )().tchk().lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
@@ -235,7 +242,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
         y -> (C(2000)(U16), WrappingProd(y, C(5)(U16))()),
         z -> (C(1000)(I16), WrappingProd(z, C(5)(I16))()),
         w -> (C(-2000)(I16), WrappingProd(w, C(3)(I16))())
-      )
+      ),
+      Map()
     )().tchk().lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
@@ -255,7 +263,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       True,
       Map[Param, (Expr, Expr)](
         i -> (C(0)(U8), Sum(C(1)(U8), i)())
-      )
+      ),
+      Map()
     )().tchk().lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
@@ -281,7 +290,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
         5,
         i,
         b,
-        Map[Param, (Expr, Expr)](b -> (True, Not(b)()), i -> (C(0)(U8), i + 1))
+        Map[Param, (Expr, Expr)](b -> (True, Not(b)()), i -> (C(0)(U8), i + 1)),
+        Map()
       )().tchk().lower.asInstanceOf[StmBuild]
     }
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
@@ -306,7 +316,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
             )()
           ),
           y -> (Tuple()(), Tuple()())
-        )
+        ),
+        Map()
       )().tchk().lower.asInstanceOf[StmBuild]
     }
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
@@ -325,7 +336,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           v -> (z, VecShiftLeft(v, VecAccess(v, 0)())())
-        )
+        ),
+        Map()
       )().tchk().lower
       PartialEvalPass.partialEval(s).asInstanceOf[StmBuild]
     }
@@ -353,14 +365,17 @@ class VhdlGeneratorTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           a -> (C(42)(U8), Sum(C(1)(U8), a)())
-        )
+        ),
+        Map()
       )().tchk()
     }
     assert(VhdlTestRunner.testExpr(e) == TestPassed)
   }
 
   test("StmBuild:EmptyVec") {
-    val s = StmBuild(3, VecBuild(0, U8 ::+ (i => i))(), True)().tchk().lower
+    val s = StmBuild(3, VecBuild(0, U8 ::+ (i => i))(), True, Map(), Map())()
+      .tchk()
+      .lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
 
@@ -376,7 +391,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
         a % 6 < 2,
         Map[Param, (Expr, Expr)](
           a -> (C(0)(I16), Sum(C(1)(I16), a)())
-        )
+        ),
+        Map()
       )().tchk().lower
     }
     val repeat = {
@@ -393,7 +409,6 @@ class VhdlGeneratorTests extends AnyFunSuite {
         VecAccess(v, i)(),
         !filling1,
         Map[Param, (Expr, Expr)](
-          p -> (producer, filling2),
           v -> (
             Undefined(v.typ),
             VecBuild(
@@ -406,6 +421,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
           i -> (C(0)(U8), Mux(i === n / 2 - 1, C(0)(U8), Sum(C(1)(U8), i)())()),
           filling1 -> (True, filling1 && (i !== n / 2 - 1)),
           filling2 -> (True, filling1 || (filling2 && (i !== n / 2 - 1)))
+        ),
+        Map[Param, (Expr, Expr)](
+          p -> (producer, filling2)
         )
       )().tchk().lower
     }
@@ -418,7 +436,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
         Mux(a % 8 < 2, StmData(p)(), C(-1)(I16))(),
         True,
         Map[Param, (Expr, Expr)](
-          a -> (C(0)(I16), Sum(C(1)(I16), a)()),
+          a -> (C(0)(I16), Sum(C(1)(I16), a)())
+        ),
+        Map[Param, (Expr, Expr)](
           p -> (repeat, a % 8 < 2)
         )
       )().tchk().lower
@@ -438,6 +458,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
         n,
         StmData(s)(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s -> (StmCst(n, c)(), True)
         )
@@ -454,6 +475,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
         n,
         StmData(s)() + 42,
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s -> (StmCount(C(n)(U8))(), True)
         )
@@ -886,7 +908,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
           True,
           Map[Param, (Expr, Expr)](
             i -> (C(0)(U8), Sum(C(1)(U8), i)())
-          )
+          ),
+          Map()
         )().tchk()
       }
       val x = Param("s")(TyStm(U8, n * m))
@@ -910,7 +933,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
                 C(0)(U8),
                 Sum(StmData(s)(), acc)()
               )()
-            ),
+            )
+          ),
+          Map[Param, (Expr, Expr)](
             s -> (x, True)
           )
         )().tchk()
@@ -926,7 +951,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
             t -> (
               C(0)(U8),
               Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
-            ),
+            )
+          ),
+          Map[Param, (Expr, Expr)](
             s -> (x, True)
           )
         )().tchk()
@@ -938,6 +965,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
           n,
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s0 -> (rowSums, True),
             s1 -> (rowHeads, True)
@@ -962,7 +990,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           a -> (C(0)(U8), Sum(C(1)(U8), a)())
-        )
+        ),
+        Map()
       )().tchk()
     }
     val inputs = Seq(Seq(), Seq())
@@ -979,7 +1008,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
       True,
       Map[Param, (Expr, Expr)](
         a -> (C(0)(U8), Let(x, a + 1, x * x)())
-      )
+      ),
+      Map()
     )().tchk().lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
@@ -1027,7 +1057,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
           v -> (
             VecBuild(n, U8 ::+ (_ => AllZero(U8)))(),
             VecShiftLeft(v, a.__0)()
-          ),
+          )
+        ),
+        Map[Param, (Expr, Expr)](
           s -> (
             StmRange(n, C(42)(U8), C(3)(U8))(),
             True
@@ -1040,16 +1072,20 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("VecAccess(VecBuild(...), i)") {
     val s =
-      StmBuild(2, VecAccess(VecBuild(3, U8 ::+ (i => 42 + i))(), 1)(), True)()
-        .tchk()
-        .lower
+      StmBuild(
+        2,
+        VecAccess(VecBuild(3, U8 ::+ (i => 42 + i))(), 1)(),
+        True,
+        Map(),
+        Map()
+      )().tchk().lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
 
   test("f( (42, True, -1) )") {
     val f = (U8, TyBool, I16) ::+ (x => x.__0)
     val s =
-      StmBuild(2, f(Tuple(C(42)(U8), True, C(-1)(I16))()), True)()
+      StmBuild(2, f(Tuple(C(42)(U8), True, C(-1)(I16))()), True, Map(), Map())()
         .tchk()
         .lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
@@ -1057,7 +1093,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("Tuple(10, 20, 30).__1") {
     val s =
-      StmBuild(2, Tuple(C(10)(), C(20)(), C(30)())().__1, True)()
+      StmBuild(2, Tuple(C(10)(), C(20)(), C(30)())().__1, True, Map(), Map())()
         .tchk()
         .lower
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
@@ -1076,7 +1112,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
           C(0)(U32),
           FunCall(FunCall(f, Tuple(C(1)(U32), C(1)(U32))())(), a)()
         )
-      )
+      ),
+      Map()
     )().tchk().lower.uncurry
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
@@ -1203,7 +1240,8 @@ class VhdlGeneratorTests extends AnyFunSuite {
         i % 2 === 0,
         Map[Param, (Expr, Expr)](
           i -> (C(0)(U8), i + 1)
-        )
+        ),
+        Map()
       )().tchk().lower
     }
     assert(VhdlTestRunner.testExpr(e) == TestPassed)

@@ -750,12 +750,14 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
       VecShiftLeft(v, StmData(p)())().tchk().lower,
       (Sum(C(1)(i.typ), i)() >= n).tchk().lower,
       Map[Param, (Expr, Expr)](
-        p -> (s, True),
         v -> (
           Undefined(v.typ).lower,
           VecShiftLeft(v, StmData(p)())().tchk().lower
         ),
         i -> (C(0)(i.typ), Sum(C(1)(i.typ), i)())
+      ),
+      Map[Param, (Expr, Expr)](
+        p -> (s, True)
       )
     )().annotateWithName("Stm2Vec").tchk()
   }

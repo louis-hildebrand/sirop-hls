@@ -1,9 +1,9 @@
 package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
-import mhir.canonicalize._
 import mhir.typecheck.TypeCheck
 import org.slf4j.event.Level
 
@@ -44,13 +44,10 @@ case class EnabledStmFissionPass(scheduler: StmOutputScheduler)
   override def fission(e: Expr): Expr = {
     e match {
       case s: StmBuild =>
-        val newEquations = s.equations.map({
-          case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
-            x -> (fission(s), ready)
-          case eqn => eqn
-        })
+        val newProducers = s.producers
+          .map({ case (x, (s, ready)) => x -> (fission(s), ready) })
         fissionStmBuild(
-          StmBuild(s.n, s.data, s.valid, newEquations)()
+          StmBuild(s.n, s.data, s.valid, s.accumulators, newProducers)()
             .tchk()
             .asInstanceOf[StmBuild]
         )
@@ -66,16 +63,29 @@ case class EnabledStmFissionPass(scheduler: StmOutputScheduler)
   private def fissionStmBuild(stm: StmBuild): Expr = {
     this.scheduler.schedule(stm.data) match {
       case InProducer(data) =>
-        StmBuild(stm.n, data, stm.valid, stm.equations)().tchk()
+        StmBuild(
+          stm.n,
+          data,
+          stm.valid,
+          stm.accumulators,
+          stm.producers
+        )().tchk()
       case ic: InConsumer =>
         val FunCall(Function(x, cData), pData) = ic.asFunCall().tchk()
-        val producer = StmBuild(stm.n, pData, stm.valid, stm.equations)().tchk()
+        val producer = StmBuild(
+          stm.n,
+          pData,
+          stm.valid,
+          stm.accumulators,
+          stm.producers
+        )().tchk()
         val TyStm(typ, n) = producer.typ
         val s = Param("s")(TyStm(typ, -1))
         val consumer = StmBuild(
           n,
           cData.subPreserveType(x -> StmData(s)().tchk()),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s -> (producer, True)
           )

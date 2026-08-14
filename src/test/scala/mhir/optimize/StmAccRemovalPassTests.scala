@@ -24,7 +24,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a2 -> (2, a2 + a3),
         a3 -> (3, a3 + a4),
         a4 -> (4, a4 * a2 + 2)
-      )
+      ),
+      Map()
     )()
     val expected = StmBuild(
       n,
@@ -34,7 +35,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a2 -> (2, a2 + a3),
         a3 -> (3, a3 + a4),
         a4 -> (4, a4 * a2 + 2)
-      )
+      ),
+      Map()
     )()
     val actual = StmAccRemovalPass.removeUnusedVars(stm)
     assert(actual == expected)
@@ -51,9 +53,11 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       StmData(a1)(),
       a2 >= n,
       Map[Param, (Expr, Expr)](
-        a0 -> (s, a2 < n),
-        a1 -> (s, a2 >= n),
         a2 -> (0, a2 + 1)
+      ),
+      Map[Param, (Expr, Expr)](
+        a0 -> (s, a2 < n),
+        a1 -> (s, a2 >= n)
       )
     )()
     val expected = StmBuild(
@@ -61,8 +65,10 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       StmData(a1)(),
       a2 >= n,
       Map[Param, (Expr, Expr)](
-        a1 -> (s, a2 >= n),
         a2 -> (0, a2 + 1)
+      ),
+      Map[Param, (Expr, Expr)](
+        a1 -> (s, a2 >= n)
       )
     )()
     assert(StmAccRemovalPass.removeUnusedVars(original) == expected)
@@ -73,9 +79,10 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       5,
       42,
       True,
-      Map[Param, (Expr, Expr)]()
+      Map(),
+      Map()
     )()
-    assert(StmAccRemovalPass.removeConstantVars(s) == s)
+    assert(StmAccRemovalPass.removeConstantAccumulators(s) == s)
   }
 
   test("RemoveConstantVars:OneInt") {
@@ -89,7 +96,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       Map[Param, (Expr, Expr)](
         a -> (C(1)(U8), Mux(a - 1 === 0, C(1)(U8), b + 42)()),
         b -> (C(1)(U8), b + C(1)(U8))
-      )
+      ),
+      Map()
     )().tchk().lower.asInstanceOf[StmBuild]
     // `a` will always be 1, so the optimizer should be able to get rid of it
     val expected = StmBuild(
@@ -98,9 +106,10 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       True,
       Map[Param, (Expr, Expr)](
         b -> (1, Sum(b, C(1)(U8))())
-      )
+      ),
+      Map()
     )()
-    val actual = StmAccRemovalPass.removeConstantVars(s)
+    val actual = StmAccRemovalPass.removeConstantAccumulators(s)
     assert(actual == expected)
   }
 
@@ -118,15 +127,11 @@ class StmAccRemovalPassTests extends AnyFunSuite {
           Mux(a - 1 === 0 && b + 2 === 4, ToUnsigned(b - 1)(), b + 42)()
         ),
         b -> (C(2)(U8), Mux(a - 1 === 0 && b + 2 === 4, a + 1, b + 1)())
-      )
+      ),
+      Map()
     )().tchk().lower.asInstanceOf[StmBuild]
-    val expected = StmBuild(
-      n,
-      Tuple(1, 2)(),
-      True,
-      Map[Param, (Expr, Expr)]()
-    )()
-    val actual = StmAccRemovalPass.removeConstantVars(s)
+    val expected = StmBuild(n, Tuple(1, 2)(), True, Map(), Map())()
+    val actual = StmAccRemovalPass.removeConstantAccumulators(s)
     assert(actual == expected)
   }
 
@@ -149,7 +154,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
             c -> (C(1)(U8), c + C(2)(U8)),
             d -> (C(2)(U8), d + C(3)(U8)),
             e -> (Tuple()(), Tuple()())
-          )
+          ),
+          Map()
         )().tchk().lower
       )
       .asInstanceOf[StmBuild]
@@ -161,9 +167,10 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a -> (C(0)(U8), Sum(C(1)(U8), a)()),
         c -> (C(1)(U8), Sum(C(2)(U8), c)()),
         d -> (C(2)(U8), Sum(C(3)(U8), d)())
-      )
+      ),
+      Map()
     )()
-    val actual = StmAccRemovalPass.removeConstantVars(s)
+    val actual = StmAccRemovalPass.removeConstantAccumulators(s)
     assert(actual == expected)
   }
 
@@ -180,11 +187,13 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       Tuple(StmData(s0)(), StmData(s1)(), i0, i1)(),
       True,
       Map[Param, (Expr, Expr)](
-        s0 -> (input, i0 < n),
-        s1 -> (input, i0 < n),
         i0 -> (0, i0 + 2),
         i1 -> (0, i1 + 2),
         j -> (1, j * 2)
+      ),
+      Map[Param, (Expr, Expr)](
+        s0 -> (input, i0 < n),
+        s1 -> (input, i0 < n)
       )
     )()
 
@@ -194,9 +203,11 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       Tuple(StmData(s0)(), StmData(s0)(), i0, i0)(),
       True,
       Map[Param, (Expr, Expr)](
-        s0 -> (input, i0 < n),
         i0 -> (0, i0 + 2),
         j -> (1, j * 2)
+      ),
+      Map[Param, (Expr, Expr)](
+        s0 -> (input, i0 < n)
       )
     )()
     assert(optimized == expected)
@@ -215,7 +226,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a1 -> (C(0)(U16), a1 + C(1)(U16)),
         a0 -> (C(0)(U8), a0 + C(1)(U8)),
         a2 -> (C(0)(U32), a2 + C(1)(U32))
-      )
+      ),
+      Map()
     )().tchk().lower.asInstanceOf[StmBuild]
     val t = Param("t")(U8)
     val expected = StmBuild(
@@ -224,11 +236,12 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       True,
       Map[Param, (Expr, Expr)](
         t -> (C(0)(U8), Sum(t, C(1)(I8))())
-      )
+      ),
+      Map()
     )()
     val actual = StmAccRemovalPass.deduplicateVars(s)
     assert(actual == expected)
-    assert(actual.accVars.head.typ == U8)
+    assert(actual.namesDefinedHere.head.typ == U8)
   }
 
   test("DeduplicateVars:DifferentUnsignedTypes2") {
@@ -250,7 +263,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
             C(0)(U32),
             Mux(a1 === C(2)(U32), C(0)(U32), Sum(C(1)(U32), a1)())()
           )
-        )
+        ),
+        Map()
       )().tchk().lower.asInstanceOf[StmBuild]
     }
     val expected = {
@@ -264,12 +278,13 @@ class StmAccRemovalPassTests extends AnyFunSuite {
             C(0)(u2),
             Mux(PadTo(t, 32)() === C(2)(U32), C(0)(u2), Sum(C(1)(u2), t)())()
           )
-        )
+        ),
+        Map()
       )().tchk().lower
     }
     val actual = StmAccRemovalPass.deduplicateVars(original)
     assert(actual == expected)
-    assert(actual.accVars.head.typ == u2)
+    assert(actual.namesDefinedHere.head.typ == u2)
   }
 
   test("DeduplicateVars:DifferentSignedTypes") {
@@ -285,7 +300,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a1 -> (C(-10)(I16), a1 + C(1)(I16)),
         a2 -> (C(-10)(I32), a2 + C(1)(I32)),
         a0 -> (C(-10)(I8), a0 + C(1)(I8))
-      )
+      ),
+      Map()
     )().tchk().lower.asInstanceOf[StmBuild]
     val t = Param("t")(I8)
     val expected = StmBuild(
@@ -294,11 +310,12 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       True,
       Map[Param, (Expr, Expr)](
         t -> (C(-10)(I8), Sum(t, C(1)(I8))())
-      )
+      ),
+      Map()
     )()
     val actual = StmAccRemovalPass.deduplicateVars(s)
     assert(actual == expected)
-    assert(actual.accVars.head.typ == I8)
+    assert(actual.namesDefinedHere.head.typ == I8)
   }
 
   test("DeduplicateVars:DifferentSignedAndUnsignedTypes") {
@@ -317,7 +334,8 @@ class StmAccRemovalPassTests extends AnyFunSuite {
         a1 -> (C(0)(I8), a1 + C(1)(I8)),
         a2 -> (C(0)(u9), a2 + C(1)(u9)),
         a3 -> (C(0)(I9), a3 + C(1)(I9))
-      )
+      ),
+      Map()
     )().tchk().lower.asInstanceOf[StmBuild]
     val t = Param("t")(U8)
     val expected = StmBuild(
@@ -331,10 +349,11 @@ class StmAccRemovalPassTests extends AnyFunSuite {
       True,
       Map[Param, (Expr, Expr)](
         t -> (C(0)(U8), Sum(t, C(1)(U8))())
-      )
+      ),
+      Map()
     )()
     val actual = StmAccRemovalPass.deduplicateVars(s)
     assert(actual == expected)
-    assert(actual.accVars.head.typ == U8)
+    assert(actual.namesDefinedHere.head.typ == U8)
   }
 }

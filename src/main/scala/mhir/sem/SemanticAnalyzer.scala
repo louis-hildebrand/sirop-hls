@@ -60,19 +60,15 @@ object SemanticAnalyzer {
               s" its output is not always valid"
           )
         }
-        for (eqn <- s.equations) {
-          eqn match {
-            case (x, (p, ready)) if x.typ.isInstanceOf[TyStm] =>
-              if (ready != True) {
-                val name = s.nameAnnotation.getOrElse("(unknown name)")
-                throw SemanticError(
-                  s"stream operator $name cannot be used without the handshake protocol:"
-                    + " it is not always ready to receive input"
-                )
-              }
-              checkNoHandshake(p)
-            case _ => ()
+        for ((_, (p, ready)) <- s.producers) {
+          if (ready != True) {
+            val name = s.nameAnnotation.getOrElse("(unknown name)")
+            throw SemanticError(
+              s"stream operator $name cannot be used without the handshake protocol:"
+                + " it is not always ready to receive input"
+            )
           }
+          checkNoHandshake(p)
         }
       case e => e.children.foreach(checkNoHandshake)
     }

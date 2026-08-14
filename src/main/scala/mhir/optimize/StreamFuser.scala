@@ -39,15 +39,12 @@ object StreamFuser {
         "Expression must be lowered before fusion."
           + s" (Found expression $consumer)"
       )
-      val fused = consumer.seedByVar.get(x) match {
-        case Some(e: StmBuild) =>
-          // Avoid accumulator name clashes
+      val fused = consumer.producers.get(x) match {
+        case Some((e: StmBuild, _)) =>
           val producer = {
-            val s1 = if (e.accVars.intersect(consumer.accVars).nonEmpty) {
-              e.renameVars
-            } else {
-              e
-            }
+            val namesClash =
+              e.namesDefinedHere.intersect(consumer.namesDefinedHere).nonEmpty
+            val s1 = if (namesClash) e.renameVars else e
             // Need to be careful if the valid expression uses sdata; we need
             // to make sure we don't end up using sdata in the ready expression
             // somewhere
@@ -58,7 +55,21 @@ object StreamFuser {
             }
             s2
           }
-          val consumerReady = consumer.nextByVar(x)
+          val (_, consumerReady) = consumer.producers(x)
+          // IN CONSUMER
+          // | consumer ready | producer valid | result                     |
+          // | false          | false          | step: data is not needed   |
+          // | false          | true           | step: data is not needed   |
+          // | true           | false          | no step: need to wait      |
+          // | true           | true           | step: successful handshake |
+          val consumerCanStep = !consumerReady || producer.valid
+          // IN PRODUCER
+          // | consumer ready | producer valid | result                        |
+          // | false          | false          | step: current data is invalid |
+          // | false          | true           | no step: need to wait         |
+          // | true           | false          | step: current data is invalid |
+          // | true           | true           | step: successful handshake    |
+          val producerCanStep = !producer.valid || consumerReady
           val newData = {
             // CASE 1: Consumer is ready (i.e., reading from producer).
             //         It doesn't matter whether the producer yielded a valid value:
@@ -71,13 +82,6 @@ object StreamFuser {
               .subPreserveType(StmData(x)() -> producer.data)
               .tchk()
           }
-          // IN CONSUMER
-          // | consumer ready | producer valid | result                     |
-          // | false          | false          | step: data is not needed   |
-          // | false          | true           | step: data is not needed   |
-          // | true           | false          | no step: need to wait      |
-          // | true           | true           | step: successful handshake |
-          val consumerCanStep = !consumerReady || producer.valid
           val newValid = {
             val cvalid =
               consumer.valid.subPreserveType(
@@ -85,51 +89,48 @@ object StreamFuser {
               )
             (cvalid && consumerCanStep).tchk()
           }
-          val newEquations = {
-            val newConsumerEquations = (consumer.equations - x).map({
-              case (y, (stm, ready)) if y.typ.isInstanceOf[TyStm] =>
-                y -> (stm, (consumerCanStep && ready).tchk())
-              case (y, (z, next)) =>
-                y -> (
-                  z,
-                  Mux(
+          val newAccumulators =
+            producer.accumulators
+              .map({ case (y, (init, next)) =>
+                y -> (init, Mux(producerCanStep, next, y)().tchk())
+              }) ++
+              consumer.accumulators
+                .map({ case (y, (init, next)) =>
+                  val newNext = Mux(
                     consumerCanStep,
                     next.subPreserveType(StmData(x)() -> producer.data),
                     y
                   )().tchk()
-                )
-            })
-            // IN PRODUCER
-            // | consumer ready | producer valid | result                        |
-            // | false          | false          | step: current data is invalid |
-            // | false          | true           | no step: need to wait         |
-            // | true           | false          | step: current data is invalid |
-            // | true           | true           | step: successful handshake    |
-            val producerCanStep = !producer.valid || consumerReady
-            val newProducerEquations =
-              producer.equations.map({
-                case (x, (stm, ready)) if x.typ.isInstanceOf[TyStm] =>
-                  x -> (stm, (producerCanStep && ready).tchk())
-                case (x, (z, next)) =>
-                  x -> (z, Mux(producerCanStep, next, x)().tchk())
-              })
-            newConsumerEquations ++ newProducerEquations
-          }
-          StmBuild(consumer.n, newData, newValid, newEquations)()
-            .tchk()
-            .asInstanceOf[StmBuild]
-        case Some(e) =>
+                  y -> (init, newNext)
+                })
+          val newProducers =
+            producer.producers
+              .map({ case (y, (stm, ready)) =>
+                y -> (stm, (producerCanStep && ready).tchk())
+              }) ++
+              (consumer.producers - x)
+                .map({ case (y, (stm, ready)) =>
+                  y -> (stm, (consumerCanStep && ready).tchk())
+                })
+          StmBuild(
+            consumer.n,
+            newData,
+            newValid,
+            newAccumulators,
+            newProducers
+          )().tchk().asInstanceOf[StmBuild]
+        case Some((e, _)) =>
           throw new IllegalArgumentException(
             s"Expected the initial value of $x to be a StmBuild, but found $e"
           )
         case None =>
           throw new IllegalArgumentException(
-            s"Stream does not contain accumulator variable $x."
+            s"StmBuild does not have any producers called $x."
               + s" The stream is $consumer."
           )
       }
       assert(
-        !fused.accVars.contains(x),
+        !fused.namesDefinedHere.contains(x),
         s"the stream variable ${x.name} should have been removed completely by fusion"
       )
       assert(
@@ -161,21 +162,22 @@ object StreamFuser {
     // producers once we reach the last time step.
     val i = Param("i")(s.n.typ)
     val freeze = i equ s.n
-    val newEquations = (s.equations ++ Map[Param, (Expr, Expr)](
+    val newProducers = s.producers.map({ case (x, (stm, ready)) =>
+      x -> (stm, And(!freeze, ready)().tchk())
+    })
+    val newAccumulators = (s.accumulators ++ Map[Param, (Expr, Expr)](
       data -> (Undefined(data.typ), s.data),
       valid -> (False, s.valid),
       i -> (C(0)(i.typ), Mux(s.valid, Sum(i, C(1)(i.typ))(), i)())
-    )).map({
-      case (x, (stm, ready)) if x.typ.isInstanceOf[TyStm] =>
-        x -> (stm, And(!freeze, ready)().tchk())
-      case (x, (z, next)) =>
-        x -> (z, Mux(freeze, x, next)().tchk())
+    )).map({ case (x, (z, next)) =>
+      x -> (z, Mux(freeze, x, next)().tchk())
     })
     StmBuild(
       s.n,
       data,
       valid,
-      newEquations
+      newAccumulators,
+      newProducers
     )().tchk().asInstanceOf[StmBuild]
   }
 }

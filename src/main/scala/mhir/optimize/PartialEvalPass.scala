@@ -3,8 +3,8 @@ package mhir.optimize
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.typecheck.{TypeCheck, TypeError}
 import mhir.sugar._
+import mhir.typecheck.{TypeCheck, TypeError}
 
 import scala.annotation.tailrec
 
@@ -302,7 +302,7 @@ object PartialEvalPass {
               case (v, i) => VecAccess(v, i)()
             }
 
-          case s @ StmBuild(n, data, valid, equations) =>
+          case s: StmBuild =>
             // Do the actual analysis to find the ranges outside the partial evaluator because doing it in the partial
             // evaluator is waaaay too slow. In many cases, it's not needed.
             val accRanges = facts.rangeByExpr.get(s) match {
@@ -310,26 +310,26 @@ object PartialEvalPass {
               case _                            => Map()
             }
             val clearedFacts =
-              s.accVars
+              s.namesDefinedHere
                 .foldLeft(facts)({ case (facts, x) => facts.clearRange(x) })
             val newFacts = accRanges
               .foldLeft(clearedFacts)({ case (facts, (x, r)) =>
                 facts.range(x, r)
               })
-            val newValid = doPartialEval(valid)(newFacts)
+            val newValid = doPartialEval(s.valid)(newFacts)
             StmBuild(
-              doPartialEval(n)(facts),
+              doPartialEval(s.n)(facts),
               // The value of the data doesn't matter if it is invalid, so
               // we can assume it is valid when simplifying.
-              doPartialEval(data)(newFacts.assumeTrue(newValid)),
+              doPartialEval(s.data)(newFacts.assumeTrue(newValid)),
               newValid,
-              equations.map({ case (x, (z, next)) =>
+              s.accumulators.map({ case (x, (z, next)) =>
                 // The recurrence variables shouldn't occur free in z, so use
                 // the old facts for z
-                x -> (
-                  doPartialEval(z)(facts),
-                  doPartialEval(next)(newFacts)
-                )
+                x -> (doPartialEval(z)(facts), doPartialEval(next)(newFacts))
+              }),
+              s.producers.map({ case (x, (stm, ready)) =>
+                x -> (doPartialEval(stm)(facts), doPartialEval(ready)(newFacts))
               })
             )()
           case LetStm(bufSize, x, in, out) =>
@@ -504,16 +504,16 @@ object PartialEvalPass {
     }
   }
 
+  // TODO: Move this to mhir.optimize.experimental
   def partialEvalStmBuild(e: Expr): Expr = {
     // Make this a separate method because it can be extremely slow in some
     // cases and it's rarely useful
     e match {
-      case StmBuild(IntCst(1), data, valid, eqns) =>
-        val newEquations = eqns.map({
-          case (x, (z, next)) if !x.typ.isInstanceOf[TyStm] => x -> (z, next)
-          case (x, (stm, ready)) => x -> (partialEvalStmBuild(stm), ready)
+      case StmBuild(IntCst(1), data, valid, accumulators, producers) =>
+        val newProducers = producers.map({ case (x, (stm, ready)) =>
+          x -> (partialEvalStmBuild(stm), ready)
         })
-        val s = StmBuild(1, data, valid, newEquations)()
+        val s = StmBuild(1, data, valid, accumulators, newProducers)()
           .tchk()
           .asInstanceOf[StmBuild]
         // Maybe we can find the first element statically and just return it directly!
@@ -523,7 +523,7 @@ object PartialEvalPass {
           case _ => None
         }
         onlyElem match {
-          case Some(e) => StmBuild(1, e, True, Map[Param, (Expr, Expr)]())()
+          case Some(e) => StmBuild(1, e, True, Map(), Map())()
           case None    => s
         }
       case e =>
@@ -548,57 +548,72 @@ object PartialEvalPass {
         case Some(s) =>
           s.n match {
             case IntCst(n) if n > 0 =>
-              val currentValByVar: Map[Expr, Expr] = s.seedByVar.toMap
-              val inputStreamOptions = s.equations.flatMap({
-                case (x, (z, next)) if x.typ.isInstanceOf[TyStm] =>
-                  doPartialEval(next.subPreserveType(currentValByVar)) match {
+              val currentAccumulatorValues = s.accumulators
+                .map({ case (x, (init, _)) => x -> init })
+                .toMap[Expr, Expr]
+              val inputStreamOptions = s.producers.flatMap({
+                case (x, (stm, ready)) =>
+                  val readyVal = doPartialEval(
+                    ready.subPreserveType(currentAccumulatorValues)
+                  )
+                  readyVal match {
                     case False =>
                       val t = x.typ.asInstanceOf[TyStm].t
                       val head = mhir.eval.eval(AllZero(t))
-                      Some(Some(x -> (head, z)))
+                      Some(Some(x -> (head, stm)))
                     case True =>
-                      val maybeHeadAndTail = z match {
+                      val maybeHeadAndTail = stm match {
                         case s: StmBuild => tryEvalStmNext(s)
                         case _           => None
                       }
                       Some(maybeHeadAndTail.map(nxt => x -> nxt))
                     case _ => None
                   }
-                case (x, _) =>
-                  assert(x.typ != Missing)
-                  None
               })
               if (inputStreamOptions.exists(x => x.isEmpty)) {
                 None
               } else {
                 val inputStreams = inputStreamOptions.map(x => x.get).toMap
-                val subs = inputStreams.foldLeft(currentValByVar)({
-                  case (acc, (x, (head, _))) => acc + (StmData(x)() -> head)
+                val subs = inputStreams
+                  .map({ case (x, (head, _)) => StmData(x)() -> head })
+                  .++(currentAccumulatorValues)
+                val newProducers = s.producers.map({ case (x, (_, ready)) =>
+                  val (_, tail) = inputStreams(x)
+                  x -> (tail, ready)
                 })
-                val nextEquations = s.equations.map({
-                  case (x, (_, next)) if x.typ.isInstanceOf[TyStm] =>
-                    val (_, tail) = inputStreams(x)
-                    x -> (tail, next)
-                  case (x, (_, next)) =>
+                val newAccumulators =
+                  s.accumulators.map({ case (x, (_, next)) =>
                     val evaluatedNext =
                       doPartialEval(next.subPreserveType(subs))
                     x -> (evaluatedNext, next)
-                })
+                  })
                 val evaluatedValid = doPartialEval(
                   s.valid.subPreserveType(subs)
                 )
                 evaluatedValid match {
                   case True =>
-                    val v = doPartialEval(s.data.subPreserveType(subs))
+                    val evaluatedData = doPartialEval(
+                      s.data.subPreserveType(subs)
+                    )
                     Some(
-                      (
-                        v,
-                        StmBuild(C(n - 1)(), s.data, s.valid, nextEquations)()
-                      )
+                      evaluatedData,
+                      StmBuild(
+                        C(n - 1)(),
+                        s.data,
+                        s.valid,
+                        newAccumulators,
+                        newProducers
+                      )()
                     )
                   case False =>
                     tryEvalStmNext(
-                      StmBuild(C(n)(), s.data, s.valid, nextEquations)(),
+                      StmBuild(
+                        C(n)(),
+                        s.data,
+                        s.valid,
+                        newAccumulators,
+                        newProducers
+                      )(),
                       stepsWithoutValid + 1
                     )
                   case _ => None

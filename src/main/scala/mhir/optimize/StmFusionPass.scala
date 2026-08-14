@@ -42,19 +42,15 @@ class GreedyStmFusionPass(
     require(stm.hasType)
     val result = stm match {
       case s: StmBuild =>
-        val candidates = s.seedByVar.flatMap({
-          case (x, _: StmBuild) => Some(x)
-          case _                => None
-        })
+        val candidates = s.producers
+          .collect({ case (x, (_: StmBuild, _)) => x })
         val withFusedProducers = StmBuild(
           s.n,
           s.data,
           s.valid,
-          s.equations.map({
-            case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
-              x -> (fuse(s), ready)
-            case eqn => eqn
-          })
+          s.accumulators,
+          s.producers
+            .map({ case (x, (s, ready)) => x -> (fuse(s), ready) })
         )().tchk().asInstanceOf[StmBuild]
         candidates.foldLeft(withFusedProducers)({ case (acc, x) =>
           val fused = simplifier.simplify(acc.fuseWith(x), skipConst = true)()

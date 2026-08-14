@@ -1,7 +1,7 @@
 package mhir.debug
 
-import mhir.canonicalize._
 import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
 import mhir.typecheck.TypeCheck
@@ -64,7 +64,7 @@ object NameSimplifier {
             )()
           }
         case s: StmBuild =>
-          val prefixGroups = s.accVars.groupBy(x => x.prefix)
+          val prefixGroups = s.namesDefinedHere.groupBy(x => x.prefix)
           val accOrder = time(s"finding order of accumulators in $s") {
             getAccumulatorOrder(s)
           }
@@ -77,8 +77,11 @@ object NameSimplifier {
                 val willCapture = (
                   s.data.freeVars.contains(newX)
                     || s.valid.freeVars.contains(newX)
-                    || s.nextByVar.exists({ case (_, next) =>
+                    || s.accumulators.exists({ case (_, (_, next)) =>
                       next.freeVars.contains(newX)
+                    })
+                    || s.producers.exists({ case (_, (_, ready)) =>
+                      ready.freeVars.contains(newX)
                     })
                 )
                 if (willCapture) {
@@ -101,9 +104,13 @@ object NameSimplifier {
             n = simplify(renamed.n),
             data = simplify(renamed.data),
             valid = simplify(renamed.valid),
-            equations = renamed.equations
-              .map({ case (x, (z, next)) =>
-                x -> (simplify(z), simplify(next))
+            accumulators = renamed.accumulators
+              .map({ case (x, (init, next)) =>
+                x -> (simplify(init), simplify(next))
+              }),
+            producers = renamed.producers
+              .map({ case (x, (stm, ready)) =>
+                x -> (simplify(stm), simplify(ready))
               })
           )()
         case VecBuild(n, f) =>
@@ -154,9 +161,10 @@ object NameSimplifier {
   private def getAccumulatorOrder(stm: StmBuild): Seq[Param] = {
     def traverse(visited: Set[Param])(e: Expr): Seq[Param] = {
       e match {
-        case x: Param if stm.accVars.contains(x) && !visited.contains(x) =>
+        case x: Param
+            if stm.namesDefinedHere.contains(x) && !visited.contains(x) =>
           logger.trace(s"visiting accumulator $x")
-          x +: traverse(visited + x)(stm.nextByVar(x))
+          x +: traverse(visited + x)(stm.nextOrReady(x))
         case e =>
           e.children
             .foldLeft((visited, Seq[Param]()))({ case ((visited, xs), e) =>

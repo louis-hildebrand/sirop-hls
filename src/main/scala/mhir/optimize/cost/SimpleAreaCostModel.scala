@@ -4,6 +4,7 @@ import mhir.ir._
 
 /** A very simple cost model for estimating the area of an expression.
   */
+@deprecated
 object SimpleAreaCostModel {
 
   /** Estimates the resource usage of the given expression.
@@ -90,16 +91,14 @@ object SimpleAreaCostModel {
       case s: StmBuild =>
         val ram =
           BitWidth(s.typ.asInstanceOf[TyStm].t) + 1 +
-            s.equations
-              .map({
-                case (x, _) if x.typ.isData => BitWidth(x.typ)
-                case _                      => 0
-              })
+            s.accumulators
+              .map({ case (x, _) => BitWidth(x.typ) })
               .sum
         AreaCost(5, ram, 0) +
           cost(sv)(s.data) +
           cost(sv)(s.valid) +
-          s.equations
+          s.accumulators
+            .++(s.producers)
             .map({ case (_, (z, next)) => cost(sv)(z) + cost(sv)(next) })
             .foldLeft(AreaCost.Zero)(_ + _)
       case LetStm(IntCst(bufSize), x, in, out) =>

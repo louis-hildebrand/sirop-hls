@@ -33,6 +33,7 @@ class StmFissionPassTests extends AnyFunSuite {
         n,
         sharp,
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           sA -> (inputA, True),
           sB -> (inputB, True)
@@ -70,6 +71,7 @@ class StmFissionPassTests extends AnyFunSuite {
           (VecAccess(StmData(s)(), 2)() *% (VecAccess(StmData(s)(), 3)() *%
             VecAccess(StmData(s)(), 4)())),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s -> (input, True)
         )
@@ -113,6 +115,7 @@ class StmFissionPassTests extends AnyFunSuite {
           VecAccess(StmData(s)(), 4)()
         )(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s -> (input, True)
         )
@@ -147,6 +150,7 @@ class StmFissionPassTests extends AnyFunSuite {
         n,
         VecReduceComb(StmData(s)(), (uint, uint) ::+ (x => x.__0 * x.__1))(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s -> (input, True)
         )

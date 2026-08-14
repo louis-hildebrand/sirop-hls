@@ -1,9 +1,9 @@
 package mhir.optimize
 
 import mhir.canonicalize._
-import mhir.typecheck._
 import mhir.ir._
 import mhir.sugar._
+import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class LetStmMoverTests extends AnyFunSuite {
@@ -16,6 +16,7 @@ class LetStmMoverTests extends AnyFunSuite {
       n,
       C(5)(U8) + StmData(s)(),
       True,
+      Map(),
       Map[Param, (Expr, Expr)](
         s -> (lets, True)
       )
@@ -33,6 +34,7 @@ class LetStmMoverTests extends AnyFunSuite {
           n,
           Sum(C(5)(U8), StmData(s)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s -> (s, True)
           )
@@ -55,6 +57,7 @@ class LetStmMoverTests extends AnyFunSuite {
         n,
         Tuple(StmData(s0)(), StmData(s1)())(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s0 -> (s, True),
           s1 -> (s, True)
@@ -97,7 +100,8 @@ class LetStmMoverTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           i -> (C(42)(U8), Sum(C(1)(U8), i)())
-        )
+        ),
+        Map()
       )()
     }
     val zipped = {
@@ -107,6 +111,7 @@ class LetStmMoverTests extends AnyFunSuite {
         n,
         Tuple(StmData(s0)(), StmData(s1)())(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s0 -> (a, True),
           s1 -> (b, True)
@@ -138,13 +143,15 @@ class LetStmMoverTests extends AnyFunSuite {
         True,
         Map[Param, (Expr, Expr)](
           i -> (C(42)(U8), Sum(C(1)(U8), i)())
-        )
+        ),
+        Map()
       )()
     }
     val original = StmBuild(
       n,
       Tuple(StmData(s0)(), StmData(s1)())(),
       True,
+      Map(),
       Map[Param, (Expr, Expr)](
         s0 -> (LetStm(1, b, count, b)(), True),
         s1 -> (b.rebuild(TyStm(TyBool, n)), True)
@@ -161,6 +168,7 @@ class LetStmMoverTests extends AnyFunSuite {
           n,
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             // Rename this occurrence of `b`
             s0 -> (b2, True),
@@ -183,6 +191,7 @@ class LetStmMoverTests extends AnyFunSuite {
           n,
           StmData(s)() + 5,
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s -> (input, True)
           )
@@ -195,6 +204,7 @@ class LetStmMoverTests extends AnyFunSuite {
           n,
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s0 -> (input, True),
             s1 -> (plusFive, True)
@@ -210,6 +220,7 @@ class LetStmMoverTests extends AnyFunSuite {
           n,
           StmData(s)().__0 * StmData(s)().__1,
           True,
+          Map(),
           Map[Param, (Expr, Expr)](
             s -> (input, True)
           )
@@ -224,9 +235,11 @@ class LetStmMoverTests extends AnyFunSuite {
           acc + StmData(s)(),
           t === C(n - 1)(U16),
           Map[Param, (Expr, Expr)](
-            s -> (mapMul, True),
             t -> (C(0)(U16), C(1)(U16) + t),
             acc -> (C(0)(U16), acc + StmData(s)())
+          ),
+          Map[Param, (Expr, Expr)](
+            s -> (mapMul, True)
           )
         )().tchk()
       }

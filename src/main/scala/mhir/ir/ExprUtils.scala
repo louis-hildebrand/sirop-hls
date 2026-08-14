@@ -175,17 +175,25 @@ trait ExprUtils {
               0
             case LetStm(bufSize, y, in, _) if y == x =>
               count(bufSize, x) + count(in, x)
-            case stm @ StmBuild(n, data, valid, _) =>
+            case stm: StmBuild =>
               val n0 =
-                (count(n, x)
-                  + stm.seedByVar.map({ case (_, z) => count(z, x) }).sum)
-              if (stm.accVars.contains(x)) {
+                (count(stm.n, x)
+                  + stm.accumulators
+                    .map({ case (_, (z, _)) => count(z, x) })
+                    .sum
+                  + stm.producers.map({ case (_, (z, _)) => count(z, x) }).sum)
+              if (stm.namesDefinedHere.contains(x)) {
                 n0
               } else {
                 (n0
-                  + count(data, x)
-                  + count(valid, x)
-                  + stm.nextByVar.map({ case (_, next) => count(next, x) }).sum)
+                  + count(stm.data, x)
+                  + count(stm.valid, x)
+                  + stm.accumulators
+                    .map({ case (_, (_, next)) => count(next, x) })
+                    .sum
+                  + stm.producers
+                    .map({ case (_, (_, ready)) => count(ready, x) })
+                    .sum)
               }
             case e =>
               e.children.map(e => count(e, x)).sum

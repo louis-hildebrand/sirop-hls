@@ -245,7 +245,8 @@ class ParserTests extends AnyFunSuite {
         42,
         i,
         True,
-        Map[Param, (Expr, Expr)](i -> (C(0)(U8), SmartSum(C(1)(U8), i)()))
+        Map[Param, (Expr, Expr)](i -> (C(0)(U8), SmartSum(C(1)(U8), i)())),
+        Map()
       )()
     }
     assert(Parser.parse(src).body == expected)
@@ -270,7 +271,8 @@ class ParserTests extends AnyFunSuite {
         Map[Param, (Expr, Expr)](
           i -> (C(0)(U8), SmartSum(C(1)(U8), i)()),
           b -> (True, !b)
-        )
+        ),
+        Map()
       )()
     }
     assert(Parser.parse(src).body == expected)
@@ -289,6 +291,7 @@ class ParserTests extends AnyFunSuite {
         42,
         SmartSum(StmData(s)(), C(5)(U8))(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](s -> (s, True))
       )()
     }
@@ -310,6 +313,7 @@ class ParserTests extends AnyFunSuite {
         42,
         Tuple(StmData(s1)(), StmData(s2)())(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           s1 -> (s1, True),
           s2 -> (s2, True)

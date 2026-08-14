@@ -3,11 +3,9 @@ package mhir.sugar
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.logging.time
-import mhir.sem.{SemanticAnalyzer, SemanticError}
 import mhir.typecheck.{TypeCheck, TypeChecker}
 import org.slf4j.event.Level
 
-import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 
 /** Transformation for converting a non-streaming program to a streaming
@@ -152,6 +150,7 @@ object Streamifier {
       C(1)(),
       e.subPreserveType(subs),
       True,
+      Map(),
       oldInputs
         .map(x => newAccumulators(x) -> (oldToNewInputs(x), True))
         .toMap
@@ -167,13 +166,9 @@ object Streamifier {
         originalStm.n,
         originalStm.data,
         originalStm.valid,
-        originalStm.equations.map({ case (x, (z, next)) =>
-          x.typ match {
-            case TyData(_) =>
-              x -> (z, next)
-            case _: TyStm =>
-              x -> (streamifyBody(z, oldToNewInputs), next)
-          }
+        originalStm.accumulators,
+        originalStm.producers.map({ case (x, (init, ready)) =>
+          x -> (streamifyBody(init, oldToNewInputs), ready)
         })
       )(annotations = originalStm.annotations).tchk().asInstanceOf[StmBuild]
     val oldInputs = findDataInputsUsedHere(
@@ -235,13 +230,14 @@ object Streamifier {
       // the extra latency will apply *for each iteration*.
       val haltOnFirstStep = {
         val forbiddenVars =
-          oldInputs ++ withStreamifiedProducers.seedByVar
-            .filter({ case (_, z) => z.freeVars.intersect(oldInputs).nonEmpty })
+          oldInputs ++ withStreamifiedProducers.accumulators
+            .filter({ case (_, (z, _)) =>
+              z.freeVars.intersect(oldInputs).nonEmpty
+            })
             .map({ case (x, _) => x })
-        val halt = withStreamifiedProducers.nextByVar.exists({
-          case (x, ready) if x.typ.isInstanceOf[TyStm] =>
+        val halt = withStreamifiedProducers.producers.exists({
+          case (_, (_, ready)) =>
             ready.freeVars.intersect(forbiddenVars).nonEmpty
-          case _ => false
         })
         if (halt) {
           logger.warn(
@@ -263,14 +259,12 @@ object Streamifier {
         val oldAccSubs = if (haltOnFirstStep) {
           Map()
         } else {
-          withStreamifiedProducers.seedByVar
-            .flatMap({
-              case (x, z) if x.typ.isData =>
-                // TODO: Only do this if the seed actually depends on at least
-                //       one input?
-                val mux = Mux(isFirstStep, z.subPreserveType(oldInputSubs), x)()
-                Some(x -> mux.tchk())
-              case _ => None
+          withStreamifiedProducers.accumulators
+            .map({ case (x, (z, _)) =>
+              // TODO: Only do this if the seed actually depends on at least
+              //       one input?
+              val mux = Mux(isFirstStep, z.subPreserveType(oldInputSubs), x)()
+              x -> mux.tchk()
             })
         }
         oldInputSubs ++ oldAccSubs
@@ -281,57 +275,64 @@ object Streamifier {
       } else {
         withStreamifiedProducers.valid.subPreserveType(subs)
       }
-      val newEquations = {
-        val equationsToAdd = (oldInputs
-          .flatMap(x => {
+      val (newAccumulators, newProducers) = {
+        val accumulatorsToAdd = oldInputs
+          .map({ x =>
             assert(x.typ.isData)
-            val stmData = StmData(newStmAcc(x))()
-            Seq(
-              newStmAcc(x) -> (oldToNewInputs(x), isFirstStep),
-              newRegAcc(x) -> (
-                Undefined(x.typ),
-                Mux(isFirstStep, stmData, newRegAcc(x))()
-              )
+            newRegAcc(x) -> (
+              Undefined(x.typ),
+              Mux(isFirstStep, StmData(newStmAcc(x))(), newRegAcc(x))()
             )
           })
           .toMap
-          + (isFirstStep -> (True, False)))
-        val updatedOldEquations =
-          withStreamifiedProducers.equations.map({
-            case (x, (z, next)) if x.typ.isData =>
-              // TODO: Only make the seed undefined if it actually depends on at
-              //       least one input?
-              val newSeed = Undefined(x.typ).lower
-              val newNext = if (haltOnFirstStep) {
-                Mux(
-                  isFirstStep,
-                  z.subPreserveType(subs),
-                  next.subPreserveType(subs)
-                )()
-              } else {
+          .+(isFirstStep -> (True, False))
+        val producersToAdd = oldInputs
+          .map(x => newStmAcc(x) -> (oldToNewInputs(x), isFirstStep))
+          .toMap
+        val updatedAccumulators = withStreamifiedProducers.accumulators.map({
+          case (x, (z, next)) if x.typ.isData =>
+            // TODO: Only make the seed undefined if it actually depends on at
+            //       least one input?
+            val newSeed = Undefined(x.typ).lower
+            val newNext = if (haltOnFirstStep) {
+              Mux(
+                isFirstStep,
+                z.subPreserveType(subs),
                 next.subPreserveType(subs)
-              }
-              x -> (newSeed, newNext)
-            case (x, (z, ready)) =>
-              val newReady = if (haltOnFirstStep) {
-                val subsFromRegisters = oldInputs
-                  .map(x => x -> newRegAcc(x))
-                  .toMap[Expr, Expr]
-                ready.subPreserveType(subsFromRegisters) && !isFirstStep
-              } else {
-                ready.subPreserveType(subs)
-              }
-              assert(
-                !newReady.contains(classOf[StmData]),
-                "the ready signal cannot use StmData"
-              )
-              x -> (z, newReady)
-          })
-        updatedOldEquations ++ equationsToAdd
+              )()
+            } else {
+              next.subPreserveType(subs)
+            }
+            x -> (newSeed, newNext)
+        })
+        val updatedProducers = withStreamifiedProducers.producers.map({
+          case (x, (z, ready)) =>
+            val newReady = if (haltOnFirstStep) {
+              val subsFromRegisters = oldInputs
+                .map(x => x -> newRegAcc(x))
+                .toMap[Expr, Expr]
+              ready.subPreserveType(subsFromRegisters) && !isFirstStep
+            } else {
+              ready.subPreserveType(subs)
+            }
+            assert(
+              !newReady.contains(classOf[StmData]),
+              "the ready signal cannot use StmData"
+            )
+            x -> (z, newReady)
+        })
+        (
+          updatedAccumulators ++ accumulatorsToAdd,
+          updatedProducers ++ producersToAdd
+        )
       }
-      StmBuild(withStreamifiedProducers.n, newData, newValid, newEquations)(
-        annotations = withStreamifiedProducers.annotations
-      )
+      StmBuild(
+        withStreamifiedProducers.n,
+        newData,
+        newValid,
+        newAccumulators,
+        newProducers
+      )(annotations = withStreamifiedProducers.annotations)
     }
   }
 
@@ -344,12 +345,9 @@ object Streamifier {
       n = stm.n,
       data = stm.data,
       valid = stm.valid,
-      equations = stm.equations.map({ case (y, (z, next)) =>
-        if (y.typ.isInstanceOf[TyStm]) {
-          y -> (Param("ignore")(z.typ), next)
-        } else {
-          y -> (z, next)
-        }
+      accumulators = stm.accumulators,
+      producers = stm.producers.map({ case (y, (_, next)) =>
+        y -> (False /* ignore */, next)
       })
     )()
     inputs
@@ -377,6 +375,7 @@ object Streamifier {
       typ.n,
       StmData(y)(),
       True,
+      Map(),
       Map[Param, (Expr, Expr)](
         y -> (x, True)
       )

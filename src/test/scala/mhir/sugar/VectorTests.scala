@@ -88,7 +88,8 @@ class VectorTests extends AnyFunSuite {
           Map[Param, (Expr, Expr)](
             a1 -> (C(0)(U32), a1 + 1),
             a2 -> (i, a2 + i)
-          )
+          ),
+          Map()
         )()
       )
     )().tchk().lower

@@ -162,6 +162,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
         16,
         StmData(p1)(),
         True,
+        Map(),
         Map[Param, (Expr, Expr)](
           p1 -> (input1, True),
           p2 -> (input2, C(0)(U8) lt StmData(p1)())

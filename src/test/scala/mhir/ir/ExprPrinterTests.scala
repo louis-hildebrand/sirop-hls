@@ -588,18 +588,21 @@ class ExprPrinterTests extends AnyFunSuite {
       Sum(ToSigned(StmData(s)())(), j)(),
       True,
       Map[Param, (Expr, Expr)](
+        j -> (
+          C(-10)(I9),
+          Sum(C(2)(I9), j)()
+        )
+      ),
+      Map[Param, (Expr, Expr)](
         s -> (
           StmBuild(
             C(42)(U8),
             i,
             True,
-            Map[Param, (Expr, Expr)](i -> (C(0)(U8), Sum(C(1)(U8), i)()))
+            Map[Param, (Expr, Expr)](i -> (C(0)(U8), Sum(C(1)(U8), i)())),
+            Map()
           )(),
           True
-        ),
-        j -> (
-          C(-10)(I9),
-          Sum(C(2)(I9), j)()
         )
       )
     )()
@@ -629,7 +632,7 @@ class ExprPrinterTests extends AnyFunSuite {
     val c2 = Param("c2", -1)(TyBool)
     val c3 = Param("c3", -1)(TyBool)
     val c4 = Param("c4", -1)(TyBool)
-    val s = StmBuild(C(10)(U8), (c1 && c2) || (c3 && c4), True)()
+    val s = StmBuild(C(10)(U8), (c1 && c2) || (c3 && c4), True, Map(), Map())()
 
     val expectedOneLine = "sbuild(10:u8)(c1 && c2 || c3 && c4, true) {} {}"
     val actualOneLine = ExprPrinter.displayOneLine(s)
