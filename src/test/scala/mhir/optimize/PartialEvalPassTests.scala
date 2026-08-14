@@ -2,7 +2,6 @@ package mhir.optimize
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.optimize.experimental.StmAccRangeAnalysis
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar._
 import mhir.testing.ParamStore
@@ -627,30 +626,6 @@ class PartialEvalPassTests extends AnyFunSuite {
     val i4 = TySInt(4)
     val e = Sum(C(4)(i4), x(i4))() lt Sum(C(-4)(i4), y(i4))()
     assert(PE.partialEval(e) == e)
-  }
-
-  test("StmAccumulatorGreaterOrEqualToInitialVal") {
-    val n = Param("n")(U8)
-    val z = Param("z")(I8)
-    val a = Param("a")(I8)
-    val s = StmBuild(
-      n,
-      a,
-      a >= z,
-      Map[Param, (Expr, Expr)](
-        a -> (z, Mux(a >= z, a + 3, a - 1)())
-      )
-    )().tchk().lower.asInstanceOf[StmBuild]
-    val facts = FactSet().range(s, StmAccRangeAnalysis.findAccRanges(s))
-    val expected = StmBuild(
-      n,
-      a,
-      True,
-      Map[Param, (Expr, Expr)](
-        a -> (z, Sum(C(3)(), a)())
-      )
-    )()
-    assert(PartialEvalPass.partialEval(s)(facts) == expected)
   }
 
   test("StmOneElement") {

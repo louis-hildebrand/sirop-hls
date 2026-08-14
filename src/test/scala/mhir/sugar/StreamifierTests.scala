@@ -4,7 +4,6 @@ import mhir.canonicalize._
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
 import mhir.sugar.Streamifier.Streamify
-import mhir.sugar.experimental.StmFold
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -420,12 +419,17 @@ class StreamifierTests extends AnyFunSuite {
   }
 
   // The lengths of non-top-level streams should not depend on any input.
-  // TODO: Maybe it would be possible to allow it by fusion. But there's no
+  // NOTE: Maybe it would be possible to allow it by fusion. But there's no
   //       clear use case for it, as far as I know, and it's extra complexity.
   test("ProducerStreamLengthDependingOnInput") {
-    val f = (U8 ::+ (n => StmFold(StmCount(n)(), C(0)(U8), PlusFunction(U8))()))
-      .tchk()
-      .lower
+    val f =
+      (U8 ::+ (n =>
+        StmFold1D(
+          StmCount(n)(),
+          C(0)(U8),
+          (U8, U8) ::+ (x => Sum(x.__0, x.__1)())
+        )()
+      )).tchk().lower
     val exc = intercept[IllegalArgumentException](f.streamify)
     assert(exc.getMessage.startsWith("Types cannot depend on any inputs."))
   }

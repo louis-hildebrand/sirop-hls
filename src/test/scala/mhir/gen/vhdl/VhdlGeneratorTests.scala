@@ -5,11 +5,9 @@ import mhir.canonicalize._
 import mhir.gen.TestPassed
 import mhir.gen.vhdl.test._
 import mhir.ir._
-import mhir.optimize.experimental.AnyStreamFuser.StreamFusion
 import mhir.optimize.{PartialEvalPass, StmBuildSimplifier, StmSimplifier}
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar._
-import mhir.sugar.experimental.{StmFold, StmScanExclusive, StmScanInclusive}
 import mhir.testing.HardwareTest
 import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
@@ -470,38 +468,14 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s, options = options) == TestPassed)
   }
 
-  test("StmCount |> StmScanInclusive(0, +)") {
-    val s = {
-      val n = 20
-      val s =
-        StmScanInclusive(StmCount(C(n)(U8))(), C(0)(U8), PlusFunction(U8))()
-      s.tchk().lower.asInstanceOf[StmBuild]
-    }
-    assert(VhdlTestRunner.testExpr(s) == TestPassed)
-
-    val optimized =
-      stmBuildSimplifier.simplify(s)().tchk().lower.asInstanceOf[StmBuild]
-    assert(VhdlTestRunner.testExpr(optimized) == TestPassed)
-  }
-
-  test("StmCount |> StmScanExclusive(0, +)") {
-    val s = {
-      val n = 20
-      val s =
-        StmScanExclusive(StmCount(C(n)(U8))(), C(0)(U8), PlusFunction(U8))()
-      s.tchk().lower.asInstanceOf[StmBuild]
-    }
-    assert(VhdlTestRunner.testExpr(s) == TestPassed)
-
-    val optimized =
-      stmBuildSimplifier.simplify(s)().tchk().lower.asInstanceOf[StmBuild]
-    assert(VhdlTestRunner.testExpr(optimized) == TestPassed)
-  }
-
   test("StmCount |> StmFold(0, +)") {
     val s = {
       val n = 20
-      val s = StmFold(StmCount(C(n)(U8))(), C(0)(U8), PlusFunction(U8))()
+      val s = StmFold1D(
+        StmCount(C(n)(U8))(),
+        C(0)(U8),
+        (U8, U8) ::+ (x => Sum(x.__0, x.__1)())
+      )()
       s.tchk().lower.asInstanceOf[StmBuild]
     }
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
@@ -1111,10 +1085,10 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val n = 100
     val a = Param("a")(TyStm(U32, n))
     val b = Param("b")(TyStm(U16, n))
-    val s = StmFold(
+    val s = StmFold1D(
       StmMap(StmZip(a, b)(), (U32, U16) ::+ (x => x.__0 * x.__1))(),
       C(0)(U32),
-      PlusFunction(U32)
+      (U32, U32) ::+ (x => Sum(x.__0, x.__1)())
     )().tchk().lower.asInstanceOf[StmBuild]
     val f0 = Function(a, Function(b, s)())().tchk()
     val inputs = Seq(
@@ -1126,18 +1100,6 @@ class VhdlGeneratorTests extends AnyFunSuite {
       )
     )
     assert(VhdlTestRunner.testExpr(f0, inputs) == TestPassed)
-
-    def optimize(s: StmBuild): StmBuild = {
-      val s0 =
-        stmBuildSimplifier.simplify(s)().tchk().lower.asInstanceOf[StmBuild]
-      val s1 = s0.fuseCompletely().tchk().lower.asInstanceOf[StmBuild]
-      val s2 =
-        stmBuildSimplifier.simplify(s1)().tchk().lower.asInstanceOf[StmBuild]
-      s2
-    }
-    val optimized = optimize(s)
-    val fOpt = Function(a, Function(b, optimized)())().tchk()
-    assert(VhdlTestRunner.testExpr(fOpt, inputs) == TestPassed)
   }
 
   test("2DMapFold") {
@@ -1147,7 +1109,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val rowSums =
       StmMap(
         s,
-        TyStm(U16, m) ::+ (s => StmFold(s, C(0)(U16), PlusFunction(U16))())
+        TyStm(U16, m) ::+ (s =>
+          StmFold1D(s, C(0)(U16), (U16, U16) ::+ (x => Sum(x.__0, x.__1)()))()
+        )
       )().tchk().lower.asInstanceOf[StmBuild]
 
     val inputs = Seq(
