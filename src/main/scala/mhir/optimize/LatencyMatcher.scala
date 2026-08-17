@@ -78,7 +78,7 @@ class EnabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
               "stream producers in expression do not match latency node" +
                 s" (${s.producers.keySet} vs ${producersLat.keySet})"
             )
-            s.mapProducers({ case (x, (p0, ready)) =>
+            s.mapProducers({ case (x, (p0, ready, delay)) =>
               val p = matchLatencies(p0, producersLat(x))
               (outLat, producersLat(x).latency) match {
                 case (Some(outLat), Some(pLat)) =>
@@ -90,12 +90,16 @@ class EnabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
                     outLat >= pLat + selfLat.get,
                     "consumer's latency is too small"
                   )
-                  x -> (increaseLatency(
-                    p,
-                    outLat - selfLat.get - pLat
-                  ), ready)
+                  x -> (
+                    increaseLatency(
+                      p,
+                      outLat - selfLat.get - pLat
+                    ),
+                    ready,
+                    delay
+                  )
                 case _ =>
-                  x -> (p, ready)
+                  x -> (p, ready, delay)
               }
             }).tchk()
           case LatencyLetStm(_, inLat, outLat) =>
@@ -120,11 +124,13 @@ class EnabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
       val acc = Param("s")(TyStm(t, -1))
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(t),
         StmData(acc)(),
         True,
         accumulators = Map(),
-        producers = Map[Param, (Expr, Expr)](
-          acc -> (increaseLatency(s, delay - 1), True)
+        producers = Map[Param, (Expr, Expr, Expr)](
+          acc -> (increaseLatency(s, delay - 1), True, Tuple()())
         )
       )().tchk()
     }

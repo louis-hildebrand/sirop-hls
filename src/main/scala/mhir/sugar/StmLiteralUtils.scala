@@ -22,10 +22,13 @@ trait StmLiteralUtils {
         )
       }
       val TyStm(t, n) = this.stm.typ
+      // TODO: Support physical outputs too?
       val lowered = this.stm.elems match {
-        case Seq()  => StmBuild(0, AllZero(t).lower, True, Map(), Map())()
-        case Seq(e) => StmBuild(1, e, True, Map(), Map())()
-        case _      =>
+        case Seq() =>
+          StmBuild(0, 1, Undefined(t), Undefined(t), True, Map(), Map())()
+        case Seq(e) =>
+          StmBuild(1, 1, Undefined(t), e, True, Map(), Map())()
+        case _ =>
           // The index type must be at least wide enough to fit the value 1, since
           // the index accumulator is updated by i + 1
           val idxTyp = TyAnyInt.tightest(0, math.max(1, this.stm.elems.length))
@@ -33,11 +36,13 @@ trait StmLiteralUtils {
           val v = Param("v")(TyVec(t, n))
           StmBuild(
             this.stm.elems.length,
+            1,
+            Undefined(t),
             VecAccess(v, i)(),
             True,
-            Map[Param, (Expr, Expr)](
-              i -> (C(0)(idxTyp), Sum(C(1)(idxTyp), i)()),
-              v -> (VecLiteral(this.stm.elems: _*)(TyVec(t, n)), v)
+            Map[Param, (Expr, Expr, Expr)](
+              i -> (C(0)(idxTyp), Sum(C(1)(idxTyp), i)(), C(1)()),
+              v -> (VecLiteral(this.stm.elems: _*)(TyVec(t, n)), v, C(1)())
             ),
             Map()
           )()

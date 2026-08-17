@@ -44,10 +44,11 @@ case class EnabledStmFissionPass(scheduler: StmOutputScheduler)
   override def fission(e: Expr): Expr = {
     e match {
       case s: StmBuild =>
-        val newProducers = s.producers
-          .map({ case (x, (s, ready)) => x -> (fission(s), ready) })
         fissionStmBuild(
-          StmBuild(s.n, s.data, s.valid, s.accumulators, newProducers)()
+          s
+            .mapProducers({ case (x, (s, ready, delay)) =>
+              x -> (fission(s), ready, delay)
+            })
             .tchk()
             .asInstanceOf[StmBuild]
         )
@@ -61,19 +62,17 @@ case class EnabledStmFissionPass(scheduler: StmOutputScheduler)
 
   @tailrec
   private def fissionStmBuild(stm: StmBuild): Expr = {
-    this.scheduler.schedule(stm.data) match {
+    this.scheduler.schedule(stm.nextData) match {
       case InProducer(data) =>
-        StmBuild(
-          stm.n,
-          data,
-          stm.valid,
-          stm.accumulators,
-          stm.producers
-        )().tchk()
+        stm
+          .copy(nextData = data)(typ = stm.typ, annotations = stm.annotations)
+          .tchk()
       case ic: InConsumer =>
         val FunCall(Function(x, cData), pData) = ic.asFunCall().tchk()
         val producer = StmBuild(
           stm.n,
+          Tuple()(),
+          Undefined(pData.typ),
           pData,
           stm.valid,
           stm.accumulators,
@@ -81,15 +80,20 @@ case class EnabledStmFissionPass(scheduler: StmOutputScheduler)
         )().tchk()
         val TyStm(typ, n) = producer.typ
         val s = Param("s")(TyStm(typ, -1))
-        val consumer = StmBuild(
-          n,
-          cData.subPreserveType(x -> StmData(s)().tchk()),
-          True,
-          Map(),
-          Map[Param, (Expr, Expr)](
-            s -> (producer, True)
-          )
-        )().tchk().asInstanceOf[StmBuild]
+        val consumer = {
+          val nextData = cData.subPreserveType(x -> StmData(s)().tchk())
+          StmBuild(
+            n,
+            Tuple()(),
+            Undefined(nextData.typ),
+            nextData,
+            True,
+            Map(),
+            Map[Param, (Expr, Expr, Expr)](
+              s -> (producer, True, Tuple()())
+            )
+          )().tchk().asInstanceOf[StmBuild]
+        }
         fissionStmBuild(consumer)
     }
   }

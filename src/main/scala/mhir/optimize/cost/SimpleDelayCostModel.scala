@@ -133,10 +133,10 @@ case class SimpleDelayCostModel(madd: Boolean) {
       case s: StmBuild =>
         val expressionsToCheck = {
           s.accumulators
-            .map({ case (_, (_, next)) => next })
-            .++(s.producers.map({ case (_, (stm, _)) => stm }))
+            .map({ case (_, (_, next, _)) => next })
+            .++(s.producers.map({ case (_, (stm, _, _)) => stm }))
             .toSet
-            .+(s.data)
+            .+(s.nextData)
             .+(s.valid)
         }
         expressionsToCheck.map(cost(staticVars, varCosts)).max

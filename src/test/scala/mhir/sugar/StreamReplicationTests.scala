@@ -19,11 +19,13 @@ class StreamReplicationTests extends AnyFunSuite {
         val s = Param("s")(TyStm(U8, -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           StmData(s)() % 2 === 0,
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s -> (x, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (x, True, Tuple()())
           )
         )()
       }
@@ -32,12 +34,14 @@ class StreamReplicationTests extends AnyFunSuite {
         val s1 = Param("s1")(TyStm(U8, n))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s0 -> (map, True),
-            s1 -> (x, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s0 -> (map, True, Tuple()()),
+            s1 -> (x, True, Tuple()())
           )
         )()
       }
@@ -84,10 +88,12 @@ class StreamReplicationTests extends AnyFunSuite {
         val a = Param("a")(U8)
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           a,
           True,
-          Map[Param, (Expr, Expr)](
-            a -> (C(0)(U8), Sum(C(1)(U8), a)())
+          Map[Param, (Expr, Expr, Expr)](
+            a -> (C(0)(U8), Sum(C(1)(U8), a)(), Tuple()())
           ),
           Map()
         )()
@@ -97,12 +103,14 @@ class StreamReplicationTests extends AnyFunSuite {
         val s1 = Param("s1")(TyStm(I32, n))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s0 -> (ctr, True),
-            s1 -> (input, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s0 -> (ctr, True, Tuple()()),
+            s1 -> (input, True, Tuple()())
           )
         )()
       }

@@ -44,6 +44,7 @@ object SemanticAnalyzer {
 
     if (!prog.handshake) {
       checkNoHandshake(prog.body)
+      checkDelays(prog.body)
     }
     checkStmData(prog.body)
   }
@@ -60,7 +61,7 @@ object SemanticAnalyzer {
               s" its output is not always valid"
           )
         }
-        for ((_, (p, ready)) <- s.producers) {
+        for ((_, (p, ready, _)) <- s.producers) {
           if (ready != True) {
             val name = s.nameAnnotation.getOrElse("(unknown name)")
             throw SemanticError(
@@ -74,10 +75,43 @@ object SemanticAnalyzer {
     }
   }
 
+  private def checkDelays(e: Expr): Unit = {
+    e match {
+      case s: StmBuild =>
+        if (!s.delay.typ.isInstanceOf[TyUInt]) {
+          assert(
+            s.delay.typ.isInstanceOf[TyUInt] ||
+              s.delay.typ.isInstanceOf[TyTuple],
+            s"delay should be an unsigned int or (), but found ${s.delay.typ}"
+          )
+          val name = s.nameAnnotation.getOrElse("(unknown name)")
+          throw SemanticError(
+            s"missing output delay for stream operator $name"
+              + s" (the delay must be specified when the handshake protocol is disabled)"
+          )
+        }
+        for ((x, (_, _, delay)) <- s.producers) {
+          assert(
+            delay.typ.isInstanceOf[TyUInt] ||
+              delay.typ.isInstanceOf[TyTuple],
+            s"delay should be an unsigned int or (), but found ${delay.typ}"
+          )
+          if (!delay.typ.isInstanceOf[TyUInt]) {
+            val name = s.nameAnnotation.getOrElse("(unknown name)")
+            throw SemanticError(
+              s"missing delay for producer $x in stream operator $name"
+                + s" (the delay must be specified when the handshake protocol is disabled)"
+            )
+          }
+        }
+      case e => e.children.foreach(checkDelays)
+    }
+  }
+
   private def checkStmData(e: Expr): Unit = {
     e match {
       case s: StmBuild =>
-        for ((x, (stm, ready)) <- s.producers) {
+        for ((x, (stm, ready, _)) <- s.producers) {
           checkStmData(stm)
           if (ready.contains(classOf[StmData])) {
             val name = s.nameAnnotation.getOrElse("sbuild")

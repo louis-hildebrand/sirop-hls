@@ -56,18 +56,21 @@ class SubstitutionTests extends AnyFunSuite {
     val context = Map(x -> TyTuple(U8, U8), x2 -> TyTuple(U8, U8))
     val stm = StmBuild(
       x.__1 + z + 1,
+      Tuple()(),
+      Undefined(Missing),
       Tuple(z, x.__1 && x.__1)(),
       True,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         x.rebuild(TyTuple(TyBool, TyBool)).asInstanceOf[Param] -> (
           Tuple(True, False)(),
           Mux(
             x.__1,
             Tuple(True, False)(),
             Tuple(False, True)()
-          )()
+          )(),
+          Tuple()()
         ),
-        y -> (x.__1 / 2 + z, y + 2 + z)
+        y -> (x.__1 / 2 + z, y + 2 + z, Tuple()())
       ),
       Map()
     )()
@@ -77,18 +80,21 @@ class SubstitutionTests extends AnyFunSuite {
       2 * y * 99,
       StmBuild(
         y + IntCst(99)() + IntCst(1)(),
+        Tuple()(),
+        Undefined(Missing),
         Tuple(99, x2.__1 && x2.__1)(),
         True,
-        Map[Param, (Expr, Expr)](
+        Map[Param, (Expr, Expr, Expr)](
           x2 -> (
             Tuple(True, False)(),
             Mux(
               x2.__1,
               Tuple(True, False)(),
               Tuple(False, True)()
-            )()
+            )(),
+            Tuple()()
           ),
-          y2 -> (y / 2 + IntCst(99)(), y2 + 2 + IntCst(99)())
+          y2 -> (y / 2 + IntCst(99)(), y2 + 2 + IntCst(99)(), Tuple()())
         ),
         Map()
       )()
@@ -99,18 +105,73 @@ class SubstitutionTests extends AnyFunSuite {
     assert(actual2.typ != Missing)
   }
 
+  test("Substitute:StmBuildWithDelayAnnotations") {
+    val n = Param("n")(U32)
+    val k1 = Param("k1")(U32)
+    val k2 = Param("k2")(U32)
+    val k3 = Param("k3")(U32)
+    val input = Param("input")(TyStm(I16, n))
+    val p = Param("p")(TyStm(I16, -1))
+    val stm = StmBuild(
+      n,
+      k1,
+      Tuple(k1, k2, k3, C(0)(I16))(),
+      Tuple(k1, k2, k3, StmData(p)())(),
+      True,
+      Map(
+        k1 -> (C(1)(U32), Sum(k1, C(1)(U32))(), k1),
+        k2 -> (C(2)(U32), Sum(k2, C(1)(U32))(), k2),
+        k3 -> (C(3)(U32), Sum(k3, C(1)(U32))(), k3)
+      ),
+      Map(
+        p -> (input, True, k3)
+      )
+    )().tchk()
+    val subs = Map[Expr, Expr](
+      n -> C(42)(U32),
+      k1 -> C(1)(U32),
+      k2 -> C(2)(U32),
+      k3 -> C(3)(U32)
+    )
+    val expected = StmBuild(
+      C(42)(U32),
+      C(1)(U32),
+      Tuple(C(1)(U32), C(2)(U32), C(3)(U32), C(0)(I16))(),
+      Tuple(k1, k2, k3, StmData(p)())(),
+      True,
+      Map(
+        k1 -> (C(1)(U32), Sum(k1, C(1)(U32))(), C(1)(U32)),
+        k2 -> (C(2)(U32), Sum(k2, C(1)(U32))(), C(2)(U32)),
+        k3 -> (C(3)(U32), Sum(k3, C(1)(U32))(), C(3)(U32))
+      ),
+      Map(
+        p -> (input, True, C(3)(U32))
+      )
+    )().tchk()
+
+    val actual1 = stm.subPreserveType(subs)
+    assert(actual1 == expected)
+    assert(actual1.typ == expected.typ)
+
+    val actual2 = stm.subAndEraseType(subs)
+    assert(actual2 == expected)
+    assert(actual2.typ == Missing)
+  }
+
   test("Substitute:StmBuildWithShadowing") {
     val n = Param("n")(U8)
     val s = Param("s")(TyStm(U8, n))
     val stm = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       StmData(s)(),
       True,
-      Map[Param, (Expr, Expr)](
-        n -> (C(0)(U8), Sum(C(1)(U8), n)())
+      Map[Param, (Expr, Expr, Expr)](
+        n -> (C(0)(U8), Sum(C(1)(U8), n)(), Tuple()())
       ),
-      Map[Param, (Expr, Expr)](
-        s -> (s, True)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (s, True, Tuple()())
       )
     )().tchk()
     val n2 = Param("n2")(U8)
@@ -121,13 +182,15 @@ class SubstitutionTests extends AnyFunSuite {
       val ss = Param("ss")(TyStm(U8, n))
       StmBuild(
         n2,
+        Tuple()(),
+        Undefined(Missing),
         StmData(ss)(),
         True,
-        Map[Param, (Expr, Expr)](
-          nn -> (C(0)(U8), Sum(C(1)(U8), nn)())
+        Map[Param, (Expr, Expr, Expr)](
+          nn -> (C(0)(U8), Sum(C(1)(U8), nn)(), Tuple()())
         ),
-        Map[Param, (Expr, Expr)](
-          ss -> (s2, True)
+        Map[Param, (Expr, Expr, Expr)](
+          ss -> (s2, True, Tuple()())
         )
       )()
     }
@@ -190,12 +253,14 @@ class SubstitutionTests extends AnyFunSuite {
         val s1Var = Param("s1")(TyStm(U16, -1))
         val map2 = StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Sum(StmData(s0Var)(), StmData(s1Var)())(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s0Var -> (x, True),
-            s1Var -> (a, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s0Var -> (x, True, Tuple()()),
+            s1Var -> (a, True, Tuple()())
           )
         )()
         LetStm(1, nextX, map2, after(nextX, numAfter))()
@@ -204,10 +269,12 @@ class SubstitutionTests extends AnyFunSuite {
         val sVar = Param("s")(TyStm(U16, -1))
         val map = StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Sum(C(1)(U16), StmData(sVar)())(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](sVar -> (x, True))
+          Map[Param, (Expr, Expr, Expr)](sVar -> (x, True, Tuple()()))
         )()
         LetStm(1, nextX, map, before(nextX, a, numBefore - 1, numAfter))()
       }
@@ -220,10 +287,12 @@ class SubstitutionTests extends AnyFunSuite {
         val sVar = Param("s")(TyStm(U16, -1))
         val map = StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Sum(C(2)(U16), StmData(sVar)())(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](sVar -> (x, True))
+          Map[Param, (Expr, Expr, Expr)](sVar -> (x, True, Tuple()()))
         )()
         LetStm(1, nextX, map, after(nextX, numAfter - 1))()
       }
@@ -289,12 +358,15 @@ class SubstitutionTests extends AnyFunSuite {
     val v = Param("v")(TyVec(U8, n))
     val e = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       VecAccess(v, 0)(),
       True,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         v -> (
           VecBuild(n, U8 ::+ (i => i))(),
-          VecShiftLeft(v, IntCst(42)(U8))()
+          VecShiftLeft(v, IntCst(42)(U8))(),
+          Tuple()()
         )
       ),
       Map()
@@ -304,12 +376,15 @@ class SubstitutionTests extends AnyFunSuite {
 
     val expected = StmBuild(
       m + k,
+      Tuple()(),
+      Undefined(Missing),
       VecAccess(v, 0)(),
       True,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         v -> (
           VecBuild(m + k, U8 ::+ (i => i))(),
-          VecShiftLeft(v, IntCst(42)(U8))()
+          VecShiftLeft(v, IntCst(42)(U8))(),
+          Tuple()()
         )
       ),
       Map()
@@ -344,10 +419,12 @@ class SubstitutionTests extends AnyFunSuite {
       val s = Param("s")()
       StmBuild(
         4,
+        Tuple()(),
+        Undefined(Missing),
         StmData(s)(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](s -> (s1, True))
+        Map[Param, (Expr, Expr, Expr)](s -> (s1, True, Tuple()()))
       )()
     }
     val actual = e.subPreserveType(s1 -> s2).asInstanceOf[StmBuild]
@@ -355,14 +432,16 @@ class SubstitutionTests extends AnyFunSuite {
       val s = Param("s")()
       StmBuild(
         4,
+        Tuple()(),
+        Undefined(Missing),
         StmData(s)(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](s -> (s2, True))
+        Map[Param, (Expr, Expr, Expr)](s -> (s2, True, Tuple()()))
       )()
     }
     assert(actual == expected)
-    val (_, (actualInputStm, _)) = actual.producers.toSeq.head
+    val (_, (actualInputStm, _, _)) = actual.producers.toSeq.head
     assert(actualInputStm == s2)
     assert(actualInputStm.typ == TyStm(U8, 20))
   }

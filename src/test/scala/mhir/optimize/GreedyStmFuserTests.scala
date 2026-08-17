@@ -45,10 +45,12 @@ class GreedyStmFuserTests extends AnyFunSuite {
         val a = Param("a")(I16)
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           VecBuild(1, U8 ::+ (_ => a))(),
           True,
-          Map[Param, (Expr, Expr)](
-            a -> (C(-4)(I16), Sum(C(2)(I16), a)())
+          Map[Param, (Expr, Expr, Expr)](
+            a -> (C(-4)(I16), Sum(C(2)(I16), a)(), Tuple()())
           ),
           Map()
         )().tchk()
@@ -57,10 +59,12 @@ class GreedyStmFuserTests extends AnyFunSuite {
         val s = Param("s")(TyStm(TyVec(I16, 1), -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           VecAccess(StmData(s)(), 0)(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](s -> (vecStm, True))
+          Map[Param, (Expr, Expr, Expr)](s -> (vecStm, True, Tuple()()))
         )().tchk()
       }
       vecAccessStm.lower
@@ -77,10 +81,12 @@ class GreedyStmFuserTests extends AnyFunSuite {
       val a = Param("a")(I16)
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         a,
         True,
-        Map[Param, (Expr, Expr)](
-          a -> (C(-4)(I16), Sum(C(2)(I16), a)())
+        Map[Param, (Expr, Expr, Expr)](
+          a -> (C(-4)(I16), Sum(C(2)(I16), a)(), Tuple()())
         ),
         Map()
       )().tchk()
@@ -99,9 +105,13 @@ class GreedyStmFuserTests extends AnyFunSuite {
         val a = Param("a")(U8)
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           a,
           True,
-          Map[Param, (Expr, Expr)](a -> (C(0)(U8), Sum(C(1)(U8), a)())),
+          Map[Param, (Expr, Expr, Expr)](
+            a -> (C(0)(U8), Sum(C(1)(U8), a)(), Tuple()())
+          ),
           Map()
         )().tchk()
       }
@@ -109,11 +119,13 @@ class GreedyStmFuserTests extends AnyFunSuite {
         val s = Param("s")(TyStm(U8, -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Sum(C(1)(U8), StmData(s)())(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s -> (count, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (count, True, Tuple()())
           )
         )().tchk()
       }
@@ -123,13 +135,15 @@ class GreedyStmFuserTests extends AnyFunSuite {
         val s2 = Param("s2")(TyStm(U8, -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Tuple(StmData(s0)(), StmData(s1)(), StmData(s2)())(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s0 -> (count, True),
-            s1 -> (input, True),
-            s2 -> (countPlusOne, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s0 -> (count, True, Tuple()()),
+            s1 -> (input, True, Tuple()()),
+            s2 -> (countPlusOne, True, Tuple()())
           )
         )().tchk()
       }
@@ -152,13 +166,15 @@ class GreedyStmFuserTests extends AnyFunSuite {
       val s = Param("s")(TyStm(I8, -1))
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(a, StmData(s)(), Sum(C(1)(U8), a)())(),
         True,
-        Map[Param, (Expr, Expr)](
-          a -> (C(0)(U8), Sum(C(1)(U8), a)())
+        Map[Param, (Expr, Expr, Expr)](
+          a -> (C(0)(U8), Sum(C(1)(U8), a)(), Tuple()())
         ),
-        Map[Param, (Expr, Expr)](
-          s -> (input, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s -> (input, True, Tuple()())
         )
       )().tchk()
     }
@@ -176,6 +192,8 @@ class GreedyStmFuserTests extends AnyFunSuite {
         val s = Param("s")(TyStm(TyVec(U16, 4), -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           VecBuild(
             2,
             U16 ::+ (i =>
@@ -185,8 +203,8 @@ class GreedyStmFuserTests extends AnyFunSuite {
           )(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s -> (input, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (input, True, Tuple()())
           )
         )().tchk()
       }
@@ -194,11 +212,13 @@ class GreedyStmFuserTests extends AnyFunSuite {
         val s = Param("s")(TyStm(TyVec(U16, 2), -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           VecAccess(StmData(s)(), 0)() * VecAccess(StmData(s)(), 1)(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s -> (s2, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (s2, True, Tuple()())
           )
         )().tchk()
       }

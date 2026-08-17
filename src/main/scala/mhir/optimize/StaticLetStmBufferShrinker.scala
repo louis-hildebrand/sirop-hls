@@ -45,8 +45,8 @@ class StaticLetStmBufferShrinker(
               "stream producers in expression do not match latency node" +
                 s" (${s.producers.keySet} vs ${producersLat.keySet})"
             )
-            s.mapProducers({ case (x, (stm, ready)) =>
-              x -> (shrinkBuffers(stm, producersLat(x)), ready)
+            s.mapProducers({ case (x, (stm, ready, delay)) =>
+              x -> (shrinkBuffers(stm, producersLat(x)), ready, delay)
             })
           case LatencyLetStm(latency, inLat, outLat) =>
             assert(

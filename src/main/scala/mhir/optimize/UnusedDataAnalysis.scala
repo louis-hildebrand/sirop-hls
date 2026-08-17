@@ -55,9 +55,9 @@ case class UnusedDataAnalysis(target: Param) {
     val expressionsToCheck = {
       // No need to check the producers' `ready` expressions: they're not
       // allowed to use sdata
-      s.data +: s.valid +:
+      s.nextData +: s.valid +:
         s.accumulators
-          .map({ case (_, (_, next)) => next })
+          .map({ case (_, (_, next, _)) => next })
           .toSeq
     }
     expressionsToCheck

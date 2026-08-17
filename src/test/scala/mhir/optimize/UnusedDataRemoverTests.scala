@@ -27,12 +27,14 @@ class UnusedDataRemoverTests extends AnyFunSuite {
         val s2 = Param("s2")(TyStm((I16, TyBool), -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Tuple(StmData(s1)().__0, StmData(s2)().__1)(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s1 -> (SimpleNop(SimpleNop(x)), True),
-            s2 -> (SimpleNop(SimpleNop(x)), True)
+          Map[Param, (Expr, Expr, Expr)](
+            s1 -> (SimpleNop(SimpleNop(x)), True, Tuple()()),
+            s2 -> (SimpleNop(SimpleNop(x)), True, Tuple()())
           )
         )().tchk()
       }
@@ -55,7 +57,7 @@ class UnusedDataRemoverTests extends AnyFunSuite {
     )
     val dataStep2 = zip.producers
       .collectFirst({
-        case (x, (s, _))
+        case (x, (s, _, _))
             if x.typ.asInstanceOf[TyStm].t == TyTuple(I16, TyTuple()) =>
           s
       })
@@ -77,7 +79,7 @@ class UnusedDataRemoverTests extends AnyFunSuite {
     )
     val validStep2 = zip.producers
       .collectFirst({
-        case (x, (s, _))
+        case (x, (s, _, _))
             if x.typ.asInstanceOf[TyStm].t == TyTuple(TyTuple(), TyBool) =>
           s
       })
@@ -122,6 +124,8 @@ class UnusedDataRemoverTests extends AnyFunSuite {
       val min = Param("min")(I16)
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(
           StmData(p)().__0,
           sum,
@@ -129,13 +133,20 @@ class UnusedDataRemoverTests extends AnyFunSuite {
           min
         )(),
         StmData(p)().__2.__1 geq C(0)(I16),
-        Map[Param, (Expr, Expr)](
-          sum -> (C(0)(I16), Sum(sum, StmData(p)().__1.__0)()),
-          prod -> (C(0)(I16), Prod(prod, StmData(p)().__1.__1.__0)()),
-          min -> (C(0)(I16), Sum(sum, StmData(p)().__1.__1.__1)())
+        Map[Param, (Expr, Expr, Expr)](
+          sum -> (C(0)(I16), Sum(sum, StmData(p)().__1.__0)(), Tuple()()),
+          prod -> (
+            C(0)(I16),
+            Prod(
+              prod,
+              StmData(p)().__1.__1.__0
+            )(),
+            Tuple()()
+          ),
+          min -> (C(0)(I16), Sum(sum, StmData(p)().__1.__1.__1)(), Tuple()())
         ),
         Map(
-          p -> (input, True)
+          p -> (input, True, Tuple()())
         )
       )().tchk().asInstanceOf[StmBuild]
     }

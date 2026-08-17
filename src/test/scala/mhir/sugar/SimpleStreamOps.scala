@@ -29,9 +29,17 @@ object SimpleCount {
     val i = Param("i")(n.typ)
     StmBuild(
       n,
+      C(1)(),
+      Undefined(Missing),
       i,
       True,
-      Map[Param, (Expr, Expr)](i -> (C(0)(n.typ), Sum(C(1)(n.typ), i)())),
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (
+          C(0)(n.typ),
+          Sum(C(1)(n.typ), i)(),
+          C(1)()
+        )
+      ),
       Map()
     )().tchk().lower
   }
@@ -43,11 +51,13 @@ object SimpleMap {
     val sAcc = Param("s")(TyStm(t, -1))
     StmBuild(
       n,
+      C(1)(),
+      Undefined(Missing),
       f(StmData(sAcc)()),
       True,
       Map(),
-      Map[Param, (Expr, Expr)](
-        sAcc -> (input, True)
+      Map[Param, (Expr, Expr, Expr)](
+        sAcc -> (input, True, C(0)())
       )
     )().tchk().lower
   }
@@ -73,18 +83,20 @@ object SimpleZip {
     val TyStm(_, n) = inputs.head.typ
     StmBuild(
       n,
+      C(1)(),
+      Undefined(Missing),
       Tuple(producers.map(StmData(_)()): _*)(),
       True,
       Map(),
       producers
         .zip(inputs)
-        .map({ case (acc, in) => acc -> (in, True) })
+        .map({ case (acc, in) => acc -> (in, True, C(0)()) })
         .toMap
     )().tchk().lower
   }
 }
 
-object SimpleConcat {
+object SimpleConcatHandshake {
   def apply(in0: Expr, in1: Expr): Expr = {
     val TyStm(t, n0) = in0.typ
     val s0 = Param("s0")(TyStm(t, n0))
@@ -93,14 +105,16 @@ object SimpleConcat {
     val i = Param("t")(U32)
     StmBuild(
       SafeSum(n0, n1)(),
+      Tuple()(),
+      Undefined(Missing),
       Mux(i < n0, StmData(s0)(), StmData(s1)())(),
       True,
-      Map[Param, (Expr, Expr)](
-        i -> (C(0)(U32), Sum(C(1)(U32), i)())
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (C(0)(U32), Sum(C(1)(U32), i)(), Tuple()())
       ),
-      Map[Param, (Expr, Expr)](
-        s0 -> (in0, i < n0),
-        s1 -> (in1, i >= n0)
+      Map[Param, (Expr, Expr, Expr)](
+        s0 -> (in0, i < n0, Tuple()()),
+        s1 -> (in1, i >= n0, Tuple()())
       )
     )()
   }

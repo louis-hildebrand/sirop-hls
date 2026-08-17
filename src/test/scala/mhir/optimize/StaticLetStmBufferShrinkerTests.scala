@@ -137,10 +137,12 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       val i = Param("i")(U8)
       StmBuild(
         n * m,
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](
-          i -> (C(0)(U8), Sum(C(1)(U8), i)())
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(0)(U8), Sum(C(1)(U8), i)(), Tuple()())
         ),
         Map()
       )()
@@ -153,14 +155,20 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
         val t = Param("t")(U8)
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           acc + StmData(s)(),
           t === C(m - 1)(U8),
-          Map[Param, (Expr, Expr)](
-            acc -> (C(0)(U8), acc + StmData(s)()),
-            t -> (C(0)(U8), Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)())
+          Map[Param, (Expr, Expr, Expr)](
+            acc -> (C(0)(U8), acc + StmData(s)(), Tuple()()),
+            t -> (
+              C(0)(U8),
+              Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)(),
+              Tuple()()
+            )
           ),
-          Map[Param, (Expr, Expr)](
-            s -> (x, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (x, True, Tuple()())
           )
         )().tchk()
       }
@@ -170,17 +178,24 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
         val t = Param("t")(U8)
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           VecShiftLeft(acc, StmData(s)())(),
           t === C(m - 1)(U8),
-          Map[Param, (Expr, Expr)](
+          Map[Param, (Expr, Expr, Expr)](
             acc -> (
               VecBuild(m, U8 ::+ (_ => AllZero(U8)))(),
-              VecShiftLeft(acc, StmData(s)())()
+              VecShiftLeft(acc, StmData(s)())(),
+              Tuple()()
             ),
-            t -> (C(0)(U8), Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)())
+            t -> (
+              C(0)(U8),
+              Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)(),
+              Tuple()()
+            )
           ),
-          Map[Param, (Expr, Expr)](
-            s -> (x, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (x, True, Tuple()())
           )
         )().tchk()
       }
@@ -216,10 +231,12 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
         val s = Param("s")(TyStm(U8, -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           StmData(s)(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](s -> (x, True))
+          Map[Param, (Expr, Expr, Expr)](s -> (x, True, Tuple()()))
         )().tchk()
       }
       val delayedPrefix = SimpleNop(prefix, delay = m - 1)
@@ -229,20 +246,24 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
         val acc = Param("acc")(U8)
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Sum(StmData(s)(), acc)(),
           i equ C(m - 1)(U8),
-          Map[Param, (Expr, Expr)](
+          Map[Param, (Expr, Expr, Expr)](
             i -> (
               C(0)(U8),
-              Mux(i equ C(m - 1)(U8), C(0)(U8), Sum(C(1)(U8), i)())()
+              Mux(i equ C(m - 1)(U8), C(0)(U8), Sum(C(1)(U8), i)())(),
+              Tuple()()
             ),
             acc -> (
               C(0)(U8),
-              Mux(i equ C(m - 1)(U8), C(0)(U8), Sum(StmData(s)(), acc)())()
+              Mux(i equ C(m - 1)(U8), C(0)(U8), Sum(StmData(s)(), acc)())(),
+              Tuple()()
             )
           ),
-          Map[Param, (Expr, Expr)](
-            s -> (x, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (x, True, Tuple()())
           )
         )().tchk()
       }
@@ -278,12 +299,15 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
         val s = Param("s")(TyStm(U8, -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Sum(StmData(s)(), acc)(),
           t === (m - 1),
-          Map[Param, (Expr, Expr)](
+          Map[Param, (Expr, Expr, Expr)](
             t -> (
               C(0)(U8),
-              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
+              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())(),
+              Tuple()()
             ),
             acc -> (
               C(0)(U8),
@@ -291,11 +315,12 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
                 t === (m - 1),
                 C(0)(U8),
                 Sum(StmData(s)(), acc)()
-              )()
+              )(),
+              Tuple()()
             )
           ),
-          Map[Param, (Expr, Expr)](
-            s -> (x, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (x, True, Tuple()())
           )
         )().tchk()
       }
@@ -304,16 +329,19 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
         val s = Param("s")(TyStm(U8, -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           StmData(s)(),
           t === 0,
-          Map[Param, (Expr, Expr)](
+          Map[Param, (Expr, Expr, Expr)](
             t -> (
               C(0)(U8),
-              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
+              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())(),
+              Tuple()()
             )
           ),
-          Map[Param, (Expr, Expr)](
-            s -> (x, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (x, True, Tuple()())
           )
         )().tchk()
       }
@@ -333,7 +361,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val original = {
       val s0 = Param("s0")(TyStm(U8, n))
       val count = SimpleCount(C(n)(U8))
-      val concat = SimpleConcat(s0, s0)
+      val concat = SimpleConcatHandshake(s0, s0)
       LetStm(n, s0, count, concat)().tchk().lower
     }
     val optimized = passWithHandshake.shrinkBuffers(original)

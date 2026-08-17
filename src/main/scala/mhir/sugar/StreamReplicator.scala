@@ -76,11 +76,13 @@ object StreamReplicator {
             val s = Param("s")(TyStm(elemTyp, -1))
             StmBuild(
               n,
+              1,
+              Undefined(Missing),
               VecBuild(m, m.typ ::+ (_ => StmData(s)()))(),
               True,
               Map(),
-              Map[Param, (Expr, Expr)](
-                s -> (x, True)
+              Map[Param, (Expr, Expr, Expr)](
+                s -> (x, True, 0)
               )
             )()
               .annotate(NoInputsAfterLastOut)
@@ -146,36 +148,39 @@ object StreamReplicator {
         }
       case (_, SharedScope) => None
     })
-    val newAccumulators = stm.accumulators.map({ case (x, (z, next)) =>
-      val newX = oldToNewVar(x)
-      scopes(x) match {
-        case SharedScope => newX -> (z, next.subPreserveType(subs))
-        case PrivateScope =>
-          val newZ = z match {
-            case _: Undefined => Undefined(TyVec(x.typ, m))
-            case _            => VecBuild(m, Function(i, z)())()
-          }
-          newX -> (
-            newZ,
-            VecBuild(m, Function(i, next.subPreserveType(subs))())()
-          )
-      }
+    val newAccumulators = stm.accumulators.map({
+      case (x, (init, next, delay)) =>
+        val newX = oldToNewVar(x)
+        scopes(x) match {
+          case SharedScope =>
+            newX -> (init, next.subPreserveType(subs), delay)
+          case PrivateScope =>
+            val newZ = init match {
+              case _: Undefined => Undefined(TyVec(x.typ, m))
+              case _            => VecBuild(m, Function(i, init)())()
+            }
+            newX -> (
+              newZ,
+              VecBuild(m, Function(i, next.subPreserveType(subs))())(),
+              delay
+            )
+        }
     })
-    val newProducers = stm.producers.map({ case (x, (z, next)) =>
+    val newProducers = stm.producers.map({ case (x, (stm, ready, delay)) =>
       val newX = oldToNewVar(x)
-      if (next.freeVars.contains(i)) {
+      if (ready.freeVars.contains(i)) {
         throw new IllegalArgumentException(
           "Input stream `ready` cannot depend on the vector index."
-            + s" (Found vector index $i and `ready` expression $next.)"
+            + s" (Found vector index $i and `ready` expression $ready.)"
         )
       }
       val newZ = scopes(x) match {
-        case PrivateScope => z.replicate(m, i, varsToReplicate)
-        case SharedScope  => z
+        case PrivateScope => stm.replicate(m, i, varsToReplicate)
+        case SharedScope  => stm
       }
-      newX -> (newZ, next)
+      newX -> (newZ, ready, delay)
     })
-    val newData = {
+    val (newInitData, newNextData) = {
       val validDependsOnI = stm.valid.freeVars
         .exists(x => x == i || scopes.get(x).contains(PrivateScope))
       if (validDependsOnI) {
@@ -184,11 +189,18 @@ object StreamReplicator {
             + s" (Found vector index $i and stream `valid` expression ${stm.valid}.)"
         )
       }
-      VecBuild(m, Function(i, stm.data.subPreserveType(subs))())()
+      (
+        // Don't perform substitutions in `initData`, since it shouldn't depend
+        // on any accumulators
+        VecBuild(m, Function(i, stm.initData)())().tchk(),
+        VecBuild(m, Function(i, stm.nextData.subPreserveType(subs))())().tchk()
+      )
     }
     val s = StmBuild(
       stm.n,
-      newData,
+      stm.delay,
+      newInitData,
+      newNextData,
       stm.valid,
       newAccumulators,
       newProducers
@@ -237,12 +249,12 @@ object StreamReplicator {
     }
 
     val dependencies = (stm.accumulators ++ stm.producers)
-      .map({ case (x, (_, next)) =>
+      .map({ case (x, (_, next, _)) =>
         x -> next.freeVars.intersect(stm.namesDefinedHere)
       })
     propagateScopes(
       scopeByVar = (stm.accumulators ++ stm.producers)
-        .map({ case (x, (z, next)) =>
+        .map({ case (x, (z, next, _)) =>
           val dependsOnI = (next.freeVars.contains(i)
             || z.freeVars.intersect(varsToReplicate + i).nonEmpty)
           x -> (if (dependsOnI) PrivateScope else SharedScope)

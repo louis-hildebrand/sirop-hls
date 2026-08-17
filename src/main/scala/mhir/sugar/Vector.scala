@@ -747,17 +747,20 @@ case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
     val i = Param("i")(ctrTyp)
     StmBuild(
       1,
+      Tuple()(),
+      Undefined(Missing),
       VecShiftLeft(v, StmData(p)())().tchk().lower,
       (Sum(C(1)(i.typ), i)() >= n).tchk().lower,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         v -> (
           Undefined(v.typ).lower,
-          VecShiftLeft(v, StmData(p)())().tchk().lower
+          VecShiftLeft(v, StmData(p)())().tchk().lower,
+          Tuple()()
         ),
-        i -> (C(0)(i.typ), Sum(C(1)(i.typ), i)())
+        i -> (C(0)(i.typ), Sum(C(1)(i.typ), i)(), Tuple()())
       ),
-      Map[Param, (Expr, Expr)](
-        p -> (s, True)
+      Map[Param, (Expr, Expr, Expr)](
+        p -> (s, True, Tuple()())
       )
     )().annotateWithName("Stm2Vec").tchk()
   }

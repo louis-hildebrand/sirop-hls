@@ -487,39 +487,43 @@ class TypecheckerTests extends AnyFunSuite {
     val n = Param("n")()
     val b = Param("b")(TyBool)
     val a = Param("a")(U8)
-    val original =
-      StmBuild(
-        n,
-        a,
-        b,
-        Map[Param, (Expr, Expr)](
-          a -> (C(0)(), Mux(b, a + 2, a + 1)()),
-          b -> (False, Not(b)() || (a % 4 === 0))
-        ),
-        Map()
-      )()
+    val original = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      a,
+      b,
+      Map[Param, (Expr, Expr, Expr)](
+        a -> (C(0)(), Mux(b, a + 2, a + 1)(), Tuple()()),
+        b -> (False, Not(b)() || (a % 4 === 0), Tuple()())
+      ),
+      Map()
+    )()
     val checked = original.tchk(Map(n -> U16), Map())
     assert(checked.typ == TyStm(U8, n.rebuild(U16)))
     assertAllNodesHaveType(checked)
   }
 
-  test("StreamWithStreamInput") {
+  test("StmBuildWithInput") {
     val n = Param("n")(U8)
     val input = Param("input")()
     val s = Param("s")(TyStm(I16, n))
     val a = Param("a")(I16)
     val original = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       a,
       True,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         a -> (
           ReshapeData(0, I16)(),
-          Mux(a % 2 === 0, a + StmData(s)(), a + 1)()
+          Mux(a % 2 === 0, a + StmData(s)(), a + 1)(),
+          Tuple()()
         )
       ),
-      Map[Param, (Expr, Expr)](
-        s -> (input, a % 2 === 0)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (input, a % 2 === 0, Tuple()())
       )
     )()
     val checked = original.tchk(Map(input -> TyStm(I16, n)), Map())
@@ -536,12 +540,14 @@ class TypecheckerTests extends AnyFunSuite {
       val s2 = Param("s2")(TyStm(U8, -1))
       val zipped = StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(StmData(s1)(), StmData(s2)())(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s1 -> (x, True),
-          s2 -> (x, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s1 -> (x, True, Tuple()()),
+          s2 -> (x, True, Tuple()())
         )
       )()
       LetStm(1, x, s, zipped)()
@@ -682,45 +688,163 @@ class TypecheckerTests extends AnyFunSuite {
   }
 
   test("StmBuild:NonIntLength") {
-    val e = StmBuild(True, 5, True, Map(), Map())()
+    val e =
+      StmBuild(True, Tuple()(), Undefined(Missing), 5, True, Map(), Map())()
     assertThrows[TypeError](e.tchk())
   }
 
-  test("StmBuild:NonBoolValid") {
-    val e = StmBuild(42, Tuple(43, 44)(), 45, Map(), Map())()
-    assertThrows[TypeError](e.tchk())
-  }
-
-  test("StmBuild:InitWrongType") {
-    val a = Param("a")(U8)
+  test("StmBuild:DelayWrongType") {
     val e = StmBuild(
-      4,
-      a,
+      10,
+      Tuple(1, 2)(),
+      Undefined(Missing),
+      C(42)(U8),
       True,
-      Map[Param, (Expr, Expr)](a -> (True, C(0)(U8))),
+      Map(),
       Map()
     )()
     assertThrows[TypeError](e.tchk())
   }
 
-  test("StmBuild:NextWrongType") {
-    val a = Param("a")()
-    val e =
-      StmBuild(2, 5, True, Map[Param, (Expr, Expr)](a -> (0, True)), Map())()
+  test("StmBuild:InitDataWrongType") {
+    val e = StmBuild(
+      10,
+      Tuple()(),
+      False,
+      C(42)(U8),
+      True,
+      Map(),
+      Map()
+    )()
     assertThrows[TypeError](e.tchk())
   }
 
-  test("StmBuild:NextWrongShape") {
+  test("StmBuild:NonBoolValid") {
+    val e = StmBuild(
+      42,
+      Tuple()(),
+      Undefined(Missing),
+      Tuple(43, 44)(),
+      45,
+      Map(),
+      Map()
+    )()
+    assertThrows[TypeError](e.tchk())
+  }
+
+  test("StmBuild:AccumulatorInitWrongType") {
+    val a = Param("a")(U8)
+    val e = StmBuild(
+      4,
+      Tuple()(),
+      Undefined(Missing),
+      a,
+      True,
+      Map[Param, (Expr, Expr, Expr)](a -> (True, C(0)(U8), Tuple()())),
+      Map()
+    )()
+    assertThrows[TypeError](e.tchk())
+  }
+
+  test("StmBuild:AccumulatorNextWrongType") {
+    val a = Param("a")()
+    val e = StmBuild(
+      2,
+      Tuple()(),
+      Undefined(Missing),
+      5,
+      True,
+      Map[Param, (Expr, Expr, Expr)](a -> (0, True, Tuple()())),
+      Map()
+    )()
+    assertThrows[TypeError](e.tchk())
+  }
+
+  test("StmBuild:AccumulatorNextWrongShape") {
     val a = Param("a")()
     val e = StmBuild(
       3,
+      Tuple()(),
+      Undefined(Missing),
       4,
       True,
-      Map[Param, (Expr, Expr)](
-        a -> (VecBuild(10, U8 ::+ (i => i))(),
-        VecBuild(11, U8 ::+ (i => i))())
+      Map[Param, (Expr, Expr, Expr)](
+        a -> (
+          VecBuild(10, U8 ::+ (i => i))(),
+          VecBuild(11, U8 ::+ (i => i))(),
+          Tuple()()
+        )
       ),
       Map()
+    )()
+    assertThrows[TypeError](e.tchk())
+  }
+
+  test("StmBuild:AccumulatorDelayWrongType") {
+    val a = Param("a")()
+    val e = StmBuild(
+      3,
+      Tuple()(),
+      Undefined(Missing),
+      4,
+      True,
+      Map[Param, (Expr, Expr, Expr)](
+        a -> (
+          VecBuild(10, U8 ::+ (i => i))(),
+          VecBuild(11, U8 ::+ (i => i))(),
+          C(-1)(I8)
+        )
+      ),
+      Map()
+    )()
+    assertThrows[TypeError](e.tchk())
+  }
+
+  test("StmBuild:ProducerStmWrongType") {
+    val input = Param("input")(TyStm(U16, 3))
+    val p = Param("p")(TyStm(U8, 3))
+    val e = StmBuild(
+      3,
+      Tuple()(),
+      Undefined(Missing),
+      StmData(p)(),
+      True,
+      Map(),
+      Map(
+        p -> (input, p, C(0)())
+      )
+    )()
+    assertThrows[TypeError](e.tchk())
+  }
+
+  test("StmBuild:ProducerReadyWrongType") {
+    val p = Param("p")(TyStm(U8, 3))
+    val e = StmBuild(
+      3,
+      Tuple()(),
+      Undefined(Missing),
+      StmData(p)(),
+      True,
+      Map(),
+      Map(
+        p -> (p, p, C(0)())
+      )
+    )()
+    assertThrows[TypeError](e.tchk())
+  }
+
+  test("StmBuild:ProducerDelayWrongType") {
+    val p = Param("p")(TyStm(U8, 3))
+    val e = StmBuild(
+      3,
+      Tuple()(),
+      Undefined(Missing),
+      StmData(p)(),
+      True,
+      Map(),
+      Map(
+        p -> (p, True, C(-1)(I8))
+      )
     )()
     assertThrows[TypeError](e.tchk())
   }

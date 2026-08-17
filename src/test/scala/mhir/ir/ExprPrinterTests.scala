@@ -2,9 +2,17 @@ package mhir.ir
 
 import mhir.canonicalize._
 import mhir.sugar._
+import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class ExprPrinterTests extends AnyFunSuite {
+
+  test("undefined[Missing]") {
+    val e = Undefined(Missing)
+    assert(ExprPrinter.displayOneLine(e) == "undefined")
+    assert(ExprPrinter.displayMultiLine(e, maxWidth = 120) == "undefined")
+  }
+
   test("undefined[u8]") {
     val e = Undefined(U8)
     assert(ExprPrinter.displayOneLine(e) == "undefined[u8]")
@@ -585,41 +593,49 @@ class ExprPrinterTests extends AnyFunSuite {
     val j = Param("j", -1)(I9)
     val e = StmBuild(
       C(42)(U8),
+      Tuple()(),
+      Undefined(Missing),
       Sum(ToSigned(StmData(s)())(), j)(),
       True,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         j -> (
           C(-10)(I9),
-          Sum(C(2)(I9), j)()
+          Sum(C(2)(I9), j)(),
+          Tuple()()
         )
       ),
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         s -> (
           StmBuild(
             C(42)(U8),
+            Tuple()(),
+            Undefined(Missing),
             i,
             True,
-            Map[Param, (Expr, Expr)](i -> (C(0)(U8), Sum(C(1)(U8), i)())),
+            Map[Param, (Expr, Expr, Expr)](
+              i -> (C(0)(U8), Sum(C(1)(U8), i)(), Tuple()())
+            ),
             Map()
           )(),
-          True
+          True,
+          Tuple()()
         )
       )
     )()
 
     val expectedOneLine =
-      s"sbuild(42:u8)(sign(sdata(s)) +` j, true) { (j : i9) = { init: -10:i9, next: 2:i9 +` j } } { (s : Stm[u8, -1:i1]) = { stm: sbuild(42:u8)(i, true) { (i : u8) = { init: 0:u8, next: 1:u8 +` i } } {}, ready: true } }"
+      s"sbuild(42:u8)(sign(sdata(s)) +` j, true) { (j: i9) = { init: -10:i9, next: 2:i9 +` j } } { (s: Stm[u8, -1:i1]) = { stm: sbuild(42:u8)(i, true) { (i: u8) = { init: 0:u8, next: 1:u8 +` i } } {}, ready: true } }"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
       s"""sbuild(42:u8)(sign(sdata(s)) +` j, true) {
-         |  (j : i9) = {
+         |  (j: i9) = {
          |    init: -10:i9,
          |    next: 2:i9 +` j
          |  }
          |} {
-         |  (s : Stm[u8, -1:i1]) = {
-         |    stm: sbuild(42:u8)(i, true) { (i : u8) = { init: 0:u8, next: 1:u8 +` i } } {},
+         |  (s: Stm[u8, -1:i1]) = {
+         |    stm: sbuild(42:u8)(i, true) { (i: u8) = { init: 0:u8, next: 1:u8 +` i } } {},
          |    ready: true
          |  }
          |}
@@ -632,7 +648,15 @@ class ExprPrinterTests extends AnyFunSuite {
     val c2 = Param("c2", -1)(TyBool)
     val c3 = Param("c3", -1)(TyBool)
     val c4 = Param("c4", -1)(TyBool)
-    val s = StmBuild(C(10)(U8), (c1 && c2) || (c3 && c4), True, Map(), Map())()
+    val s = StmBuild(
+      C(10)(U8),
+      Tuple()(),
+      Undefined(Missing),
+      (c1 && c2) || (c3 && c4),
+      True,
+      Map(),
+      Map()
+    )()
 
     val expectedOneLine = "sbuild(10:u8)(c1 && c2 || c3 && c4, true) {} {}"
     val actualOneLine = ExprPrinter.displayOneLine(s)
@@ -646,6 +670,46 @@ class ExprPrinterTests extends AnyFunSuite {
          |) {} {}
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.displayMultiLine(s, maxWidth = 20)
+    assert(actualMultiLine == expectedMultiLine)
+  }
+
+  test("StmBuildWithDelays") {
+    val input = Param("input", -1)(TyStm(I16, 42))
+    val i = Param("i", -1)(U8)
+    val p = Param("p", -1)(TyStm(I16, -1))
+    val s = StmBuild(
+      C(42)(),
+      C(1)(),
+      Tuple(C(0)(U8), C(0)(I16))(),
+      Tuple(i, StmData(p)())(),
+      True,
+      Map(
+        i -> (C(0)(U8), Sum(i, C(1)(U8))(), C(1)())
+      ),
+      Map(
+        p -> (input, True, C(0)())
+      )
+    )().tchk()
+
+    val expectedOneLine =
+      "sbuild(42:u6 @ 1:u1)((0:u8, 0:i16), (i, sdata(p)), true) { (i: u8 @ 1:u1) = { init: 0:u8, next: i +` 1:u8 } } { (p: Stm[i16, -1:i1] @ 0:u0) = { stm: input, ready: true } }"
+    val actualOneLine = ExprPrinter.displayOneLine(s)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      s"""sbuild(42:u6 @ 1:u1)((0:u8, 0:i16), (i, sdata(p)), true) {
+         |  (i: u8 @ 1:u1) = {
+         |    init: 0:u8,
+         |    next: i +` 1:u8
+         |  }
+         |} {
+         |  (p: Stm[i16, -1:i1] @ 0:u0) = {
+         |    stm: input,
+         |    ready: true
+         |  }
+         |}
+         |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(s)
     assert(actualMultiLine == expectedMultiLine)
   }
 

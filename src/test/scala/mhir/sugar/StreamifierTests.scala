@@ -69,11 +69,13 @@ class StreamifierTests extends AnyFunSuite {
         val x = Param("s")(TyStm(U8, -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           C(5)(U8) + StmData(x)(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            x -> (s, True)
+          Map[Param, (Expr, Expr, Expr)](
+            x -> (s, True, Tuple()())
           )
         )()
       }
@@ -105,10 +107,12 @@ class StreamifierTests extends AnyFunSuite {
         TyStm(U8, 10) ::+ (_ =>
           StmBuild(
             10,
+            1,
+            Undefined(Missing),
             StmData(x)(),
             True,
             Map(),
-            Map[Param, (Expr, Expr)](x -> (x, True))
+            Map[Param, (Expr, Expr, Expr)](x -> (x, True, C(0)()))
           )()
         )
       )).tchk().lower
@@ -124,10 +128,12 @@ class StreamifierTests extends AnyFunSuite {
         TyStm(U8, 10) ::+ (y =>
           StmBuild(
             10,
+            1,
+            Undefined(Missing),
             StmData(y)(),
             True,
             Map(),
-            Map[Param, (Expr, Expr)](y -> (y, True))
+            Map[Param, (Expr, Expr, Expr)](y -> (y, True, C(0)()))
           )()
         )
       )).tchk().lower
@@ -140,10 +146,12 @@ class StreamifierTests extends AnyFunSuite {
     val f = (U8 ::+ (c =>
       StmBuild(
         10,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(C(13)(U8) + c, i)(),
         True,
-        Map[Param, (Expr, Expr)](
-          i -> (c, i + C(1)(U8))
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (c, i + C(1)(U8), Tuple()())
         ),
         Map()
       )()
@@ -179,23 +187,34 @@ class StreamifierTests extends AnyFunSuite {
     val f = {
       val c = Param("c")(U8)
       val n1 = 3
-      val cst1 = StmBuild(n1, c, True, Map(), Map())()
+      val cst1 =
+        StmBuild(n1, Tuple()(), Undefined(Missing), c, True, Map(), Map())()
       val n2 = 5
-      val cst2 = StmBuild(n2, C(42)(U8), True, Map(), Map())()
+      val cst2 = StmBuild(
+        n2,
+        Tuple()(),
+        Undefined(Missing),
+        C(42)(U8),
+        True,
+        Map(),
+        Map()
+      )()
       val concat = {
         val t = Param("t")(U8)
         val s0 = Param("s0")(TyStm(U8, -1))
         val s1 = Param("s1")(TyStm(U8, -1))
         StmBuild(
           n1 + n2,
+          Tuple()(),
+          Undefined(Missing),
           Mux(t lt C(n1)(U8), StmData(s0)(), StmData(s1)())(),
           True,
-          Map[Param, (Expr, Expr)](
-            t -> (C(0)(U8), Sum(C(1)(U8), t)())
+          Map[Param, (Expr, Expr, Expr)](
+            t -> (C(0)(U8), Sum(C(1)(U8), t)(), Tuple()())
           ),
-          Map[Param, (Expr, Expr)](
-            s0 -> (cst1, t lt C(n1)(U8)),
-            s1 -> (cst2, t geq C(n1)(U8))
+          Map[Param, (Expr, Expr, Expr)](
+            s0 -> (cst1, t lt C(n1)(U8), Tuple()()),
+            s1 -> (cst2, t geq C(n1)(U8), Tuple()())
           )
         )()
       }
@@ -226,36 +245,56 @@ class StreamifierTests extends AnyFunSuite {
         val cStm = Param("c_stm")(TyStm(U8, 1))
         StmBuild(
           n1,
+          Tuple()(),
+          Undefined(Missing),
           // This MUX is not really necessary, but it should be straightforward
           // for the optimizer to remove it and it would make the streamifier
           // code, which is already quite long, a little bit more complex
           Mux(isFirstStep, StmData(cStm)(), cBuf)(),
           True,
-          Map[Param, (Expr, Expr)](
-            isFirstStep -> (True, False),
-            cBuf -> (Undefined(U8), Mux(isFirstStep, StmData(cStm)(), cBuf)())
+          Map[Param, (Expr, Expr, Expr)](
+            isFirstStep -> (True, False, C(1)()),
+            cBuf -> (
+              Undefined(U8),
+              Mux(
+                isFirstStep,
+                StmData(cStm)(),
+                cBuf
+              )(),
+              Tuple()()
+            )
           ),
-          Map[Param, (Expr, Expr)](
-            cStm -> (c, isFirstStep)
+          Map[Param, (Expr, Expr, Expr)](
+            cStm -> (c, isFirstStep, C(0)())
           )
         )()
       }
       val n2 = 5
-      val cst2 = StmBuild(n2, C(42)(U8), True, Map(), Map())()
+      val cst2 = StmBuild(
+        n2,
+        Tuple()(),
+        Undefined(Missing),
+        C(42)(U8),
+        True,
+        Map(),
+        Map()
+      )()
       val concat = {
         val t = Param("t")(U8)
         val s0 = Param("s0")(TyStm(U8, -1))
         val s1 = Param("s1")(TyStm(U8, -1))
         StmBuild(
           n1 + n2,
+          Tuple()(),
+          Undefined(Missing),
           Mux(t lt C(n1)(U8), StmData(s0)(), StmData(s1)())(),
           True,
-          Map[Param, (Expr, Expr)](
-            t -> (C(0)(U8), Sum(C(1)(U8), t)())
+          Map[Param, (Expr, Expr, Expr)](
+            t -> (C(0)(U8), Sum(C(1)(U8), t)(), Tuple()())
           ),
-          Map[Param, (Expr, Expr)](
-            s0 -> (cst1, t lt C(n1)(U8)),
-            s1 -> (cst2, t geq C(n1)(U8))
+          Map[Param, (Expr, Expr, Expr)](
+            s0 -> (cst1, t lt C(n1)(U8), Tuple()()),
+            s1 -> (cst2, t geq C(n1)(U8), Tuple()())
           )
         )()
       }
@@ -273,13 +312,15 @@ class StreamifierTests extends AnyFunSuite {
     val b = Param("b")(TyBool)
     val originalStm = StmBuild(
       2 * n,
+      Tuple()(),
+      Undefined(Missing),
       Mux(even === b, StmData(s)(), C(42)(U8))(),
       True,
-      Map[Param, (Expr, Expr)](
-        b -> (True, !b)
+      Map[Param, (Expr, Expr, Expr)](
+        b -> (True, !b, Tuple()())
       ),
-      Map[Param, (Expr, Expr)](
-        s -> (StmCount(C(n)(U8))(), even === b)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (StmCount(C(n)(U8))(), even === b, Tuple()())
       )
     )()
     val originalFunc = Function(even, originalStm)().tchk().lower
@@ -304,14 +345,16 @@ class StreamifierTests extends AnyFunSuite {
     val b = Param("b")(TyBool)
     val originalStm = StmBuild(
       2 * n,
+      Tuple()(),
+      Undefined(Missing),
       Mux(evenAcc === b, StmData(s)(), C(42)(U8))(),
       True,
-      Map[Param, (Expr, Expr)](
-        b -> (True, !b),
-        evenAcc -> (even, evenAcc)
+      Map[Param, (Expr, Expr, Expr)](
+        b -> (True, !b, Tuple()()),
+        evenAcc -> (even, evenAcc, Tuple()())
       ),
-      Map[Param, (Expr, Expr)](
-        s -> (StmCount(C(n)(U8))(), evenAcc === b)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (StmCount(C(n)(U8))(), evenAcc === b, Tuple()())
       )
     )()
     val originalFunc = Function(even, originalStm)().tchk().lower
@@ -402,7 +445,15 @@ class StreamifierTests extends AnyFunSuite {
   test("FreeVar:u8") {
     val n = 11
     val c = Param("c")(U8)
-    val original = StmBuild(n, c, True, Map(), Map())().tchk().lower
+    val original = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      c,
+      True,
+      Map(),
+      Map()
+    )().tchk().lower
     val actual = original.streamify
     assert(actual == original)
   }
@@ -414,11 +465,13 @@ class StreamifierTests extends AnyFunSuite {
     val acc = Param("s")(TyStm(U8, -1))
     val original = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       Sum(C(5)(U8), StmData(acc)())(),
       True,
       Map(),
-      Map[Param, (Expr, Expr)](
-        acc -> (s, True)
+      Map[Param, (Expr, Expr, Expr)](
+        acc -> (s, True, Tuple()())
       )
     )().tchk().lower
     val actual = original.streamify

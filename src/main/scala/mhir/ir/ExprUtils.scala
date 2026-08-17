@@ -178,21 +178,28 @@ trait ExprUtils {
             case stm: StmBuild =>
               val n0 =
                 (count(stm.n, x)
+                  + count(stm.delay, x)
                   + stm.accumulators
-                    .map({ case (_, (z, _)) => count(z, x) })
+                    .map({ case (_, (init, _, delay)) =>
+                      count(init, x) + count(delay, x)
+                    })
                     .sum
-                  + stm.producers.map({ case (_, (z, _)) => count(z, x) }).sum)
+                  + stm.producers
+                    .map({ case (_, (stm, _, delay)) =>
+                      count(stm, x) + count(delay, x)
+                    })
+                    .sum)
               if (stm.namesDefinedHere.contains(x)) {
                 n0
               } else {
                 (n0
-                  + count(stm.data, x)
+                  + count(stm.nextData, x)
                   + count(stm.valid, x)
                   + stm.accumulators
-                    .map({ case (_, (_, next)) => count(next, x) })
+                    .map({ case (_, (_, next, _)) => count(next, x) })
                     .sum
                   + stm.producers
-                    .map({ case (_, (_, ready)) => count(ready, x) })
+                    .map({ case (_, (_, ready, _)) => count(ready, x) })
                     .sum)
               }
             case e =>

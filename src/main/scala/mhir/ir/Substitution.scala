@@ -103,25 +103,29 @@ private[ir] trait Substitution {
                     // In those cases, use the new subs; otherwise, use the old
                     // subs.
                     s.n.subPreserveType(subs),
-                    s.data.subPreserveType(newSubs),
+                    s.delay.subPreserveType(subs),
+                    s.initData.subPreserveType(subs),
+                    s.nextData.subPreserveType(newSubs),
                     s.valid.subPreserveType(newSubs),
-                    s.accumulators.map({ case (x, (init, next)) =>
+                    s.accumulators.map({ case (x, (init, next, delay)) =>
                       // There may be substitutions to do in the type
                       val renamedX = renamings.getOrElse(x, x)
                       val newTyp = renamedX.typ.substitute(subs)
                       val newX = Param(renamedX.prefix, renamedX.id)(newTyp)
                       val newInit = init.subPreserveType(subs)
                       val newNext = next.subPreserveType(newSubs)
-                      newX -> (newInit, newNext)
+                      val newDelay = delay.subPreserveType(subs)
+                      newX -> (newInit, newNext, newDelay)
                     }),
-                    s.producers.map({ case (x, (stm, ready)) =>
+                    s.producers.map({ case (x, (stm, ready, delay)) =>
                       // There may be substitutions to do in the type
                       val renamedX = renamings.getOrElse(x, x)
                       val newTyp = renamedX.typ.substitute(subs)
                       val newX = Param(renamedX.prefix, renamedX.id)(newTyp)
                       val newStm = stm.subPreserveType(subs)
                       val newReady = ready.subPreserveType(newSubs)
-                      newX -> (newStm, newReady)
+                      val newDelay = delay.subPreserveType(subs)
+                      newX -> (newStm, newReady, newDelay)
                     })
                   )(s.typ.substitute(subs), annotations = s.annotations)
                 }
@@ -229,25 +233,29 @@ private[ir] trait Substitution {
                   // In those cases, use the new subs; otherwise, use the old
                   // subs.
                   s.n.subAndEraseType(subs),
-                  s.data.subAndEraseType(newSubs),
+                  s.delay.subAndEraseType(subs),
+                  s.initData.subAndEraseType(subs),
+                  s.nextData.subAndEraseType(newSubs),
                   s.valid.subAndEraseType(newSubs),
-                  s.accumulators.map({ case (x, (init, next)) =>
+                  s.accumulators.map({ case (x, (init, next, delay)) =>
                     // There may be substitutions to do in the type
                     val renamedX = renamings.getOrElse(x, x)
                     val newTyp = renamedX.typ.substitute(subs)
                     val newX = Param(renamedX.prefix, renamedX.id)(newTyp)
                     val newInit = init.subAndEraseType(subs)
                     val newNext = next.subAndEraseType(newSubs)
-                    newX -> (newInit, newNext)
+                    val newDelay = delay.subAndEraseType(subs)
+                    newX -> (newInit, newNext, newDelay)
                   }),
-                  s.producers.map({ case (x, (stm, ready)) =>
+                  s.producers.map({ case (x, (stm, ready, delay)) =>
                     // There may be substitutions to do in the type
                     val renamedX = renamings.getOrElse(x, x)
                     val newTyp = renamedX.typ.substitute(subs)
                     val newX = Param(renamedX.prefix, renamedX.id)(newTyp)
                     val newStm = stm.subAndEraseType(subs)
                     val newReady = ready.subAndEraseType(newSubs)
-                    newX -> (newStm, newReady)
+                    val newDelay = delay.subAndEraseType(subs)
+                    newX -> (newStm, newReady, newDelay)
                   })
                 )(annotations = s.annotations)
               case InterpretAs(e, targetTyp) =>

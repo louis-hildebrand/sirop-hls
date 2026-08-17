@@ -46,12 +46,14 @@ trait Lowering {
               val sF = Param("s_f")(TyStm(elemTyp, -1))
               StmBuild(
                 n,
+                C(1)(),
+                Undefined(elemTyp),
                 Mux(cond, StmData(sT)(), StmData(sF)())(),
                 True,
                 Map(),
-                Map[Param, (Expr, Expr)](
-                  sT -> (t, True),
-                  sF -> (f, True)
+                Map[Param, (Expr, Expr, Expr)](
+                  sT -> (t, True, C(0)()),
+                  sF -> (f, True, C(0)())
                 )
               )().annotate(NoInputsAfterLastOut).annotateWithName("Mux").tchk()
             case _ =>

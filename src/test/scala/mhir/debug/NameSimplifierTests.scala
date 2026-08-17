@@ -126,16 +126,18 @@ class NameSimplifierTests extends AnyFunSuite {
     */
   test("StmBuild:DifferentAccumulatorNames") {
     val original = {
-      val id = (t: Type) => (t ::+ (x => x))
+      val id = (t: Type) => t ::+ (x => x)
       val a = Param("a")(U8)
       val b = Param("b")(TyBool)
       StmBuild(
         id(TyUInt(3))(4),
+        Tuple()(),
+        Undefined(Missing),
         id(U8)(a),
         id(TyBool)(b),
-        Map[Param, (Expr, Expr)](
-          a -> (id(U8)(C(0)(U8)), Sum(C(1)(U8), a)()),
-          b -> (True, id(TyBool)(!b))
+        Map[Param, (Expr, Expr, Expr)](
+          a -> (id(U8)(C(0)(U8)), Sum(C(1)(U8), a)(), Tuple()()),
+          b -> (True, id(TyBool)(!b), Tuple()())
         ),
         Map()
       )().tchk()
@@ -144,11 +146,11 @@ class NameSimplifierTests extends AnyFunSuite {
     assert(simplified == original)
     val expectedStr =
       """sbuild(((x : u3) => x)(4:u3))(((x : u8) => x)(a), ((x : bool) => x)(b)) {
-        |  (a : u8) = {
+        |  (a: u8) = {
         |    init: ((x : u8) => x)(0:u8),
         |    next: 1:u8 +` a
         |  },
-        |  (b : bool) = {
+        |  (b: bool) = {
         |    init: true,
         |    next: ((x : bool) => x)(!b)
         |  }
@@ -170,12 +172,14 @@ class NameSimplifierTests extends AnyFunSuite {
       val b1 = Param("b")(TyBool)
       StmBuild(
         6,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(a, b1, b2)(),
         b1,
-        Map[Param, (Expr, Expr)](
-          a -> (C(0)(U8), Sum(C(1)(U8), a)()),
-          b1 -> (True, !b1),
-          b2 -> (False, !b2)
+        Map[Param, (Expr, Expr, Expr)](
+          a -> (C(0)(U8), Sum(C(1)(U8), a)(), Tuple()()),
+          b1 -> (True, !b1, Tuple()()),
+          b2 -> (False, !b2, Tuple()())
         ),
         Map()
       )().tchk()
@@ -184,15 +188,15 @@ class NameSimplifierTests extends AnyFunSuite {
     assert(simplified == original)
     val expectedStr =
       """sbuild(6:u3)((a, b_1, b_2), b_1) {
-        |  (a : u8) = {
+        |  (a: u8) = {
         |    init: 0:u8,
         |    next: 1:u8 +` a
         |  },
-        |  (b_1 : bool) = {
+        |  (b_1: bool) = {
         |    init: true,
         |    next: !b_1
         |  },
-        |  (b_2 : bool) = {
+        |  (b_2: bool) = {
         |    init: false,
         |    next: !b_2
         |  }
@@ -210,13 +214,15 @@ class NameSimplifierTests extends AnyFunSuite {
       val xAcc = Param("x")(U8)
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(xAcc, xFree)(),
         True,
-        Map[Param, (Expr, Expr)](
-          xAcc -> (C(0)(U8), Sum(C(1)(U8), xAcc)())
+        Map[Param, (Expr, Expr, Expr)](
+          xAcc -> (C(0)(U8), Sum(C(1)(U8), xAcc)(), Tuple()())
         ),
         Map()
-      )()
+      )().tchk()
     }
     val simplified = NS.simplify(original)
     assert(simplified == original)
@@ -230,10 +236,12 @@ class NameSimplifierTests extends AnyFunSuite {
       val xAcc = Param("x")(U8)
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         xAcc,
         xFree equ C(1)(U8),
-        Map[Param, (Expr, Expr)](
-          xAcc -> (C(0)(U8), Sum(C(1)(U8), xAcc)())
+        Map[Param, (Expr, Expr, Expr)](
+          xAcc -> (C(0)(U8), Sum(C(1)(U8), xAcc)(), Tuple()())
         ),
         Map()
       )()
@@ -250,10 +258,12 @@ class NameSimplifierTests extends AnyFunSuite {
       val xAcc = Param("x")(U8)
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         xAcc,
         True,
-        Map[Param, (Expr, Expr)](
-          xAcc -> (C(0)(U8), Sum(xFree, xAcc)())
+        Map[Param, (Expr, Expr, Expr)](
+          xAcc -> (C(0)(U8), Sum(xFree, xAcc)(), Tuple()())
         ),
         Map()
       )()

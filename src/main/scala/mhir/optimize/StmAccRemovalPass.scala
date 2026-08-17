@@ -25,7 +25,7 @@ object StmAccRemovalPass {
       candidates = stm.accumulators.map({ case (x, _) => x }).toSet
     )
     val replacements = stm.accumulators
-      .collect({ case (x, (z, _)) if constantVars.contains(x) => x -> z })
+      .collect({ case (x, (z, _, _)) if constantVars.contains(x) => x -> z })
     stm.replaceVars(replacements)
   }
 
@@ -91,7 +91,7 @@ object StmAccRemovalPass {
       Set()
     } else {
       val initByAccumulator =
-        stm.accumulators.map({ case (x, (init, _)) =>
+        stm.accumulators.map({ case (x, (init, _, _)) =>
           if (candidates.contains(x)) {
             x -> init
           } else {
@@ -99,7 +99,7 @@ object StmAccRemovalPass {
           }
         })
       val subs = initByAccumulator.toMap[Expr, Expr]
-      val nextByAccumulator = stm.accumulators.map({ case (x, (_, next)) =>
+      val nextByAccumulator = stm.accumulators.map({ case (x, (_, next, _)) =>
         x -> PartialEvalPass.partialEval(next.subPreserveType(subs))
       })
       val constantVars =
@@ -181,8 +181,7 @@ object StmAccRemovalPass {
 
     val initialEquivClasses =
       stm.accumulators
-        .map({ case (x, (init, _)) => x -> init })
-        .groupBy({ case (_, z) => z })
+        .groupBy({ case (_, (init, _, delay)) => (init, delay) })
         .map({ case (_, eqns) => eqns.map({ case (x, _) => x }).toSet })
         .toSet
     fix(initialEquivClasses, Set[Set[Param]]())
@@ -190,7 +189,7 @@ object StmAccRemovalPass {
 
   private def findDuplicateInputs(stm: StmBuild): Set[Set[Param]] = {
     stm.producers
-      .groupBy({ case (_, (s, ready)) => (s, ready) })
+      .groupBy({ case (_, (s, ready, delay)) => (s, ready, delay) })
       .map({ case (_, eqns) => eqns.map({ case (x, _) => x }).toSet })
       .toSet
   }

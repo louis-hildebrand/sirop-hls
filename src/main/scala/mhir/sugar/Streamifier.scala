@@ -148,11 +148,13 @@ object Streamifier {
       oldInputs.map(x => x -> StmData(newAccumulators(x))().tchk()).toMap
     StmBuild(
       C(1)(),
+      C(1)(),
+      Undefined(e.typ),
       e.subPreserveType(subs),
       True,
       Map(),
       oldInputs
-        .map(x => newAccumulators(x) -> (oldToNewInputs(x), True))
+        .map(x => newAccumulators(x) -> (oldToNewInputs(x), True, C(1)()))
         .toMap
     )().annotate(NoInputsAfterLastOut).annotateWithName("scalar2scalar")
   }
@@ -161,16 +163,12 @@ object Streamifier {
       originalStm: StmBuild,
       oldToNewInputs: ListMap[Param, Param]
   )(implicit c: Canonicalizer): Expr = {
-    val withStreamifiedProducers =
-      StmBuild(
-        originalStm.n,
-        originalStm.data,
-        originalStm.valid,
-        originalStm.accumulators,
-        originalStm.producers.map({ case (x, (init, ready)) =>
-          x -> (streamifyBody(init, oldToNewInputs), ready)
-        })
-      )(annotations = originalStm.annotations).tchk().asInstanceOf[StmBuild]
+    val withStreamifiedProducers = originalStm
+      .mapProducers({ case (x, (init, ready, delay)) =>
+        x -> (streamifyBody(init, oldToNewInputs), ready, delay)
+      })
+      .tchk()
+      .asInstanceOf[StmBuild]
     val oldInputs = findDataInputsUsedHere(
       withStreamifiedProducers,
       oldToNewInputs.keySet
@@ -228,15 +226,16 @@ object Streamifier {
       // This introduces one extra cycle of latency, which can be problematic if
       // the expression being streamified is used inside something like StmMap:
       // the extra latency will apply *for each iteration*.
+      // TODO: Do I need to increase all the delays by 1 in this case?
       val haltOnFirstStep = {
         val forbiddenVars =
           oldInputs ++ withStreamifiedProducers.accumulators
-            .filter({ case (_, (z, _)) =>
+            .filter({ case (_, (z, _, _)) =>
               z.freeVars.intersect(oldInputs).nonEmpty
             })
             .map({ case (x, _) => x })
         val halt = withStreamifiedProducers.producers.exists({
-          case (_, (_, ready)) =>
+          case (_, (_, ready, _)) =>
             ready.freeVars.intersect(forbiddenVars).nonEmpty
         })
         if (halt) {
@@ -260,7 +259,7 @@ object Streamifier {
           Map()
         } else {
           withStreamifiedProducers.accumulators
-            .map({ case (x, (z, _)) =>
+            .map({ case (x, (z, _, _)) =>
               // TODO: Only do this if the seed actually depends on at least
               //       one input?
               val mux = Mux(isFirstStep, z.subPreserveType(oldInputSubs), x)()
@@ -269,7 +268,7 @@ object Streamifier {
         }
         oldInputSubs ++ oldAccSubs
       }
-      val newData = withStreamifiedProducers.data.subPreserveType(subs)
+      val newData = withStreamifiedProducers.nextData.subPreserveType(subs)
       val newValid = if (haltOnFirstStep) {
         withStreamifiedProducers.valid.subPreserveType(subs) && !isFirstStep
       } else {
@@ -281,16 +280,17 @@ object Streamifier {
             assert(x.typ.isData)
             newRegAcc(x) -> (
               Undefined(x.typ),
-              Mux(isFirstStep, StmData(newStmAcc(x))(), newRegAcc(x))()
+              Mux(isFirstStep, StmData(newStmAcc(x))(), newRegAcc(x))(),
+              Tuple()()
             )
           })
           .toMap
-          .+(isFirstStep -> (True, False))
+          .+(isFirstStep -> (True, False, C(1)()))
         val producersToAdd = oldInputs
-          .map(x => newStmAcc(x) -> (oldToNewInputs(x), isFirstStep))
+          .map(x => newStmAcc(x) -> (oldToNewInputs(x), isFirstStep, C(0)()))
           .toMap
         val updatedAccumulators = withStreamifiedProducers.accumulators.map({
-          case (x, (z, next)) if x.typ.isData =>
+          case (x, (z, next, delay)) if x.typ.isData =>
             // TODO: Only make the seed undefined if it actually depends on at
             //       least one input?
             val newSeed = Undefined(x.typ).lower
@@ -303,10 +303,10 @@ object Streamifier {
             } else {
               next.subPreserveType(subs)
             }
-            x -> (newSeed, newNext)
+            x -> (newSeed, newNext, delay)
         })
         val updatedProducers = withStreamifiedProducers.producers.map({
-          case (x, (z, ready)) =>
+          case (x, (z, ready, delay)) =>
             val newReady = if (haltOnFirstStep) {
               val subsFromRegisters = oldInputs
                 .map(x => x -> newRegAcc(x))
@@ -319,7 +319,7 @@ object Streamifier {
               !newReady.contains(classOf[StmData]),
               "the ready signal cannot use StmData"
             )
-            x -> (z, newReady)
+            x -> (z, newReady, delay)
         })
         (
           updatedAccumulators ++ accumulatorsToAdd,
@@ -328,6 +328,8 @@ object Streamifier {
       }
       StmBuild(
         withStreamifiedProducers.n,
+        withStreamifiedProducers.delay,
+        withStreamifiedProducers.initData,
         newData,
         newValid,
         newAccumulators,
@@ -341,21 +343,15 @@ object Streamifier {
       inputs: Set[Param]
   ): Set[Param] = {
     // Ignore producer streams
-    val withoutProducers = StmBuild(
-      n = stm.n,
-      data = stm.data,
-      valid = stm.valid,
-      accumulators = stm.accumulators,
-      producers = stm.producers.map({ case (y, (_, next)) =>
-        y -> (False /* ignore */, next)
-      })
-    )()
+    val withoutProducers = stm.mapProducers({ case (y, (_, next, delay)) =>
+      y -> (False /* ignore */, next, delay)
+    })
     inputs
       .filter(_.typ.isData)
       .intersect(withoutProducers.freeVars)
   }
 
-  private def wrapIdentity(x: Param): Expr = {
+  private def wrapIdentity(x: Param)(implicit c: Canonicalizer): Expr = {
     // e.g., (s : Stm[T, n]) => s
     // e.g., let s = ... in s
     // The hardware generator needs the body of the function to be a
@@ -369,15 +365,17 @@ object Streamifier {
       // match case
       "input should be a stream"
     )
-    val typ = x.typ.asInstanceOf[TyStm]
-    val y = x.freshCopy
+    val TyStm(elemTyp, len) = x.typ
+    val y = Param("p")(TyStm(elemTyp, -1)).freshCopy
     StmBuild(
-      typ.n,
+      len,
+      C(1)(),
+      Undefined(elemTyp),
       StmData(y)(),
       True,
       Map(),
-      Map[Param, (Expr, Expr)](
-        y -> (x, True)
+      Map[Param, (Expr, Expr, Expr)](
+        y -> (x, True, 0)
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName("Identity")
   }

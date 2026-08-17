@@ -22,18 +22,22 @@ sealed trait StmBuildSimplifier {
   )(implicit facts: FactSet): StmBuild = {
     StmBuild(
       PE.partialEval(s.n),
-      PE.partialEval(s.data),
+      PE.partialEval(s.delay),
+      PE.partialEval(s.initData),
+      PE.partialEval(s.nextData),
       PE.partialEval(s.valid),
-      s.accumulators.map({ case (x, (z, next)) =>
+      s.accumulators.map({ case (x, (z, next, delay)) =>
         val newZ = PE.partialEval(z)
         val newNext = PE.partialEval(next)
-        x -> (newZ, newNext)
+        val newDelay = PE.partialEval(delay)
+        x -> (newZ, newNext, newDelay)
       }),
-      s.producers.map({ case (x, (s, ready)) =>
+      s.producers.map({ case (x, (s, ready, delay)) =>
         // Don't re-traverse input streams: they've already been
         // simplified
         val newReady = PE.partialEval(ready)
-        x -> (s, newReady)
+        val newDelay = PE.partialEval(delay)
+        x -> (s, newReady, newDelay)
       })
     )().tchk().asInstanceOf[StmBuild]
   }
@@ -133,7 +137,8 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
                 x,
                 (
                   IntCst(0),
-                  Mux(Equal(x0, IntCst(lim)), IntCst(0), Sum(IntCst(1), x1))
+                  Mux(Equal(x0, IntCst(lim)), IntCst(0), Sum(IntCst(1), x1)),
+                  delay
                 )
               )
             ) if x0 == x1 =>
@@ -154,21 +159,24 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
                 newX equ C(lim)(newTyp),
                 C(0)(newTyp),
                 Sum(newX, C(1)(newTyp))()
-              )()
+              )(),
+              delay
             )
             val subs =
               Map[Expr, Expr](x -> ReshapeData(newX, oldTyp)().tchk().lower)
             StmBuild(
               s1.n,
-              s1.data.subPreserveType(subs),
+              s1.delay,
+              s1.initData,
+              s1.nextData.subPreserveType(subs),
               s1.valid.subPreserveType(subs),
               s1.accumulators
                 .filter({ case (y, _) => y != x })
-                .map({ case (y, (z, next)) =>
-                  y -> (z, next.subPreserveType(subs))
+                .map({ case (y, (z, next, delay)) =>
+                  y -> (z, next.subPreserveType(subs), delay)
                 }),
-              s1.producers.map({ case (y, (stm, ready)) =>
-                y -> (stm, ready.subPreserveType(subs))
+              s1.producers.map({ case (y, (stm, ready, delay)) =>
+                y -> (stm, ready.subPreserveType(subs), delay)
               })
             )().tchk().asInstanceOf[StmBuild]
           }

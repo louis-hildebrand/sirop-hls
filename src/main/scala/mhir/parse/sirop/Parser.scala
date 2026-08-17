@@ -905,33 +905,54 @@ object Parser {
   ): (StmBuild, Seq[Token]) = {
     val (_, rest1) = expect(SbuildToken, tokens)
     val (_, rest2) = expect(LeftParToken, rest1)
-    val (n, rest3) = parseExpr(rest2, constants)
+    val ((n, delay), rest3) = {
+      val (n, rest2_1) = parseExpr(rest2, constants)
+      rest2_1.headOption match {
+        case Some(_: AtToken) =>
+          val (_, rest2_2) = expect(AtToken, rest2_1)
+          val (delay, rest2_3) = parseExpr(rest2_2, constants)
+          ((n, delay), rest2_3)
+        case _ =>
+          ((n, Tuple()()), rest2_1)
+      }
+    }
     val (_, rest4) = expect(RightParToken, rest3)
     val (_, rest5) = expect(LeftParToken, rest4)
-    val (data, rest6) = parseExpr(rest5, constants)
-    val (_, rest7) = expect(CommaToken, rest6)
-    val (valid, rest8) = parseExpr(rest7, constants)
-    val (_, rest9) = expect(RightParToken, rest8)
-    val (_, rest10) = expect(LeftCurlyToken, rest9)
-    val (accumulators, rest11) = parseAccumulators(rest10, constants)
-    val (_, rest12) = expect(RightCurlyToken, rest11)
-    val (_, rest13) = expect(LeftCurlyToken, rest12)
-    val (producers, rest14) = parseProducers(rest13, constants)
-    for (x <- producers.keySet) {
-      assert(
-        x.typ.isInstanceOf[TyStm],
-        "all producers should have a Stm type annotation"
-      )
+    val ((initData, nextData, valid), rest6) = {
+      val (out0, rest5_1) = parseExpr(rest5, constants)
+      val (_, rest5_2) = expect(CommaToken, rest5_1)
+      val (out1, rest5_3) = parseExpr(rest5_2, constants)
+      rest5_3.headOption match {
+        case Some(_: CommaToken) =>
+          val (_, rest5_4) = expect(CommaToken, rest5_3)
+          val (out2, rest5_5) = parseExpr(rest5_4, constants)
+          val initData = out0
+          val nextData = out1
+          val valid = out2
+          ((initData, nextData, valid), rest5_5)
+        case _ =>
+          val initData = Undefined(Missing)
+          val nextData = out0
+          val valid = out1
+          ((initData, nextData, valid), rest5_3)
+      }
     }
-    val (_, rest15) = expect(RightCurlyToken, rest14)
-    val sbuild = StmBuild(n, data, valid, accumulators, producers)()
-    (sbuild, rest15)
+    val (_, rest7) = expect(RightParToken, rest6)
+    val (_, rest8) = expect(LeftCurlyToken, rest7)
+    val (accumulators, rest9) = parseAccumulators(rest8, constants)
+    val (_, rest10) = expect(RightCurlyToken, rest9)
+    val (_, rest11) = expect(LeftCurlyToken, rest10)
+    val (producers, rest12) = parseProducers(rest11, constants)
+    val (_, rest13) = expect(RightCurlyToken, rest12)
+    val sbuild =
+      StmBuild(n, delay, initData, nextData, valid, accumulators, producers)()
+    (sbuild, rest13)
   }
 
   private def parseAccumulators(
       tokens: Seq[Token],
       constants: Map[Param, Type]
-  ): (Map[Param, (Expr, Expr)], Seq[Token]) = {
+  ): (Map[Param, (Expr, Expr, Expr)], Seq[Token]) = {
     tokens.headOption match {
       case Some(_: LeftParToken) =>
         val (acc, rest1) = parseAccumulator(tokens, constants)
@@ -950,31 +971,41 @@ object Parser {
   private def parseAccumulator(
       tokens: Seq[Token],
       constants: Map[Param, Type]
-  ): ((Param, (Expr, Expr)), Seq[Token]) = {
+  ): ((Param, (Expr, Expr, Expr)), Seq[Token]) = {
     val (_, rest1) = expect(LeftParToken, tokens)
-    val (IdentToken(x), rest2) = expect(IdentToken, rest1)
-    val (_, rest3) = expect(ColonToken, rest2)
-    val (typ, rest4) = parseTyp(rest3, constants)
-    val rest5 = expectMany(
-      rest4,
+    val ((x, typ, delay), rest2) = {
+      val (IdentToken(x), rest1_1) = expect(IdentToken, rest1)
+      val (_, rest1_2) = expect(ColonToken, rest1_1)
+      val (typ, rest1_3) = parseTyp(rest1_2, constants)
+      rest1_3.headOption match {
+        case Some(_: AtToken) =>
+          val (_, rest1_4) = expect(AtToken, rest1_3)
+          val (delay, rest1_5) = parseExpr(rest1_4, constants)
+          ((x, typ, delay), rest1_5)
+        case _ =>
+          ((x, typ, Tuple()()), rest1_3)
+      }
+    }
+    val rest3 = expectMany(
+      rest2,
       RightParToken,
       AssignToken,
       LeftCurlyToken,
       InitToken,
       ColonToken
     )
-    val (z, rest6) = parseExpr(rest5, constants)
-    val rest7 = expectMany(rest6, CommaToken, NextToken, ColonToken)
-    val (next, rest8) = parseExpr(rest7, constants)
-    val (_, rest9) = expect(RightCurlyToken, rest8)
-    val acc = Param(x, -1)(typ) -> (z, next)
-    (acc, rest9)
+    val (init, rest4) = parseExpr(rest3, constants)
+    val rest5 = expectMany(rest4, CommaToken, NextToken, ColonToken)
+    val (next, rest6) = parseExpr(rest5, constants)
+    val (_, rest7) = expect(RightCurlyToken, rest6)
+    val acc = Param(x, -1)(typ) -> (init, next, delay)
+    (acc, rest7)
   }
 
   private def parseProducers(
       tokens: Seq[Token],
       constants: Map[Param, Type]
-  ): (Map[Param, (Expr, Expr)], Seq[Token]) = {
+  ): (Map[Param, (Expr, Expr, Expr)], Seq[Token]) = {
     tokens.headOption match {
       case Some(_: LeftParToken) =>
         val (prod, rest1) = parseProducer(tokens, constants)
@@ -993,25 +1024,35 @@ object Parser {
   private def parseProducer(
       tokens: Seq[Token],
       constants: Map[Param, Type]
-  ): ((Param, (Expr, Expr)), Seq[Token]) = {
+  ): ((Param, (Expr, Expr, Expr)), Seq[Token]) = {
     val (_, rest1) = expect(LeftParToken, tokens)
-    val (IdentToken(x), rest2) = expect(IdentToken, rest1)
-    val (_, rest3) = expect(ColonToken, rest2)
-    val (typ, rest4) = parseStmTyp(rest3, constants)
-    val rest5 = expectMany(
-      rest4,
+    val ((x, typ, delay), rest2) = {
+      val (IdentToken(x), rest1_1) = expect(IdentToken, rest1)
+      val (_, rest1_2) = expect(ColonToken, rest1_1)
+      val (typ, rest1_3) = parseStmTyp(rest1_2, constants)
+      rest1_3.headOption match {
+        case Some(_: AtToken) =>
+          val (_, rest1_4) = expect(AtToken, rest1_3)
+          val (delay, rest1_5) = parseExpr(rest1_4, constants)
+          ((x, typ, delay), rest1_5)
+        case _ =>
+          ((x, typ, Tuple()()), rest1_3)
+      }
+    }
+    val rest3 = expectMany(
+      rest2,
       RightParToken,
       AssignToken,
       LeftCurlyToken,
       LittleStmToken,
       ColonToken
     )
-    val (stm, rest6) = parseExpr(rest5, constants)
-    val rest7 = expectMany(rest6, CommaToken, ReadyToken, ColonToken)
-    val (ready, rest8) = parseExpr(rest7, constants)
-    val (_, rest9) = expect(RightCurlyToken, rest8)
-    val prod = Param(x, -1)(typ) -> (stm, ready)
-    (prod, rest9)
+    val (stm, rest4) = parseExpr(rest3, constants)
+    val rest5 = expectMany(rest4, CommaToken, ReadyToken, ColonToken)
+    val (ready, rest6) = parseExpr(rest5, constants)
+    val (_, rest7) = expect(RightCurlyToken, rest6)
+    val prod = Param(x, -1)(typ) -> (stm, ready, delay)
+    (prod, rest7)
   }
 
   @tailrec

@@ -22,8 +22,8 @@ class ManualLetStmBufferShrinker(maxBufSize: Int) extends LetStmBufferShrinker {
   private def doShrinkBuffers(e: Expr): Expr = {
     val result = e match {
       case s: StmBuild =>
-        s.mapProducers({ case (x, (stm, ready)) =>
-          x -> (doShrinkBuffers(stm), ready)
+        s.mapProducers({ case (x, (stm, ready, delay)) =>
+          x -> (doShrinkBuffers(stm), ready, delay)
         })
       case LetStm(bufSize, x, in, out) =>
         val in1 = doShrinkBuffers(in)

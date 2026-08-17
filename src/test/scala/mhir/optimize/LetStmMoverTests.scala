@@ -14,11 +14,13 @@ class LetStmMoverTests extends AnyFunSuite {
     val lets = LetStm(1, s, input, LetStm(1, s, s, s)())()
     val top = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       C(5)(U8) + StmData(s)(),
       True,
       Map(),
-      Map[Param, (Expr, Expr)](
-        s -> (lets, True)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (lets, True, Tuple()())
       )
     )().tchk().lower
     val actual = LetStmMover.moveUp(top)
@@ -32,11 +34,13 @@ class LetStmMoverTests extends AnyFunSuite {
         s,
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Sum(C(5)(U8), StmData(s)())(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s -> (s, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (s, True, Tuple()())
           )
         )()
       )()
@@ -55,12 +59,14 @@ class LetStmMoverTests extends AnyFunSuite {
       val s1 = Param("s1")(TyStm(t, n))
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(StmData(s0)(), StmData(s1)())(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s0 -> (s, True),
-          s1 -> (s, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s0 -> (s, True, Tuple()()),
+          s1 -> (s, True, Tuple()())
         )
       )()
     }
@@ -96,10 +102,12 @@ class LetStmMoverTests extends AnyFunSuite {
       val i = Param("i")(U8)
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](
-          i -> (C(42)(U8), Sum(C(1)(U8), i)())
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(42)(U8), Sum(C(1)(U8), i)(), Tuple()())
         ),
         Map()
       )()
@@ -109,12 +117,14 @@ class LetStmMoverTests extends AnyFunSuite {
       val s1 = Param("s1")(TyStm(U8, n))
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(StmData(s0)(), StmData(s1)())(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s0 -> (a, True),
-          s1 -> (b, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s0 -> (a, True, Tuple()()),
+          s1 -> (b, True, Tuple()())
         )
       )()
     }
@@ -139,22 +149,26 @@ class LetStmMoverTests extends AnyFunSuite {
       val i = Param("i")(U8)
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](
-          i -> (C(42)(U8), Sum(C(1)(U8), i)())
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(42)(U8), Sum(C(1)(U8), i)(), Tuple()())
         ),
         Map()
       )()
     }
     val original = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       Tuple(StmData(s0)(), StmData(s1)())(),
       True,
       Map(),
-      Map[Param, (Expr, Expr)](
-        s0 -> (LetStm(1, b, count, b)(), True),
-        s1 -> (b.rebuild(TyStm(TyBool, n)), True)
+      Map[Param, (Expr, Expr, Expr)](
+        s0 -> (LetStm(1, b, count, b)(), True, Tuple()()),
+        s1 -> (b.rebuild(TyStm(TyBool, n)), True, Tuple()())
       )
     )().tchk().lower
     val actual = LetStmMover.moveUp(original)
@@ -166,14 +180,16 @@ class LetStmMoverTests extends AnyFunSuite {
         count,
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
+          Map[Param, (Expr, Expr, Expr)](
             // Rename this occurrence of `b`
-            s0 -> (b2, True),
+            s0 -> (b2, True, Tuple()()),
             // Don't rename this occurrence of `b`
-            s1 -> (b.rebuild(TyStm(TyBool, n)), True)
+            s1 -> (b.rebuild(TyStm(TyBool, n)), True, Tuple()())
           )
         )()
       )().tchk()
@@ -189,11 +205,13 @@ class LetStmMoverTests extends AnyFunSuite {
         val s = Param("s")(TyStm(U16, n))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           StmData(s)() + 5,
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s -> (input, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (input, True, Tuple()())
           )
         )().tchk()
       }
@@ -202,12 +220,14 @@ class LetStmMoverTests extends AnyFunSuite {
         val s1 = Param("s1")(TyStm(U16, n))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s0 -> (input, True),
-            s1 -> (plusFive, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s0 -> (input, True, Tuple()()),
+            s1 -> (plusFive, True, Tuple()())
           )
         )().tchk()
       }
@@ -218,11 +238,13 @@ class LetStmMoverTests extends AnyFunSuite {
         val s = Param("s")(TyStm((U16, U16), n))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           StmData(s)().__0 * StmData(s)().__1,
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s -> (input, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (input, True, Tuple()())
           )
         )().tchk()
       }
@@ -232,14 +254,16 @@ class LetStmMoverTests extends AnyFunSuite {
         val acc = Param("acc")(U16)
         StmBuild(
           1,
+          Tuple()(),
+          Undefined(Missing),
           acc + StmData(s)(),
           t === C(n - 1)(U16),
-          Map[Param, (Expr, Expr)](
-            t -> (C(0)(U16), C(1)(U16) + t),
-            acc -> (C(0)(U16), acc + StmData(s)())
+          Map[Param, (Expr, Expr, Expr)](
+            t -> (C(0)(U16), C(1)(U16) + t, Tuple()()),
+            acc -> (C(0)(U16), acc + StmData(s)(), Tuple()())
           ),
-          Map[Param, (Expr, Expr)](
-            s -> (mapMul, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (mapMul, True, Tuple()())
           )
         )().tchk()
       }

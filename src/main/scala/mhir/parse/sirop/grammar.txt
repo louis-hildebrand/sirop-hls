@@ -84,16 +84,19 @@ expr200         ::= "!" expr200
                   | "!" | "~"
                   | expr100
 expr100         ::= "vbuild" "(" expr ")" "{" function "}" expr100'
-                  | "sbuild" "(" expr ")" "(" expr "," expr ")" "{" accumulators "}" "{" producers "}" expr100'
+                  | "sbuild" "(" expr [ "@" expr ] ")"
+                             "(" expr "," expr [ "," expr ] ")"
+                             "{" accumulators "}"
+                             "{" producers "}"
+                             expr100'
                   | "sdata" "(" expr ")" expr100'
                   | expr0 expr100'
 accumulators    ::= ""
                   | accumulator ( "," accumulator )*
-accumulator     ::= "(" ident ":" typ ")" "=" "{" "init" ":" expr "," "next" ":" expr "}"
-
+accumulator     ::= "(" ident ":" typ [ "@" expr ] ")" "=" "{" "init" ":" expr "," "next" ":" expr "}"
 producers       ::= ""
                   | producer ( "," producer )*
-producer        ::= "(" ident ":" stm_typ ")" "=" "{" "stm" ":" expr "," "ready" ":" expr "}"
+producer        ::= "(" ident ":" stm_typ [ "@" expr ] ")" "=" "{" "stm" ":" expr "," "ready" ":" expr "}"
 expr100'          ::= ""
                   | [ ":[" typ "]" ] "(" expr_list ")" expr100'
                   | "." nat expr100'

@@ -36,9 +36,12 @@ trait TypeChecker {
         return this.expr
       }
       this.expr match {
-        case u: Undefined =>
-          assert(u.hasType)
+        case u @ Undefined(TyData(_)) =>
           u
+        case Undefined(typ) =>
+          throw new TypeError(
+            s"undefined is not applicable to non-data type $typ"
+          )
         case x: Param =>
           context.get(x) match {
             case Some(t) => x.rebuild(t)
@@ -500,40 +503,48 @@ trait TypeChecker {
               }
           })
           val newN = s.n.tchk(context, constValues).expectUInt()
-          val newAccumulators = s.accumulators.map({ case (x, (z, next)) =>
-            if (!x.typ.isData) {
-              throw new TypeError(
-                s"Type ${x.typ} (of $x) is not allowed for an accumulator"
-              )
-            }
-            val newZ = (z, x.typ) match {
-              // TODO: Generalize this by using ReshapeData?
-              //       But then there will be a circular dependency between
-              //       the type checker and the lowering package :(
-              case (IntCst(z), typ: TyAnyInt) if typ.contains(z) =>
-                IntCst(z)(x.typ)
-              case _ =>
-                val newZ = z.tchk(context, constValues)
-                if (!newZ.typ.equalsGivenConstants(x.typ, constValues)) {
-                  throw new TypeError(
-                    s"seed for accumulator $x has type ${newZ.typ}."
-                      + s" Expected type ${x.typ}.",
-                    TypeChecker.relevantBindings(constValues, newZ.typ, x.typ)
-                  )
+          val newAccumulators = s.accumulators.map({
+            case (x, (init, next, delay)) =>
+              if (!x.typ.isData) {
+                throw new TypeError(
+                  s"Type ${x.typ} (of $x) is not allowed for an accumulator"
+                )
+              }
+              val newZ =
+                (init, x.typ) match {
+                  // TODO: Generalize this by using ReshapeData?
+                  //       But then there will be a circular dependency between
+                  //       the type checker and the lowering package :(
+                  case (IntCst(z), typ: TyAnyInt) if typ.contains(z) =>
+                    IntCst(z)(x.typ)
+                  case _ =>
+                    val newZ = init.tchk(context, constValues)
+                    if (!newZ.typ.equalsGivenConstants(x.typ, constValues)) {
+                      throw new TypeError(
+                        s"seed for accumulator $x has type ${newZ.typ}."
+                          + s" Expected type ${x.typ}.",
+                        TypeChecker.relevantBindings(
+                          constValues,
+                          newZ.typ,
+                          x.typ
+                        )
+                      )
+                    }
+                    newZ
                 }
-                newZ
-            }
-            val newNext = next.tchk(newContext, constValues)
-            if (!newNext.typ.equalsGivenConstants(x.typ, constValues)) {
-              throw new TypeError(
-                s"next value for accumulator $x has type ${newNext.typ}."
-                  + s" Expected type ${x.typ}",
-                TypeChecker.relevantBindings(constValues, newNext.typ, x.typ)
-              )
-            }
-            x -> (newZ, newNext)
+              val newNext = next.tchk(newContext, constValues)
+              if (!newNext.typ.equalsGivenConstants(x.typ, constValues)) {
+                throw new TypeError(
+                  s"next value for accumulator $x has type ${newNext.typ}."
+                    + s" Expected type ${x.typ}",
+                  TypeChecker.relevantBindings(constValues, newNext.typ, x.typ)
+                )
+              }
+              val newDelay =
+                delay.tchk(context, constValues).expectUnsignedOrUnit()
+              x -> (newZ, newNext, newDelay)
           })
-          val newProducers = s.producers.map({ case (x, (s, ready)) =>
+          val newProducers = s.producers.map({ case (x, (s, ready, delay)) =>
             if (!x.typ.isInstanceOf[TyStm]) {
               throw new TypeError(
                 s"Type ${x.typ} (of $x) is not allowed for a producer"
@@ -563,19 +574,42 @@ trait TypeChecker {
                 TypeChecker.relevantBindings(constValues, newReady.typ, x.typ)
               )
             }
-            x -> (newS, newReady)
+            val newDelay =
+              delay.tchk(context, constValues).expectUnsignedOrUnit()
+            x -> (newS, newReady, newDelay)
           })
-          val newData = s.data.tchk(newContext, constValues)
+          val newDelay =
+            s.delay.tchk(context, constValues).expectUnsignedOrUnit()
+          val newNextData = s.nextData.tchk(newContext, constValues)
+          val newInitData = s.initData match {
+            case Undefined(Missing) =>
+              Undefined(newNextData.typ)
+            case _ =>
+              val newInitData = s.initData.tchk(context, constValues)
+              val sameType = newInitData.typ.equalsGivenConstants(
+                newNextData.typ,
+                constValues
+              )
+              if (!sameType) {
+                throw new TypeError(
+                  s"initial output has type ${newInitData.typ}," +
+                    s" but next output has type ${newNextData.typ}."
+                )
+              }
+              newInitData
+          }
           val newValid = s.valid
             .tchk(newContext, constValues)
             .expectType(TyBool, constValues)
           StmBuild(
             newN,
-            newData,
+            newDelay,
+            newInitData,
+            newNextData,
             newValid,
             newAccumulators,
             newProducers
-          )(TyStm(newData.typ, newN), s.annotations)
+          )(TyStm(newNextData.typ, newN), s.annotations)
         case sn @ StmData(s) =>
           val newS = s.tchk(context, constValues)
           newS.typ match {
@@ -665,6 +699,16 @@ trait TypeChecker {
         case _: TyUInt => this.expr
         case t =>
           throw new TypeError(s"Expected an unsigned integer but found $t.")
+      }
+    }
+
+    def expectUnsignedOrUnit(): Expr = {
+      this.expr.typ match {
+        case _: TyUInt | TyTuple() => this.expr
+        case t =>
+          throw new TypeError(
+            s"Expected an unsigned integer or empty tuple, but found $t."
+          )
       }
     }
 

@@ -83,11 +83,13 @@ class VectorTests extends AnyFunSuite {
       U32 ::+ (i =>
         StmBuild(
           m,
+          Tuple()(),
+          Undefined(Missing),
           Tuple(a1, a2)(),
           True,
-          Map[Param, (Expr, Expr)](
-            a1 -> (C(0)(U32), a1 + 1),
-            a2 -> (i, a2 + i)
+          Map[Param, (Expr, Expr, Expr)](
+            a1 -> (C(0)(U32), a1 + 1, Tuple()()),
+            a2 -> (i, a2 + i, Tuple()())
           ),
           Map()
         )()

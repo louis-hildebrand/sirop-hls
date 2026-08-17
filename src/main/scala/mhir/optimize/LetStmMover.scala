@@ -53,7 +53,7 @@ object LetStmMover {
     val result = e match {
       case s: StmBuild =>
         def pullOutLet(s: StmBuild): Expr = {
-          val x = s.producers.collectFirst({ case (x, (_: LetStm, _)) => x })
+          val x = s.producers.collectFirst({ case (x, (_: LetStm, _, _)) => x })
           x match {
             case Some(x) =>
               val LetStm(bufSize, y, in, out) =
@@ -65,11 +65,11 @@ object LetStmMover {
                 newY,
                 in,
                 pullOutLet(
-                  s.mapProducers({ case (y, (stm, ready)) =>
+                  s.mapProducers({ case (y, (stm, ready, delay)) =>
                     if (y == x) {
-                      y -> (newOut, ready)
+                      y -> (newOut, ready, delay)
                     } else {
-                      y -> (stm, ready)
+                      y -> (stm, ready, delay)
                     }
                   })
                 )
@@ -79,7 +79,7 @@ object LetStmMover {
           }
         }
         val withTransformedProducers = s.mapProducers({
-          case (x, (stm, ready)) => x -> (moveUp(stm), ready)
+          case (x, (stm, ready, delay)) => x -> (moveUp(stm), ready, delay)
         })
         pullOutLet(withTransformedProducers)
       case LetStm(bufSize, x, in, out) =>
@@ -152,15 +152,16 @@ object LetStmMover {
             let.out match {
               case s: StmBuild =>
                 val count = s.producers.values
-                  .count({ case (stm, _) => stm.freeVars.contains(x) })
+                  .count({ case (stm, _, _) => stm.freeVars.contains(x) })
                 if (count == 1) {
                   s.mapProducers({
-                    case (y, (stm, ready)) if stm.freeVars.contains(x) =>
+                    case (y, (stm, ready, delay)) if stm.freeVars.contains(x) =>
                       y -> (
                         pullOutStmBuild(
                           LetStm(let.bufSize, let.x, let.in, stm)()
                         ),
-                        ready
+                        ready,
+                        delay
                       )
                   })
                 } else {

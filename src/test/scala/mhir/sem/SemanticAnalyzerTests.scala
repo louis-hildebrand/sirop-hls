@@ -144,6 +144,43 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     )
   }
 
+  test("NoHandshake:MissingOutDelay") {
+    val s = StmBuild(
+      10,
+      Tuple()(),
+      Undefined(Missing),
+      C(42)(),
+      True,
+      Map(),
+      Map()
+    )().tchk().asInstanceOf[StmBuild].annotateWithName("bar")
+    val prog =
+      Program(Seq(), AccelDecl("top", s, Map("no_handshake" -> True)), Seq())
+    val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
+    assert(ex.msg.contains("missing output delay for stream operator bar"))
+  }
+
+  test("NoHandshake:MissingProducerDelay") {
+    val p = Param("p")(TyStm(U8, 10))
+    val s = StmBuild(
+      10,
+      1,
+      Undefined(Missing),
+      Sum(C(5)(U8), StmData(p)())(),
+      True,
+      Map(),
+      Map(
+        p -> (p, True, Tuple()())
+      )
+    )().tchk().asInstanceOf[StmBuild].annotateWithName("foo")
+    val prog =
+      Program(Seq(), AccelDecl("top", s, Map("no_handshake" -> True)), Seq())
+    val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
+    assert(
+      ex.msg.contains(s"missing delay for producer $p in stream operator foo")
+    )
+  }
+
   test("StmData:UsedOutsideStmBuild") {
     val s = Param("s", -1)(TyStm(U8, 1))
     val e = Function(s, Sum(C(1)(U8), StmData(s)())())().tchk().lower
@@ -160,12 +197,14 @@ class SemanticAnalyzerTests extends AnyFunSuite {
       val p2 = Param("p2", -1)(TyStm(U8, 16))
       val output = StmBuild(
         16,
+        Tuple()(),
+        Undefined(Missing),
         StmData(p1)(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          p1 -> (input1, True),
-          p2 -> (input2, C(0)(U8) lt StmData(p1)())
+        Map[Param, (Expr, Expr, Expr)](
+          p1 -> (input1, True, Tuple()()),
+          p2 -> (input2, C(0)(U8) lt StmData(p1)(), Tuple()())
         )
       )().annotateWithName("StmFoo")
       Function(input1, Function(input2, output)())().tchk().lower

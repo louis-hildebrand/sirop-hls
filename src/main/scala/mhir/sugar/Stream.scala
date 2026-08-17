@@ -238,7 +238,15 @@ private[sugar] case class StmReset(
       logger.trace(s"lowering $className with n = 0: $this")
       val TyStm(t, _) = s.typ
       Some(
-        StmBuild(0, AllZero(t).lower, True, Map(), Map())()
+        StmBuild(
+          0,
+          C(1)(),
+          Undefined(t),
+          Undefined(t),
+          True,
+          Map(),
+          Map()
+        )()
           .annotate(NoInputsAfterLastOut)
           .annotateWithName("Empty")
       )
@@ -270,7 +278,7 @@ private[sugar] case class StmReset(
         x
       case s: StmBuild =>
         val ctrByInput = s.producers
-          .map({ case (x, (p, _)) =>
+          .map({ case (x, (p, _, _)) =>
             val TyStm(_, inLen) = p.typ
             val ctrTyp = inLen match {
               case IntCst(n) => TyAnyInt.tightest(0, n)
@@ -308,7 +316,9 @@ private[sugar] case class StmReset(
           } else {
             StmBuild(
               withInCtrs.n,
-              withInCtrs.data,
+              withInCtrs.delay,
+              withInCtrs.initData,
+              withInCtrs.nextData,
               withInCtrs.valid && (outCtr < outputsUntilReset).tchk().lower,
               withInCtrs.accumulators,
               withInCtrs.producers
@@ -321,7 +331,7 @@ private[sugar] case class StmReset(
         val shouldReset = if (s.annotations.contains(NoInputsAfterLastOut)) {
           // No need to count inputs: based on the annotation, once we read the
           // last output, we know we can reset immediately
-          val (_, nextOutCtr) = withCtrs.accumulators(outCtr)
+          val (_, nextOutCtr, _) = withCtrs.accumulators(outCtr)
           (nextOutCtr === outputsUntilReset).tchk().lower
         } else if (s.annotations.contains(NoOutputsAfterLastIn)) {
           // No need to count outputs: based on the annotation, once we read the
@@ -329,14 +339,14 @@ private[sugar] case class StmReset(
           val inputsUntilReset: Seq[(Param, Expr)] =
             s.producers
               .collect({
-                case (x, (z, _)) if ctrByInput.contains(x) =>
+                case (x, (z, _, _)) if ctrByInput.contains(x) =>
                   val TyStm(_, n) = z.typ
                   ctrByInput(x) -> n
               })
               .toSeq
           val shouldReset = inputsUntilReset
             .map({ case (ctr, n) =>
-              val (_, nextCtr) = withCtrs.accumulators(ctr)
+              val (_, nextCtr, _) = withCtrs.accumulators(ctr)
               nextCtr === n
             })
             .reduce[Expr]({ case (x, y) => x && y })
@@ -351,14 +361,14 @@ private[sugar] case class StmReset(
           val inputsUntilReset: Seq[(Param, Expr)] =
             s.producers
               .collect({
-                case (x, (z, _)) if ctrByInput.contains(x) =>
+                case (x, (z, _, _)) if ctrByInput.contains(x) =>
                   val TyStm(_, n) = z.typ
                   ctrByInput(x) -> n
               })
               .toSeq
           val shouldReset = ((outCtr -> outputsUntilReset) +: inputsUntilReset)
             .map({ case (ctr, n) =>
-              val (_, nextCtr) = withCtrs.accumulators(ctr)
+              val (_, nextCtr, _) = withCtrs.accumulators(ctr)
               nextCtr === n
             })
             .reduce[Expr]({ case (x, y) => x && y })
@@ -366,19 +376,21 @@ private[sugar] case class StmReset(
         }
         val result = StmBuild(
           withCtrs.n,
-          withCtrs.data,
+          withCtrs.delay,
+          withCtrs.initData,
+          withCtrs.nextData,
           withCtrs.valid,
           withCtrs.accumulators.map({
-            case (x, (z: Undefined, next)) =>
+            case (x, (z: Undefined, next, delay)) =>
               // No need to reset!
-              x -> (z, next)
-            case (x, (z, next)) =>
+              x -> (z, next, delay)
+            case (x, (z, next, delay)) =>
               val newNext = Mux(shouldReset, z, next)()
-              x -> (z, newNext)
+              x -> (z, newNext, delay)
           }),
-          withCtrs.producers.map({ case (x, (s, ready)) =>
+          withCtrs.producers.map({ case (x, (s, ready, delay)) =>
             val newStm = addCountersAndReset(s)
-            x -> (newStm, ready)
+            x -> (newStm, ready, delay)
           })
         )(annotations = withCtrs.annotations).tchk()
         result
@@ -405,11 +417,13 @@ private[sugar] case class StmReset(
       case s: StmBuild =>
         StmBuild(
           SafeProd(this.n, s.n)().tchk().lower,
-          s.data,
+          s.delay,
+          s.initData,
+          s.nextData,
           s.valid,
           s.accumulators,
-          s.producers.map({ case (x, (s, ready)) =>
-            x -> (multiplyLengths(s, inputStreams), ready)
+          s.producers.map({ case (x, (s, ready, delay)) =>
+            x -> (multiplyLengths(s, inputStreams), ready, delay)
           })
         )(annotations = s.annotations).tchk()
       case LetStm(bufSize, x, in, out) =>
@@ -447,15 +461,9 @@ private[sugar] case class StmReset(
           repeatExternalInputs(out, inputStreams + x)
         )()
       case s: StmBuild =>
-        StmBuild(
-          s.n,
-          s.data,
-          s.valid,
-          s.accumulators,
-          s.producers.map({ case (x, (s, ready)) =>
-            x -> (repeatExternalInputs(s, inputStreams), ready)
-          })
-        )(annotations = s.annotations)
+        s.mapProducers({ case (x, (s, ready, delay)) =>
+          x -> (repeatExternalInputs(s, inputStreams), ready, delay)
+        })
       case _ =>
         ???
     }
@@ -497,11 +505,13 @@ case class Iterate(
     val acc = Param("acc")(t)
     StmBuild(
       1,
+      Tuple()(),
+      Undefined(t),
       acc,
       i === n,
-      Map[Param, (Expr, Expr)](
-        i -> (IntCst(0)(n.typ), i + 1),
-        acc -> (z, FunCall(f, acc)(t))
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (C(0)(n.typ), i + 1, Tuple()()),
+        acc -> (z, FunCall(f, acc)(t), Tuple()())
       ),
       Map()
     )()
@@ -537,7 +547,7 @@ case class StmCst(n: Expr, k: Expr)(typ: Type = Missing)
     val out = k.typ match {
       case _: TyStm => StmRepeat(k, n)()
       case _ =>
-        StmBuild(n, k, True, Map(), Map())()
+        StmBuild(n, C(1)(), Undefined(k.typ), k, True, Map(), Map())()
           .annotate(NoInputsAfterLastOut)
           .annotateWithName(getClass.getSimpleName)
     }
@@ -608,10 +618,12 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     val a = Param("a")(z.typ)
     StmBuild(
       n,
+      C(1)(),
+      Undefined(a.typ),
       a,
       True,
-      Map[Param, (Expr, Expr)](
-        a -> (z, (a + delta).tchk().lower)
+      Map[Param, (Expr, Expr, Expr)](
+        a -> (z, (a + delta).tchk().lower, C(1)())
       ),
       Map()
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
@@ -670,14 +682,17 @@ case class StmVecRange(n: Expr, m: Expr, z: Expr, delta: Expr)(
     val v = Param("v")(TyVec(z.typ, m))
     StmBuild(
       n,
+      C(1)(),
+      Undefined(v.typ),
       v,
       True,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         v -> (
           VecBuild(m, m.typ ::+ (i => z + i * delta))().tchk().lower,
           VecBuild(m, m.typ ::+ (i => VecAccess(v, i)() + m * delta))()
             .tchk()
-            .lower
+            .lower,
+          C(1)()
         )
       ),
       Map()
@@ -714,7 +729,15 @@ case class StmCst2D(
     val n = this.n.lower
     val m = this.m.lower
     val k = this.k.lower
-    StmBuild(SafeProd(n, m)().tchk().lower, k, True, Map(), Map())()
+    StmBuild(
+      SafeProd(n, m)().tchk().lower,
+      C(1)(),
+      Undefined(k.typ),
+      k,
+      True,
+      Map(),
+      Map()
+    )()
       .annotate(NoInputsAfterLastOut)
       .annotateWithName(this.className)
       .tchk()
@@ -747,11 +770,13 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
     val j = Param("j")(m.typ)
     StmBuild(
       SafeProd(n, m)(),
+      C(1)(),
+      Undefined(TyTuple(n.typ, m.typ)),
       Tuple(i, j)(),
       True,
-      Map[Param, (Expr, Expr)](
-        i -> (IntCst(0)(n.typ), Mux(j === m - 1, i + 1, i)()),
-        j -> (IntCst(0)(m.typ), Mux(j === m - 1, IntCst(0)(m.typ), j + 1)())
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (C(0)(n.typ), Mux(j === m - 1, i + 1, i)(), C(1)()),
+        j -> (C(0)(m.typ), Mux(j === m - 1, C(0)(m.typ), j + 1)(), C(1)())
       ),
       Map()
     )()
@@ -794,12 +819,15 @@ case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
     val k = Param("k")(n3.typ)
     StmBuild(
       SafeProd(n1, n2, n3)(),
+      C(1)(),
+      Undefined(TyTuple(n1.typ, n2.typ, n3.typ)),
       Tuple(i, j, k)(),
       True,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         i -> (
           C(0)(i.typ),
-          Mux((k === C(-1)() + n3) && (j === C(-1)() + n2), i + 1, i)()
+          Mux((k === C(-1)() + n3) && (j === C(-1)() + n2), i + 1, i)(),
+          C(1)()
         ),
         j -> (
           C(0)(j.typ),
@@ -807,11 +835,13 @@ case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
             (k === C(-1)() + n3) && (j === C(-1)() + n2),
             C(0)(j.typ),
             Mux(k === C(-1)() + n3, j + 1, j)()
-          )()
+          )(),
+          C(1)()
         ),
         k -> (
           C(0)(k.typ),
-          Mux(k === C(-1)() + n3, C(0)(k.typ), k + 1)()
+          Mux(k === C(-1)() + n3, C(0)(k.typ), k + 1)(),
+          C(1)()
         )
       ),
       Map()
@@ -963,7 +993,8 @@ case class StmAccess(
       case TyStm(_, n) => n
       case _           => IntCst(1)(U32)
     }
-    val s = Param("s")(stm.typ) // input stream
+    val TyStm(elemTyp, _) = stm.typ
+    val s = Param("s")(TyStm(elemTyp, -1)) // input stream
     val i = { // index of current row
       val typ = numRows match {
         case IntCst(n) => TyAnyInt.tightest(0, n)
@@ -988,20 +1019,24 @@ case class StmAccess(
     }
     StmBuild(
       perRow,
+      Tuple()(),
+      Undefined(elemTyp),
       StmData(s)(),
       (i === k).tchk().lower,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         i -> (
           C(0)(i.typ),
-          Mux(j + 1 === perRow, i + 1, i)().tchk().lower
+          Mux(j + 1 === perRow, i + 1, i)().tchk().lower,
+          Tuple()()
         ),
         j -> (
           C(0)(j.typ),
-          Mux(j + 1 === perRow, C(0)(j.typ), j + 1)().tchk().lower
+          Mux(j + 1 === perRow, C(0)(j.typ), j + 1)().tchk().lower,
+          Tuple()()
         )
       ),
-      Map[Param, (Expr, Expr)](
-        s -> (stm, True)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (stm, True, Tuple()())
       )
     )(annotations = annotations).annotateWithName(this.className).tchk()
   }
@@ -1071,20 +1106,25 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
       val sAcc = Param("s")(s.typ)
       val sData = unwrapElem(wrappedTyp, this.f, StmData(sAcc)())
       val firstStep = Param("first_step")(TyBool)
+      val outData =
+        wrapResult(wrappedTyp, this.f, f(Tuple(acc, sData)())).tchk()
       StmBuild(
         1,
-        wrapResult(wrappedTyp, this.f, f(Tuple(acc, sData)())),
+        Tuple()(),
+        Undefined(outData.typ),
+        outData,
         Sum(C(1)(t.typ), t)() equ n,
-        Map[Param, (Expr, Expr)](
-          firstStep -> (True, False),
-          t -> (C(0)(n.typ), Sum(C(1)(n.typ), t)()),
+        Map[Param, (Expr, Expr, Expr)](
+          firstStep -> (True, False, Tuple()()),
+          t -> (C(0)(n.typ), Sum(C(1)(n.typ), t)(), Tuple()()),
           acc -> (
             AllZero(elemTyp).lower,
-            Mux(firstStep, sData, f(Tuple(acc, sData)()))()
+            Mux(firstStep, sData, f(Tuple(acc, sData)()))(),
+            Tuple()()
           )
         ),
-        Map[Param, (Expr, Expr)](
-          sAcc -> (s, True)
+        Map[Param, (Expr, Expr, Expr)](
+          sAcc -> (s, True, Tuple()())
         )
       )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
     }
@@ -1193,27 +1233,34 @@ case class StmCascade(s: Expr)(typ: Type = Missing)
         )
         StmBuild(
           n,
+          C(1)(),
+          Undefined(TyVec(elemTyp, m)),
           VecLiteral((0 until m).map({
             case 0 => VecAccess(StmData(p)(), 0)()
-            case i => VecAccess(pipeVars((i - 1).toInt), 0)()
+            case i => VecAccess(pipeVars(i - 1), 0)()
           }): _*)(),
           True,
           pipeVars.zipWithIndex
             .map({ case (x, i) =>
               x -> (
                 Undefined(x.typ),
-                VecShiftLeft(x, VecAccess(StmData(p)(), i + 1)())().tchk().lower
+                VecShiftLeft(x, VecAccess(StmData(p)(), i + 1)())()
+                  .tchk()
+                  .lower,
+                Tuple()()
               )
             })
             .toMap,
-          Map[Param, (Expr, Expr)](
-            p -> (s, True)
+          Map[Param, (Expr, Expr, Expr)](
+            p -> (s, True, C(0)())
           )
         )().tchk()
       case IntCst(0) =>
         StmBuild(
           n,
-          VecBuild(0, U8 ::+ (_ => Undefined(elemTyp)))(),
+          C(1)(),
+          Undefined(TyVec(elemTyp, 0)),
+          Undefined(TyVec(elemTyp, 0)),
           True,
           Map(),
           Map()
@@ -1317,9 +1364,8 @@ case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
           (0 until m).map(i => Param(s"stage${i}_y_pipe")(TyVec(t2, delay)))
         // IMPORTANT: stages must be an ordered sequence (not a Map!), since I
         // extract the last element later on
-        val stages: Seq[(Param, (Expr, Expr))] = stageVars.zipWithIndex
+        val stages: Seq[(Param, (Expr, Expr, Expr))] = stageVars.zipWithIndex
           .map({ case (x, i) =>
-            val init = Undefined(int)
             val factorX = Mux(
               delay === 0,
               VecAccess(StmData(p1)(), i)(),
@@ -1335,38 +1381,40 @@ case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
               ReshapeData(factorY, int)()
             )().tchk().lower
             val next = if (i == 0) mul else Sum(stageVars(i - 1), mul)()
-            x -> (init, next)
+            x -> (Undefined(int), next, Tuple()())
           })
         val pipe1 = pipe1Vars.zipWithIndex
           .map({ case (x, i) =>
-            val init = Undefined(x.typ)
             val next =
               VecShiftLeft(x, VecAccess(StmData(p1)(), C(i)())())().tchk().lower
-            x -> (init, next)
+            x -> (Undefined(x.typ), next, Tuple()())
           })
           .toMap
         val pipe2 = pipe2Vars.zipWithIndex
           .map({ case (x, i) =>
-            val init = Undefined(x.typ)
             val next =
               VecShiftLeft(x, VecAccess(StmData(p2)(), C(i)())())().tchk().lower
-            x -> (init, next)
+            x -> (Undefined(x.typ), next, Tuple()())
           })
           .toMap
-        val (_, (_, lastStage)) = stages.last
+        val (_, (_, lastStage, _)) = stages.last
         StmBuild(
           n,
+          // TODO: Redefine MulAddCascaded so the delay is accurate?
+          C(1)(),
+          Undefined(int),
           lastStage,
           True,
           pipe1 ++ pipe2 ++ stages.init.toMap,
-          Map[Param, (Expr, Expr)](
-            p1 -> (s1, True),
-            p2 -> (s2, True)
+          Map[Param, (Expr, Expr, Expr)](
+            p1 -> (s1, True, C(0)()),
+            p2 -> (s2, True, C(0)())
           )
         )().tchk()
       case IntCst(0) =>
         val TyStm(int, n) = this.typ
-        StmBuild(n, C(0)(int), True, Map(), Map())().tchk()
+        StmBuild(n, C(1)(), Undefined(int), C(0)(int), True, Map(), Map())()
+          .tchk()
       case e =>
         throw new TypeError(
           s"$className is not applicable when the vectors have length $e."
@@ -1496,10 +1544,9 @@ case class StmFold1D(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
     val s = this.s.lower
     val TyStm(t1, n) = s.typ
     val z = this.z.lower
-    val t2 = z.typ
     val f = this.f.lower
     val p = Param("p")(TyStm(t1, -1))
-    val acc = Param("acc")(t2)
+    val acc = Param("acc")(z.typ)
     val i = {
       val typ = n.typ match {
         case TyUInt(0) => TyUInt(1)
@@ -1509,21 +1556,24 @@ case class StmFold1D(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
     }
     StmBuild(
       1,
+      Tuple()(),
+      Undefined(z.typ),
       Mux(
         n === 0,
         z,
         f(Tuple(acc, StmData(p)())())
       )().tchk().lower,
       ((n === 0) || Sum(C(1)(i.typ), i)() === n).tchk().lower,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         acc -> (
           z,
-          Mux(n === 0, z, f(Tuple(acc, StmData(p)())()))().tchk().lower
+          Mux(n === 0, z, f(Tuple(acc, StmData(p)())()))().tchk().lower,
+          Tuple()()
         ),
-        i -> (C(0)(i.typ), Sum(C(1)(i.typ), i)())
+        i -> (C(0)(i.typ), Sum(C(1)(i.typ), i)(), Tuple()())
       ),
-      Map[Param, (Expr, Expr)](
-        p -> (s, (n !== 0).tchk().lower)
+      Map[Param, (Expr, Expr, Expr)](
+        p -> (s, (n !== 0).tchk().lower, Tuple()())
       )
     )().tchk()
   }
@@ -1667,13 +1717,19 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
         val TyVec(elemTyp, _) = v.typ
         StmBuild(
           n,
+          C(1)(),
+          Undefined(elemTyp),
           VecAccess(acc, 0)(),
           True,
-          Map[Param, (Expr, Expr)](
+          Map[Param, (Expr, Expr, Expr)](
             // TODO: It might be useful to use undefined rather than `zeros`
             //       here. But it may be necessary to update the evaluator to
             //       allow this use of undefined[T]
-            acc -> (v, VecShiftLeft(acc, AllZero(elemTyp))().tchk().lower)
+            acc -> (
+              v,
+              VecShiftLeft(acc, AllZero(elemTyp))().tchk().lower,
+              C(1)()
+            )
           ),
           Map()
         )()
@@ -1756,6 +1812,8 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   * @param k
   *   The number of elements to extract.
   */
+// TODO: Rename this to StmTake?
+@deprecated
 case class StmPrefix(
     stm: Expr /* Stm<A; n> */,
     k: Expr /* Int */
@@ -1775,8 +1833,7 @@ case class StmPrefix(
     val k = this.k.tchk(context, constValues).expectUInt()
     val s = this.stm.tchk(context, constValues)
     s.typ match {
-      case TyStm(t, _) =>
-        this.rebuild(TyStm(t, k), Seq(s, k))
+      case TyStm(t, _) => this.rebuild(TyStm(t, k), Seq(s, k))
       case t => throw new TypeError(s"Stream in StmPrefix has type $t.")
     }
   }
@@ -1789,14 +1846,17 @@ case class StmPrefix(
       case TyStm(_, n) => n
       case _           => C(1)().tchk()
     }
-    val s = Param("s")(stm.typ) // input stream
+    val TyStm(elemTyp, _) = stm.typ
+    val s = Param("s")(TyStm(elemTyp, -1)) // input stream
     StmBuild(
       SafeProd(k, perRow)().tchk().lower,
+      C(1)(),
+      Undefined(elemTyp),
       StmData(s)(),
       True,
       Map(),
-      Map[Param, (Expr, Expr)](
-        s -> (stm, True)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (stm, True, C(0)())
       )
     )().annotateWithName(this.className).tchk()
   }
@@ -1811,6 +1871,8 @@ case class StmPrefix(
   * @param k
   *   The number of elements to extract.
   */
+// TODO: Replace this with StmDrop?
+@deprecated
 case class StmSuffix(
     stm: Expr /* Stm<A; n> */,
     k: Expr /* Int */
@@ -1845,22 +1907,30 @@ case class StmSuffix(
       case TyStm(_, n) => n
       case _           => IntCst(1)()
     }
-    val s = Param("s")(stm.typ) // input stream
+    val TyStm(elemTyp, _) = stm.typ
+    val s = Param("s")(TyStm(elemTyp, -1)) // input stream
     val i = Param("i")(U32) // index of current row
     val j = Param("j")(U32) // index within row
     StmBuild(
       (k * perRow).tchk().lower,
+      Tuple()(),
+      Undefined(elemTyp),
       StmData(s)(),
       (i >= n - k).tchk().lower,
-      Map[Param, (Expr, Expr)](
-        i -> (C(0)(U32), Mux(j === perRow - 1, i + 1, i)().tchk().lower),
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (
+          C(0)(U32),
+          Mux(j === perRow - 1, i + 1, i)().tchk().lower,
+          Tuple()()
+        ),
         j -> (
           C(0)(U32),
-          Mux(j === perRow - 1, C(0)(U32), j + 1)().tchk().lower
+          Mux(j === perRow - 1, C(0)(U32), j + 1)().tchk().lower,
+          Tuple()()
         )
       ),
-      Map[Param, (Expr, Expr)](
-        s -> (stm, True)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (stm, True, C(0)())
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
   }
@@ -1994,21 +2064,24 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
     requireType()
     val stm = this.stm.lower
     val shiftAmount = this.shiftAmount.lower.asInstanceOf[IntCst]
-    val TyStm(t, n) = this.stm.typ
-    val s = Param("s")(TyStm(t, -1))
-    val buf = Param("buf")(TyVec(t, shiftAmount))
+    val TyStm(elemTyp, n) = this.stm.typ
+    val s = Param("s")(TyStm(elemTyp, -1))
+    val buf = Param("buf")(TyVec(elemTyp, shiftAmount))
     StmBuild(
       n,
+      C(1)(),
+      Undefined(elemTyp),
       VecAccess(buf, C(shiftAmount.i - 1)())(),
       True,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         buf -> (
-          Undefined(TyVec(t, shiftAmount)),
-          VecShiftRight(buf, StmData(s)())().tchk().lower
+          Undefined(TyVec(elemTyp, shiftAmount)),
+          VecShiftRight(buf, StmData(s)())().tchk().lower,
+          Tuple()()
         )
       ),
-      Map[Param, (Expr, Expr)](
-        s -> (stm, True)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (stm, True, C(0)())
       )
     )().annotateWithName(this.className).tchk()
   }
@@ -2089,30 +2162,35 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
         val s = Param("s")(TyStm(TyVec(t, C(m)()), -1))
         val data = if (shiftAmount.i >= m) {
           // All output data comes from the buffer
-          VecPrefix(buf, C(m)())()
+          VecPrefix(buf, C(m)())().tchk()
         } else {
           // Some output data comes directly from the input stream
           VecConcat(buf, VecPrefix(StmData(s)(), C(m - shiftAmount.i)())())()
+            .tchk()
         }
         val bufNext = if (shiftAmount.i >= m) {
           // All input data goes into the buffer
           VecConcat(VecSuffix(buf, C(shiftAmount.i - m)())(), StmData(s)())()
+            .tchk()
         } else {
           // Some input data doesn't go into the buffer
-          VecSuffix(StmData(s)(), shiftAmount)()
+          VecSuffix(StmData(s)(), shiftAmount)().tchk()
         }
         StmBuild(
           n,
-          data.tchk().lower,
+          C(1)(),
+          Undefined(data.typ),
+          data.lower,
           True,
-          Map[Param, (Expr, Expr)](
+          Map[Param, (Expr, Expr, Expr)](
             buf -> (
               Undefined(TyVec(t, shiftAmount)),
-              bufNext.tchk().lower
+              bufNext.tchk().lower,
+              Tuple()()
             )
           ),
-          Map[Param, (Expr, Expr)](
-            s -> (stm, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (stm, True, C(0)())
           )
         )().annotateWithName(this.className).tchk()
       case t =>
@@ -2160,20 +2238,24 @@ case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
     val buf = Param("buf")(TyVec(elemTyp, delay))
     StmBuild(
       n,
+      SafeSum(delay, 1)().tchk().lower,
+      // TODO: Add optional parameter for initial value
+      Undefined(elemTyp),
       Mux(
         delay === C(0)(),
         StmData(p)(),
         VecAccess(buf, C(0)())()
       )().tchk().lower,
       True,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         buf -> (
           Undefined(buf.typ),
-          VecShiftLeft(buf, StmData(p)())().tchk().lower
+          VecShiftLeft(buf, StmData(p)())().tchk().lower,
+          Tuple()()
         )
       ),
-      Map[Param, (Expr, Expr)](
-        p -> (stm, True)
+      Map[Param, (Expr, Expr, Expr)](
+        p -> (stm, True, 0)
       )
     )().tchk()
   }
@@ -2220,19 +2302,23 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     val stm2 = this.stm2.lower
     val n1 = stm1.typ.asInstanceOf[TyStm].n
     val n2 = stm2.typ.asInstanceOf[TyStm].n
-    val s1 = Param("s1")(stm1.typ)
-    val s2 = Param("s2")(stm2.typ)
+    val TyStm(elemTyp, _) = stm1.typ
+    val s1 = Param("s1")(TyStm(elemTyp, -1))
+    val s2 = Param("s2")(TyStm(elemTyp, -1))
     val i = Param("i")(U32)
+    // TODO: Make a variant for no_handshake mode
     StmBuild(
       SafeSum(n1, n2)(),
+      1,
+      Undefined(elemTyp),
       Mux(i === n1, StmData(s2)(), StmData(s1)())(),
       True,
-      Map[Param, (Expr, Expr)](
-        i -> (C(0)(U32), Mux(i === n1, i, i + 1)())
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (C(0)(U32), Mux(i === n1, i, i + 1)(), Tuple()())
       ),
-      Map[Param, (Expr, Expr)](
-        s1 -> (stm1, i !== n1),
-        s2 -> (stm2, i === n1)
+      Map[Param, (Expr, Expr, Expr)](
+        s1 -> (stm1, i !== n1, Tuple()()),
+        s2 -> (stm2, i === n1, Tuple()())
       )
     )()
       .annotate(NoInputsAfterLastOut)
@@ -2326,9 +2412,9 @@ case class StmRepeat(
     requireType()
     val stm = this.stm.lower
     val m = this.m.lower
-    val TyStm(typ, n) = stm.typ
-    val s = Param("s")(TyStm(typ, -1))
-    val v = Param("v")(TyVec(typ, n))
+    val TyStm(elemTyp, n) = stm.typ
+    val s = Param("s")(TyStm(elemTyp, -1))
+    val v = Param("v")(TyVec(elemTyp, n))
     val tTyp = n match {
       case IntCst(n) => TyAnyInt.tightest(0, math.max(1, n - 1))
       case _         => n.typ
@@ -2337,11 +2423,13 @@ case class StmRepeat(
     val filling = Param("filling")(TyBool)
     StmBuild(
       SafeProd(n, m)().tchk().lower,
+      1,
+      Undefined(elemTyp),
       Mux(filling, StmData(s)(), VecAccess(v, t)())(),
       True,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         v -> (
-          Undefined(TyVec(typ, n)),
+          Undefined(TyVec(elemTyp, n)),
           // Update the vector in such a way that the synthesis tool can turn
           // it into a BRAM (not a massive shift register)
           VecBuild(
@@ -2351,7 +2439,8 @@ case class StmRepeat(
                 .tchk()
                 .lower
             )
-          )()
+          )(),
+          1
         ),
         t -> (
           C(0)(t.typ),
@@ -2360,15 +2449,17 @@ case class StmRepeat(
             t === ToUnsigned(C(-1)() + n)(),
             C(0)(t.typ),
             t + 1
-          )().tchk().lower
+          )().tchk().lower,
+          1
         ),
         filling -> (
           True,
-          (filling && (t < ToUnsigned(C(-1)() + n)())).tchk().lower
+          (filling && (t < ToUnsigned(C(-1)() + n)())).tchk().lower,
+          1
         )
       ),
-      Map[Param, (Expr, Expr)](
-        s -> (stm, filling)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (stm, filling, 0)
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
   }
@@ -2556,9 +2647,11 @@ case class StmSlide(
     val v = Param("v")(TyVec(t, winSize))
     val lowered = StmBuild(
       myLen,
+      Tuple()(),
+      Undefined(v.typ),
       VecShiftLeft(v, StmData(s)())().tchk().lower,
       (i + 1 === winSize).tchk().lower,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         // Number of elements loaded so far
         i -> (
           C(0)(i.typ),
@@ -2566,16 +2659,18 @@ case class StmSlide(
             i + 1 === winSize,
             Cast(i + 1 - stride, i.typ)().tchk().lower,
             i + 1
-          )().tchk().lower
+          )().tchk().lower,
+          Tuple()()
         ),
         // Vector for the window
         v -> (
           Undefined(TyVec(t, winSize)),
-          VecShiftLeft(v, StmData(s)())().tchk().lower
+          VecShiftLeft(v, StmData(s)())().tchk().lower,
+          Tuple()()
         )
       ),
-      Map[Param, (Expr, Expr)](
-        s -> (input, True)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (input, True, 0)
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className)
     lowered.tchk()
@@ -2672,13 +2767,16 @@ case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
     val buf = Param("buf")(z.typ)
     StmBuild(
       n,
+      1,
+      // TODO: Change the definition of StmSlideStartingWith so even the first output is defined
+      Undefined(Missing),
       VecAppend(buf, StmData(p)())().tchk().lower,
       True,
-      Map[Param, (Expr, Expr)](
-        buf -> (z, VecShiftLeft(buf, StmData(p)())().tchk().lower)
+      Map[Param, (Expr, Expr, Expr)](
+        buf -> (z, VecShiftLeft(buf, StmData(p)())().tchk().lower, 1)
       ),
-      Map[Param, (Expr, Expr)](
-        p -> (s, True)
+      Map[Param, (Expr, Expr, Expr)](
+        p -> (s, True, 0)
       )
     )().tchk()
   }
@@ -2750,6 +2848,15 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     val maxRow = ToUnsigned(SafeSum(winHeight, -1)())().tchk().lower
     val row = Param("row")(winHeight.typ)
     val col = Param("col")(maxCol.typ)
+    val data = VecBuild(
+      winHeight,
+      winHeight.typ ::+ (i =>
+        VecBuild(
+          winWidth,
+          winWidth.typ ::+ (j => VecAccess(VecAccess(buf2d, i)(), j)())
+        )()
+      )
+    )().tchk().lower
     StmBuild(
       ToUnsigned(
         SafeProd(
@@ -2757,36 +2864,33 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
           SafeSum(m, C(-1)() * winWidth, 1)()
         )()
       )().tchk().lower,
-      VecBuild(
-        winHeight,
-        winHeight.typ ::+ (i =>
-          VecBuild(
-            winWidth,
-            winWidth.typ ::+ (j => VecAccess(VecAccess(buf2d, i)(), j)())
-          )()
-        )
-      )().tchk().lower,
+      Tuple()(),
+      Undefined(data.typ),
+      data,
       ((row === maxRow) && (col < m)).tchk().lower,
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         buf -> (
           Undefined(buf.typ),
-          VecShiftLeft(buf, StmData(input)())().tchk().lower
+          VecShiftLeft(buf, StmData(input)())().tchk().lower,
+          Tuple()()
         ),
         row -> (
           C(0)(row.typ),
           Mux((col === maxCol) && (row !== maxRow), row + 1, row)()
             .tchk()
-            .lower
+            .lower,
+          Tuple()()
         ),
         col -> (
           C(0)(col.typ),
           Mux(col === maxCol, Cast(winWidth - 1, col.typ)(), col + 1)()
             .tchk()
-            .lower
+            .lower,
+          Tuple()()
         )
       ),
-      Map[Param, (Expr, Expr)](
-        input -> (stm, True)
+      Map[Param, (Expr, Expr, Expr)](
+        input -> (stm, True, 0)
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
   }

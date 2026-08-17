@@ -23,7 +23,9 @@ ThisBuild / autoAPIMappings := true
 ThisBuild / scalacOptions ++= Seq(
   "-deprecation",
   "-Wconf:cat=other-match-analysis:error",
-  "-feature"
+  "-feature",
+  "-Xmaxerrs",
+  "999"
 )
 ThisBuild / showSuccess := false
 Global / excludeLintKeys += showSuccess

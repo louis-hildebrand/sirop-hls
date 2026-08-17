@@ -80,11 +80,12 @@ class LatencyAnalysis(handshake: Boolean) {
         LatencyLetStm(outLatency.latency, inLatency, outLatency)
       case s: StmBuild =>
         val latencyChildren = s.producers
-          .map({ case (x, (p, _)) =>
+          // TODO: Use the delay here
+          .map({ case (x, (p, _, _)) =>
             x -> latency(p, latencyByVar, sbuildAggregator)
           })
         val alwaysReady = s.producers
-          .forall({ case (_, (_, ready)) => ready == True })
+          .forall({ case (_, (_, ready, _)) => ready == True })
         val selfLatency = stmBuildSelfLatency(s)
         val outLatency = if (latencyChildren.isEmpty) {
           // The output from this node will not be available immediately: you
@@ -130,7 +131,8 @@ class LatencyAnalysis(handshake: Boolean) {
                     Equal(t1: Param, IntCst(k1)),
                     IntCst(0),
                     Sum(IntCst(1), t2: Param)
-                  )
+                  ),
+                  _
                 )
               ) if t1 == t && t2 == t && k1 == k =>
             Some((k + 1).toInt)

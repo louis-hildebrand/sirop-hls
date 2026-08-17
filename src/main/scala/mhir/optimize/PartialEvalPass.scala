@@ -309,17 +309,27 @@ object PartialEvalPass {
             val newValid = doPartialEval(s.valid)(newFacts)
             StmBuild(
               doPartialEval(s.n)(facts),
+              doPartialEval(s.delay)(facts),
+              doPartialEval(s.initData)(facts),
               // The value of the data doesn't matter if it is invalid, so
               // we can assume it is valid when simplifying.
-              doPartialEval(s.data)(newFacts.assumeTrue(newValid)),
+              doPartialEval(s.nextData)(newFacts.assumeTrue(newValid)),
               newValid,
-              s.accumulators.map({ case (x, (z, next)) =>
+              s.accumulators.map({ case (x, (z, next, delay)) =>
                 // The recurrence variables shouldn't occur free in z, so use
                 // the old facts for z
-                x -> (doPartialEval(z)(facts), doPartialEval(next)(newFacts))
+                x -> (
+                  doPartialEval(z)(facts),
+                  doPartialEval(next)(newFacts),
+                  doPartialEval(delay)(facts)
+                )
               }),
-              s.producers.map({ case (x, (stm, ready)) =>
-                x -> (doPartialEval(stm)(facts), doPartialEval(ready)(newFacts))
+              s.producers.map({ case (x, (stm, ready, delay)) =>
+                x -> (
+                  doPartialEval(stm)(facts),
+                  doPartialEval(ready)(newFacts),
+                  doPartialEval(delay)(facts)
+                )
               })
             )()
           case LetStm(bufSize, x, in, out) =>

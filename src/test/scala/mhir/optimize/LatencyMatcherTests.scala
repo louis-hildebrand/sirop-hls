@@ -37,9 +37,11 @@ class LatencyMatcherTests extends AnyFunSuite {
         val buf = Param("buf")((U8, U8))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           buf,
           i === C(0)(U8),
-          Map[Param, (Expr, Expr)](
+          Map[Param, (Expr, Expr, Expr)](
             i -> (
               C(0)(U8),
               Mux(
@@ -47,15 +49,17 @@ class LatencyMatcherTests extends AnyFunSuite {
                 // Even elements get delayed for longer
                 Mux(StmData(s)().__0 % 2 === 0, C(2)(U8), C(1)(U8))(),
                 ToUnsigned(i - 1)()
-              )()
+              )(),
+              Tuple()()
             ),
             buf -> (
               AllZero((U8, U8)).lower,
-              Mux(i === C(0)(U8), StmData(s)(), buf)()
+              Mux(i === C(0)(U8), StmData(s)(), buf)(),
+              Tuple()()
             )
           ),
-          Map[Param, (Expr, Expr)](
-            s -> (zip, i === C(0)(U8))
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (zip, i === C(0)(U8), Tuple()())
           )
         )()
       }
@@ -152,14 +156,20 @@ class LatencyMatcherTests extends AnyFunSuite {
         val buf = Param("buf")(U8)
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           buf,
           i === 2,
-          Map[Param, (Expr, Expr)](
-            i -> (C(0)(U8), Mux(i === 2, C(0)(U8), Sum(C(1)(U8), i)())()),
-            buf -> (C(0)(U8), Mux(i === 0, StmData(sAcc)(), buf)())
+          Map[Param, (Expr, Expr, Expr)](
+            i -> (
+              C(0)(U8),
+              Mux(i === 2, C(0)(U8), Sum(C(1)(U8), i)())(),
+              Tuple()()
+            ),
+            buf -> (C(0)(U8), Mux(i === 0, StmData(sAcc)(), buf)(), Tuple()())
           ),
-          Map[Param, (Expr, Expr)](
-            sAcc -> (s, i === 0)
+          Map[Param, (Expr, Expr, Expr)](
+            sAcc -> (s, i === 0, Tuple()())
           )
         )().tchk()
       }
@@ -188,10 +198,12 @@ class LatencyMatcherTests extends AnyFunSuite {
       val i = Param("i")(U8)
       StmBuild(
         n * m,
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](
-          i -> (C(0)(U8), Sum(C(1)(U8), i)())
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(0)(U8), Sum(C(1)(U8), i)(), Tuple()())
         ),
         Map()
       )()
@@ -204,14 +216,20 @@ class LatencyMatcherTests extends AnyFunSuite {
         val t = Param("t")(U8)
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           acc + StmData(s)(),
           t === C(m - 1)(U8),
-          Map[Param, (Expr, Expr)](
-            acc -> (C(0)(U8), acc + StmData(s)()),
-            t -> (C(0)(U8), Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)())
+          Map[Param, (Expr, Expr, Expr)](
+            acc -> (C(0)(U8), acc + StmData(s)(), Tuple()()),
+            t -> (
+              C(0)(U8),
+              Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)(),
+              Tuple()()
+            )
           ),
-          Map[Param, (Expr, Expr)](
-            s -> (x, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (x, True, Tuple()())
           )
         )().tchk()
       }
@@ -222,17 +240,24 @@ class LatencyMatcherTests extends AnyFunSuite {
         val t = Param("t")(U8)
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           VecShiftLeft(acc, StmData(s)())(),
           t === C(m - 1)(U8),
-          Map[Param, (Expr, Expr)](
+          Map[Param, (Expr, Expr, Expr)](
             acc -> (
               VecBuild(m, U8 ::+ (_ => AllZero(U8)))(),
-              VecShiftLeft(acc, StmData(s)())()
+              VecShiftLeft(acc, StmData(s)())(),
+              Tuple()()
             ),
-            t -> (C(0)(U8), Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)())
+            t -> (
+              C(0)(U8),
+              Mux(t === C(m - 1)(U8), C(0)(U8), C(1)(U8) + t)(),
+              Tuple()()
+            )
           ),
-          Map[Param, (Expr, Expr)](
-            s -> (x, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (x, True, Tuple()())
           )
         )().tchk()
       }
@@ -282,7 +307,8 @@ class LatencyMatcherTests extends AnyFunSuite {
     val original = {
       val s0 = Param("s0")(TyStm(U8, n))
       val count = SimpleCount(C(n)(U8))
-      val concat = SimpleConcat(s0, SimpleMap(s0, x => Sum(C(5)(U8), x)()))
+      val concat =
+        SimpleConcatHandshake(s0, SimpleMap(s0, x => Sum(C(5)(U8), x)()))
       LetStm(n, s0, count, concat)().tchk().lower
     }
     val optimized = passWithHandshake.matchLatencies(original)

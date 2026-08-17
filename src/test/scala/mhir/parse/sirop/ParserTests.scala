@@ -243,9 +243,13 @@ class ParserTests extends AnyFunSuite {
       val i = Param("i", -1)(U8)
       StmBuild(
         42,
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](i -> (C(0)(U8), SmartSum(C(1)(U8), i)())),
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(0)(U8), SmartSum(C(1)(U8), i)(), Tuple()())
+        ),
         Map()
       )()
     }
@@ -266,11 +270,13 @@ class ParserTests extends AnyFunSuite {
       val b = Param("b", -1)(TyBool)
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(i, b)(),
         True,
-        Map[Param, (Expr, Expr)](
-          i -> (C(0)(U8), SmartSum(C(1)(U8), i)()),
-          b -> (True, !b)
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(0)(U8), SmartSum(C(1)(U8), i)(), Tuple()()),
+          b -> (True, !b, Tuple()())
         ),
         Map()
       )()
@@ -289,10 +295,12 @@ class ParserTests extends AnyFunSuite {
       val s = Param("s", -1)(TyStm(U8, 42))
       StmBuild(
         42,
+        Tuple()(),
+        Undefined(Missing),
         SmartSum(StmData(s)(), C(5)(U8))(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](s -> (s, True))
+        Map[Param, (Expr, Expr, Expr)](s -> (s, True, Tuple()()))
       )()
     }
     assert(Parser.parse(src).body == expected)
@@ -311,16 +319,61 @@ class ParserTests extends AnyFunSuite {
       val s2 = Param("s2", -1)(TyStm(TyBool, 42))
       StmBuild(
         42,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(StmData(s1)(), StmData(s2)())(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s1 -> (s1, True),
-          s2 -> (s2, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s1 -> (s1, True, Tuple()()),
+          s2 -> (s2, True, Tuple()())
         )
       )()
     }
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("sbuild:DelayAnnotations") {
+    val src =
+      """sbuild(10 @ 3)((0:u8, 0:u8, 0:u8), (a, sdata(p1), sdata(p2)), true) {
+        |  (a: u8 @ 3) = {
+        |    init: 0,
+        |    next: a +` 1
+        |  }
+        |} {
+        |  (p1: Stm[u8, -1] @ 1) = {
+        |    stm: input1,
+        |    ready: true
+        |  },
+        |  (p2: Stm[u8, -1] @ 2) = {
+        |    stm: input2,
+        |    ready: true
+        |  }
+        |}
+        |""".stripMargin.stripTrailing
+    val actual = Parser.parse(src).body
+    val expected = {
+      val a = Param("a", -1)(U8)
+      val input1 = Param("input1", -1)(TyStm(U8, 10))
+      val input2 = Param("input2", -1)(TyStm(U8, 10))
+      val p1 = Param("p1", -1)(TyStm(U8, -1))
+      val p2 = Param("p2", -1)(TyStm(U8, -1))
+      StmBuild(
+        10,
+        3,
+        Tuple(C(0)(U8), C(0)(U8), C(0)(U8))(),
+        Tuple(a, StmData(p1)(), StmData(p2)())(),
+        True,
+        Map(
+          a -> (C(0)(), Sum(a, C(1)())(), C(3)())
+        ),
+        Map(
+          p1 -> (input1, True, C(1)()),
+          p2 -> (input2, True, C(2)())
+        )
+      )()
+    }
+    assert(actual == expected)
   }
 
   test("sdata(s).0.1.2") {

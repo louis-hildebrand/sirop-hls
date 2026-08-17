@@ -286,8 +286,8 @@ object StmPipeline {
         )
     }
     val readyByInput = s.producers
-      .map({ case (x, (_, ready)) => x -> ready })
-    val inputs = s.producers.map({ case (x, (z, _)) =>
+      .map({ case (x, (_, ready, _)) => x -> ready })
+    val inputs = s.producers.map({ case (x, (z, _, _)) =>
       x -> init(pipe, z, idByVar, loc, handshake = handshake)
     })
     StmBuildNode(
@@ -295,23 +295,23 @@ object StmPipeline {
       id = StmNodeId(Param("sbuild")().name),
       data = None,
       hw = StmNodeHardware(
-        data = s.data,
+        data = s.nextData,
         valid = s.valid,
         inputs = inputs,
         nextByDataAcc = s.accumulators
-          .map({ case (x, (_, next)) => x -> next }),
+          .map({ case (x, (_, next, _)) => x -> next }),
         readyByInput = readyByInput,
         typ = s.typ.asInstanceOf[TyStm]
       ),
       n = n,
       acc = s.accumulators.map({
-        case (x, (Undefined(typ), _)) =>
+        case (x, (Undefined(typ), _, _)) =>
           logger.debug(
             s"Undefined initial value for accumulator $x will be replaced by default value."
               + " I hope you know what you're doing."
           )
           x -> eval(DefaultVal(typ))
-        case (x, (z, _)) => x -> eval(z)
+        case (x, (z, _, _)) => x -> eval(z)
       }),
       invalidSteps = 0,
       loc = loc,

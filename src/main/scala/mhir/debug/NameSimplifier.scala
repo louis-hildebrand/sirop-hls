@@ -75,12 +75,12 @@ object NameSimplifier {
                 val newX = Param(prefix, -1)(x.typ)
                 // Avoid variable capture
                 val willCapture = (
-                  s.data.freeVars.contains(newX)
+                  s.nextData.freeVars.contains(newX)
                     || s.valid.freeVars.contains(newX)
-                    || s.accumulators.exists({ case (_, (_, next)) =>
+                    || s.accumulators.exists({ case (_, (_, next, _)) =>
                       next.freeVars.contains(newX)
                     })
-                    || s.producers.exists({ case (_, (_, ready)) =>
+                    || s.producers.exists({ case (_, (_, ready, _)) =>
                       ready.freeVars.contains(newX)
                     })
                 )
@@ -164,6 +164,6 @@ object NameSimplifier {
       }
     }
     // TODO: Is distinct guaranteed to preserve order?
-    traverse(Set())(Tuple(stm.data, stm.valid)()).distinct
+    traverse(Set())(Tuple(stm.nextData, stm.valid)()).distinct
   }
 }

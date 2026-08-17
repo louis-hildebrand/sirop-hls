@@ -188,9 +188,13 @@ class EvalTests extends AnyFunSuite {
     val s =
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         i + 42,
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(9)(U16), 2 * i + 1)),
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (IntCst(9)(U16), 2 * i + 1, Tuple()())
+        ),
         Map()
       )()
     val expected = StmLiteral(9 + 42, 19 + 42, 39 + 42, 79 + 42, 159 + 42)()
@@ -199,7 +203,7 @@ class EvalTests extends AnyFunSuite {
   }
 
   test("ObviousInfiniteLoop") {
-    val s = StmBuild(1, 0, False, Map(), Map())()
+    val s = StmBuild(1, Tuple()(), Undefined(Missing), 0, False, Map(), Map())()
     val exc = intercept[DeadlockError](mhir.eval.eval(s))
     assert(exc.reasons == Seq(PipelineFixpoint))
   }
@@ -208,10 +212,12 @@ class EvalTests extends AnyFunSuite {
     val a = Param("a")(U32)
     val s = StmBuild(
       1,
+      Tuple()(),
+      Undefined(Missing),
       a,
       a % 2 === 1,
-      Map[Param, (Expr, Expr)](
-        a -> (ReshapeData(0, U32)(), a + 2)
+      Map[Param, (Expr, Expr, Expr)](
+        a -> (ReshapeData(0, U32)(), a + 2, Tuple()())
       ),
       Map()
     )().tchk()
@@ -223,13 +229,19 @@ class EvalTests extends AnyFunSuite {
     val s = Param("s")(TyStm(TyUInt(0), -1))
     val stm = StmBuild(
       1,
+      Tuple()(),
+      Undefined(Missing),
       StmData(s)(),
       True,
       Map(),
-      Map[Param, (Expr, Expr)](
-        s -> (StmBuild(1, 0, False, Map(), Map())(), True)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (
+          StmBuild(1, Tuple()(), Undefined(Missing), 0, False, Map(), Map())(),
+          True,
+          Tuple()()
+        )
       )
-    )()
+    )().tchk()
     val exc = intercept[DeadlockError](mhir.eval.eval(stm))
     assert(exc.reasons == Seq(PipelineFixpoint))
   }
@@ -239,11 +251,17 @@ class EvalTests extends AnyFunSuite {
       val s = Param("s")(TyStm(TyUInt(0), 1))
       StmBuild(
         2,
+        Tuple()(),
+        Undefined(Missing),
         StmData(s)(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s -> (StmBuild(1, 0, True, Map(), Map())(), True)
+        Map[Param, (Expr, Expr, Expr)](
+          s -> (
+            StmBuild(1, Tuple()(), Undefined(Missing), 0, True, Map(), Map())(),
+            True,
+            Tuple()()
+          )
         )
       )()
     }
@@ -743,10 +761,12 @@ class EvalTests extends AnyFunSuite {
       val i = Param("i")(U8)
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](
-          i -> (C(0)(U8), Sum(C(1)(U8), i)())
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(0)(U8), Sum(C(1)(U8), i)(), Tuple()())
         ),
         Map()
       )()
@@ -758,12 +778,14 @@ class EvalTests extends AnyFunSuite {
       val s1 = Param("s1")(TyStm(U8, 5))
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(StmData(s0)(), StmData(s1)())(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s0 -> (s, True),
-          s1 -> (s, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s0 -> (s, True, Tuple()()),
+          s1 -> (s, True, Tuple()())
         )
       )()
     }
@@ -785,10 +807,12 @@ class EvalTests extends AnyFunSuite {
       val i = Param("i")(U8)
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](
-          i -> (C(0)(U8), Sum(C(1)(U8), i)())
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(0)(U8), Sum(C(1)(U8), i)(), Tuple()())
         ),
         Map()
       )()
@@ -799,11 +823,13 @@ class EvalTests extends AnyFunSuite {
       val a = Param("a")(TyStm(U8, 5))
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         Sum(C(5)(U8), StmData(a)())(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          a -> (s, True)
+        Map[Param, (Expr, Expr, Expr)](
+          a -> (s, True, Tuple()())
         )
       )()
     }
@@ -813,12 +839,14 @@ class EvalTests extends AnyFunSuite {
       val s1 = Param("s1")(TyStm(U8, 5))
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(StmData(s0)(), StmData(s1)())(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s0 -> (s, True),
-          s1 -> (plusFive, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s0 -> (s, True, Tuple()()),
+          s1 -> (plusFive, True, Tuple()())
         )
       )()
     }
@@ -827,6 +855,8 @@ class EvalTests extends AnyFunSuite {
       val a = Param("a")(TyStm((U8, U8), 5))
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(
           StmData(a)().__0,
           StmData(a)().__1,
@@ -834,8 +864,8 @@ class EvalTests extends AnyFunSuite {
         )(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          a -> (LetStm(1, s, count, zipped)(), True)
+        Map[Param, (Expr, Expr, Expr)](
+          a -> (LetStm(1, s, count, zipped)(), True, Tuple()())
         )
       )().tchk()
     }
@@ -856,10 +886,12 @@ class EvalTests extends AnyFunSuite {
       val i = Param("i")(U8)
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](
-          i -> (C(0)(U8), Sum(C(1)(U8), i)())
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(0)(U8), Sum(C(1)(U8), i)(), Tuple()())
         ),
         Map()
       )()
@@ -872,14 +904,16 @@ class EvalTests extends AnyFunSuite {
       val s1 = Param("s1")(TyStm(U8, 5))
       StmBuild(
         5,
+        Tuple()(),
+        Undefined(Missing),
         Mux(t lt C(5)(U8), StmData(s0)(), StmData(s1)())(),
         True,
-        Map[Param, (Expr, Expr)](
-          t -> (C(0)(U8), Sum(C(1)(U8), t)())
+        Map[Param, (Expr, Expr, Expr)](
+          t -> (C(0)(U8), Sum(C(1)(U8), t)(), Tuple()())
         ),
-        Map[Param, (Expr, Expr)](
-          s0 -> (s, t lt C(5)(U8)),
-          s1 -> (s, t geq C(5)(U8))
+        Map[Param, (Expr, Expr, Expr)](
+          s0 -> (s, t lt C(5)(U8), Tuple()()),
+          s1 -> (s, t geq C(5)(U8), Tuple()())
         )
       )()
     }
@@ -895,10 +929,12 @@ class EvalTests extends AnyFunSuite {
       val i = Param("i")(U8)
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](
-          i -> (C(0)(U8), Sum(C(1)(U8), i)())
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(0)(U8), Sum(C(1)(U8), i)(), Tuple()())
         ),
         Map()
       )()
@@ -911,14 +947,16 @@ class EvalTests extends AnyFunSuite {
       val s1 = Param("s1")(TyStm(U8, -1))
       StmBuild(
         2 * n,
+        Tuple()(),
+        Undefined(Missing),
         Mux(t lt C(n)(U8), StmData(s0)(), StmData(s1)())(),
         True,
-        Map[Param, (Expr, Expr)](
-          t -> (C(0)(U8), Sum(C(1)(U8), t)())
+        Map[Param, (Expr, Expr, Expr)](
+          t -> (C(0)(U8), Sum(C(1)(U8), t)(), Tuple()())
         ),
-        Map[Param, (Expr, Expr)](
-          s0 -> (s, t lt C(n)(U8)),
-          s1 -> (s, t geq C(n)(U8))
+        Map[Param, (Expr, Expr, Expr)](
+          s0 -> (s, t lt C(n)(U8), Tuple()()),
+          s1 -> (s, t geq C(n)(U8), Tuple()())
         )
       )()
     }
@@ -940,10 +978,12 @@ class EvalTests extends AnyFunSuite {
         val i = Param("i")(U8)
         StmBuild(
           n * m,
+          Tuple()(),
+          Undefined(Missing),
           i,
           True,
-          Map[Param, (Expr, Expr)](
-            i -> (C(0)(U8), Sum(C(1)(U8), i)())
+          Map[Param, (Expr, Expr, Expr)](
+            i -> (C(0)(U8), Sum(C(1)(U8), i)(), Tuple()())
           ),
           Map()
         )().tchk()
@@ -955,12 +995,15 @@ class EvalTests extends AnyFunSuite {
         val s = Param("s")(TyStm(U8, -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Sum(StmData(s)(), acc)(),
           t === (m - 1),
-          Map[Param, (Expr, Expr)](
+          Map[Param, (Expr, Expr, Expr)](
             t -> (
               C(0)(U8),
-              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
+              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())(),
+              Tuple()()
             ),
             acc -> (
               C(0)(U8),
@@ -968,11 +1011,12 @@ class EvalTests extends AnyFunSuite {
                 t === (m - 1),
                 C(0)(U8),
                 Sum(StmData(s)(), acc)()
-              )()
+              )(),
+              Tuple()()
             )
           ),
           Map(
-            s -> (x, True)
+            s -> (x, True, Tuple()())
           )
         )().tchk()
       }
@@ -981,16 +1025,19 @@ class EvalTests extends AnyFunSuite {
         val s = Param("s")(TyStm(U8, -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           StmData(s)(),
           t === 0,
-          Map[Param, (Expr, Expr)](
+          Map[Param, (Expr, Expr, Expr)](
             t -> (
               C(0)(U8),
-              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())()
+              Mux(t === (m - 1), C(0)(U8), Sum(C(1)(U8), t)())(),
+              Tuple()()
             )
           ),
-          Map[Param, (Expr, Expr)](
-            s -> (x, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s -> (x, True, Tuple()())
           )
         )().tchk()
       }
@@ -999,12 +1046,14 @@ class EvalTests extends AnyFunSuite {
         val s1 = Param("s1")(TyStm(U8, -1))
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           Tuple(StmData(s0)(), StmData(s1)())(),
           True,
           Map(),
-          Map[Param, (Expr, Expr)](
-            s0 -> (rowSums, True),
-            s1 -> (rowHeads, True)
+          Map[Param, (Expr, Expr, Expr)](
+            s0 -> (rowSums, True, Tuple()()),
+            s1 -> (rowHeads, True, Tuple()())
           )
         )().tchk()
       }
@@ -1028,18 +1077,24 @@ class EvalTests extends AnyFunSuite {
         val a = Param("a")(U8)
         StmBuild(
           n,
+          Tuple()(),
+          Undefined(Missing),
           a,
           True,
-          Map[Param, (Expr, Expr)](a -> (C(0)(U8), Sum(C(1)(U8), a)())),
+          Map[Param, (Expr, Expr, Expr)](
+            a -> (C(0)(U8), Sum(C(1)(U8), a)(), Tuple()())
+          ),
           Map()
         )().tchk()
       }
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         StmData(s)(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](s -> (count, False))
+        Map[Param, (Expr, Expr, Expr)](s -> (count, False, Tuple()()))
       )().tchk()
     }
     val exc = intercept[UndefinedValException](mhir.eval.eval(e))

@@ -43,9 +43,11 @@ class GreedyStmFusionPass(
     val result = stm match {
       case s: StmBuild =>
         val candidates = s.producers
-          .collect({ case (x, (_: StmBuild, _)) => x })
+          .collect({ case (x, (_: StmBuild, _, _)) => x })
         val withFusedProducers = s
-          .mapProducers({ case (x, (s, ready)) => x -> (fuse(s), ready) })
+          .mapProducers({ case (x, (s, ready, delay)) =>
+            x -> (fuse(s), ready, delay)
+          })
           .tchk()
           .asInstanceOf[StmBuild]
         candidates.foldLeft(withFusedProducers)({ case (acc, x) =>
