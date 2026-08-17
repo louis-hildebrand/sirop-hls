@@ -141,51 +141,33 @@ I'll use the term "physical prefix" for the part of the physical output that is 
 
 - In `StmBuild`:
 	- Add output latency (1 in the normal case, e.g., `StmMap`)
+	- Add initial value for data register
 	- Add relative delay for each producer
 	- Add *optional* relative delay for each accumulator
-	- Add initial value for data register
 	- *Rejected solution:* Just let `valid` be something like `t == k`, where `(t) = { init: 0, next: if (t == k) then t else t + 1 }`. Update the semantic analyzer to allow this specific pattern and update things like `StmSlideStartingWith`, `StmSuffix`, etc. to follow it carefully.
 		- *Why rejected:* Will the expression still be OK after fusion? Might need to make a version of the fusion pass for the `no_handshake` mode that’s aware of this pattern.
 		- *Why rejected:* Seems very brittle in general: how do I ensure the counter keeps the right form all the time?
 		- *Why rejected:* I'll probably need to update `sbuild` anyway for some of the other things (e.g., initial value of the `data` register), so I wouldn't even save much effort, if any
 - Regarding `StmLiteral`:
-	- Test inputs and outputs need to somehow include both physical and logical parts, but only in `no_handshake` mode
-		- ==TODO:== Represent as two separate stream literals, or update the definition of a stream literal?
+	- ==TODO:== Test inputs and outputs need to somehow include both physical and logical parts, but only in `no_handshake` mode
+		- Update the definition of a stream literal?
+			- It should then be relatively straightforward to update the parser so the programmer has access to this in their own code (not that they should be using it often, but it doesn't hurt to make it available)
+		- Represent as two separate stream literals?
+			- Then the signature of `mhir.eval.eval` would need to change; I'd probably even need a completely separate methods for evaluating streams without the handshake protocol
+		- Update the evaluator to return a Scala `Seq[Expr]`, make `StmLiteral` syntax sugar?
+			- How would the programmer provide the expected outputs for their tests?
+				- Still using the same `StmLiteral` syntax, possibly extended to allow specifying physical prefix
+			- `StmLiteral` is occasionally used by Aetherling, so I can't delete it outright
+			- Maybe this should be done as a separate issue. For now, I think I can get away with just generalizing `StmLiteral` to have a physical prefix
+- Evaluator:
+	- Implement version that correctly handles initial output and delays
+		- Want an option to show or hide the physical prefix, but it should be straightforward without touching the evaluator
+- Latency matching pass:
+	- Implement version that correctly handles delays
+		- Move this new one out of the optimization package (e.g., to the VHDL generator)?
+- VHDL generator:
+	- Update it to handle the `go` port properly, as described above
 - Fusion pass:
 	- Implement version that properly handles delays
 - Fission pass:
 	- Implement version that correctly handles initial output
-- Latency matching pass:
-	- Implement version that correctly handles delays
-		- Move this new one out of the optimization package (e.g., to the VHDL generator)?
-- Evaluator:
-	- Implement version that correctly handles initial output and delays
-		- Want an option to show or hide the physical prefix, but it should be straightforward without touching the evaluator
-- VHDL generator:
-	- Update it to handle the `go` port properly, as described above
-- The "prefix system":
-	- Similar to the type system, but lets you statically enforce conditions on the physical prefix of a stream
-	- Each stream has a "prefix pattern", e.g., `Stm[(u8, bool), N] ++ (undefined:u8, false)` means all elements of the physical prefix will have the form `(_, false)`
-	- Each `sbuild` prepends a given value to the physical prefix. How can we compute the new prefix pattern?
-		- Evaluate the `sbuild` output
-		- "Intersect" that with the initial value
-			- *Example:* `intersect( (0, false), (1, false) ) = (undefined, false)`
-			- *In general:*
-				- `intersect(undefined, v) = intersect(v, undefined) = undefined`
-				- `intersect(v1, v2) = v1` if `v1 = v2` (syntactic equality)
-				- `intersect(v1, v2) = undefined` if `v1 != v2` (syntactic equality)
-		- *Example:* `StmSlideStartingWith`
-			```
-			sbuild(4)(buf.VecAppend(sdata(p)) @ 3 ++ [false, false, false, false]v) {
-					(buf: Vec[bool, 3]) = {
-						init: zeros:[Vec[bool, 3]](),
-						next: buf.VecShiftLeft(sdata(p))
-					}
-			} {
-				(p: Stm[bool, 7] @ 0 ++ false) = s
-			}
-			```
-			- The result is `Stm[Vec[bool, 4], 4] ++ [false, false, false, false]v`
-				- Initial value: `[false, false, false, false]v`
-				- Value of output assuming `buf = [false, false, false]v` and `sdata(p) = false`: also `[false, false, false, false]v`
-				- "Intersection" of the two: `[false, false, false, false]v`
