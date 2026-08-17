@@ -303,19 +303,9 @@ object PartialEvalPass {
             }
 
           case s: StmBuild =>
-            // Do the actual analysis to find the ranges outside the partial evaluator because doing it in the partial
-            // evaluator is waaaay too slow. In many cases, it's not needed.
-            val accRanges = facts.rangeByExpr.get(s) match {
-              case Some(StmAccRange(accRanges)) => accRanges
-              case _                            => Map()
-            }
-            val clearedFacts =
+            val newFacts =
               s.namesDefinedHere
                 .foldLeft(facts)({ case (facts, x) => facts.clearRange(x) })
-            val newFacts = accRanges
-              .foldLeft(clearedFacts)({ case (facts, (x, r)) =>
-                facts.range(x, r)
-              })
             val newValid = doPartialEval(s.valid)(newFacts)
             StmBuild(
               doPartialEval(s.n)(facts),

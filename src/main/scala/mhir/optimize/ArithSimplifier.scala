@@ -206,7 +206,7 @@ private[optimize] object ArithSimplifier {
 
   private def findRange(e: Expr)(facts: FactSet): ae.Range = {
     facts.getRange(e).getOrElse(ScalarRange(None, None)) match {
-      case ScalarRange(None, None) | _: StmAccRange => ae.RangeUnknown
+      case ScalarRange(None, None) => ae.RangeUnknown
       case ScalarRange(None, Some(upper)) =>
         ae.GoesToRange(toSimplifiedArithExpr(upper)(facts))
       case ScalarRange(Some(lower), None) =>

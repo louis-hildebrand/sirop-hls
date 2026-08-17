@@ -496,12 +496,8 @@ class PartialEvalPassTests extends AnyFunSuite {
       Map()
     )()
     val e = Tuple(a < 4, s)().tchk().lower
-    val facts =
-      FactSet()
-        // Inside the stream, a >= 0
-        .range(s, StmAccRange(Map(a -> ScalarRange(Some(0), None))))
-        // Outside the stream, a < 4
-        .lt(a, 4)
+    // Outside the stream, a < 4
+    val facts = FactSet().lt(a, 4)
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected = Tuple(
       True,

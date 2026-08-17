@@ -5,7 +5,7 @@ import mhir.ir._
 import mhir.typecheck.TypeCheck
 
 case class FactSet(
-    rangeByExpr: Map[Expr, Range] = Map(),
+    rangeByExpr: Map[Expr, ScalarRange] = Map(),
     boolByExpr: Map[Expr, Boolean] = Map()
 ) {
 
@@ -14,7 +14,7 @@ case class FactSet(
     * @param e
     *   the expression for which to find the range.
     */
-  def getRange(e: Expr): Option[Range] = {
+  def getRange(e: Expr): Option[ScalarRange] = {
     this.rangeByExpr
       .get(e)
       .orElse(deriveRange(e))
@@ -26,7 +26,7 @@ case class FactSet(
     * @param e
     *   the expression for which to find the range.
     */
-  private def deriveRange(e: Expr): Option[Range] = {
+  private def deriveRange(e: Expr): Option[ScalarRange] = {
     e match {
       case ToSigned(e) => getRange(e)
       case PadTo(e, _) => getRange(e)
@@ -37,7 +37,7 @@ case class FactSet(
 
   /** Find the range of the given type.
     */
-  private def getRangeForType(typ: Type): Option[Range] = {
+  private def getRangeForType(typ: Type): Option[ScalarRange] = {
     typ match {
       case t: TyAnyInt =>
         val min = t.minInt
@@ -62,7 +62,7 @@ case class FactSet(
     * @return
     *   A fact set where the range of <code>x</code> is <code>r</code>.
     */
-  def range(e: Expr, r: Range): FactSet = {
+  def range(e: Expr, r: ScalarRange): FactSet = {
     val updatedRange = getRange(e) match {
       case Some(oldRange) => oldRange.merge(r)
       case _              => r
