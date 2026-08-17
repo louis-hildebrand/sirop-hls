@@ -87,9 +87,6 @@ object StmAccRemovalPass {
       stm: StmBuild,
       candidates: Set[Param]
   ): Set[Param] = {
-    // TODO: We could also find constant elements by adapting `StmAccRangeAnalysis` to look for both an upper and lower
-    //       bound. An element is constant if its upper and lower bounds coincide. Maybe it would be good to merge the
-    //       two somehow.
     if (candidates.isEmpty) {
       Set()
     } else {
