@@ -89,59 +89,126 @@ trait Lowering {
           }
         case v: VecLiteral =>
           val loweredElems = v.elems.map(_.lower)
-          val TyVec(elemTyp, nExpr) = v.typ
+          val TyVec(elemTyp, IntCst(nLong)) = v.typ
+          val n = nLong.toInt
           elemTyp.lower match {
-            case TyStm(elemTyp, mExpr) =>
+            case TyStm(elemTyp, IntCst(mLong)) =>
+              val m = mLong.toInt
               // Move streams to the outside
-              val elemGrid =
+              val (physicalGrid, logicalGrid) =
                 if (loweredElems.forall(_.isInstanceOf[StmLiteral])) {
-                  loweredElems.map(_.asInstanceOf[StmLiteral].elems)
+                  (
+                    loweredElems.map(_.asInstanceOf[StmLiteral].physical),
+                    loweredElems.map(_.asInstanceOf[StmLiteral].logical)
+                  )
                 } else {
+                  // TODO: Use proper error type
                   throw new IllegalArgumentException(
                     "If a VecLiteral contains elements which are streams, they must all be StmLiterals."
                   )
                 }
-              val n = nExpr.asInstanceOf[IntCst].i.toInt
-              val m = mExpr.asInstanceOf[IntCst].i.toInt
-              assert(elemGrid.length == n)
-              assert(elemGrid.forall(row => row.length == m))
+              assert(logicalGrid.length == n)
+              assert(logicalGrid.forall(row => row.length == m))
+              if (physicalGrid.map(_.length).toSet.size > 1) {
+                // TODO: Use proper error type
+                throw new IllegalArgumentException(
+                  "physical prefixes in vector of stream literals have different lengths"
+                )
+              }
+              // TODO: what if the vector is empty?
+              val physLen = if (physicalGrid.isEmpty) {
+                0
+              } else {
+                physicalGrid.head.length
+              }
               StmLiteral(
+                (0 until physLen).map(j =>
+                  VecLiteral(
+                    (0 until n).map(i => physicalGrid(i)(j)): _*
+                  )(TyVec(elemTyp, n))
+                ),
                 (0 until m).map(j =>
                   VecLiteral(
-                    (0 until n).map(i => elemGrid(i)(j)): _*
+                    (0 until n).map(i => logicalGrid(i)(j)): _*
                   )(TyVec(elemTyp, n))
-                ): _*
+                )
               )(TyStm(TyVec(elemTyp, n), m))
             case _ =>
               v.rebuild(v.typ, loweredElems)
           }
-        case s: StmLiteral =>
-          val loweredElems = s.elems.map(_.lower)
-          val TyStm(elemTyp, nExpr) = s.typ
+        case s @ StmLiteral(physical, logical) =>
+          val loweredPhysical = physical.map(_.lower)
+          val loweredLogical = logical.map(_.lower)
+          val TyStm(elemTyp, IntCst(nLong)) = s.typ
           elemTyp.lower match {
-            case TyStm(elemTyp, mExpr) =>
+            case TyStm(elemTyp, IntCst(mLong)) =>
               // Flatten nested streams
-              val elemGrid =
-                if (loweredElems.forall(_.isInstanceOf[StmLiteral])) {
-                  loweredElems.map(_.asInstanceOf[StmLiteral].elems)
+              val logicalRows = nLong.toInt
+              val logicalCols = mLong.toInt
+              val physicalGrid =
+                if (loweredPhysical.forall(_.isInstanceOf[StmLiteral])) {
+                  val innerStreams =
+                    loweredPhysical.map(_.asInstanceOf[StmLiteral])
+                  if (innerStreams.forall(_.physical.isEmpty)) {
+                    innerStreams.map(_.logical)
+                  } else {
+                    // TODO: Use proper error type
+                    throw new IllegalArgumentException(
+                      "If a StmLiteral contains elements which are streams, their physical prefixes must all be empty."
+                    )
+                  }
                 } else {
+                  // TODO: Use proper error type
                   throw new IllegalArgumentException(
-                    s"If a StmLiteral contains elements which are streams, they must all be StmLiterals."
+                    "If a StmLiteral contains elements which are streams, they must all be StmLiterals."
                   )
                 }
-              val n = nExpr.asInstanceOf[IntCst].i.toInt
-              val m = mExpr.asInstanceOf[IntCst].i.toInt
-              assert(elemGrid.length == n)
-              assert(elemGrid.forall(row => row.length == m))
+              val logicalGrid =
+                if (loweredLogical.forall(_.isInstanceOf[StmLiteral])) {
+                  val innerStreams =
+                    loweredLogical.map(_.asInstanceOf[StmLiteral])
+                  if (innerStreams.forall(_.physical.isEmpty)) {
+                    innerStreams.map(_.logical)
+                  } else {
+                    // TODO: Use proper error type
+                    throw new IllegalArgumentException(
+                      "If a StmLiteral contains elements which are streams, their physical prefixes must all be empty."
+                    )
+                  }
+                } else {
+                  // TODO: Use proper error type
+                  throw new IllegalArgumentException(
+                    "If a StmLiteral contains elements which are streams, they must all be StmLiterals."
+                  )
+                }
+              assert(logicalGrid.length == logicalRows)
+              assert(
+                logicalGrid.forall(row => row.length == logicalCols),
+                "the grid of logical elements should be rectangular, not jagged"
+              )
+              val (physicalRows, physicalCols) = if (physicalGrid.isEmpty) {
+                (0, 0)
+              } else {
+                (physicalGrid.length, physicalGrid.head.length)
+              }
+              assert(
+                physicalGrid.forall(row => row.length == physicalCols),
+                "the grid of physical elements should be rectangular, not jagged"
+              )
               StmLiteral(
-                (0 until n * m).map({ t =>
-                  val i = t / m
-                  val j = t % m
-                  elemGrid(i)(j)
-                }): _*
-              )(TyStm(elemTyp, n * m))
+                (0 until physicalRows * physicalCols).map({ t =>
+                  val i = t / physicalCols
+                  val j = t % physicalRows
+                  physicalGrid(i)(j)
+                }),
+                (0 until logicalRows * logicalCols).map({ t =>
+                  val i = t / logicalCols
+                  val j = t % logicalCols
+                  logicalGrid(i)(j)
+                })
+              )(TyStm(elemTyp, logicalRows * logicalCols))
             case _ =>
-              s.rebuild(s.typ, loweredElems)
+              s.rebuild(s.typ, loweredPhysical ++ loweredLogical)
           }
         case e @ (_: IntCst | _: Param | _: Undefined) =>
           // These expressions may carry type information that cannot be derived

@@ -100,7 +100,7 @@ trait ExprUtils {
       */
     def rebuildAndEraseType(newChildren: Seq[Expr]): Expr = {
       this.expr match {
-        case _: IntCst | _: Param | StmLiteral() | VecLiteral() |
+        case _: IntCst | _: Param | StmLiteral(Seq(), Seq()) | VecLiteral() |
             _: Undefined =>
           // These expressions may carry type information that cannot be derived
           // from the syntax alone, so be careful not to discard it.

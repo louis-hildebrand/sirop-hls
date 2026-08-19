@@ -41,17 +41,27 @@ class LiteralTests extends AnyFunSuite {
   test("VecLiteral:Vec[Stm[(U8, U8), 4], 3]") {
     val original = VecLiteral(
       (0 until 3).map(i =>
-        StmLiteral((0 until 4).map(t => Tuple(C(i)(U8), C(t)(U8))()): _*)()
+        StmLiteral(
+          (0 until 5).map(t => Tuple(C(i)(U8), C(t)(U8), AllOne(U8))()),
+          (0 until 4).map(t => Tuple(C(i)(U8), C(t)(U8), AllZero(U8))())
+        )(Missing)
       ): _*
     )().tchk()
     val expected = StmLiteral(
+      (0 until 5).map(t =>
+        VecLiteral(
+          (0 until 3).map(i => Tuple(C(i)(U8), C(t)(U8), C(255)(U8))()): _*
+        )()
+      ),
       (0 until 4).map(t =>
-        VecLiteral((0 until 3).map(i => Tuple(C(i)(U8), C(t)(U8))()): _*)()
-      ): _*
-    )().tchk()
+        VecLiteral(
+          (0 until 3).map(i => Tuple(C(i)(U8), C(t)(U8), C(0)(U8))()): _*
+        )()
+      )
+    )(Missing).tchk()
 
     val lowered = original.lower
-    assert(lowered.typ == TyStm(TyVec((U8, U8), 3), 4))
+    assert(lowered.typ == TyStm(TyVec((U8, U8, U8), 3), 4))
     assert(lowered == expected)
   }
 
@@ -77,19 +87,27 @@ class LiteralTests extends AnyFunSuite {
 
   test("StmLiteral:Stm[Stm[(U8, U8), 3], 2]") {
     val original = StmLiteral(
+      (0 until 3).map(_ =>
+        StmLiteral(
+          (0 until 3).map(_ => AllZero(TyTuple(U8, U8))): _*
+        )()
+      ),
       (0 until 2).map(i =>
         StmLiteral(
           (0 until 3).map(j => Tuple(C(i)(U8), C(j)(U8))()): _*
         )()
-      ): _*
-    )().tchk()
+      )
+    )(Missing).tchk()
     val expected = StmLiteral(
+      (0 until 9).map({ _ =>
+        Tuple(C(0)(U8), C(0)(U8))()
+      }),
       (0 until 6).map({ t =>
         val i = t / 3
         val j = t % 3
         Tuple(C(i)(U8), C(j)(U8))()
-      }): _*
-    )().tchk()
+      })
+    )(Missing).tchk()
 
     val lowered = original.lower
     assert(lowered.typ == TyStm((U8, U8), 6))

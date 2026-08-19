@@ -405,56 +405,32 @@ object Compiler {
       assert(os.isDir(outDir))
       val io = TestSuiteIO(assertions.map({ case Assertion(in, out, ignore) =>
         val inputs = in.map({ case (x, e) =>
-          x -> (mhir.eval.eval(e) match {
-            case StmLiteral(elems @ _*) =>
-              DirectTestInput(elems.map(Some(_)))
-            case e =>
-              assert(
-                e.typ.isData,
-                "if the result of evaluation is not a stream, it should be one piece of data"
-              )
-              logger.warn(
-                s"input for '$x' does not seem to be a stream." +
-                  s" Accelerator inputs should normally be streams."
-              )
-              DirectTestInput(Seq(Some(e)))
-          })
+          // TODO: Enforce rule that inputs must be streams while type checking program
+          x -> {
+            val StmLiteral(physical, logical) = mhir.eval.eval(e)
+            assert(
+              physical.isEmpty,
+              "TODO: implement VHDL testbench gen properly for no_handshake mode"
+            )
+            DirectTestInput(logical.map(Some(_)))
+          }
         })
+        val TyStm(elemTyp, _) = out.typ
         val expectedOutput = {
-          val elems = mhir.eval.eval(out) match {
-            case StmLiteral(elems @ _*) =>
-              elems
-            case e =>
-              assert(
-                e.typ.isData,
-                "if the result of evaluation is not a stream, it should be one piece of data"
-              )
-              logger.warn(
-                "expected output does not seem to be a stream." +
-                  s" The accelerator output should normally be a stream."
-              )
-              Seq(e)
-          }
-          val elemTyp = out.typ match {
-            case TyStm(t, _) => t
-            case t           => t
-          }
+          val StmLiteral(physical, elems) = mhir.eval.eval(out)
+          assert(
+            physical.isEmpty,
+            "TODO: implement VHDL testbench gen properly for no_handshake mode"
+          )
           val ignoreElems = ignore match {
             case Some(ignore) =>
-              mhir.eval.eval(ignore) match {
-                case StmLiteral(elems @ _*) =>
-                  elems
-                case e =>
-                  assert(
-                    e.typ.isData,
-                    "if the result of evaluation is not a stream, it should be one piece of data"
-                  )
-                  logger.warn(
-                    "ignore pattern does not seem to be a stream." +
-                      s" The accelerator output should normally be a stream."
-                  )
-                  Seq(e)
-              }
+              val StmLiteral(ignorePhysical, ignoreLogical) =
+                mhir.eval.eval(ignore)
+              assert(
+                ignorePhysical.isEmpty,
+                "TODO: implement VHDL testbench gen properly for no_handshake mode"
+              )
+              ignoreLogical
             case None =>
               elems.map(_ => AllZero(elemTyp))
           }

@@ -57,14 +57,26 @@ object ExprPrinter {
       case v @ VecLiteral() => displayOneLine(v)
       case VecLiteral(elems @ _*) =>
         displayMultiLineSeq(elems, start = "[", end = "]v", maxWidth = maxWidth)
-      case s @ StmLiteral() => displayOneLine(s)
-      case StmLiteral(elems @ _*) =>
+      case s @ StmLiteral(Seq(), Seq()) =>
+        displayOneLine(s)
+      case StmLiteral(Seq(), logical) =>
         displayMultiLineSeq(
-          elems,
+          logical,
           start = "[",
           end = "]s",
           maxWidth = maxWidth
         )
+      case StmLiteral(physical, logical) =>
+        Seq(physical, logical)
+          .map(elems =>
+            displayMultiLineSeq(
+              elems,
+              start = "[",
+              end = "]s",
+              maxWidth = maxWidth
+            )
+          )
+          .mkString(" ++ ")
 
       case FunCall(f, arg) =>
         // We can either split the function or the argument
@@ -747,11 +759,18 @@ object ExprPrinter {
         elems
           .map(e => displayOneLine(e, Precedence.Max))
           .mkString("[", ", ", "]v")
-      case s @ StmLiteral() if s.hasType => s"[]s:${s.typ}"
-      case StmLiteral(elems @ _*) =>
-        elems
-          .map(e => displayOneLine(e, Precedence.Max))
-          .mkString("[", ", ", "]s")
+      case s @ StmLiteral(Seq(), Seq()) if s.hasType =>
+        s"[]s:${s.typ}"
+      case StmLiteral(Seq(), logical) =>
+        logical.map(displayOneLine(_, Precedence.Max)).mkString("[", ", ", "]s")
+      case StmLiteral(physical, logical) =>
+        Seq(physical, logical)
+          .map(elems =>
+            elems
+              .map(displayOneLine(_, Precedence.Max))
+              .mkString("[", ", ", "]s")
+          )
+          .mkString(" ++ ")
       case e: SyntaxSugar =>
         e.displayOneLine()
     }
@@ -935,9 +954,10 @@ object ExprPrinter {
         val xTypStr = showScala(x.typ)
         val typStr = showScala(let.typ)
         s"""{ val ${x.name} = Param(\"${x.prefix}\", ${x.id})($xTypStr); LetStm($bufSizeStr,$xStr,$inStr,$outStr)($typStr) }"""
-      case s @ StmLiteral(elems @ _*) =>
-        val children = elems.map(e => showScala(e))
-        s"StmLiteral(${children.mkString(",")})(${showScala(s.typ)})"
+      case s @ StmLiteral(physical, logical) =>
+        val physicalStr = physical.map(showScala).mkString("Seq(", ",", ")")
+        val logicalStr = logical.map(showScala).mkString("Seq(", ",", ")")
+        s"StmLiteral($physicalStr,$logicalStr)(${showScala(s.typ)})"
       case sd @ StmData(s) =>
         s"StmData(${showScala(s)})(${showScala(sd.typ)})"
       case vb @ VecBuild(n, f) =>

@@ -21,32 +21,36 @@ trait StmLiteralUtils {
           s"StmLiteral must be lowered before it can be translated to a StmBuild."
         )
       }
-      val TyStm(t, n) = this.stm.typ
-      // TODO: Support physical outputs too?
-      val lowered = this.stm.elems match {
+      val TyStm(elemTyp, _) = this.stm.typ
+      val delay = math.max(1, this.stm.physical.length)
+      val (initData, vecElems) = this.stm.physical match {
         case Seq() =>
-          StmBuild(0, 1, Undefined(t), Undefined(t), True, Map(), Map())()
-        case Seq(e) =>
-          StmBuild(1, 1, Undefined(t), e, True, Map(), Map())()
-        case _ =>
-          // The index type must be at least wide enough to fit the value 1, since
-          // the index accumulator is updated by i + 1
-          val idxTyp = TyAnyInt.tightest(0, math.max(1, this.stm.elems.length))
-          val i = Param("i")(idxTyp)
-          val v = Param("v")(TyVec(t, n))
-          StmBuild(
-            this.stm.elems.length,
-            1,
-            Undefined(t),
-            VecAccess(v, i)(),
-            True,
-            Map[Param, (Expr, Expr, Expr)](
-              i -> (C(0)(idxTyp), Sum(C(1)(idxTyp), i)(), C(1)()),
-              v -> (VecLiteral(this.stm.elems: _*)(TyVec(t, n)), v, C(1)())
-            ),
-            Map()
-          )()
+          (Undefined(elemTyp), this.stm.logical)
+        case Seq(initData, physical @ _*) =>
+          (initData, physical ++ this.stm.logical)
       }
+      val i = {
+        // The index type must be at least wide enough to fit the value 1, since
+        // the index accumulator is updated by i + 1
+        val idxTyp = TyAnyInt.tightest(0, math.max(1, vecElems.length))
+        Param("i")(idxTyp)
+      }
+      val nextData = if (vecElems.isEmpty) {
+        Undefined(elemTyp)
+      } else {
+        VecAccess(VecLiteral(vecElems: _*)(), i)()
+      }
+      val lowered = StmBuild(
+        this.stm.logical.length,
+        C(delay)(),
+        initData,
+        nextData,
+        True,
+        Map(
+          i -> (C(0)(i.typ), Sum(C(1)(i.typ), i)(), C(1)())
+        ),
+        Map()
+      )().tchk().asInstanceOf[StmBuild]
       assert(
         !lowered.hasSyntaxSugar,
         s"converting ${stm.className} to a StmBuild should not introduce any syntax sugar"
@@ -54,8 +58,6 @@ trait StmLiteralUtils {
       lowered
         .annotate(NoInputsAfterLastOut)
         .annotateWithName("StmLiteral")
-        .tchk()
-        .asInstanceOf[StmBuild]
     }
   }
 }

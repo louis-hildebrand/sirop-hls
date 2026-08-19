@@ -87,8 +87,9 @@ object MuxMover {
       case VecAccess(v, i) => moveUp2(Seq(v, i), VecAccess(_, _)())
       case VecLiteral(elems @ _*) =>
         moveUpMany(elems, xs => VecLiteral(xs: _*)())
-      case StmLiteral(elems @ _*) =>
-        moveUpMany(elems, xs => StmLiteral(xs: _*)())
+      case s @ StmLiteral(Seq(), Seq()) => s
+      case s: StmLiteral =>
+        moveUpMany(s.physical ++ s.logical, s.rebuildAndEraseType)
       case e: SyntaxSugar =>
         // TODO: emit warning in case there's syntax sugar?
         e.map(moveUp)

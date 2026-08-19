@@ -1348,28 +1348,51 @@ object VecLiteral {
   * Normally you should use [[StmBuild]]. However, [[StmLiteral]] is needed as
   * it is the result of evaluating a [[StmLiteral]].
   *
-  * @param elems
-  *   the elements within the stream.
+  * @param physical
+  *   the "physical prefix" of the steam, i.e., the sequence of outputs you'd
+  *   get from the physical circuit before the logical outputs.
+  * @param logical
+  *   the logical elements of the stream.
   */
-case class StmLiteral(elems: Expr*)(typ: Type = Missing)
-    extends Expr(elems: _*)(typ) {
+case class StmLiteral(
+    physical: Seq[Expr],
+    logical: Seq[Expr]
+)(typ: Type)
+    extends Expr(physical ++ logical: _*)(typ) {
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    StmLiteral(newChildren: _*)(typ)
+    if (newChildren.length != this.children.length) {
+      throw new BadRebuildError(this, newChildren)
+    }
+    val newPhysical = newChildren.take(this.physical.length)
+    val newLogical = newChildren.drop(this.physical.length)
+    StmLiteral(newPhysical, newLogical)(typ)
   }
 
   /** Flatten a [[StmLiteral]] whose elements are also [[StmLiteral]].
     */
   def flatten: StmLiteral = {
-    require(elems.forall(e => e.isInstanceOf[StmLiteral]))
-    StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)()
+    require(this.physical.isEmpty)
+    require(this.logical.forall({
+      case StmLiteral(Seq(), _) => true
+      case _                    => false
+    }))
+    StmLiteral(
+      this.logical.flatMap(e => e.asInstanceOf[StmLiteral].logical): _*
+    )()
   }
 }
 
 /** Companion object for [[StmLiteral]].
   */
 object StmLiteral {
+
+  def apply(logical: Expr*)(typ: Type = Missing): StmLiteral = {
+    StmLiteral(Seq(), logical)(typ)
+  }
+
   def ints(elems: Int*): StmLiteral = {
-    StmLiteral(elems.map(n => IntCst(n)()): _*)()
+    StmLiteral(elems.map(C(_)()): _*)()
   }
 }
 

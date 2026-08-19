@@ -792,4 +792,30 @@ class ExprPrinterTests extends AnyFunSuite {
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.displayMultiLine(e) == expected)
   }
+
+  test("[0:u8, 0:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s") {
+    val e = StmLiteral(
+      Seq(C(0)(U8), C(0)(U8), C(0)(U8)),
+      Seq(C(1)(U8), C(2)(U8), C(3)(U8), C(4)(U8))
+    )(Missing)
+
+    val expectedOneLine = "[0:u8, 0:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s"
+    val actualOneLine = ExprPrinter.displayOneLine(e)
+    assert(actualOneLine == expectedOneLine)
+
+    val expectedMultiLine =
+      """[
+        |  0:u8,
+        |  0:u8,
+        |  0:u8
+        |]s ++ [
+        |  1:u8,
+        |  2:u8,
+        |  3:u8,
+        |  4:u8
+        |]s
+        |""".stripMargin.stripTrailing
+    val actualMultiLine = ExprPrinter.displayMultiLine(e)
+    assert(actualMultiLine == expectedMultiLine)
+  }
 }

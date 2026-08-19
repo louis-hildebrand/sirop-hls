@@ -159,8 +159,16 @@ object TestRunner {
   ): Option[Expr] = {
     (output, ignore) match {
       case (Some(output), Some(ignore)) =>
-        val StmLiteral(outElems @ _*) = output
-        val StmLiteral(ignoreElems @ _*) = ignore
+        val StmLiteral(outPhysical, outElems) = output
+        assert(
+          outPhysical.isEmpty,
+          "TODO: implement test runner for no_handshake mode"
+        )
+        val StmLiteral(ignorePhysical, ignoreElems) = ignore
+        assert(
+          ignorePhysical.isEmpty,
+          "TODO: implement test runner for no_handshake mode"
+        )
         val TyStm(elemTyp, _) = ignore.typ
         val ones = mhir.eval.eval(AllOne(elemTyp))
         val zeros = mhir.eval.eval(AllZero(elemTyp))

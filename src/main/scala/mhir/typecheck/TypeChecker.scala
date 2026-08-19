@@ -657,18 +657,22 @@ trait TypeChecker {
           }
           val newOut = out.tchk(context + (newX -> newIn.typ), constValues)
           let.rebuild(newOut.typ, Seq(newBufSize, newX, newIn, newOut))
-        case sl @ StmLiteral(elems @ _*) =>
-          val checkedElems = elems.map(e => e.tchk(context, constValues))
-          val types = checkedElems.map(e => e.typ).toSet
+        case sl @ StmLiteral(physical, logical) =>
+          val newPhysical = physical.map(e => e.tchk(context, constValues))
+          val newLogical = logical.map(e => e.tchk(context, constValues))
+          val types = (newPhysical ++ newLogical).map(_.typ).toSet
           if (types.isEmpty) {
             throw new IllegalArgumentException(
-              "Cannot type check empty stream literal."
+              "Cannot type check empty stream literal; an explicit type annotation must be provided."
             )
           } else if (types.size == 1) {
             val t = types.head
-            val len = checkedElems.length
+            val len = newLogical.length
             val n = C(len)(TyAnyInt.tightest(0, len))
-            sl.rebuild(TyStm(t, n)(NoOpCanonicalizer), checkedElems)
+            sl.rebuild(
+              TyStm(t, n)(NoOpCanonicalizer),
+              newPhysical ++ newLogical
+            )
           } else {
             throw new IllegalArgumentException(
               "Inconsistent element types in stream literal."

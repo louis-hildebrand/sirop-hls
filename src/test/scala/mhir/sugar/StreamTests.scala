@@ -1291,8 +1291,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral()(tv)
       )()
       val n = 5
-      assert(s1.elems.length == n)
-      assert(s2.elems.length == n)
+      assert(s1.logical.length == n)
+      assert(s2.logical.length == n)
       val actualExpr =
         StmSuffix(MulAddCascaded(s1, s2, delay)(), n - delay)().tchk().lower
       val actual = mhir.eval.eval(actualExpr)
@@ -1321,8 +1321,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral(C(1)(U16))()
       )()
       val n = 7
-      assert(s1.elems.length == n)
-      assert(s2.elems.length == n)
+      assert(s1.logical.length == n)
+      assert(s2.logical.length == n)
       val actualExpr =
         StmSuffix(MulAddCascaded(s1, s2, delay)(), n - delay)().tchk().lower
       val actual = mhir.eval.eval(actualExpr)
@@ -1364,8 +1364,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))()
       )()
       val n = 9
-      assert(s1.elems.length == n)
-      assert(s2.elems.length == n)
+      assert(s1.logical.length == n)
+      assert(s2.logical.length == n)
       val actualExpr =
         StmSuffix(MulAddCascaded(s1, s2, delay)(), n - 3 - delay)().tchk().lower
       val actual = mhir.eval.eval(actualExpr)
@@ -1406,7 +1406,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
         VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))()
       )()
-      assert(s1.elems.length == s2.elems.length)
+      assert(s1.logical.length == s2.logical.length)
       val n = 9
       val actualExpr =
         StmSuffix(StmMapDot(s1, s2, delay)(), n - 3 - delay)().tchk().lower
@@ -1449,8 +1449,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))()
       )()
       val n = 9
-      assert(s1.elems.length == n)
-      assert(s2.elems.length == n)
+      assert(s1.logical.length == n)
+      assert(s2.logical.length == n)
       val actualExpr =
         StmSuffix(MulAddCascaded(s1, s2, delay)(), n - 3 - delay)().tchk().lower
       val actual = mhir.eval.eval(actualExpr)
@@ -1491,8 +1491,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))(),
         VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))()
       )()
-      assert(s1.elems.length == s2.elems.length)
-      val n = s1.elems.length
+      assert(s1.logical.length == s2.logical.length)
+      val n = s1.logical.length
       val actualExpr =
         StmSuffix(StmMapDot(s1, s2, delay)(), n - 3 - delay)().tchk().lower
       val actual = mhir.eval.eval(actualExpr)
@@ -2117,7 +2117,9 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmVecShiftRightGarbage:Stm[Vec[u8,3],4]") {
     def extractFlat(e: Expr): Seq[Expr] = {
-      e.asInstanceOf[StmLiteral].elems.flatMap(_.asInstanceOf[VecLiteral].elems)
+      e.asInstanceOf[StmLiteral]
+        .logical
+        .flatMap(_.asInstanceOf[VecLiteral].elems)
     }
 
     val input = StmLiteral(
@@ -2151,7 +2153,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmShiftRightGarbage:Stm[u8,8]") {
     def extract(e: Expr): Seq[Expr] = {
-      e.asInstanceOf[StmLiteral].elems
+      e.asInstanceOf[StmLiteral].logical
     }
 
     val input = StmLiteral((0 until 8).map(C(_)(U8)): _*)()
@@ -2180,7 +2182,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmDelay:Stm[u8,8]") {
     def extract(e: Expr): Seq[Expr] = {
-      e.asInstanceOf[StmLiteral].elems
+      e.asInstanceOf[StmLiteral].logical
     }
 
     val input = StmLiteral((0 until 8).map(C(_)(U8)): _*)()

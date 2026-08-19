@@ -888,12 +888,15 @@ object VhdlTestbenchGenerator {
         val arg = StmLiteral(in.elements.flatten.toSeq: _*)()
         FunCall(acc, arg)()
       })
-    val evaluated = mhir.eval.eval(substituted).asInstanceOf[StmLiteral]
     val inputByParam = params.zip(inputs).toMap
-    val outputs = DirectTestOutput(
-      evaluated.elems,
-      evaluated.elems.map(e => AllZero(e.typ))
-    )
+    val outputs = {
+      val StmLiteral(physical, logical) = mhir.eval.eval(substituted)
+      assert(
+        physical.isEmpty,
+        "TODO: implement VhdlTestbenchGenerator.getExpectedOutput properly"
+      )
+      DirectTestOutput(logical, logical.map(e => AllZero(e.typ)))
+    }
     (outputs, inputByParam)
   }
 }
