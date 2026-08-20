@@ -167,12 +167,11 @@ object Compiler {
               handshake = finalProgram.handshake,
               inputs = inputs
             )
-          DotPrinter.dumpDot(
-            trace,
-            outDir,
-            overwrite = overwrite,
-            topName = finalProgram.accel.name
+          DotPrinter(
+            topName = finalProgram.accel.name,
+            showReadyValidArrows = finalProgram.handshake
           )
+            .dumpDot(trace, outDir, overwrite = overwrite)
         case TestTarget(expectedPath, actualPath, overwrite) =>
           TestRunner.run(
             finalProgram,

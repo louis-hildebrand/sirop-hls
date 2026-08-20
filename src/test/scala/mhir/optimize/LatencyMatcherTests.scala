@@ -1,7 +1,7 @@
 package mhir.optimize
 
 import mhir.canonicalize._
-import mhir.eval.{CycleCounter, IllegalBackpressure}
+import mhir.eval.{CycleCounter, DelayMismatch}
 import mhir.ir._
 import mhir.sugar._
 import mhir.typecheck._
@@ -120,13 +120,13 @@ class LatencyMatcherTests extends AnyFunSuite {
     val optimized = passWithoutHandshake.matchLatencies(original)
 
     // Correct behaviour
-    val expectedVal =
-      StmLiteral(
-        (0 until n)
-          .map(t => Tuple(C(t)(U8), C(t + 5)(U8), C(2 * (t + 5))(U8))()): _*
-      )().tchk()
-    val actualVal = mhir.eval.eval(optimized, handshake = false)
-    assert(actualVal == expectedVal)
+    val expectedVal = StmLiteral(
+      (0 until n)
+        .map(t => Tuple(C(t)(U8), C(t + 5)(U8), C(2 * (t + 5))(U8))()): _*
+    )(Missing).tchk()
+    val actualVal =
+      mhir.eval.eval(optimized, handshake = false).asInstanceOf[StmLiteral]
+    assert(actualVal.dropPhysical(4) == expectedVal)
 
     // Effective optimization
     // (Cycle count should be decreased due to improved initiation interval)
@@ -347,7 +347,7 @@ class LatencyMatcherTests extends AnyFunSuite {
       .asInstanceOf[Function]
       .body
       .subPreserveType(inputs)
-    assertThrows[IllegalBackpressure.type](
+    assertThrows[DelayMismatch.type](
       mhir.eval.eval(originalWithInputs, handshake = false)
     )
     // After latency matching, evaluation should succeed
@@ -357,11 +357,13 @@ class LatencyMatcherTests extends AnyFunSuite {
       .asInstanceOf[Function]
       .body
       .subPreserveType(inputs)
-    val actual = mhir.eval.eval(optimizedWithInputs, handshake = false)
+    val actual = mhir.eval
+      .eval(optimizedWithInputs, handshake = false)
+      .asInstanceOf[StmLiteral]
     val expected =
       StmLiteral(
         (0 until n).map(t => Tuple(C(t)(U8), C(t - 2 - 5)(I8))()): _*
       )().tchk()
-    assert(actual == expected)
+    assert(actual.dropPhysical(3) == expected)
   }
 }

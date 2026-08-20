@@ -54,13 +54,4 @@ object PipelineFixpoint extends DeadlockReason {
   override def name: String = "pipeline reached fixpoint"
 }
 
-object InvalidLetStmBufSize
-    extends EvalException(
-      "cannot implement letstm with nonzero buffer size when the handshake protocol is disabled"
-    )
-
-object IllegalBackpressure
-    extends EvalException(
-      "attempt to apply backpressure while the handshake protocol is disabled."
-        + " Is there a latency mismatch?"
-    )
+object DelayMismatch extends EvalException("there is a delay mismatch")

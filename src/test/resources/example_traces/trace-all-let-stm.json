@@ -58,7 +58,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sink": "NoOutput"
                     },
                     "accumulators": {
                         "acc_7": "(0:u16, 1:u16)"
@@ -72,7 +72,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sbuild_14": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -88,7 +88,8 @@
                         
                     ],
                     "out": {
-                        
+                        "nop_10": "NoOutput",
+                        "nop_11": "NoOutput"
                     },
                     "ready": [
                         "sbuild_8"
@@ -98,7 +99,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        
+                        "": "NoOutput"
                     },
                     "ready": [
                         "sbuild_14"
@@ -109,7 +110,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -122,7 +123,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_12": "NoOutput"
                     },
                     "ready": [
                         
@@ -133,7 +134,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "let_9": "NoOutput"
                     },
                     "accumulators": {
                         "i_1": "2:u16"
@@ -146,7 +147,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "ready": [
                         
@@ -162,7 +163,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sink": "NoOutput"
                     },
                     "accumulators": {
                         "acc_7": "(0:u16, 1:u16)"
@@ -176,7 +177,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sbuild_14": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -192,7 +193,8 @@
                         
                     ],
                     "out": {
-                        
+                        "nop_10": "NoOutput",
+                        "nop_11": "NoOutput"
                     },
                     "ready": [
                         "sbuild_8"
@@ -202,7 +204,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        
+                        "": "NoOutput"
                     },
                     "ready": [
                         "sbuild_14"
@@ -213,7 +215,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -226,7 +228,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_12": "NoOutput"
                     },
                     "ready": [
                         
@@ -237,7 +239,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 4,
                     "out": {
-                        "let_9": "2:u16"
+                        "let_9": "LogicalOutput(2:u16)"
                     },
                     "accumulators": {
                         "i_1": "3:u16"
@@ -250,7 +252,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "ready": [
                         
@@ -266,7 +268,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sink": "NoOutput"
                     },
                     "accumulators": {
                         "acc_7": "(0:u16, 1:u16)"
@@ -280,7 +282,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sbuild_14": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -296,7 +298,8 @@
                         "2:u16"
                     ],
                     "out": {
-                        
+                        "nop_10": "NoOutput",
+                        "nop_11": "NoOutput"
                     },
                     "ready": [
                         "sbuild_8"
@@ -306,7 +309,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        
+                        "": "NoOutput"
                     },
                     "ready": [
                         "sbuild_14"
@@ -317,7 +320,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -330,7 +333,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_12": "NoOutput"
                     },
                     "ready": [
                         
@@ -341,7 +344,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 3,
                     "out": {
-                        "let_9": "3:u16"
+                        "let_9": "LogicalOutput(3:u16)"
                     },
                     "accumulators": {
                         "i_1": "4:u16"
@@ -354,7 +357,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "ready": [
                         
@@ -370,7 +373,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sink": "NoOutput"
                     },
                     "accumulators": {
                         "acc_7": "(0:u16, 1:u16)"
@@ -384,7 +387,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sbuild_14": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -400,8 +403,8 @@
                         "3:u16"
                     ],
                     "out": {
-                        "nop_11": "2:u16",
-                        "nop_10": "2:u16"
+                        "nop_10": "LogicalOutput(2:u16)",
+                        "nop_11": "LogicalOutput(2:u16)"
                     },
                     "ready": [
                         "sbuild_8"
@@ -411,7 +414,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        
+                        "": "NoOutput"
                     },
                     "ready": [
                         "sbuild_14"
@@ -422,7 +425,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -435,7 +438,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_12": "2:u16"
+                        "sbuild_12": "LogicalOutput(2:u16)"
                     },
                     "ready": [
                         "let_9"
@@ -446,7 +449,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 2,
                     "out": {
-                        "let_9": "4:u16"
+                        "let_9": "LogicalOutput(4:u16)"
                     },
                     "accumulators": {
                         "i_1": "5:u16"
@@ -459,7 +462,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_13": "2:u16"
+                        "sbuild_13": "LogicalOutput(2:u16)"
                     },
                     "ready": [
                         
@@ -475,7 +478,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sink": "NoOutput"
                     },
                     "accumulators": {
                         "acc_7": "(0:u16, 1:u16)"
@@ -489,7 +492,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sbuild_14": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -507,8 +510,8 @@
                         "4:u16"
                     ],
                     "out": {
-                        "nop_11": "3:u16",
-                        "nop_10": "2:u16"
+                        "nop_10": "LogicalOutput(2:u16)",
+                        "nop_11": "LogicalOutput(3:u16)"
                     },
                     "ready": [
                         
@@ -518,7 +521,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        
+                        "": "NoOutput"
                     },
                     "ready": [
                         "sbuild_14"
@@ -529,7 +532,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 4,
                     "out": {
-                        "sbuild_13": "7:u16"
+                        "sbuild_13": "LogicalOutput(7:u16)"
                     },
                     "accumulators": {
                         
@@ -542,7 +545,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_12": "3:u16"
+                        "sbuild_12": "LogicalOutput(3:u16)"
                     },
                     "ready": [
                         "let_9"
@@ -553,7 +556,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 1,
                     "out": {
-                        "let_9": "5:u16"
+                        "let_9": "LogicalOutput(5:u16)"
                     },
                     "accumulators": {
                         "i_1": "6:u16"
@@ -566,7 +569,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_13": "2:u16"
+                        "sbuild_13": "LogicalOutput(2:u16)"
                     },
                     "ready": [
                         "let_9"
@@ -582,7 +585,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 5,
                     "out": {
-                        
+                        "sink": "NoOutput"
                     },
                     "accumulators": {
                         "acc_7": "(0:u16, 1:u16)"
@@ -596,7 +599,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 4,
                     "out": {
-                        "sbuild_14": "(2:u16, 7:u16)"
+                        "sbuild_14": "LogicalOutput((2:u16, 7:u16))"
                     },
                     "accumulators": {
                         
@@ -613,8 +616,8 @@
                         "4:u16"
                     ],
                     "out": {
-                        "nop_10": "3:u16",
-                        "nop_11": "4:u16"
+                        "nop_10": "LogicalOutput(3:u16)",
+                        "nop_11": "LogicalOutput(4:u16)"
                     },
                     "ready": [
                         "sbuild_8"
@@ -624,7 +627,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        
+                        "": "NoOutput"
                     },
                     "ready": [
                         "sbuild_14"
@@ -635,7 +638,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 3,
                     "out": {
-                        "sbuild_13": "8:u16"
+                        "sbuild_13": "LogicalOutput(8:u16)"
                     },
                     "accumulators": {
                         
@@ -648,7 +651,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_12": "4:u16"
+                        "sbuild_12": "LogicalOutput(4:u16)"
                     },
                     "ready": [
                         "let_9"
@@ -659,7 +662,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 1,
                     "out": {
-                        "let_9": "5:u16"
+                        "let_9": "LogicalOutput(5:u16)"
                     },
                     "accumulators": {
                         "i_1": "6:u16"
@@ -672,7 +675,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_13": "3:u16"
+                        "sbuild_13": "LogicalOutput(3:u16)"
                     },
                     "ready": [
                         "let_9"
@@ -688,7 +691,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 4,
                     "out": {
-                        "sink": "(0:u16, 1:u16)"
+                        "sink": "LogicalOutput((0:u16, 1:u16))"
                     },
                     "accumulators": {
                         "acc_7": "(2:u16, 7:u16)"
@@ -702,7 +705,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 3,
                     "out": {
-                        "sbuild_14": "(3:u16, 8:u16)"
+                        "sbuild_14": "LogicalOutput((3:u16, 8:u16))"
                     },
                     "accumulators": {
                         
@@ -719,7 +722,8 @@
                         "5:u16"
                     ],
                     "out": {
-                        "nop_10": "4:u16"
+                        "nop_11": "NoOutput",
+                        "nop_10": "LogicalOutput(4:u16)"
                     },
                     "ready": [
                         "sbuild_8"
@@ -729,7 +733,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        "": "(0:u16, 1:u16)"
+                        "": "LogicalOutput((0:u16, 1:u16))"
                     },
                     "ready": [
                         "sbuild_14"
@@ -740,7 +744,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 2,
                     "out": {
-                        "sbuild_13": "9:u16"
+                        "sbuild_13": "LogicalOutput(9:u16)"
                     },
                     "accumulators": {
                         
@@ -753,7 +757,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_12": "NoOutput"
                     },
                     "ready": [
                         
@@ -764,7 +768,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        "let_9": "6:u16"
+                        "let_9": "LogicalOutput(6:u16)"
                     },
                     "accumulators": {
                         "i_1": "7:u16"
@@ -777,7 +781,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_13": "4:u16"
+                        "sbuild_13": "LogicalOutput(4:u16)"
                     },
                     "ready": [
                         "let_9"
@@ -793,7 +797,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 3,
                     "out": {
-                        "sink": "(2:u16, 7:u16)"
+                        "sink": "LogicalOutput((2:u16, 7:u16))"
                     },
                     "accumulators": {
                         "acc_7": "(5:u16, 56:u16)"
@@ -807,7 +811,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 2,
                     "out": {
-                        "sbuild_14": "(4:u16, 9:u16)"
+                        "sbuild_14": "LogicalOutput((4:u16, 9:u16))"
                     },
                     "accumulators": {
                         
@@ -823,8 +827,8 @@
                         "6:u16"
                     ],
                     "out": {
-                        "nop_11": "5:u16",
-                        "nop_10": "5:u16"
+                        "nop_10": "LogicalOutput(5:u16)",
+                        "nop_11": "LogicalOutput(5:u16)"
                     },
                     "ready": [
                         "sbuild_8"
@@ -834,7 +838,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        "": "(2:u16, 7:u16)"
+                        "": "LogicalOutput((2:u16, 7:u16))"
                     },
                     "ready": [
                         "sbuild_14"
@@ -845,7 +849,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 2,
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -858,7 +862,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_12": "5:u16"
+                        "sbuild_12": "LogicalOutput(5:u16)"
                     },
                     "ready": [
                         "let_9"
@@ -869,7 +873,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "let_9": "NoOutput"
                     },
                     "accumulators": {
                         "i_1": "7:u16"
@@ -882,7 +886,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_13": "5:u16"
+                        "sbuild_13": "LogicalOutput(5:u16)"
                     },
                     "ready": [
                         
@@ -898,7 +902,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 2,
                     "out": {
-                        "sink": "(5:u16, 56:u16)"
+                        "sink": "LogicalOutput((5:u16, 56:u16))"
                     },
                     "accumulators": {
                         "acc_7": "(9:u16, 504:u16)"
@@ -912,7 +916,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 2,
                     "out": {
-                        
+                        "sbuild_14": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -929,8 +933,8 @@
                         "6:u16"
                     ],
                     "out": {
-                        "nop_10": "5:u16",
-                        "nop_11": "6:u16"
+                        "nop_10": "LogicalOutput(5:u16)",
+                        "nop_11": "LogicalOutput(6:u16)"
                     },
                     "ready": [
                         "sbuild_8"
@@ -940,7 +944,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        "": "(5:u16, 56:u16)"
+                        "": "LogicalOutput((5:u16, 56:u16))"
                     },
                     "ready": [
                         "sbuild_14"
@@ -951,7 +955,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 1,
                     "out": {
-                        "sbuild_13": "10:u16"
+                        "sbuild_13": "LogicalOutput(10:u16)"
                     },
                     "accumulators": {
                         
@@ -964,7 +968,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_12": "6:u16"
+                        "sbuild_12": "LogicalOutput(6:u16)"
                     },
                     "ready": [
                         "let_9"
@@ -975,7 +979,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "let_9": "NoOutput"
                     },
                     "accumulators": {
                         "i_1": "7:u16"
@@ -988,7 +992,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_13": "5:u16"
+                        "sbuild_13": "LogicalOutput(5:u16)"
                     },
                     "ready": [
                         "let_9"
@@ -1004,7 +1008,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 2,
                     "out": {
-                        
+                        "sink": "NoOutput"
                     },
                     "accumulators": {
                         "acc_7": "(9:u16, 504:u16)"
@@ -1018,7 +1022,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 1,
                     "out": {
-                        "sbuild_14": "(5:u16, 10:u16)"
+                        "sbuild_14": "LogicalOutput((5:u16, 10:u16))"
                     },
                     "accumulators": {
                         
@@ -1035,7 +1039,8 @@
                         
                     ],
                     "out": {
-                        "nop_10": "6:u16"
+                        "nop_11": "NoOutput",
+                        "nop_10": "LogicalOutput(6:u16)"
                     },
                     "ready": [
                         "sbuild_8"
@@ -1045,7 +1050,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        
+                        "": "NoOutput"
                     },
                     "ready": [
                         "sbuild_14"
@@ -1056,7 +1061,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        "sbuild_13": "11:u16"
+                        "sbuild_13": "LogicalOutput(11:u16)"
                     },
                     "accumulators": {
                         
@@ -1069,7 +1074,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_12": "NoOutput"
                     },
                     "ready": [
                         
@@ -1080,7 +1085,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "let_9": "NoOutput"
                     },
                     "accumulators": {
                         "i_1": "7:u16"
@@ -1093,7 +1098,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        "sbuild_13": "6:u16"
+                        "sbuild_13": "LogicalOutput(6:u16)"
                     },
                     "ready": [
                         "let_9"
@@ -1109,7 +1114,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 1,
                     "out": {
-                        "sink": "(9:u16, 504:u16)"
+                        "sink": "LogicalOutput((9:u16, 504:u16))"
                     },
                     "accumulators": {
                         "acc_7": "(14:u16, 5040:u16)"
@@ -1123,7 +1128,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        "sbuild_14": "(6:u16, 11:u16)"
+                        "sbuild_14": "LogicalOutput((6:u16, 11:u16))"
                     },
                     "accumulators": {
                         
@@ -1139,7 +1144,8 @@
                         
                     ],
                     "out": {
-                        
+                        "nop_10": "NoOutput",
+                        "nop_11": "NoOutput"
                     },
                     "ready": [
                         "sbuild_8"
@@ -1149,7 +1155,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        "": "(9:u16, 504:u16)"
+                        "": "LogicalOutput((9:u16, 504:u16))"
                     },
                     "ready": [
                         "sbuild_14"
@@ -1160,7 +1166,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -1173,7 +1179,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_12": "NoOutput"
                     },
                     "ready": [
                         
@@ -1184,7 +1190,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "let_9": "NoOutput"
                     },
                     "accumulators": {
                         "i_1": "7:u16"
@@ -1197,7 +1203,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "ready": [
                         
@@ -1213,7 +1219,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        "sink": "(14:u16, 5040:u16)"
+                        "sink": "LogicalOutput((14:u16, 5040:u16))"
                     },
                     "accumulators": {
                         "acc_7": "(20:u16, 55440:u16)"
@@ -1227,7 +1233,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "sbuild_14": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -1243,7 +1249,8 @@
                         
                     ],
                     "out": {
-                        
+                        "nop_10": "NoOutput",
+                        "nop_11": "NoOutput"
                     },
                     "ready": [
                         "sbuild_8"
@@ -1253,7 +1260,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        "": "(14:u16, 5040:u16)"
+                        "": "LogicalOutput((14:u16, 5040:u16))"
                     },
                     "ready": [
                         "sbuild_14"
@@ -1264,7 +1271,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -1277,7 +1284,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_12": "NoOutput"
                     },
                     "ready": [
                         
@@ -1288,7 +1295,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "let_9": "NoOutput"
                     },
                     "accumulators": {
                         "i_1": "7:u16"
@@ -1301,7 +1308,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "ready": [
                         
@@ -1317,7 +1324,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "sink": "NoOutput"
                     },
                     "accumulators": {
                         "acc_7": "(20:u16, 55440:u16)"
@@ -1331,7 +1338,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "sbuild_14": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -1347,7 +1354,8 @@
                         
                     ],
                     "out": {
-                        
+                        "nop_10": "NoOutput",
+                        "nop_11": "NoOutput"
                     },
                     "ready": [
                         "sbuild_8"
@@ -1357,7 +1365,7 @@
                 "sink": {
                     "$type": "mhir.debug.TerminalTraceNode",
                     "out": {
-                        
+                        "": "NoOutput"
                     },
                     "ready": [
                         "sbuild_14"
@@ -1368,7 +1376,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "accumulators": {
                         
@@ -1381,7 +1389,7 @@
                 "nop_11": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_12": "NoOutput"
                     },
                     "ready": [
                         
@@ -1392,7 +1400,7 @@
                     "$type": "mhir.debug.StmBuildTraceNode",
                     "n": 0,
                     "out": {
-                        
+                        "let_9": "NoOutput"
                     },
                     "accumulators": {
                         "i_1": "7:u16"
@@ -1405,7 +1413,7 @@
                 "nop_10": {
                     "$type": "mhir.debug.StmNopTraceNode",
                     "out": {
-                        
+                        "sbuild_13": "NoOutput"
                     },
                     "ready": [
                         

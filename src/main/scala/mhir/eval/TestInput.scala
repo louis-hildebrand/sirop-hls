@@ -3,7 +3,7 @@ package mhir.eval
 import mhir.ir._
 import mhir.typecheck.TypeCheck
 
-case class TestInput(e: Expr, x: String)(typ: Type)
+private[eval] case class TestInput(e: Expr, x: String)(typ: Type)
     extends SyntaxSugar(e)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {

@@ -124,13 +124,13 @@ class EnabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
       val acc = Param("s")(TyStm(t, -1))
       StmBuild(
         n,
-        Tuple()(),
+        C(1)(),
         Undefined(t),
         StmData(acc)(),
         True,
         accumulators = Map(),
         producers = Map[Param, (Expr, Expr, Expr)](
-          acc -> (increaseLatency(s, delay - 1), True, Tuple()())
+          acc -> (increaseLatency(s, delay - 1), True, C(0)())
         )
       )().tchk()
     }

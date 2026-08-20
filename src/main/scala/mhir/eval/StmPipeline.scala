@@ -1,321 +1,62 @@
 package mhir.eval
 
-import com.typesafe.scalalogging.Logger
-import mhir.canonicalize._
 import mhir.ir._
-import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
-import mhir.typecheck.{TypeCheck, TypeError}
 
-import scala.annotation.tailrec
+trait StmPipeline {
 
-/** A streaming pipeline.
-  *
-  * @note
-  *   this class is mutable so that there can be circular references between the
-  *   pipeline and its nodes. The pipeline should not actually be mutated after
-  *   construction.
-  * @param connections
-  *   a directed graph representing the connections between nodes.
-  * @param nodes
-  *   the current state of each node.
-  * @param sinkId
-  *   the ID of the unique node in the pipeline with no consumers.
-  */
-class StmPipeline(
-    var connections: DiGraph[StmNodeId],
-    var sinkId: StmNodeId,
-    var nodes: Map[StmNodeId, StmNode] = Map()
-) {
+  /** Computes the next state of the pipeline.
+    */
+  def step(): StmPipeline
 
-  def sameState(that: StmPipeline): Boolean = {
-    (this.connections == that.connections
-    && this.sinkId == that.sinkId
-    && this.nodes.keySet == that.nodes.keySet
-    && this.nodes.keySet.forall(id => this.nodes(id).sameState(that.nodes(id))))
-  }
+  // TODO: Should this be combined with the `isStuck` method?
+  def reachedFixpoint(that: StmPipeline): Boolean
+
+  def connections: DiGraph[StmNodeId]
+
+  def nodes: Map[StmNodeId, StmNode]
+
+  def sinkId: StmNodeId
 
   /** The unique node in the pipeline with no consumers, which gives the output
     * of the entire pipeline.
     */
   def sink: StmNode = this.nodes(sinkId)
 
-  /** Computes the next state of the pipeline.
-    */
-  def step(): StmPipeline = {
-    val newPipe =
-      new StmPipeline(connections = this.connections, sinkId = this.sinkId)
-    val newNodes = this.nodes.map({ case (id, node) =>
-      id -> node.step(newPipe)
-    })
-    newPipe.nodes = newNodes
-    newPipe
-  }
-
-  @tailrec
-  private def stepUntilFirstValid(): StmPipeline = {
-    if (this.sink.valid(StmNodeId(""))) {
-      this
-    } else {
-      this.step().stepUntilFirstValid()
-    }
-  }
-
   /** Whether this pipeline is empty; i.e., has successfully produced the number
     * of outputs that it was supposed to and no longer has valid output.
     */
-  def isEmpty: Boolean = {
-    this.sink.isEmpty
-  }
+  def isEmpty: Boolean = this.sink.isEmpty
 
   /** The reasons for which this pipeline is stuck, if any (see [[isStuck]]).
     */
-  def deadlockReasons: Set[DeadlockReason] = {
-    this.sink.deadlockReasons
-  }
+  def deadlockReasons: Set[DeadlockReason] = this.sink.deadlockReasons
 
   /** Whether this pipeline is stuck and will no longer produce any output
     * despite (supposedly) being non-empty.
     */
-  def isStuck: Boolean = deadlockReasons.nonEmpty
+  def isStuck: Boolean = this.deadlockReasons.nonEmpty
 
   /** The type of the stream produced by this pipeline.
     */
   def typ: Type = this.sink.typ
-
-  /** Adds a new node to this pipeline.
-    *
-    * @param node
-    *   the node to add.
-    */
-  def addNode(node: StmNode): Unit = {
-    require(node.pipe == this)
-    this.connections = this.connections.addNode(node.id)
-    this.nodes = this.nodes + (node.id -> node)
-  }
-
-  /** Adds new nodes to this pipeline.
-    *
-    * @param nodes
-    *   the nodes to add.
-    */
-  def addNodes(nodes: StmNode*): Unit = {
-    for (v <- nodes) {
-      this.addNode(v)
-    }
-  }
-
-  /** Adds new edges to this pipeline.
-    *
-    * @param edgesToAdd
-    *   the edges to add.
-    */
-  def addEdges(edgesToAdd: (StmNodeId, StmNodeId)*): Unit = {
-    this.connections = this.connections.addEdges(edgesToAdd: _*)
-  }
 }
 
-/** Companion object for [[StmPipeline]].
-  */
 object StmPipeline {
-
-  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Makes a pipeline representing the given stream expression.
     *
-    * @param f
-    *   an expression representing a stream ([[StmBuild]], [[LetStm]], etc.) or
-    *   a function on streams.
+    * @param e
+    *   an expression representing a stream ([[StmBuild]], [[LetStm]], etc.).
     */
   def apply(
-      f: Expr,
-      inputs: Map[Param, Expr],
-      handshake: Boolean = true,
-      initialLoc: StmNodeLocation = InMain
-  ): StmPipeline = {
-    val pipe = new StmPipeline(
-      connections = DiGraph(),
-      sinkId = StmNodeId(""),
-      nodes = Map()
-    )
-    val fWithInputs = f.subPreserveType(
-      inputs
-        .map({ case (x, e) =>
-          val loweredX = x.tchk().lower.asInstanceOf[Param]
-          // Evaluate the input because we may be in no_handshake mode, but
-          // inputs are always evaluated with the handshake protocol (because
-          // it's less restrictive for the programmer and I don't want to have
-          // to do latency matching for the inputs)
-          val evaluatedE = mhir.eval.eval(e)
-          loweredX -> TestInput(evaluatedE, x.name)(evaluatedE.typ)
-        })
-        .toMap[Expr, Expr]
-    )
-    init(pipe, fWithInputs, Map(), loc = initialLoc, handshake = handshake)
-    // Initialize the flags in each LetStmNode so that they will raise their
-    // `ready` signal at the beginning.
-    // This can only happen once we actually know who the consumers for the
-    // LetStmNodes are.
-    pipe.nodes = pipe.nodes.map({
-      case (id, s: LetStmNode) => id -> s.withConsumerIds(s.consumerIds)
-      case x                   => x
-    })
-    // Add terminal node
-    val term = TerminalNode(pipe, id = StmNodeId("sink"), typ = pipe.sink.typ)
-    pipe.addEdges(pipe.sinkId -> term.id)
-    pipe.addNode(term)
-    pipe.sinkId = term.id
-    pipe
-  }
-
-  private def init(
-      pipe: StmPipeline,
       e: Expr,
-      idByVar: Map[Param, StmNodeId],
-      loc: StmNodeLocation,
+      inputs: Map[Param, Expr],
       handshake: Boolean
-  ): StmNodeId = {
-    require(
-      e.typ != Missing,
-      s"Stream must be type checked before it can be converted to a StmNode."
-    )
-    e match {
-      case x: Param if idByVar.contains(x) =>
-        val newNode = {
-          val typ = e.typ.asInstanceOf[TyStm]
-          val id = StmNodeId(Param("nop")().name)
-          StmNopNode(
-            pipe = pipe,
-            id = id,
-            typ = typ,
-            loc = loc,
-            handshake = handshake
-          )
-        }
-        pipe.addNode(newNode)
-        pipe.addEdges(idByVar(x) -> newNode.id)
-        pipe.sinkId = newNode.id
-      case s: StmLiteral =>
-        init(pipe, s.toStmBuild, idByVar, loc, handshake = handshake)
-      case s: StmBuild =>
-        val newSink =
-          makeStmBuildNode(s, pipe, idByVar, loc, handshake = handshake)
-        pipe.addNode(newSink)
-        pipe.addEdges(
-          newSink.hw.inputs.map({ case (_, id) => id -> newSink.id }).toSeq: _*
-        )
-        pipe.sinkId = newSink.id
-      case LetStm(bufSize, x, in, out) =>
-        val bufSizeVal = eval(bufSize) match {
-          case IntCst(n) => n
-          case e =>
-            throw new TypeError(
-              s"Buffer size in LetStm evaluated to $e."
-                + "It must evaluate to an integer."
-            )
-        }
-        init(pipe, in, idByVar, loc, handshake = handshake)
-        val newNode = if (handshake) {
-          LetStmNode(
-            pipe = pipe,
-            id = StmNodeId(Param("let")().name),
-            inTyp = in.typ.asInstanceOf[TyStm],
-            bufSize = bufSizeVal.toInt,
-            loc = loc
-          )
-        } else {
-          if (bufSizeVal != 0) {
-            logger.warn(
-              "cannot implement letstm with nonzero buffer size when the handshake protocol is disabled." +
-                " The buffer size will be ignored, which may lead to the design getting stuck or producing incorrect results."
-            )
-          }
-          StmNopNode(
-            pipe = pipe,
-            id = StmNodeId(Param("let")().name),
-            typ = in.typ.asInstanceOf[TyStm],
-            loc = loc,
-            handshake = handshake
-          )
-        }
-        pipe.addNode(newNode)
-        pipe.addEdges(pipe.sinkId -> newNode.id)
-        pipe.sinkId = newNode.id
-        init(pipe, out, idByVar + (x -> newNode.id), loc, handshake = handshake)
-      case TestInput(e, x) =>
-        val tempPipe = StmPipeline(
-          e,
-          inputs = Map(),
-          handshake = handshake,
-          initialLoc = TestStimulus(x)
-        ).stepUntilFirstValid()
-        pipe.addNodes(
-          (tempPipe.nodes - tempPipe.sinkId).values
-            .map(_.inPipe(pipe))
-            .toSeq: _*
-        )
-        pipe.addEdges(
-          tempPipe.connections.edges
-            .filter({ case (u, v) =>
-              u != tempPipe.sinkId && v != tempPipe.sinkId
-            })
-            .toSeq: _*
-        )
-        pipe.sinkId = tempPipe.connections.edges
-          .collectFirst({ case (u, v) if v == tempPipe.sinkId => u })
-          .get
-      case e =>
-        throw new IllegalArgumentException(
-          s"Expression cannot be made into a stream pipeline: $e"
-        )
+  ): StmPipeline = {
+    if (handshake) {
+      mhir.eval.handshake.StmPipeline(e, inputs)
+    } else {
+      mhir.eval.nohandshake.StmPipeline(e, inputs)
     }
-    pipe.sinkId
-  }
-
-  private def makeStmBuildNode(
-      s: StmBuild,
-      pipe: StmPipeline,
-      idByVar: Map[Param, StmNodeId],
-      loc: StmNodeLocation,
-      handshake: Boolean
-  ): StmBuildNode = {
-    val n = eval(s.n) match {
-      case IntCst(n) => n
-      case e =>
-        throw new TypeError(
-          s"Stream length evaluated to $e. It must evaluate to an integer."
-        )
-    }
-    val readyByInput = s.producers
-      .map({ case (x, (_, ready, _)) => x -> ready })
-    val inputs = s.producers.map({ case (x, (z, _, _)) =>
-      x -> init(pipe, z, idByVar, loc, handshake = handshake)
-    })
-    StmBuildNode(
-      pipe = pipe,
-      id = StmNodeId(Param("sbuild")().name),
-      data = None,
-      hw = StmNodeHardware(
-        data = s.nextData,
-        valid = s.valid,
-        inputs = inputs,
-        nextByDataAcc = s.accumulators
-          .map({ case (x, (_, next, _)) => x -> next }),
-        readyByInput = readyByInput,
-        typ = s.typ.asInstanceOf[TyStm]
-      ),
-      n = n,
-      acc = s.accumulators.map({
-        case (x, (Undefined(typ), _, _)) =>
-          logger.debug(
-            s"Undefined initial value for accumulator $x will be replaced by default value."
-              + " I hope you know what you're doing."
-          )
-          x -> eval(DefaultVal(typ))
-        case (x, (z, _, _)) => x -> eval(z)
-      }),
-      invalidSteps = 0,
-      loc = loc,
-      handshake = handshake
-    )
   }
 }

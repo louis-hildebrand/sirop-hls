@@ -52,7 +52,7 @@ object Tracer {
             case ex: EvalException =>
               return (ErrorTraceStep(ex) +: newSteps).reverse
           }
-        if (newPipe.sameState(pipe)) {
+        if (newPipe.reachedFixpoint(pipe)) {
           val ex = new DeadlockError(Seq(PipelineFixpoint))
           return (ErrorTraceStep(ex) +: newSteps).reverse
         }
@@ -64,16 +64,26 @@ object Tracer {
       val (_, body) = TypeChecker.unwrapTopLevelFunction(s.tchk().lower)
       StmPipeline(body, inputs = inputs, handshake = handshake)
     }
+    // Add a connection from the real sink to a dummy sink so the sequence
+    // of outputs is easily visible (e.g., when converting to a DOT diagram)
+    // TODO: Make StmNodeId("sink") a constant rather than hard-coding it everywhere?
+    val structure = if (pipe.sinkId == StmNodeId("sink")) {
+      pipe.connections
+    } else {
+      pipe.connections
+        .addNode(StmNodeId("sink"))
+        .addEdges(pipe.sinkId -> StmNodeId("sink"))
+    }
     try {
       Trace(
-        structure = pipe.connections,
+        structure = structure,
         sink = pipe.sinkId,
         steps = trace(pipe, Seq(), maxCycles)
       )
     } catch {
       case ex: EvalException =>
         Trace(
-          structure = pipe.connections,
+          structure = structure,
           sink = pipe.sinkId,
           steps = Seq(ErrorTraceStep(ex))
         )

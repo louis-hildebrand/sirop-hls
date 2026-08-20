@@ -10,7 +10,7 @@ import mhir.ir._
   * @param warnings
   *   undefined behaviours that affect the result.
   */
-case class Value(e: Expr, warnings: Set[EvalWarning]) {
+private[eval] case class Value(e: Expr, warnings: Set[EvalWarning]) {
   def addWarnings(ws: Set[EvalWarning]): Value = {
     Value(this.e, this.warnings ++ ws)
   }

@@ -883,14 +883,20 @@ object VhdlTestbenchGenerator {
           + s" Expected ${params.length}, got ${inputs.length}."
       )
     }
-    val substituted = inputs
-      .foldLeft(e)({ case (acc, in) =>
-        val arg = StmLiteral(in.elements.flatten.toSeq: _*)()
-        FunCall(acc, arg)()
-      })
+    // TODO: don't do this; instead, provide the inputs to the evaluator separately
+    val (body, inputExprs) = inputs.foldLeft((e, Map[Param, Expr]()))({
+      case ((Function(x, body), inputExprs), in) =>
+        val inExpr = StmLiteral(in.elements.flatten.toSeq: _*)()
+        (body, inputExprs + (x -> inExpr))
+      case _ =>
+        throw new IllegalArgumentException(
+          "argument has no corresponding param"
+        )
+    })
     val inputByParam = params.zip(inputs).toMap
     val outputs = {
-      val StmLiteral(physical, logical) = mhir.eval.eval(substituted)
+      val StmLiteral(physical, logical) =
+        mhir.eval.eval(body, inputs = inputExprs)
       assert(
         physical.isEmpty,
         "TODO: implement VhdlTestbenchGenerator.getExpectedOutput properly"

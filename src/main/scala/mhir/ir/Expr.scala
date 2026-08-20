@@ -1381,6 +1381,14 @@ case class StmLiteral(
       this.logical.flatMap(e => e.asInstanceOf[StmLiteral].logical): _*
     )()
   }
+
+  def dropPhysical(expectedLen: Int = -1): StmLiteral = {
+    assert(
+      expectedLen < 0 || this.physical.length == expectedLen,
+      s"expected the physical prefix to have a length of $expectedLen, but found ${this.physical.length}"
+    )
+    this.copy(physical = Seq())(typ = this.typ)
+  }
 }
 
 /** Companion object for [[StmLiteral]].

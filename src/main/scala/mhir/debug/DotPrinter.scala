@@ -7,7 +7,10 @@ import os.Path
 /** Provides functions for visualizing a [[Trace]] using
   * [[https://graphviz.org/ Graphviz]].
   */
-object DotPrinter {
+case class DotPrinter(
+    topName: String = "main",
+    showReadyValidArrows: Boolean = true
+) {
 
   private case class Node(id: StmNodeId, isNop: Boolean)
 
@@ -25,8 +28,7 @@ object DotPrinter {
   def dumpDot(
       trace: Trace,
       dir: Path = os.pwd / "traces" / "default",
-      overwrite: Boolean = false,
-      topName: String = "main"
+      overwrite: Boolean = false
   ): Unit = {
     val alreadyExists =
       os.exists(dir) || (os.isDir(dir) && os.list(dir).nonEmpty)
@@ -41,7 +43,7 @@ object DotPrinter {
     for ((step, i) <- trace.steps.zipWithIndex) {
       val dot = step match {
         case step: ValidTraceStep =>
-          toDot(step, trace.structure, topName)
+          toDot(step, trace.structure)
         case step: ErrorTraceStep =>
           val label = step.err.toString
           s"""digraph g {
@@ -72,16 +74,14 @@ object DotPrinter {
     * @param g
     *   the immutable structure of the stream pipeline.
     */
-  private def toDot(
-      step: ValidTraceStep,
-      g: DiGraph[StmNodeId],
-      topName: String
-  ): String = {
-    val nodes = nodesToDot(step, topName)
+  private def toDot(step: ValidTraceStep, g: DiGraph[StmNodeId]): String = {
+    val nodes = nodesToDot(step, this.topName)
     val edges = edgesToDot(
       step,
       g = g.mapNodes(id => {
-        val isNop = step.nodes(id).isInstanceOf[StmNopTraceNode]
+        val isNop = step.nodes
+          .get(id)
+          .exists(_.isInstanceOf[StmNopTraceNode])
         Node(id, isNop)
       })
     )
@@ -108,6 +108,8 @@ object DotPrinter {
           case Sink            => Some(nodeToDot(id, node))
         }
       })
+      .toSeq
+      .:+(terminalNodeToDot(StmNodeId("sink")))
       .mkString("\n")
     s"""subgraph cluster_main {
        |    label = "$topName";
@@ -178,28 +180,38 @@ object DotPrinter {
       from: Node,
       to: Node
   ): String = {
-    // TODO: Also show `read` flags in LetStm
-    val out =
-      step.nodes.get(from.id).flatMap(_.out.get(to.id)) match {
-        case Some(e) => e.toString
-        case None    => ""
-      }
-    val ready =
-      step.nodes.get(to.id).exists(producer => producer.ready.contains(from.id))
-    val transferOk = out.nonEmpty && ready
+    assert(from != to)
+    // TODO: Also show `read` flags in LetStm?
+    val out = step.nodes
+      .get(from.id)
+      .flatMap(_.out.get(to.id))
+      .getOrElse(NoOutput)
+    val ready = step.nodes
+      .get(to.id)
+      // The node will only be missing in case it's the sink, right?
+      // And in that case, I want to pretend it is ready.
+      .forall(producer => producer.ready.contains(from.id))
+    val valid = out.isInstanceOf[LogicalOutput]
+    val transferOk = valid && ready
     val color = if (transferOk) "green" else "black"
     val style = if (transferOk) "solid" else "dashed"
     val dir = {
       val tail = ready && !from.isNop
-      val head = out.nonEmpty && !to.isNop
+      val head = valid && !to.isNop
       (tail, head) match {
-        case (false, false) => "none"
-        case (false, true)  => "forward"
-        case (true, false)  => "back"
-        case (true, true)   => "both"
+        case _ if !this.showReadyValidArrows => "forward"
+        case (false, false)                  => "none"
+        case (false, true)                   => "forward"
+        case (true, false)                   => "back"
+        case (true, true)                    => "both"
       }
     }
-    val label = if (from.isNop) "" else out
+    val label = out match {
+      case _ if from.isNop   => ""
+      case NoOutput          => ""
+      case PhysicalOutput(e) => e.toString
+      case LogicalOutput(e)  => e.toString
+    }
     s"""${from.id} -> ${to.id} [label="$label", dir="$dir", color="$color", style="$style"];"""
   }
 }

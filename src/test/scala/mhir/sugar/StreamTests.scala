@@ -862,14 +862,12 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmMap:RepeatedData1") {
     val n = 3
     val m = 4
-    val f =
-      (TyStm(TyStm(U8, m), n) ::+ (a =>
-        TyStm(I32, m) ::+ (b =>
-          StmMap(a, TyStm(U8, m) ::+ (rowA => StmZip(rowA, b)()))()
-        )
-      )).tchk().lower
-    val a = build2D(n, m, i => j => C(i + 2 * j)(U8)).tchk().lower
-    val b = StmRange(m, C(-1)(I32), C(2)(I32))().tchk().lower
+    val a = Param("a")(TyStm(TyStm(U8, m), n))
+    val b = Param("b")(TyStm(I32, m))
+    val s =
+      StmMap(a, TyStm(U8, m) ::+ (rowA => StmZip(rowA, b)()))().tchk().lower
+    val aVal = build2D(n, m, i => j => C(i + 2 * j)(U8)).tchk().lower
+    val bVal = StmRange(m, C(-1)(I32), C(2)(I32))().tchk().lower
     val expected = {
       val aVals = (0 until n).map(i => (0 until m).map(j => i + 2 * j))
       val bVals = (0 until m).map(t => -1 + 2 * t)
@@ -878,7 +876,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         expectedVals.flatten.map({ case (x, y) => Tuple(x, y)() }): _*
       )()
     }
-    val actual = mhir.eval.eval(FunCall(FunCall(f, a)(), b)())
+    val actual = mhir.eval.eval(s, inputs = Map(a -> aVal, b -> bVal))
     assert(actual == expected)
   }
 

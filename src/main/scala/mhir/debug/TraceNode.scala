@@ -1,6 +1,7 @@
 package mhir.debug
 
 import mhir.eval._
+import mhir.eval.handshake._
 import mhir.ir._
 
 /** One node in a trace, showing the current state of a given node in the stream
@@ -9,11 +10,8 @@ import mhir.ir._
 sealed trait TraceNode {
 
   /** The current outputs of this node.
-    *
-    * If an output is invalid (i.e., no output), then it should simply be
-    * omitted from the `Map`.
     */
-  def out: Map[StmNodeId, Expr]
+  def out: Map[StmNodeId, StmOutput]
 
   def ready: Set[StmNodeId]
 
@@ -39,7 +37,7 @@ object TraceNode {
   }
 }
 
-/** One node in a trace representing a [[mhir.eval.StmBuildNode]].
+/** One node in a trace representing a [[StmBuildNode]].
   *
   * @param n
   *   the remaining number of outputs.
@@ -50,7 +48,7 @@ object TraceNode {
   */
 case class StmBuildTraceNode(
     n: Long,
-    out: Map[StmNodeId, Expr],
+    out: Map[StmNodeId, StmOutput],
     accumulators: Map[String, String],
     ready: Set[StmNodeId],
     loc: StmNodeLocation
@@ -69,14 +67,12 @@ object StmBuildTraceNode {
     val acc = s.acc.map({ case (x, v) =>
       x.name -> ExprPrinter.displayOneLine(v)
     })
-    val consumers = s.consumers
-    assert(consumers.size == 1)
-    val consumer = consumers.head
     StmBuildTraceNode(
       n = s.n,
-      out = s.out(consumer.id) match {
-        case Some(v) => Map(consumer.id -> v)
-        case None    => Map()
+      out = if (s.consumerIds.isEmpty) {
+        Map(StmNodeId("sink") -> s.out(StmNodeId("sink")))
+      } else {
+        s.consumerIds.map(cid => cid -> s.out(cid)).toMap
       },
       accumulators = acc,
       ready = s.producerIds.filter(s.ready),
@@ -92,7 +88,7 @@ object StmBuildTraceNode {
   */
 case class LetStmTraceNode(
     buffer: Array[Expr],
-    out: Map[StmNodeId, Expr],
+    out: Map[StmNodeId, StmOutput],
     ready: Set[StmNodeId],
     loc: StmNodeLocation
 ) extends TraceNode
@@ -105,26 +101,15 @@ object LetStmTraceNode {
     */
   def apply(s: LetStmNode): LetStmTraceNode = {
     new LetStmTraceNode(
-      buffer = if (s.head >= s.tail) {
-        s.buffer.slice(s.tail, s.head)
-      } else {
-        s.buffer.slice(s.tail, s.buffer.length) ++ s.buffer.slice(0, s.head)
-      },
-      out = s.consumerIds
-        .flatMap(id =>
-          s.out(id) match {
-            case Some(x) => Some(id -> x)
-            case None    => None
-          }
-        )
-        .toMap,
+      buffer = s.buffer,
+      out = s.outMap,
       ready = s.producerIds.filter(s.ready),
       loc = s.loc
     )
   }
 }
 
-/** One node in a trace representing a [[mhir.eval.StmNopNode]].
+/** One node in a trace representing a [[StmNopNode]].
   *
   * @param out
   *   the current output of the stream.
@@ -132,7 +117,7 @@ object LetStmTraceNode {
   *   the set of producers for which this node's `ready` signal is raised.
   */
 case class StmNopTraceNode(
-    out: Map[StmNodeId, Expr],
+    out: Map[StmNodeId, StmOutput],
     ready: Set[StmNodeId],
     loc: StmNodeLocation
 ) extends TraceNode
@@ -145,14 +130,7 @@ object StmNopTraceNode {
     */
   def apply(s: StmNopNode): StmNopTraceNode = {
     StmNopTraceNode(
-      out = s.consumerIds
-        .flatMap(id =>
-          s.out(id) match {
-            case Some(x) => Some(id -> x)
-            case None    => None
-          }
-        )
-        .toMap,
+      out = s.outMap,
       ready = s.producerIds.filter(s.ready),
       loc = s.loc
     )
@@ -160,7 +138,7 @@ object StmNopTraceNode {
 }
 
 case class TerminalTraceNode(
-    out: Map[StmNodeId, Expr],
+    out: Map[StmNodeId, StmOutput],
     ready: Set[StmNodeId],
     loc: StmNodeLocation
 ) extends TraceNode
@@ -173,7 +151,7 @@ object TerminalTraceNode {
     */
   def apply(s: TerminalNode): TerminalTraceNode = {
     TerminalTraceNode(
-      out = s.out(StmNodeId("")).map(StmNodeId("") -> _).toMap,
+      out = Map(StmNodeId("") -> s.out(StmNodeId(""))),
       ready = s.producerIds.filter(s.ready),
       loc = s.loc
     )
