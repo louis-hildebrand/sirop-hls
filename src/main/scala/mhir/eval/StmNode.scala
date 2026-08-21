@@ -127,6 +127,4 @@ trait LetStmNode extends StmNode {
   def buffer: Array[Expr]
 }
 
-trait TerminalNode extends StmNode
-
 trait StmNopNode extends StmNode

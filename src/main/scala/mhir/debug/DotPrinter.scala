@@ -105,7 +105,6 @@ case class DotPrinter(
         node.loc match {
           case InMain          => None
           case _: TestStimulus => Some(testStimulusNodeToDot(id, node))
-          case Sink            => Some(nodeToDot(id, node))
         }
       })
       .toSeq
@@ -132,7 +131,6 @@ case class DotPrinter(
       case node: StmBuildTraceNode => stmBuildNodeToDot(id, node)
       case node: LetStmTraceNode   => letStmNodeToDot(id, node)
       case _: StmNopTraceNode      => nopNodeToDot(id)
-      case _: TerminalTraceNode    => terminalNodeToDot(id)
     }
   }
 

@@ -7,8 +7,6 @@ import scala.annotation.tailrec
 
 private[eval] object DataEvaluator {
 
-  // TODO: move stmData out to an instance variable, since it's never modified here?
-  // TODO: would changing order of cases in match expressions help (e.g., moving Undefined lower?)
   def evalBigStep(stmData: Map[Param, Option[Expr]])(e: Expr): Expr = {
     val result: Expr = e match {
       case u: Undefined => u
@@ -44,12 +42,12 @@ private[eval] object DataEvaluator {
         val v1 = evalBigStep(stmData)(e1)
         val v2 = evalBigStep(stmData)(e2)
         (v1, v2) match {
-          case (_: Undefined, _) => Undefined(diff.typ)
-          case (_, _: Undefined) => Undefined(diff.typ)
           case (IntCst(n1), IntCst(n2)) =>
             val result = n1 - n2
             IntCst(truncate(result, diff.typ.asInstanceOf[TyAnyInt]))(diff.typ)
-          case (v1, v2) => badArgs(diff.className)(v1, v2)
+          case (_: Undefined, _) => Undefined(diff.typ)
+          case (_, _: Undefined) => Undefined(diff.typ)
+          case (v1, v2)          => badArgs(diff.className)(v1, v2)
         }
       case prod @ Prod(factors @ _*) =>
         val factorValues = factors.map(evalBigStep(stmData))
@@ -71,153 +69,67 @@ private[eval] object DataEvaluator {
         val numer = evalBigStep(stmData)(e1)
         val denom = evalBigStep(stmData)(e2)
         (numer, denom) match {
-          case (_: Undefined, _)        => Undefined(div.typ)
-          case (_, _: Undefined)        => Undefined(div.typ)
           case (IntCst(_), IntCst(0))   => Undefined(div.typ)
           case (IntCst(n1), IntCst(n2)) => IntCst(n1 / n2)(e.typ)
+          case (_: Undefined, _)        => Undefined(div.typ)
+          case (_, _: Undefined)        => Undefined(div.typ)
           case (v1, v2)                 => badArgs(div.className)(v1, v2)
         }
       case mod @ Mod(e1, e2) =>
         val numer = evalBigStep(stmData)(e1)
         val denom = evalBigStep(stmData)(e2)
         (numer, denom) match {
-          case (_: Undefined, _)        => Undefined(mod.typ)
-          case (_, _: Undefined)        => Undefined(mod.typ)
           case (_, IntCst(0))           => Undefined(mod.typ)
           case (IntCst(n1), IntCst(n2)) => IntCst(n1 % n2)(e.typ)
+          case (_: Undefined, _)        => Undefined(mod.typ)
+          case (_, _: Undefined)        => Undefined(mod.typ)
           case (v1, v2)                 => badArgs(mod.className)(v1, v2)
         }
       case pad @ PadTo(e, _) =>
         evalBigStep(stmData)(e) match {
-          case _: Undefined => Undefined(pad.typ)
           case k: IntCst    => k.rebuild(pad.typ)
+          case _: Undefined => Undefined(pad.typ)
           case v            => badArgs(pad.className)(v)
         }
       case trunc @ TruncateTo(e, _) =>
         evalBigStep(stmData)(e) match {
-          case _: Undefined => Undefined(trunc.typ)
           case IntCst(k) =>
             IntCstOrUndefined(k)(trunc.typ.asInstanceOf[TyAnyInt])
-          case v => badArgs(trunc.className)(v)
+          case _: Undefined => Undefined(trunc.typ)
+          case v            => badArgs(trunc.className)(v)
         }
       case sign @ ToSigned(e) =>
         evalBigStep(stmData)(e) match {
-          case _: Undefined => Undefined(sign.typ)
           case k: IntCst    => k.rebuild(sign.typ)
+          case _: Undefined => Undefined(sign.typ)
           case v            => badArgs(sign.className)(v)
         }
       case usgn @ ToUnsigned(e) =>
         evalBigStep(stmData)(e) match {
-          case _: Undefined => Undefined(usgn.typ)
           case IntCst(k) =>
             IntCstOrUndefined(k)(usgn.typ.asInstanceOf[TyAnyInt])
-          case v => badArgs(usgn.className)(v)
+          case _: Undefined => Undefined(usgn.typ)
+          case v            => badArgs(usgn.className)(v)
         }
       case bits @ Bits(e) =>
-        // TODO: what about undefined?
-        def toBits(e: Expr): Seq[BoolCst] = {
-          e match {
-            case b: BoolCst => Seq(b)
-            case c: IntCst =>
-              val w = c.typ.asInstanceOf[TyAnyInt].w
-              // TODO: This seems like it would probably be quite slow.
-              //       Make a faster version?
-              // TODO: This duplicates functionality in mhir.gen.
-              //       Share the code somehow?
-              if (c.i < 0) {
-                val bin = c.i.toBinaryString
-                  .map(_ == '1')
-                  .map(x => if (x) True else False)
-                assert(bin.head == True)
-                assert(bin.length == 64)
-                val truncated = bin.takeRight(w)
-                assert(truncated.head == True)
-                truncated
-              } else {
-                val bin = c.i.toBinaryString
-                  .map(_ == '1')
-                  .map(x => if (x) True else False)
-                assert(bin.length <= w)
-                val padded = (0 until (w - bin.length)).map(_ => False) ++ bin
-                if (c.typ.isInstanceOf[TySInt]) {
-                  assert(padded.head == False)
-                }
-                padded
-              }
-            case k: FixCst              => toBits(C(k.numer)(k.typ.t))
-            case Tuple(elems @ _*)      => elems.flatMap(toBits)
-            case VecLiteral(elems @ _*) => elems.flatMap(toBits)
-            case v                      => badArgs(bits.className)(v)
-          }
-        }
         VecLiteral(toBits(evalBigStep(stmData)(e)): _*)(bits.typ)
       case ia @ InterpretAs(e, _) =>
-        @tailrec
-        def intFromBits(bits: Seq[BoolCst], k: Long): Long = {
-          bits match {
-            case Seq()               => k
-            case Seq(False, bs @ _*) => intFromBits(bs, k << 1)
-            case Seq(True, bs @ _*)  => intFromBits(bs, (k << 1) | 1)
-          }
-        }
-        def fromBits(bits: Seq[BoolCst], targetTyp: Type): Expr = {
-          targetTyp match {
-            case TyBool =>
-              bits.head
-            case uint: TyUInt => C(intFromBits(bits, 0))(uint)
-            case int: TySInt =>
-              bits.head match {
-                case False =>
-                  C(intFromBits(bits, 0))(int)
-                case True =>
-                  // Start with -1 (which is all 1s in twos complement) to
-                  // handle sign extension
-                  C(intFromBits(bits, -1))(int)
-              }
-            case typ @ TyTuple(elems @ _*) =>
-              val elemRangeStarts = elems.scanLeft(0)({ case (acc, t) =>
-                val IntCst(w) = t.bitwidth
-                acc + w.toInt
-              })
-              val elemRangeEnds = elemRangeStarts.drop(1)
-              Tuple(
-                elems
-                  .zip(elemRangeStarts.zip(elemRangeEnds))
-                  .map({ case (typ, (from, until)) =>
-                    fromBits(bits.slice(from, until), typ)
-                  }): _*
-              )(typ)
-            case vecTyp @ TyVec(elemTyp, IntCst(n)) =>
-              val IntCst(wLong) = elemTyp.bitwidth
-              val w = wLong.toInt
-              VecLiteral(
-                (0 until n.toInt)
-                  .map({ i =>
-                    fromBits(bits.slice(i * w, (i + 1) * w), elemTyp)
-                  }): _*
-              )(vecTyp)
-          }
-        }
         evalBigStep(stmData)(e) match {
-          case _: Undefined => Undefined(ia.typ)
-          // TODO: what about undefined within the bit sequence?
-          case VecLiteral(elems @ _*) =>
-            fromBits(elems.asInstanceOf[Seq[BoolCst]], ia.typ)
-          case v => badArgs(ia.className)(v)
+          case VecLiteral(elems @ _*) => fromBits(elems, ia.typ)
+          case _: Undefined           => Undefined(ia.typ)
+          case v                      => badArgs(ia.className)(v)
         }
       case ls @ LShift(e1, e2) =>
         (evalBigStep(stmData)(e1), evalBigStep(stmData)(e2)) match {
-          case (_: Undefined, _) => Undefined(ls.typ)
-          case (_, _: Undefined) => Undefined(ls.typ)
           case (IntCst(k1), IntCst(k2)) =>
             val result = truncate(k1 << k2, ls.typ.asInstanceOf[TyAnyInt])
             IntCst(result)(ls.typ)
-          case (v1, v2) => badArgs(ls.className)(v1, v2)
+          case (_: Undefined, _) => Undefined(ls.typ)
+          case (_, _: Undefined) => Undefined(ls.typ)
+          case (v1, v2)          => badArgs(ls.className)(v1, v2)
         }
       case ars @ ARShift(e1, e2) =>
         (evalBigStep(stmData)(e1), evalBigStep(stmData)(e2)) match {
-          case (_: Undefined, _) => Undefined(ars.typ)
-          case (_, _: Undefined) => Undefined(ars.typ)
           case (IntCst(k1), IntCst(k2)) =>
             val result = k1 >> k2
             val extendedResult = e1.typ.asInstanceOf[TyAnyInt] match {
@@ -225,12 +137,12 @@ private[eval] object DataEvaluator {
               case TyUInt(_) => result
             }
             IntCst(extendedResult)(ars.typ)
-          case (v1, v2) => badArgs(ars.className)(v1, v2)
+          case (_: Undefined, _) => Undefined(ars.typ)
+          case (_, _: Undefined) => Undefined(ars.typ)
+          case (v1, v2)          => badArgs(ars.className)(v1, v2)
         }
       case lrs @ LRShift(e1, e2) =>
         (evalBigStep(stmData)(e1), evalBigStep(stmData)(e2)) match {
-          case (_: Undefined, _) => Undefined(lrs.typ)
-          case (_, _: Undefined) => Undefined(lrs.typ)
           case (n1 @ IntCst(k1), IntCst(k2)) =>
             val w = n1.typ.asInstanceOf[TyAnyInt].w
             val result = maskOutHigherBits(k1, w) >>> k2
@@ -239,16 +151,18 @@ private[eval] object DataEvaluator {
               case TyUInt(_) => result
             }
             IntCst(extendedResult)(lrs.typ)
-          case (v1, v2) => badArgs(lrs.className)(v1, v2)
+          case (_: Undefined, _) => Undefined(lrs.typ)
+          case (_, _: Undefined) => Undefined(lrs.typ)
+          case (v1, v2)          => badArgs(lrs.className)(v1, v2)
         }
 
       case True  => True
       case False => False
       case not @ Not(e) =>
         evalBigStep(stmData)(e) match {
-          case u: Undefined => u
           case False        => True
           case True         => False
+          case u: Undefined => u
           case v            => badArgs(not.className)(v)
         }
       case And(terms @ _*) =>
@@ -261,16 +175,16 @@ private[eval] object DataEvaluator {
         areEqual(evalBigStep(stmData)(e1), evalBigStep(stmData)(e2))
       case lt @ LessThan(e1, e2) =>
         (evalBigStep(stmData)(e1), evalBigStep(stmData)(e2)) match {
+          case (IntCst(n1), IntCst(n2)) => if (n1 < n2) True else False
           case (_: Undefined, _)        => Undefined(TyBool)
           case (_, _: Undefined)        => Undefined(TyBool)
-          case (IntCst(n1), IntCst(n2)) => if (n1 < n2) True else False
           case (v1, v2)                 => badArgs(lt.className)(v1, v2)
         }
       case mux @ Mux(c, t, f) =>
         evalBigStep(stmData)(c) match {
-          case _: Undefined => Undefined(mux.typ)
           case True         => evalBigStep(stmData)(t)
           case False        => evalBigStep(stmData)(f)
+          case _: Undefined => Undefined(mux.typ)
           case v            => badArgs(mux.className, position = "condition")(v)
         }
 
@@ -278,8 +192,8 @@ private[eval] object DataEvaluator {
         Tuple(elems.map(evalBigStep(stmData)): _*)(tup.typ)
       case ta @ TupleAccess(tup, IntCst(i)) =>
         evalBigStep(stmData)(tup) match {
-          case _: Undefined      => Undefined(ta.typ)
           case Tuple(elems @ _*) => elems(i.toInt)
+          case _: Undefined      => Undefined(ta.typ)
           case v => badArgs(ta.className, position = "left-hand side")(v)
         }
 
@@ -381,6 +295,95 @@ private[eval] object DataEvaluator {
       })
     } else {
       n
+    }
+  }
+
+  private def toBits(e: Expr): Seq[Expr] = {
+    e match {
+      case b: BoolCst => Seq(b)
+      case c: IntCst =>
+        val w = c.typ.asInstanceOf[TyAnyInt].w
+        // TODO: This duplicates functionality in mhir.gen.
+        //       Share the code somehow?
+        if (c.i < 0) {
+          val bin = c.i.toBinaryString
+            .map(_ == '1')
+            .map(x => if (x) True else False)
+          assert(bin.head == True)
+          assert(bin.length == 64)
+          val truncated = bin.takeRight(w)
+          assert(truncated.head == True)
+          truncated
+        } else {
+          val bin = c.i.toBinaryString
+            .map(_ == '1')
+            .map(x => if (x) True else False)
+          assert(bin.length <= w)
+          val padded = (0 until (w - bin.length)).map(_ => False) ++ bin
+          if (c.typ.isInstanceOf[TySInt]) {
+            assert(padded.head == False)
+          }
+          padded
+        }
+      case k: FixCst              => toBits(C(k.numer)(k.typ.t))
+      case Tuple(elems @ _*)      => elems.flatMap(toBits)
+      case VecLiteral(elems @ _*) => elems.flatMap(toBits)
+      case Undefined(typ) =>
+        val u = Undefined(TyBool)
+        val IntCst(w) = typ.bitwidth
+        (0 until w.toInt).map(_ => u)
+      case v => badArgs(Bits.getClass.getName)(v)
+    }
+  }
+
+  @tailrec
+  private def intFromBits(bits: Seq[Expr], k: Long, typ: Type): Expr = {
+    bits match {
+      case Seq()                 => C(k)(typ)
+      case Seq(False, bs @ _*)   => intFromBits(bs, k << 1, typ)
+      case Seq(True, bs @ _*)    => intFromBits(bs, (k << 1) | 1, typ)
+      case Seq(_: Undefined, _*) => Undefined(typ)
+    }
+  }
+
+  private def fromBits(bits: Seq[Expr], targetTyp: Type): Expr = {
+    targetTyp match {
+      case TyBool       => bits.head
+      case uint: TyUInt => intFromBits(bits, 0, uint)
+      case int: TySInt =>
+        bits.head match {
+          case False =>
+            intFromBits(bits, 0, int)
+          case True =>
+            // Start with -1 (which is all 1s in twos complement) to
+            // handle sign extension
+            intFromBits(bits, -1, int)
+          case _: Undefined => Undefined(int)
+          case v =>
+            badArgs(InterpretAs.getClass.getName, position = "an input")(v)
+        }
+      case typ @ TyTuple(elems @ _*) =>
+        val elemRangeStarts = elems.scanLeft(0)({ case (acc, t) =>
+          val IntCst(w) = t.bitwidth
+          acc + w.toInt
+        })
+        val elemRangeEnds = elemRangeStarts.drop(1)
+        Tuple(
+          elems
+            .zip(elemRangeStarts.zip(elemRangeEnds))
+            .map({ case (typ, (from, until)) =>
+              fromBits(bits.slice(from, until), typ)
+            }): _*
+        )(typ)
+      case vecTyp @ TyVec(elemTyp, IntCst(n)) =>
+        val IntCst(wLong) = elemTyp.bitwidth
+        val w = wLong.toInt
+        VecLiteral(
+          (0 until n.toInt)
+            .map({ i =>
+              fromBits(bits.slice(i * w, (i + 1) * w), elemTyp)
+            }): _*
+        )(vecTyp)
     }
   }
 

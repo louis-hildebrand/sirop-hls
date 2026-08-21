@@ -115,7 +115,6 @@ trait Lowering {
                   "physical prefixes in vector of stream literals have different lengths"
                 )
               }
-              // TODO: what if the vector is empty?
               val physLen = if (physicalGrid.isEmpty) {
                 0
               } else {

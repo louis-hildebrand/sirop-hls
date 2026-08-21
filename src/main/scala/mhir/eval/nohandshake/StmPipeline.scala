@@ -107,7 +107,6 @@ object StmPipeline {
         })
         .toMap[Expr, Expr]
     )
-    // TODO: Do this in a non-mutable way?
     init(pipe, eWithInputs, idByVar = Map(), loc = initialLoc)
     pipe
   }

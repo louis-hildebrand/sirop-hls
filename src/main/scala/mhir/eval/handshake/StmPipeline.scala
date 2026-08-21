@@ -8,8 +8,6 @@ import mhir.ir._
 import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
 import mhir.typecheck.TypeCheck
 
-import scala.annotation.tailrec
-
 /** A streaming pipeline where the handshake protocol is enabled.
   *
   * @note
@@ -51,15 +49,6 @@ private[eval] class StmPipeline(
     newPipe
   }
 
-  @tailrec
-  private def stepUntilFirstValid(): StmPipeline = {
-    if (this.sink.valid(StmNodeId(""))) {
-      this
-    } else {
-      this.step().stepUntilFirstValid()
-    }
-  }
-
   /** Adds a new node to this pipeline.
     *
     * @param node
@@ -69,17 +58,6 @@ private[eval] class StmPipeline(
     require(node.pipe == this)
     this.connections = this.connections.addNode(node.id)
     this.nodes = this.nodes + (node.id -> node)
-  }
-
-  /** Adds new nodes to this pipeline.
-    *
-    * @param nodes
-    *   the nodes to add.
-    */
-  private def addNodes(nodes: StmNode with HandshakeStmNode*): Unit = {
-    for (v <- nodes) {
-      this.addNode(v)
-    }
   }
 
   /** Adds new edges to this pipeline.
@@ -135,12 +113,6 @@ private[eval] object StmPipeline {
       case (id, s: LetStmNode) => id -> s.withConsumerIds(s.consumerIds)
       case x                   => x
     })
-    // TODO: why is this needed again? Why not omit it?
-    // Add terminal node
-    val term = TerminalNode(pipe, id = StmNodeId("sink"), typ = pipe.sink.typ)
-    pipe.addEdges(pipe.sinkId -> term.id)
-    pipe.addNode(term)
-    pipe.sinkId = term.id
     pipe
   }
 
@@ -192,25 +164,7 @@ private[eval] object StmPipeline {
         pipe.sinkId = newNode.id
         init(pipe, out, idByVar + (x -> newNode.id), loc)
       case TestInput(e, x) =>
-        // TODO: Is this needed when the handshake protocol is enabled?
-        val tempPipe =
-          StmPipeline(e, inputs = Map(), initialLoc = TestStimulus(x))
-            .stepUntilFirstValid()
-        pipe.addNodes(
-          (tempPipe.nodes - tempPipe.sinkId).values
-            .map(_.inPipe(pipe))
-            .toSeq: _*
-        )
-        pipe.addEdges(
-          tempPipe.connections.edges
-            .filter({ case (u, v) =>
-              u != tempPipe.sinkId && v != tempPipe.sinkId
-            })
-            .toSeq: _*
-        )
-        pipe.sinkId = tempPipe.connections.edges
-          .collectFirst({ case (u, v) if v == tempPipe.sinkId => u })
-          .get
+        init(pipe = pipe, e = e, idByVar = Map(), loc = TestStimulus(x))
       case e =>
         throw new IllegalArgumentException(
           s"Expression cannot be made into a stream pipeline: $e"

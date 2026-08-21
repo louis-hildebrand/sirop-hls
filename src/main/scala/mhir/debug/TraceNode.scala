@@ -31,7 +31,6 @@ object TraceNode {
     s match {
       case s: StmBuildNode => Some(StmBuildTraceNode(s))
       case s: LetStmNode   => Some(LetStmTraceNode(s))
-      case s: TerminalNode => Some(TerminalTraceNode(s))
       case s: StmNopNode   => Some(StmNopTraceNode(s))
     }
   }
@@ -131,27 +130,6 @@ object StmNopTraceNode {
   def apply(s: StmNopNode): StmNopTraceNode = {
     StmNopTraceNode(
       out = s.outMap,
-      ready = s.producerIds.filter(s.ready),
-      loc = s.loc
-    )
-  }
-}
-
-case class TerminalTraceNode(
-    out: Map[StmNodeId, StmOutput],
-    ready: Set[StmNodeId],
-    loc: StmNodeLocation
-) extends TraceNode
-
-/** Companion object for [[TerminalTraceNode]].
-  */
-object TerminalTraceNode {
-
-  /** Factory for [[TerminalTraceNode]].
-    */
-  def apply(s: TerminalNode): TerminalTraceNode = {
-    TerminalTraceNode(
-      out = Map(StmNodeId("") -> s.out(StmNodeId(""))),
       ready = s.producerIds.filter(s.ready),
       loc = s.loc
     )

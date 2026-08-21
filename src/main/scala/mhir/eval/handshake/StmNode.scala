@@ -5,8 +5,6 @@ import mhir.canonicalize._
 import mhir.eval._
 import mhir.ir._
 
-// TODO: Make sure all the no_handshake-related logic is moved out of this package
-
 private[handshake] sealed trait HandshakeStmNode {
 
   /** Computes the next state of this node.
@@ -330,7 +328,6 @@ private[handshake] case class LetStmNode(
   }
 
   override def ready(producerId: StmNodeId): Boolean = {
-    // TODO: Check that the given ID matches this node's producer?
     this.readyForProducer
   }
 
@@ -394,7 +391,6 @@ private[handshake] case class LetStmNode(
   }
 
   override def deadlockReasons: Set[DeadlockReason] = {
-    // TODO
     Set()
   }
 
@@ -548,12 +544,10 @@ private[handshake] case class StmNopNode(
 ) extends mhir.eval.StmNopNode
     with HandshakeStmNode {
   override def out(consumerId: StmNodeId): StmOutput = {
-    // TODO: Check that the given ID indeed belongs to a consumer of this node?
     this.uniqueProducer.out(this.id)
   }
 
   override def ready(producerId: StmNodeId): Boolean = {
-    // TODO: Check that the given ID indeed belongs to a producer of this node?
     this.consumers.forall(_.ready(this.id))
   }
 
@@ -580,52 +574,6 @@ private[handshake] case class StmNopNode(
     that match {
       case that: StmNopNode => this.id == that.id
       case _                => false
-    }
-  }
-}
-
-/** A node that serves as the sink of the entire pipeline.
-  *
-  * @param pipe
-  *   the pipeline that this node is part of.
-  * @param id
-  *   the ID of this node.
-  * @param typ
-  *   the type of the stream produced by this node.
-  */
-private[handshake] case class TerminalNode(
-    pipe: StmPipeline,
-    id: StmNodeId,
-    typ: TyStm
-) extends mhir.eval.TerminalNode
-    with HandshakeStmNode {
-
-  def loc: StmNodeLocation = Sink
-
-  override def out(consumerId: StmNodeId): StmOutput = {
-    this.uniqueProducer.out(this.id)
-  }
-
-  override def ready(producerId: StmNodeId): Boolean = true
-
-  override def inPipe(newPipe: StmPipeline): StmNode with HandshakeStmNode = {
-    TerminalNode(pipe = newPipe, id = this.id, typ = this.typ)
-  }
-
-  override def step(newPipe: StmPipeline): StmNode with HandshakeStmNode = {
-    this.inPipe(newPipe)
-  }
-
-  override def isEmpty: Boolean = this.uniqueProducer.isEmpty
-
-  override def deadlockReasons: Set[DeadlockReason] = {
-    this.uniqueProducer.deadlockReasons
-  }
-
-  override def sameState(that: StmNode): Boolean = {
-    that match {
-      case that: TerminalNode => this.id == that.id
-      case _                  => false
     }
   }
 }

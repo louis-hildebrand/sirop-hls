@@ -38,6 +38,29 @@ class LiteralTests extends AnyFunSuite {
 
   /* Move the stream to the outside *******************************************/
 
+  test("VecLiteral:Vec[Stm[(U8, U8), 4], 3]:NoPhysical") {
+    val original = VecLiteral(
+      (0 until 3).map(i =>
+        StmLiteral(
+          Seq(),
+          (0 until 4).map(t => Tuple(C(i)(U8), C(t)(U8), AllZero(U8))())
+        )(Missing)
+      ): _*
+    )().tchk()
+    val expected = StmLiteral(
+      Seq(),
+      (0 until 4).map(t =>
+        VecLiteral(
+          (0 until 3).map(i => Tuple(C(i)(U8), C(t)(U8), C(0)(U8))()): _*
+        )()
+      )
+    )(Missing).tchk()
+
+    val lowered = original.lower
+    assert(lowered.typ == TyStm(TyVec((U8, U8, U8), 3), 4))
+    assert(lowered == expected)
+  }
+
   test("VecLiteral:Vec[Stm[(U8, U8), 4], 3]") {
     val original = VecLiteral(
       (0 until 3).map(i =>

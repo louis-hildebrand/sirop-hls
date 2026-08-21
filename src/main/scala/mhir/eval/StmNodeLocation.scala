@@ -16,8 +16,3 @@ object InMain extends StmNodeLocation
   *   the accelerator parameter this input is feeding.
   */
 case class TestStimulus(name: String) extends StmNodeLocation
-
-/** The node is <i>not</i> part of the main accelerator, and is instead reading
-  * the output of the accelerator.
-  */
-object Sink extends StmNodeLocation

@@ -329,6 +329,17 @@ class EvalDataTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("bits((undefined, u8))") {
+    val e = Bits(Tuple(Undefined(TyTuple(I8, TyBool)), C(42)(U8))())().tchk()
+    val x = Undefined(TyBool)
+    val f = False
+    val t = True
+    val expected =
+      VecLiteral(x, x, x, x, x, x, x, x, x, f, f, t, f, t, f, t, f)().tchk()
+    val actual = mhir.eval.eval(e)
+    assert(actual == expected)
+  }
+
   test("interpret_as:[()]") {
     assert(
       mhir.eval.eval(InterpretAs(VecLiteral()(TyVec(TyBool, 0)), TyTuple())())
@@ -371,14 +382,16 @@ class EvalDataTests extends AnyFunSuite {
     assert(eval(InterpretAs(VecLiteral(t, t, t)(), i3)()) == C(-1)())
   }
 
-  test("interpret_as:[(i8, bool, (bool, u4))]") {
-    val bits = VecLiteral("00101010101101".map({
+  test("interpret_as:[(i8, bool, (bool, u4, u4))]") {
+    val bits = VecLiteral("00101010101u011101".map({
       case '0' => False
       case '1' => True
+      case 'u' => Undefined(TyBool)
     }): _*)()
     val u4 = TyUInt(4)
-    val expected = Tuple(C(42)(I8), True, Tuple(False, C(13)(u4))())().tchk()
-    val targetTyp = TyTuple(I8, TyBool, TyTuple(TyBool, u4))
+    val expected =
+      Tuple(C(42)(I8), True, Tuple(False, Undefined(u4), C(13)(u4))())().tchk()
+    val targetTyp = TyTuple(I8, TyBool, TyTuple(TyBool, u4, u4))
     val actual = mhir.eval.eval(InterpretAs(bits, targetTyp)())
     assert(actual == expected)
   }
