@@ -1,6 +1,5 @@
 package mhir.eval
 
-import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.sugar.ExprLowering
@@ -14,17 +13,8 @@ import scala.language.{existentials, implicitConversions}
   * @param maxInvalidSteps
   *   the maximum number of steps without a valid output from a [[StmBuild]]
   *   node. If this is less than or equal to zero, then there is no limit.
-  * @param suppressWarnings
-  *   if `false`, do not throw any errors for warnings (e.g., when the output
-  *   seems to be undefined).
   */
-class Evaluator(
-    val handshake: Boolean,
-    val maxInvalidSteps: Int,
-    val suppressWarnings: Boolean
-) {
-
-  private implicit val logger: Logger = Logger(getClass.getName)
+class Evaluator(val handshake: Boolean, val maxInvalidSteps: Int) {
 
   /** Evaluates an expression.
     *
@@ -44,19 +34,7 @@ class Evaluator(
     val expr = e.tchk().lower
     expr.typ match {
       case TyData(_) =>
-        val Value(v, warnings) =
-          DataEvaluator.evalBigStep(stmData)(e.tchk().lower)
-        if (warnings.isEmpty) {
-          v
-        } else if (this.suppressWarnings) {
-          val warnStr = warnings.map(_.display).mkString(", ")
-          logger.warn(
-            s"the result of evaluation seems to be undefined: $warnStr"
-          )
-          v
-        } else {
-          throw UndefinedValException(warnings)
-        }
+        DataEvaluator.evalBigStep(stmData)(e.tchk().lower)
       case _: TyStm =>
         val pipe =
           StmPipeline(expr, inputs = inputs, handshake = this.handshake)
@@ -122,13 +100,11 @@ object Evaluator {
 
   def apply(
       handshake: Boolean,
-      maxInvalidSteps: Option[Int] = None,
-      suppressWarnings: Boolean = false
+      maxInvalidSteps: Option[Int] = None
   ): Evaluator = {
     new Evaluator(
       handshake = handshake,
-      maxInvalidSteps = maxInvalidSteps.getOrElse(DefaultMaxInvalidSteps),
-      suppressWarnings = suppressWarnings
+      maxInvalidSteps = maxInvalidSteps.getOrElse(DefaultMaxInvalidSteps)
     )
   }
 }

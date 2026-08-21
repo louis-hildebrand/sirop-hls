@@ -10,24 +10,8 @@ import org.scalatest.funsuite.AnyFunSuite
   */
 class EvalDataTests extends AnyFunSuite {
 
-  /** Asserts that evaluating the given expression results in an overflow
-    * warning.
-    *
-    * @param e
-    *   the expression to evaluate.
-    * @param n
-    *   the expected number in the [[OverflowWarning]].
-    * @param typ
-    *   the expected type in the [[OverflowWarning]].
-    */
-  private def assertOverflow(
-      e: Expr,
-      n: Int,
-      typ: TyAnyInt,
-      op: String
-  ): Unit = {
-    val exc = intercept[UndefinedValException](mhir.eval.eval(e))
-    assert(exc.warnings == Set(OverflowWarning(n, typ, op)))
+  private def assertUndefined(e: Expr): Unit = {
+    assert(mhir.eval.eval(e).isInstanceOf[Undefined])
   }
 
   test("IntCst") {
@@ -184,19 +168,14 @@ class EvalDataTests extends AnyFunSuite {
   }
 
   test("Overflow:Used:Sum") {
-    assertOverflow(C(255)(U8) + C(1)(U8), 256, U8, "255:u8 +` 1:u8")
-    assertOverflow(
-      Sum(C(32767)(I16), C(1)(I16))(),
-      32768,
-      I16,
-      "32767:i16 +` 1:i16"
-    )
-    assertOverflow(C(-127)(I8) + C(-2)(I8), -129, I8, "-127:i8 +` -2:i8")
+    assertUndefined(Sum(C(255)(U8), C(1)(U8))())
+    assertUndefined(Sum(C(32767)(I16), C(1)(I16))())
+    assertUndefined(Sum(C(-127)(I8), C(-2)(I8))())
   }
 
   test("Overflow:Used:Prod") {
-    assertOverflow(C(128)(U8) * C(2)(U8), 256, U8, "128:u8 *` 2:u8")
-    assertOverflow(C(-64)(I8) * C(3)(I8), -64 * 3, I8, "-64:i8 *` 3:i8")
+    assertUndefined(Prod(C(128)(U8), C(2)(U8))())
+    assertUndefined(Prod(C(-64)(I8), C(3)(I8))())
   }
 
   test("Overflow:Unused") {
@@ -208,13 +187,8 @@ class EvalDataTests extends AnyFunSuite {
   }
 
   test("DivByZero:Used") {
-    def assertDivByZero(e: Expr): Unit = {
-      val exc = intercept[UndefinedValException](mhir.eval.eval(e))
-      assert(exc.warnings == Set(DivByZeroWarning))
-    }
-
-    assertDivByZero(C(42)(U8) / C(0)(U8))
-    assertDivByZero(C(42)(U8) % C(0)(U8))
+    assert(mhir.eval.eval(Div(C(42)(U8), C(0)(U8))()) == Undefined(U8))
+    assert(mhir.eval.eval(Mod(C(42)(U8), C(0)(U8))()) == Undefined(U8))
   }
 
   test("DivByZero:Unused") {
@@ -225,15 +199,10 @@ class EvalDataTests extends AnyFunSuite {
   }
 
   test("OutOfBoundsVecAccess:Used") {
-    def assertOOB(e: Expr, n: Int, i: Int): Unit = {
-      val exc = intercept[UndefinedValException](mhir.eval.eval(e))
-      assert(exc.warnings == Set(VecIndexOutOfBoundsWarning(n, i)))
-    }
-
     val v = VecBuild(4, U8 ::+ (i => i))()
-    assertOOB(VecAccess(v, C(4)(U8))(), 4, 4)
-    assertOOB(VecAccess(v, C(5)(U8))(), 4, 5)
-    assertOOB(VecAccess(v, C(6)(U8))(), 4, 6)
+    assert(mhir.eval.eval(VecAccess(v, C(3)())()) == C(3)(U8))
+    assert(mhir.eval.eval(VecAccess(v, C(4)())()) == Undefined(U8))
+    assert(mhir.eval.eval(VecAccess(v, C(5)())()) == Undefined(U8))
   }
 
   test("OutOfBoundsVecAccess:Unused") {
@@ -273,28 +242,13 @@ class EvalDataTests extends AnyFunSuite {
   }
 
   test("TruncateTo:ValueOutOfRange") {
-    assertOverflow(
-      TruncateTo(C(-129)(I16), 8)(),
-      -129,
-      I8,
-      "truncate8(-129:i16)"
-    )
-    assertOverflow(
-      TruncateTo(C(-130)(I16), 8)(),
-      -130,
-      I8,
-      "truncate8(-130:i16)"
-    )
-    assertOverflow(TruncateTo(C(128)(I16), 8)(), 128, I8, "truncate8(128:i16)")
-    assertOverflow(TruncateTo(C(129)(I16), 8)(), 129, I8, "truncate8(129:i16)")
-    assertOverflow(TruncateTo(C(256)(U32), 8)(), 256, U8, "truncate8(256:u32)")
-    assertOverflow(TruncateTo(C(257)(U32), 8)(), 257, U8, "truncate8(257:u32)")
-    assertOverflow(
-      TruncateTo(C(2049)(U16), 9)(),
-      2049,
-      TyUInt(9),
-      "truncate9(2049:u16)"
-    )
+    assertUndefined(TruncateTo(C(-129)(I16), 8)())
+    assertUndefined(TruncateTo(C(-130)(I16), 8)())
+    assertUndefined(TruncateTo(C(128)(I16), 8)())
+    assertUndefined(TruncateTo(C(129)(I16), 8)())
+    assertUndefined(TruncateTo(C(256)(U32), 8)())
+    assertUndefined(TruncateTo(C(257)(U32), 8)())
+    assertUndefined(TruncateTo(C(2049)(U16), 9)())
   }
 
   test("ToSigned") {
@@ -313,8 +267,8 @@ class EvalDataTests extends AnyFunSuite {
   }
 
   test("ToUnsigned:NegativeInput") {
-    assertOverflow(ToUnsigned(C(-5)(I8))(), -5, TyUInt(7), "unsign(-5:i8)")
-    assertOverflow(ToUnsigned(C(-1)(I32))(), -1, TyUInt(31), "unsign(-1:i32)")
+    assertUndefined(ToUnsigned(C(-5)(I8))())
+    assertUndefined(ToUnsigned(C(-1)(I32))())
   }
 
   test("bits(bool)") {
@@ -635,38 +589,18 @@ class EvalDataTests extends AnyFunSuite {
   test("(x => x - x)(undefined)") {
     val f = U8 ::+ (x => x - x)
     val e = f(Undefined(U8))
-    assert(mhir.eval.eval(e, suppressWarnings = true) == C(0)(U8))
+    assertUndefined(mhir.eval.eval(e))
   }
 
   test("(x => x == x)(undefined)") {
     val f = U8 ::+ (x => x === x)
     val e = f(Undefined(U8))
-    assert(mhir.eval.eval(e, suppressWarnings = true) == True)
+    assertUndefined(mhir.eval.eval(e))
   }
 
   test("(v => v[0] == v[0])(undefined)") {
     val f = TyVec(I16, 2) ::+ (v => VecAccess(v, 0)() === VecAccess(v, 0)())
     val e = f(Undefined(TyVec(I16, 2)))
-    assert(mhir.eval.eval(e, suppressWarnings = true) == True)
+    assertUndefined(mhir.eval.eval(e))
   }
-
-  test("warning:undefined") {
-    val typ = TyVec((U8, I16), 42)
-    val e = Undefined(typ)
-    val exc = intercept[UndefinedValException](mhir.eval.eval(e))
-    assert(exc.warnings == Set(UndefinedPrimitive(typ)))
-  }
-
-  test("warning:undefined + 1") {
-    val e = Undefined(U8) + 1
-    val exc = intercept[UndefinedValException](mhir.eval.eval(e))
-    assert(exc.warnings == Set(UndefinedPrimitive(U8)))
-  }
-
-  test("warning:undefined[0]") {
-    val e = Undefined(TyVec(U8, 5))
-    val exc = intercept[UndefinedValException](mhir.eval.eval(e))
-    assert(exc.warnings == Set(UndefinedPrimitive(TyVec(U8, 5))))
-  }
-
 }

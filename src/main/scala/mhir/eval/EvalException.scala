@@ -6,17 +6,6 @@ sealed abstract class EvalException(msg: String) extends RuntimeException(msg) {
   override def getMessage: String = s"EvalError: $msg"
 }
 
-/** The result of evaluation seems to depend on undefined behaviour.
-  *
-  * @param warnings
-  *   the undefined behaviours that the result depends on.
-  */
-case class UndefinedValException(warnings: Set[EvalWarning])
-    extends EvalException(
-      "value may rely on undefined behaviours: "
-        ++ warnings.map(w => w.display).mkString("", ", ", ".")
-    )
-
 /** The stream became deadlocked.
   *
   * @param reasons
@@ -40,6 +29,8 @@ sealed trait DeadlockReason {
 object EmptyStreamRead extends DeadlockReason {
   override def name: String = "attempt to read from an empty stream"
 }
+
+object UndefinedReady extends EvalException("ready evaluated to undefined")
 
 /** The stream <i>appears</i> to be deadlocked because it took too many steps
   * without producing any valid outputs.

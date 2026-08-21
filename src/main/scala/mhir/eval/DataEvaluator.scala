@@ -2,211 +2,119 @@ package mhir.eval
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.typecheck._
 
 import scala.annotation.tailrec
 
 private[eval] object DataEvaluator {
 
-  def evalBigStep(stmData: Map[Param, Option[Expr]])(e: Expr): Value = {
-    val result: Value = e match {
-      case u @ Undefined(typ) =>
-        Value(u, Set())
+  // TODO: move stmData out to an instance variable, since it's never modified here?
+  // TODO: would changing order of cases in match expressions help (e.g., moving Undefined lower?)
+  def evalBigStep(stmData: Map[Param, Option[Expr]])(e: Expr): Expr = {
+    val result: Expr = e match {
+      case u: Undefined => u
+
       case x: Param =>
         throw new IllegalArgumentException(
           s"Free variable ${x.name}. Terms must be closed."
         )
-      case f: Function => Value(f, Set())
+      case f: Function => f
       case FunCall(f, arg) =>
-        val Value(fVal, fWarn) = evalBigStep(stmData)(f)
-        fVal match {
-          case Function(x, body) =>
-            // Leave stream inputs unevaluated
-            val Value(a, aWarn) = arg.typ match {
-              case _: TyStm => Value(arg, Set())
-              case _        => evalBigStep(stmData)(arg)
-            }
-            evalBigStep(stmData)(body.subPreserveType(x -> a))
-              .addWarnings(aWarn ++ fWarn)
-          case v =>
-            throw new IllegalArgumentException(
-              s"Left-hand side of function application evaluated to $v. It must evaluate to a function."
-            )
-        }
+        val Function(x, body) = evalBigStep(stmData)(f)
+        val argVal = evalBigStep(stmData)(arg)
+        evalBigStep(stmData)(body.subPreserveType(x -> argVal))
 
-      case n: IntCst => Value(n, Set())
-      case Sum(terms @ _*) =>
+      case n: IntCst => n
+      case sum @ Sum(terms @ _*) =>
         val termValues = terms.map(evalBigStep(stmData))
-        if (termValues.exists(_.e.isInstanceOf[Undefined])) {
-          termValues.find(_.e.isInstanceOf[Undefined]).get
-        } else if (termValues.forall(v => v.e.isInstanceOf[IntCst])) {
-          val xs = termValues.map(v => v.e.asInstanceOf[IntCst].i)
-          val warnings = termValues.flatMap(v => v.warnings).toSet
-          val result = xs.sum
-          val typ = e.typ.asInstanceOf[TyAnyInt]
-          if (typ.contains(result)) {
-            Value(IntCst(result)(e.typ), warnings)
-          } else {
-            val overflowWarning =
-              OverflowWarning(
-                result,
-                typ,
-                Sum(termValues.map(_.e): _*)().toString
-              )
-            Value(DefaultVal(typ), warnings + overflowWarning)
-          }
+        if (termValues.exists(_.isInstanceOf[Undefined])) {
+          Undefined(sum.typ)
         } else {
-          throw new IllegalArgumentException(
-            s"Terms of Sum evaluated to $termValues. They must each evaluate to an integer."
-          )
+          val result = termValues.map(_.asInstanceOf[IntCst].i).sum
+          IntCstOrUndefined(result)(sum.typ.asInstanceOf[TyAnyInt])
         }
-      case Prod(factors @ _*) =>
-        val factorValues = factors.map(evalBigStep(stmData))
-        if (factorValues.exists(_.e.isInstanceOf[Undefined])) {
-          // TODO: Do this properly (make it configurable whether the result
-          //       here should be undefined or a random value)
-          // TODO: Do the same thing in the rest of the evaluator
-          factorValues.find(_.e.isInstanceOf[Undefined]).get
-        } else if (factorValues.forall(v => v.e.isInstanceOf[IntCst])) {
-          val xs = factorValues.map(v => v.e.asInstanceOf[IntCst].i)
-          val warnings = factorValues.flatMap(v => v.warnings).toSet
-          val result = xs.product
-          val typ = e.typ.asInstanceOf[TyAnyInt]
-          if (typ.contains(result)) {
-            Value(IntCst(result)(e.typ), warnings)
-          } else {
-            val overflowWarning = OverflowWarning(
-              result,
-              typ,
-              Prod(factorValues.map(_.e): _*)().toString
-            )
-            Value(DefaultVal(typ), warnings + overflowWarning)
-          }
-        } else {
-          throw new IllegalArgumentException(
-            s"Terms of Prod evaluated to ${factorValues.mkString(", ")}." +
-              " They must each evaluate to an integer."
-          )
-        }
-      case Div(e1, e2) =>
-        val Value(numer, numerWarn) = evalBigStep(stmData)(e1)
-        val Value(denom, denomWarn) = evalBigStep(stmData)(e2)
-        (numer, denom) match {
-          case (IntCst(_), IntCst(0)) =>
-            val v = DefaultVal(e.typ)
-            Value(v, (numerWarn ++ denomWarn) + DivByZeroWarning)
-          case (IntCst(n1), IntCst(n2)) =>
-            Value(IntCst(n1 / n2)(e.typ), numerWarn ++ denomWarn)
-          case (v1, v2) =>
-            throw new IllegalArgumentException(
-              s"Operands of Div evaluated to $v1 and $v2. They must each evaluate to an integer."
-            )
-        }
-      case Mod(e1, e2) =>
-        val Value(numer, numerWarn) = evalBigStep(stmData)(e1)
-        val Value(denom, denomWarn) = evalBigStep(stmData)(e2)
-        (numer, denom) match {
-          case (IntCst(_), IntCst(0)) =>
-            val v = DefaultVal(e.typ)
-            Value(v, (numerWarn ++ denomWarn) + DivByZeroWarning)
-          case (IntCst(n1), IntCst(n2)) =>
-            Value(IntCst(n1 % n2)(e.typ), numerWarn ++ denomWarn)
-          case (v1, v2) =>
-            throw new IllegalArgumentException(
-              s"Operands of Mod evaluated to $v1 and $v2. They must each evaluate to an integer."
-            )
-        }
-      case s @ WrappingSum(terms @ _*) =>
+      case sum @ WrappingSum(terms @ _*) =>
         val termValues = terms.map(evalBigStep(stmData))
-        if (termValues.forall(v => v.e.isInstanceOf[IntCst])) {
-          val xs = termValues.map(v => v.e.asInstanceOf[IntCst].i)
-          val warnings = termValues.flatMap(v => v.warnings).toSet
-          val result = xs.sum
-          val typ = e.typ.asInstanceOf[TyAnyInt]
-          Value(IntCst(truncate(result, typ))(e.typ), warnings)
+        if (termValues.exists(_.isInstanceOf[Undefined])) {
+          Undefined(sum.typ)
         } else {
-          throw new IllegalArgumentException(
-            s"Operands of ${s.className} evaluated to $termValues."
-              + " They must all evaluate to integers."
-          )
+          val result = termValues.map(_.asInstanceOf[IntCst].i).sum
+          IntCst(truncate(result, sum.typ.asInstanceOf[TyAnyInt]))(sum.typ)
         }
-      case d @ WrappingDiff(e1, e2) =>
-        val Value(v1, e1Warn) = evalBigStep(stmData)(e1)
-        val Value(v2, e2Warn) = evalBigStep(stmData)(e2)
+      case diff @ WrappingDiff(e1, e2) =>
+        val v1 = evalBigStep(stmData)(e1)
+        val v2 = evalBigStep(stmData)(e2)
         (v1, v2) match {
+          case (_: Undefined, _) => Undefined(diff.typ)
+          case (_, _: Undefined) => Undefined(diff.typ)
           case (IntCst(n1), IntCst(n2)) =>
             val result = n1 - n2
-            val typ = e1.typ.asInstanceOf[TyAnyInt]
-            Value(IntCst(truncate(result, typ))(e.typ), e1Warn ++ e2Warn)
-          case (v1, v2) =>
-            throw new IllegalArgumentException(
-              s"Operands of ${d.className} evaluated to $v1 and $v2."
-                + " They must each evaluate to an integer."
-            )
+            IntCst(truncate(result, diff.typ.asInstanceOf[TyAnyInt]))(diff.typ)
+          case (v1, v2) => badArgs(diff.className)(v1, v2)
         }
-      case p @ WrappingProd(factors @ _*) =>
+      case prod @ Prod(factors @ _*) =>
         val factorValues = factors.map(evalBigStep(stmData))
-        if (factorValues.forall(v => v.e.isInstanceOf[IntCst])) {
-          val xs = factorValues.map(v => v.e.asInstanceOf[IntCst].i)
-          val warnings = factorValues.flatMap(v => v.warnings).toSet
-          val result = xs.product
-          val typ = e.typ.asInstanceOf[TyAnyInt]
-          Value(IntCst(truncate(result, typ))(e.typ), warnings)
+        if (factorValues.exists(_.isInstanceOf[Undefined])) {
+          Undefined(prod.typ)
         } else {
-          throw new IllegalArgumentException(
-            s"Operands of ${p.className} evaluated to $factorValues."
-              + " They must all evaluate to integers."
-          )
+          val result = factorValues.map(_.asInstanceOf[IntCst].i).product
+          IntCstOrUndefined(result)(prod.typ.asInstanceOf[TyAnyInt])
+        }
+      case prod @ WrappingProd(factors @ _*) =>
+        val factorValues = factors.map(evalBigStep(stmData))
+        if (factorValues.exists(_.isInstanceOf[Undefined])) {
+          Undefined(prod.typ)
+        } else {
+          val result = factorValues.map(_.asInstanceOf[IntCst].i).product
+          IntCst(truncate(result, prod.typ.asInstanceOf[TyAnyInt]))(prod.typ)
+        }
+      case div @ Div(e1, e2) =>
+        val numer = evalBigStep(stmData)(e1)
+        val denom = evalBigStep(stmData)(e2)
+        (numer, denom) match {
+          case (_: Undefined, _)        => Undefined(div.typ)
+          case (_, _: Undefined)        => Undefined(div.typ)
+          case (IntCst(_), IntCst(0))   => Undefined(div.typ)
+          case (IntCst(n1), IntCst(n2)) => IntCst(n1 / n2)(e.typ)
+          case (v1, v2)                 => badArgs(div.className)(v1, v2)
+        }
+      case mod @ Mod(e1, e2) =>
+        val numer = evalBigStep(stmData)(e1)
+        val denom = evalBigStep(stmData)(e2)
+        (numer, denom) match {
+          case (_: Undefined, _)        => Undefined(mod.typ)
+          case (_, _: Undefined)        => Undefined(mod.typ)
+          case (_, IntCst(0))           => Undefined(mod.typ)
+          case (IntCst(n1), IntCst(n2)) => IntCst(n1 % n2)(e.typ)
+          case (v1, v2)                 => badArgs(mod.className)(v1, v2)
         }
       case pad @ PadTo(e, _) =>
-        val Value(v, warnings) = evalBigStep(stmData)(e)
-        val result = v match {
+        evalBigStep(stmData)(e) match {
           case _: Undefined => Undefined(pad.typ)
           case k: IntCst    => k.rebuild(pad.typ)
-          case e => throw new TypeError(s"wrong input to ${pad.className}: $e")
+          case v            => badArgs(pad.className)(v)
         }
-        Value(result, warnings)
-      case TruncateTo(e, targetWidth) =>
-        val Value(k @ IntCst(i), warnings) = evalBigStep(stmData)(e)
-        val typ = e.typ.asInstanceOf[TyAnyInt]
-        assert(
-          targetWidth <= typ.w,
-          s"truncate target width must be less than or equal to original width (target $targetWidth, original ${typ.w})"
-        )
-        val targetTyp = typ.withWidth(targetWidth)
-        if (targetTyp.contains(i)) {
-          Value(IntCst(i)(targetTyp), warnings)
-        } else {
-          val overflowWarning =
-            OverflowWarning(i, targetTyp, TruncateTo(k, targetWidth)().toString)
-          Value(
-            IntCst(truncate(i, targetTyp))(targetTyp),
-            warnings + overflowWarning
-          )
+      case trunc @ TruncateTo(e, _) =>
+        evalBigStep(stmData)(e) match {
+          case _: Undefined => Undefined(trunc.typ)
+          case IntCst(k) =>
+            IntCstOrUndefined(k)(trunc.typ.asInstanceOf[TyAnyInt])
+          case v => badArgs(trunc.className)(v)
         }
-      case ToSigned(e) =>
-        val v = evalBigStep(stmData)(e)
-        v.e.typ.asInstanceOf[TyUInt] match {
-          case TyUInt(w) =>
-            Value(v.e.rebuild(TySInt(w + 1)), v.warnings)
+      case sign @ ToSigned(e) =>
+        evalBigStep(stmData)(e) match {
+          case _: Undefined => Undefined(sign.typ)
+          case k: IntCst    => k.rebuild(sign.typ)
+          case v            => badArgs(sign.className)(v)
         }
-      case ToUnsigned(e) =>
-        val v = evalBigStep(stmData)(e)
-        val i = v.e.asInstanceOf[IntCst].i
-        v.e.typ.asInstanceOf[TySInt] match {
-          case TySInt(w) =>
-            // Just drop the sign bit
-            assert(w >= 1)
-            val typ = TyUInt(w - 1)
-            if (typ.contains(i)) {
-              Value(IntCst(i)(typ), v.warnings)
-            } else {
-              val overflowWarning =
-                OverflowWarning(i, typ, ToUnsigned(v.e)().toString)
-              Value(IntCst(truncate(i, typ))(typ), v.warnings + overflowWarning)
-            }
+      case usgn @ ToUnsigned(e) =>
+        evalBigStep(stmData)(e) match {
+          case _: Undefined => Undefined(usgn.typ)
+          case IntCst(k) =>
+            IntCstOrUndefined(k)(usgn.typ.asInstanceOf[TyAnyInt])
+          case v => badArgs(usgn.className)(v)
         }
-      case Bits(e) =>
+      case bits @ Bits(e) =>
+        // TODO: what about undefined?
         def toBits(e: Expr): Seq[BoolCst] = {
           e match {
             case b: BoolCst => Seq(b)
@@ -239,14 +147,11 @@ private[eval] object DataEvaluator {
             case k: FixCst              => toBits(C(k.numer)(k.typ.t))
             case Tuple(elems @ _*)      => elems.flatMap(toBits)
             case VecLiteral(elems @ _*) => elems.flatMap(toBits)
-            case e =>
-              throw new TypeError(s"Cannot find binary representation for $e")
+            case v                      => badArgs(bits.className)(v)
           }
         }
-        val Value(v, warnings) = evalBigStep(stmData)(e)
-        val bits = toBits(v)
-        Value(VecLiteral(bits: _*)(TyVec(TyBool, bits.length)), warnings)
-      case InterpretAs(e, targetTyp) =>
+        VecLiteral(toBits(evalBigStep(stmData)(e)): _*)(bits.typ)
+      case ia @ InterpretAs(e, _) =>
         @tailrec
         def intFromBits(bits: Seq[BoolCst], k: Long): Long = {
           bits match {
@@ -293,257 +198,147 @@ private[eval] object DataEvaluator {
               )(vecTyp)
           }
         }
-        val Value(v: VecLiteral, warnings) = evalBigStep(stmData)(e)
-        Value(
-          fromBits(v.elems.map(_.asInstanceOf[BoolCst]), targetTyp),
-          warnings
-        )
-      case LShift(e1, e2) =>
-        val Value(n1, warn1) = evalBigStep(stmData)(e1)
-        val Value(n2, warn2) = evalBigStep(stmData)(e2)
-        (n1, n2) match {
-          case (IntCst(k1), IntCst(k2)) =>
-            val result = truncate(k1 << k2, n1.typ.asInstanceOf[TyAnyInt])
-            Value(C(result)(n1.typ), warn1 ++ warn2)
-          case (v1, v2) =>
-            throw new TypeError(
-              s"Operands of LShift evaluated to $v1 and $v2. They must each evaluate to an integer."
-            )
+        evalBigStep(stmData)(e) match {
+          case _: Undefined => Undefined(ia.typ)
+          // TODO: what about undefined within the bit sequence?
+          case VecLiteral(elems @ _*) =>
+            fromBits(elems.asInstanceOf[Seq[BoolCst]], ia.typ)
+          case v => badArgs(ia.className)(v)
         }
-      case ARShift(e1, e2) =>
-        val Value(n1, warn1) = evalBigStep(stmData)(e1)
-        val Value(n2, warn2) = evalBigStep(stmData)(e2)
-        (n1, n2) match {
+      case ls @ LShift(e1, e2) =>
+        (evalBigStep(stmData)(e1), evalBigStep(stmData)(e2)) match {
+          case (_: Undefined, _) => Undefined(ls.typ)
+          case (_, _: Undefined) => Undefined(ls.typ)
+          case (IntCst(k1), IntCst(k2)) =>
+            val result = truncate(k1 << k2, ls.typ.asInstanceOf[TyAnyInt])
+            IntCst(result)(ls.typ)
+          case (v1, v2) => badArgs(ls.className)(v1, v2)
+        }
+      case ars @ ARShift(e1, e2) =>
+        (evalBigStep(stmData)(e1), evalBigStep(stmData)(e2)) match {
+          case (_: Undefined, _) => Undefined(ars.typ)
+          case (_, _: Undefined) => Undefined(ars.typ)
           case (IntCst(k1), IntCst(k2)) =>
             val result = k1 >> k2
-            val extendedResult = n1.typ.asInstanceOf[TyAnyInt] match {
+            val extendedResult = e1.typ.asInstanceOf[TyAnyInt] match {
               case TySInt(w) => signExtendToLong(result, w)
               case TyUInt(_) => result
             }
-            Value(C(extendedResult)(n1.typ), warn1 ++ warn2)
-          case (v1, v2) =>
-            throw new TypeError(
-              s"Operands of ARShift evaluated to $v1 and $v2. They must each evaluate to an integer."
-            )
+            IntCst(extendedResult)(ars.typ)
+          case (v1, v2) => badArgs(ars.className)(v1, v2)
         }
-      case LRShift(e1, e2) =>
-        val Value(n1, warn1) = evalBigStep(stmData)(e1)
-        val Value(n2, warn2) = evalBigStep(stmData)(e2)
-        (n1, n2) match {
-          case (IntCst(k1), IntCst(k2)) =>
+      case lrs @ LRShift(e1, e2) =>
+        (evalBigStep(stmData)(e1), evalBigStep(stmData)(e2)) match {
+          case (_: Undefined, _) => Undefined(lrs.typ)
+          case (_, _: Undefined) => Undefined(lrs.typ)
+          case (n1 @ IntCst(k1), IntCst(k2)) =>
             val w = n1.typ.asInstanceOf[TyAnyInt].w
             val result = maskOutHigherBits(k1, w) >>> k2
-            val extendedResult = n1.typ.asInstanceOf[TyAnyInt] match {
+            val extendedResult = e1.typ.asInstanceOf[TyAnyInt] match {
               case TySInt(w) => signExtendToLong(result, w)
               case TyUInt(_) => result
             }
-            Value(C(extendedResult)(n1.typ), warn1 ++ warn2)
-          case (v1, v2) =>
-            throw new TypeError(
-              s"Operands of LRShift evaluated to $v1 and $v2. They must each evaluate to an integer."
-            )
+            IntCst(extendedResult)(lrs.typ)
+          case (v1, v2) => badArgs(lrs.className)(v1, v2)
         }
 
-      case c: FixCst => Value(c, Set())
-      case p @ IntFixProd(e1, e2) =>
-        val Value(v1, warn1) = evalBigStep(stmData)(e1)
-        val Value(v2, warn2) = evalBigStep(stmData)(e2)
-        (v1, v2) match {
-          case (v1 @ IntCst(k), v2 @ FixCst(numer)) =>
-            val result = (k * numer) >>> v2.typ.shift
-            val typ = v1.typ.asInstanceOf[TyUInt]
-            Value(IntCst(truncate(result, typ))(typ), warn1 ++ warn2)
-          case (v1, v2) =>
-            throw new TypeError(
-              s"Operands of ${p.className} evaluated to $v1 and $v2."
-                + " The first must evaluate to an integer and the second must evaluate to a fixed-point number."
-            )
-        }
-
-      case True  => Value(True, Set())
-      case False => Value(False, Set())
-      case Not(e) =>
+      case True  => True
+      case False => False
+      case not @ Not(e) =>
         evalBigStep(stmData)(e) match {
-          case Value(False, w) => Value(True, w)
-          case Value(True, w)  => Value(False, w)
-          case v =>
-            throw new IllegalArgumentException(
-              s"Operand of Not evaluated to $v. It must evaluate to a boolean."
-            )
+          case u: Undefined => u
+          case False        => True
+          case True         => False
+          case v            => badArgs(not.className)(v)
         }
       case And(terms @ _*) =>
-        val termValues = terms.map(evalBigStep(stmData))
-        if (termValues.forall(v => v.e.isInstanceOf[BoolCst])) {
-          val v = if (termValues.exists(v => v.e == False)) {
-            False
-          } else {
-            True
-          }
-          val existsFalseTermWithoutWarnings = termValues.exists({
-            case Value(False, warnings) => warnings.isEmpty
-            case _                      => false
-          })
-          val warnings = if (existsFalseTermWithoutWarnings) {
-            Set[EvalWarning]()
-          } else {
-            termValues.flatMap(v => v.warnings).toSet
-          }
-          Value(v, warnings)
-        } else {
-          throw new IllegalArgumentException(
-            s"Terms of And evaluated to $termValues. They must all evaluate to booleans."
-          )
-        }
+        // TODO: does this exception to Undefined's normal propagation cause any problems?
+        all(terms.map(evalBigStep(stmData)))
       case Or(terms @ _*) =>
-        val termValues = terms.map(evalBigStep(stmData))
-        if (termValues.forall(v => v.e.isInstanceOf[BoolCst])) {
-          val v = if (termValues.exists(v => v.e == True)) {
-            True
-          } else {
-            False
-          }
-          val existsTrueTermWithoutWarnings = termValues.exists({
-            case Value(True, warnings) => warnings.isEmpty
-            case _                     => false
-          })
-          val warnings = if (existsTrueTermWithoutWarnings) {
-            Set[EvalWarning]()
-          } else {
-            termValues.flatMap(v => v.warnings).toSet
-          }
-          Value(v, warnings)
-        } else {
-          throw new IllegalArgumentException(
-            s"Terms of Or evaluated to $termValues. They must all evaluate to booleans."
-          )
-        }
+        // TODO: does this exception to Undefined's normal propagation cause any problems?
+        any(terms.map(evalBigStep(stmData)))
       case Equal(e1, e2) =>
-        val Value(e1Val, e1Warn) = evalBigStep(stmData)(e1)
-        val Value(e2Val, e2Warn) = evalBigStep(stmData)(e2)
-        val result = if (areEqual(e1Val, e2Val)) True else False
-        Value(result, e1Warn ++ e2Warn)
-      case LessThan(e1, e2) =>
-        val Value(e1Val, e1Warn) = evalBigStep(stmData)(e1)
-        val Value(e2Val, e2Warn) = evalBigStep(stmData)(e2)
-        (e1Val, e2Val) match {
-          case (IntCst(n1), IntCst(n2)) =>
-            val v = if (n1 < n2) True else False
-            Value(v, e1Warn ++ e2Warn)
-          case (v1, v2) =>
-            throw new IllegalArgumentException(
-              s"Operands of LessThan evaluated to $v1 and $v2. They must each evaluate to an integer."
-            )
+        areEqual(evalBigStep(stmData)(e1), evalBigStep(stmData)(e2))
+      case lt @ LessThan(e1, e2) =>
+        (evalBigStep(stmData)(e1), evalBigStep(stmData)(e2)) match {
+          case (_: Undefined, _)        => Undefined(TyBool)
+          case (_, _: Undefined)        => Undefined(TyBool)
+          case (IntCst(n1), IntCst(n2)) => if (n1 < n2) True else False
+          case (v1, v2)                 => badArgs(lt.className)(v1, v2)
         }
-      case Mux(c, t, f) =>
-        val Value(cVal, cWarn) = evalBigStep(stmData)(c)
-        cVal match {
-          case True =>
-            val Value(tVal, tWarn) = evalBigStep(stmData)(t)
-            Value(tVal, cWarn ++ tWarn)
-          case False =>
-            val Value(fVal, fWarn) = evalBigStep(stmData)(f)
-            Value(fVal, cWarn ++ fWarn)
-          case v =>
-            throw new IllegalArgumentException(
-              s"Condition of Mux evaluated to $v. It must evaluate to a boolean."
-            )
+      case mux @ Mux(c, t, f) =>
+        evalBigStep(stmData)(c) match {
+          case _: Undefined => Undefined(mux.typ)
+          case True         => evalBigStep(stmData)(t)
+          case False        => evalBigStep(stmData)(f)
+          case v            => badArgs(mux.className, position = "condition")(v)
         }
 
-      case Tuple(elems @ _*) =>
-        val elemValues = elems.map(evalBigStep(stmData))
-        val v = Tuple(elemValues.map(v => v.e): _*)()
-        val warnings = elemValues.flatMap(v => v.warnings).toSet
-        Value(v, warnings)
-      case TupleAccess(t, IntCst(i)) =>
-        // TODO: make the warnings more accurate by somehow only taking the
-        //       ones that apply to the chosen element?
-        val Value(tVal, tWarn) = evalBigStep(stmData)(t)
-        tVal match {
-          case Undefined(TyTuple(ts @ _*)) =>
-            Value(Undefined(ts(i.toInt)), Set())
-          case Tuple(elems @ _*) =>
-            val v = if (elems.indices.contains(i)) {
-              elems(i.toInt)
-            } else {
-              throw new TypeError(
-                s"Index $i is out of bounds for a tuple with ${elems.length} elements."
-              )
-            }
-            Value(v, tWarn)
-          case v =>
-            throw new IllegalArgumentException(
-              s"Tuple of tuple access evaluated to $v. It must evaluate to a tuple literal."
-            )
+      case tup @ Tuple(elems @ _*) =>
+        Tuple(elems.map(evalBigStep(stmData)): _*)(tup.typ)
+      case ta @ TupleAccess(tup, IntCst(i)) =>
+        evalBigStep(stmData)(tup) match {
+          case _: Undefined      => Undefined(ta.typ)
+          case Tuple(elems @ _*) => elems(i.toInt)
+          case v => badArgs(ta.className, position = "left-hand side")(v)
         }
 
-      case vb @ VecBuild(n, f) =>
-        assert(vb.typ.isInstanceOf[TyVec])
-        val Value(nVal, nWarn) = evalBigStep(stmData)(n)
-        nVal match {
+      case vb @ VecBuild(n, Function(iVar, body)) =>
+        evalBigStep(stmData)(n) match {
           case IntCst(n) if n >= 0 =>
-            val elemValues = (0 until n.toInt).map(i => {
-              val inTyp = f.param.typ
-              assert(inTyp.isInstanceOf[TyUInt])
-              evalBigStep(stmData)(
-                FunCall(f, IntCst(i)(inTyp))().tchk()
-              )
+            val elemValues = (0 until n.toInt).map({ i =>
+              val subs = Map[Expr, Expr](iVar -> IntCst(i)(iVar.typ))
+              evalBigStep(stmData)(body.subPreserveType(subs))
             })
-            val v = VecLiteral(elemValues.map(v => v.e): _*)(vb.typ)
-            val warnings = nWarn ++ elemValues.flatMap(v => v.warnings).toSet
-            Value(v, warnings)
+            VecLiteral(elemValues: _*)(vb.typ)
+          case _: Undefined => Undefined(vb.typ)
           case n =>
             throw new IllegalArgumentException(
               s"Vector length $n. Vectors must have non-negative integer length."
             )
         }
-      case VecAccess(v, i) =>
-        val Value(vVal, vWarn) = evalBigStep(stmData)(v)
-        vVal match {
-          case VecLiteral(elems @ _*) =>
-            val Value(iVal, iWarn) = evalBigStep(stmData)(i)
-            iVal match {
-              case IntCst(i) if elems.indices.contains(i) =>
-                Value(elems(i.toInt), vWarn ++ iWarn)
-              case IntCst(i) =>
-                val t = v.tchk().typ.asInstanceOf[TyVec].t
-                val oobWarn = VecIndexOutOfBoundsWarning(elems.length, i)
-                evalBigStep(stmData)(DefaultVal(t))
-                  .addWarnings((vWarn ++ iWarn) + oobWarn)
-              case v =>
-                throw new IllegalArgumentException(
-                  s"Index of vector access evaluated to $v. It must evaluate to a vector."
-                )
+      case va @ VecAccess(v, i) =>
+        (evalBigStep(stmData)(v), evalBigStep(stmData)(i)) match {
+          case (VecLiteral(elems @ _*), IntCst(i)) =>
+            if (elems.indices.contains(i)) {
+              elems(i.toInt)
+            } else {
+              Undefined(va.typ)
             }
-          case v =>
-            throw new IllegalArgumentException(
-              s"Vector of vector access evaluated to $v. It must evaluate to a vector."
-            )
+          case (_: Undefined, _) => Undefined(va.typ)
+          case (_, _: Undefined) => Undefined(va.typ)
+          case (v, i)            => badArgs(va.className)(v, i)
         }
-      case vl: VecLiteral =>
-        val elemValues = vl.elems.map(e => evalBigStep(stmData)(e))
-        val v = VecLiteral(elemValues.map(v => v.e): _*)(e.typ)
-        val warnings = elemValues.flatMap(v => v.warnings).toSet
-        Value(v, warnings)
+      case vec @ VecLiteral(elems @ _*) =>
+        VecLiteral(elems.map(evalBigStep(stmData)): _*)(vec.typ)
 
-      case s @ (_: StmLiteral | _: StmBuild | _: LetStm) =>
-        throw new IllegalArgumentException(
-          s"${this.getClass.getName} does not handle streams: $s"
-        )
-      case sd @ StmData(s: Param) =>
+      case c: FixCst => c
+      case prod @ IntFixProd(e1, e2) =>
+        (evalBigStep(stmData)(e1), evalBigStep(stmData)(e2)) match {
+          case (IntCst(k), v2 @ FixCst(numer)) =>
+            val result = (k * numer) >>> v2.typ.shift
+            IntCst(truncate(result, prod.typ.asInstanceOf[TyUInt]))(prod.typ)
+          case (_: Undefined, _) => Undefined(prod.typ)
+          case (_, _: Undefined) => Undefined(prod.typ)
+          case (v1, v2)          => badArgs(prod.className)(v1, v2)
+        }
+
+      case sdata @ StmData(s: Param) =>
         stmData.get(s) match {
           case None =>
             throw new IllegalArgumentException(
-              s"Invalid use of ${StmData.getClass.getSimpleName} (e.g., outside a stream or with incorrect arguments)."
+              s"invalid use of ${StmData.getClass.getSimpleName} (e.g., outside a stream or with incorrect arguments)."
             )
-          case Some(None) =>
-            evalBigStep(Map())(DefaultVal(sd.typ))
-              .addWarnings(Set(StmDataWithoutReady(s)))
-          case Some(Some(v)) =>
-            Value(v, Set())
+          case Some(None)    => Undefined(sdata.typ) // not ready
+          case Some(Some(v)) => v
         }
       case StmData(_) =>
         throw new IllegalArgumentException(
           s"Invalid use of ${StmData.getClass.getSimpleName} (non-param input)."
+        )
+      case s @ (_: StmLiteral | _: StmBuild | _: LetStm) =>
+        throw new IllegalArgumentException(
+          s"${this.getClass.getName} does not handle streams: $s"
         )
 
       case s: SyntaxSugar =>
@@ -551,13 +346,11 @@ private[eval] object DataEvaluator {
           s"There should be no more syntax sugar after lowering. Found $s."
         )
     }
-    val Value(v, warnings) = result
-    val typedV = v.tchk()
     assert(
-      typedV.typ ~~= e.typ,
-      s"evaluation should preserve the type (expected ${e.typ}, found ${typedV.typ})"
+      result.typ ~~= e.typ,
+      s"evaluation should preserve the type (expected ${e.typ}, found ${result.typ})"
     )
-    Value(typedV, warnings)
+    result
   }
 
   private def truncate(n: Long, typ: TyAnyInt): Long = {
@@ -591,17 +384,51 @@ private[eval] object DataEvaluator {
     }
   }
 
-  private def areEqual(v1: Expr, v2: Expr): Boolean = {
+  private def areEqual(v1: Expr, v2: Expr): Expr = {
     (v1, v2) match {
-      case (b1: BoolCst, b2: BoolCst) => b1 == b2
-      case (IntCst(n1), IntCst(n2))   => n1 == n2
+      case (_: Undefined, _)          => Undefined(TyBool)
+      case (_, _: Undefined)          => Undefined(TyBool)
+      case (b1: BoolCst, b2: BoolCst) => if (b1 == b2) True else False
+      case (IntCst(n1), IntCst(n2))   => if (n1 == n2) True else False
       case (Tuple(xs1 @ _*), Tuple(xs2 @ _*)) =>
         assert(xs1.length == xs2.length, "tuple lengths must match")
-        xs1.zip(xs2).forall({ case (x, y) => areEqual(x, y) })
+        all(xs1.zip(xs2).map({ case (x, y) => areEqual(x, y) }))
       case (VecLiteral(xs1 @ _*), VecLiteral(xs2 @ _*)) =>
         assert(xs1.length == xs2.length, "vector length must match")
-        xs1.zip(xs2).forall({ case (x, y) => areEqual(x, y) })
-      case _ => false
+        all(xs1.zip(xs2).map({ case (x, y) => areEqual(x, y) }))
+      case (v1, v2) =>
+        throw new AssertionError(s"cannot compare $v1 with $v2")
     }
+  }
+
+  @tailrec
+  private def all(xs: Seq[Expr], undef: Boolean = false): Expr = {
+    xs match {
+      case Seq() if undef               => Undefined(TyBool)
+      case Seq() if !undef              => True
+      case Seq(False, _*)               => False
+      case Seq(True, tail @ _*)         => all(tail, undef = undef)
+      case Seq(_: Undefined, tail @ _*) => all(tail, undef = true)
+    }
+  }
+
+  @tailrec
+  private def any(xs: Seq[Expr], undef: Boolean = false): Expr = {
+    xs match {
+      case Seq() if undef               => Undefined(TyBool)
+      case Seq() if !undef              => False
+      case Seq(True, _*)                => True
+      case Seq(False, tail @ _*)        => any(tail, undef = undef)
+      case Seq(_: Undefined, tail @ _*) => any(tail, undef = true)
+    }
+  }
+
+  private def badArgs(
+      op: String,
+      position: String = "operands"
+  )(values: Expr*): Nothing = {
+    throw new AssertionError(
+      s"$position of $op evaluated to: ${values.mkString(", ")}"
+    )
   }
 }

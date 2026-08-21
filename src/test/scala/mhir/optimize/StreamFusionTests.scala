@@ -271,15 +271,15 @@ class StreamFusionTests extends AnyFunSuite {
           |      },
           |      (valid: bool) = {
           |        init: false,
-          |        next: sdata(p) % 2 == 0:u8
+          |        next: j < 4 && sdata(p) % 2 == 0:u8
           |      },
           |      (j: u8) = {
           |        init: 0:u8,
-          |        next: if sdata(p) % 2 == 0:u8 then j + 1 else j
+          |        next: if j < 4 && sdata(p) % 2 == 0:u8 then j + 1 else j
           |      },
           |      (sum: u8) = {
           |        init: 0:u8,
-          |        next: sum + sdata(p)
+          |        next: sum + (if j < 4 then sdata(p) else 0:u8)
           |      }
           |    } {
           |      (p: Stm[u8, 8]) = {
@@ -298,11 +298,11 @@ class StreamFusionTests extends AnyFunSuite {
           |      },
           |      (valid: bool) = {
           |        init: false,
-          |        next: sdata(p) % 2 != 0:u8
+          |        next: j < 4 && sdata(p) % 2 != 0:u8
           |      },
           |      (j: u8) = {
           |        init: 0:u8,
-          |        next: if sdata(p) %2 != 0:u8 then j + 1 else j
+          |        next: if j < 4 && sdata(p) % 2 != 0:u8 then j + 1 else j
           |      },
           |      (i: u8) = {
           |        init: 0:u8,
@@ -356,11 +356,7 @@ class StreamFusionTests extends AnyFunSuite {
       Tuple(C(6)(U8), C(7)(U8))()
     )().tchk()
     val actual0 =
-      mhir.eval.eval(
-        original,
-        inputs = Map(in1 -> in1Val, in2 -> in2Val),
-        suppressWarnings = true
-      )
+      mhir.eval.eval(original, inputs = Map(in1 -> in1Val, in2 -> in2Val))
     assert(actual0 == expected)
 
     // Fuse with p1

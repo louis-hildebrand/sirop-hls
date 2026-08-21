@@ -1,7 +1,6 @@
 package mhir.sugar
 
 import mhir.canonicalize._
-import mhir.eval.EvalException
 import mhir.ir._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
@@ -237,8 +236,8 @@ class VectorTests extends AnyFunSuite {
 
   test("VecSlice:[::0]") {
     val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
-    val e = VecSlice(input, Tuple()(), Tuple()(), C(0)())()
-    assertThrows[EvalException](mhir.eval.eval(e))
+    val e = VecSlice(input, Tuple()(), Tuple()(), C(0)())().tchk()
+    assert(mhir.eval.eval(e) == Undefined(e.typ))
   }
 
   test("VecSlice:[2::]") {
@@ -793,7 +792,7 @@ class VectorTests extends AnyFunSuite {
     def extract(e: Expr): Seq[Expr] = {
       e.asInstanceOf[VecLiteral].elems
     }
-    def eval(e: Expr): Expr = mhir.eval.eval(e, suppressWarnings = true)
+    def eval(e: Expr): Expr = mhir.eval.eval(e)
 
     val input = VecBuild(6, U8 ::+ (i => i))()
     val expected = (0 until 6).map(C(_)(U8))

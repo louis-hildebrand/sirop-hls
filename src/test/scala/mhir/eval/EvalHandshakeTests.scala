@@ -436,7 +436,8 @@ class EvalHandshakeTests extends AnyFunSuite {
         Map[Param, (Expr, Expr, Expr)](s -> (count, False, Tuple()()))
       )().tchk()
     }
-    val exc = intercept[UndefinedValException](mhir.eval.eval(e))
-    assert(exc.warnings.contains(StmDataWithoutReady(s)))
+    val actual = mhir.eval.eval(e)
+    val expected = StmLiteral((0 until n).map(_ => Undefined(U8)): _*)().tchk()
+    assert(actual == expected)
   }
 }

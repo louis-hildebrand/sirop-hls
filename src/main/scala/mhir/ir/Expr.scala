@@ -880,6 +880,24 @@ object MaybeOr {
   }
 }
 
+/** Represents an unknown value of the given type.
+  *
+  * The semantics of [[Undefined]] are similar to LLVM's "poison":
+  * https://llvm.org/docs/UndefinedBehavior.html#poison-values. For example,
+  * {{{2 * undefined}}} evaluates to `undefined`. This may be slightly
+  * surprising for the programmer: e.g., {{{(2 * undefined) % 2}}} evaluates to
+  * `undefined`, not 0. However, the Sirop compiler is allowed to transform an
+  * expression that evaluates to `undefined` into one that evaluates to a
+  * concrete value. Thus, it is allowed to automatically transform
+  * {{{(2 * x) % 2}}} into 0, as expected.
+  *
+  * Having `undefined` evaluate to a random value on each read (similar to
+  * LLVM's `undef`) would make transformations like {{{2 * x --> x + x}}}
+  * unsound. Having `undefined` behave like LLVM's `freeze` (i.e., the value is
+  * random but consistent between uses) would make it unsound to substitute
+  * arguments into the body of a function unless you can prove the arguments
+  * will not be `undefined`.
+  */
 final case class Undefined(override val typ: Type) extends Expr()(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {

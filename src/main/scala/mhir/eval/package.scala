@@ -13,14 +13,10 @@ package object eval {
       handshake: Boolean = true,
       inputs: Map[Param, Expr] = Map(),
       stmData: Map[Param, Option[Expr]] = Map(),
-      maxInvalidSteps: Option[Int] = None,
-      suppressWarnings: Boolean = false
+      maxInvalidSteps: Option[Int] = None
   ): Expr = {
-    val evaluator = Evaluator(
-      handshake = handshake,
-      maxInvalidSteps = maxInvalidSteps,
-      suppressWarnings = suppressWarnings
-    )
+    val evaluator =
+      Evaluator(handshake = handshake, maxInvalidSteps = maxInvalidSteps)
     evaluator.eval(e, inputs = inputs, stmData = stmData)
   }
 }

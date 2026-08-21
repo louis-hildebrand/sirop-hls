@@ -127,15 +127,8 @@ private[handshake] case class StmBuildNode(
       )
       val newAcc = if (updateAcc) {
         this.hw.nextByAccumulator.map({ case (x, next) =>
-          val evalNext = eval(
-            next.subPreserveType(this.accSubs),
-            stmData = this.stmData,
-            // Who cares if the final accumulator values invoke undefined
-            // behaviour?
-            // They won't be used anyway.
-//            suppressWarnings = newN == 0
-            suppressWarnings = true
-          )
+          val evalNext =
+            eval(next.subPreserveType(this.accSubs), stmData = this.stmData)
           x -> evalNext
         })
       } else {
@@ -197,8 +190,12 @@ private[handshake] case class StmBuildNode(
           s"${StmData.getClass.getSimpleName} cannot be used in a ready expression."
         )
       }
-      val ready =
-        eval(readyExpr.subPreserveType(this.accSubs)).toBool
+      val ready = eval(readyExpr.subPreserveType(this.accSubs)) match {
+        case False        => false
+        case True         => true
+        case _: Undefined => throw UndefinedReady
+        case v            => throw new AssertionError(s"ready evaluated to $v")
+      }
       x -> ready
     })
   }
