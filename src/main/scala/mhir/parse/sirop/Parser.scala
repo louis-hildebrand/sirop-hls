@@ -1413,48 +1413,96 @@ object Parser {
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     val (lsq, rest1) = expect(LeftSquareToken, tokens)
-    rest1.headOption match {
+    val (elems, rest2) = parseExprList(rest1, constants)
+    rest2.headOption match {
       case Some(_: RightSquareVToken) =>
-        // Empty vector
-        val rest2 = rest1.tail
-        val rest3 = rest2.headOption match {
-          case Some(_: ColonToken) => rest2.tail
-          case _ =>
-            throw SyntaxError(
-              "missing type annotation for empty Vec literal",
-              lsq.loc
-            )
+        // Vector
+        val rest3 = rest2.tail
+        val (typ, rest4) = rest3.headOption match {
+          case Some(_: ColonToken) => parseVecTyp(rest3.tail, constants)
+          case _                   => (Missing, rest3)
         }
-        val (vecTyp, rest4) = parseVecTyp(rest3, constants)
-        if (vecTyp.n != C(0)()) {
-          throw SyntaxError(
-            s"wrong length in Vec type annotation: ${vecTyp.n} (expected 0)",
-            lsq.loc
-          )
+        if (elems.isEmpty) {
+          // Type annotation is required and must have length 0
+          typ match {
+            case TyVec(_, IntCst(0)) => ()
+            case TyVec(_, n) =>
+              throw SyntaxError(
+                s"wrong length in Vec type annotation: $n (expected 0)",
+                lsq.loc
+              )
+            case typ =>
+              assert(
+                typ == Missing,
+                s"at this point, the type should be either $Missing or a Vec type"
+              )
+              throw SyntaxError(
+                "missing type annotation for empty Vec literal",
+                lsq.loc
+              )
+          }
+        } else {
+          // Type annotation is forbidden
+          typ match {
+            case Missing => ()
+            case _ =>
+              throw SyntaxError(
+                "type annotations are forbidden for non-empty Vec literals",
+                lsq.loc
+              )
+          }
         }
-        (VecLiteral()(vecTyp), rest4)
+        (VecLiteral(elems: _*)(typ), rest4)
       case Some(_: RightSquareSToken) =>
-        // Empty stream
-        val rest2 = rest1.tail
-        val rest3 = rest2.headOption match {
-          case Some(_: ColonToken) => rest2.tail
+        // Stream
+        val rest3 = rest2.tail
+        val (physical, logical, rest4) = rest3.headOption match {
+          case Some(_: PlusPlusToken) =>
+            val rest3_1 = rest3.tail
+            val (_, rest3_2) = expect(LeftSquareToken, rest3_1)
+            val (logical, rest3_3) = parseExprList(rest3_2, constants)
+            val (_, rest3_4) = expect(RightSquareSToken, rest3_3)
+            (elems, logical, rest3_4)
           case _ =>
-            throw SyntaxError(
-              "missing type annotation for empty Stm literal",
-              lsq.loc
-            )
+            (Seq(), elems, rest3)
         }
-        val (stmTyp, rest4) = parseStmTyp(rest3, constants)
-        if (stmTyp.n != C(0)()) {
-          throw SyntaxError(
-            s"wrong length in Stm type annotation: ${stmTyp.n} (expected 0)",
-            lsq.loc
-          )
+        val (typ, rest5) = rest4.headOption match {
+          case Some(_: ColonToken) => parseStmTyp(rest4.tail, constants)
+          case _                   => (Missing, rest4)
         }
-        (StmLiteral()(stmTyp), rest4)
+        if (physical.isEmpty && logical.isEmpty) {
+          // Type annotation is required and must have length 0
+          typ match {
+            case TyStm(_, IntCst(0)) => ()
+            case TyStm(_, n) =>
+              throw SyntaxError(
+                s"wrong length in Stm type annotation: $n (expected 0)",
+                lsq.loc
+              )
+            case typ =>
+              assert(
+                typ == Missing,
+                s"at this point, the type should be either $Missing or a Stm type"
+              )
+              throw SyntaxError(
+                "missing type annotation for empty Stm literal",
+                lsq.loc
+              )
+          }
+        } else {
+          // Type annotation is forbidden
+          typ match {
+            case Missing => ()
+            case _ =>
+              throw SyntaxError(
+                "type annotations are forbidden for non-empty Stm literals",
+                lsq.loc
+              )
+          }
+        }
+        (StmLiteral(physical, logical)(typ), rest5)
       case _ =>
         // Non-empty vector or stream
-        val (elems, rest2) = parseExprList(rest1, constants)
         rest2.headOption match {
           case Some(_: RightSquareVToken) =>
             val rest3 = rest2.tail
@@ -1469,20 +1517,39 @@ object Parser {
             (VecLiteral(elems: _*)(), rest3)
           case Some(_: RightSquareSToken) =>
             val rest3 = rest2.tail
-            rest3.headOption match {
-              case Some(_: ColonToken) =>
-                throw SyntaxError(
-                  "type annotations are forbidden for non-empty Stm literals",
-                  lsq.loc
-                )
-              case _ => ()
+            val (physical, logical, rest4) = rest3.headOption match {
+              case Some(_: PlusPlusToken) =>
+                val rest3_1 = rest3.tail
+                val (logical, rest3_2) =
+                  parseLogicalStreamLiteral(rest3_1, constants)
+                (elems, logical, rest3_2)
+              case _ =>
+                (Seq(), elems, rest3)
             }
-            (StmLiteral(elems: _*)(), rest3)
+            val (typ, rest5) = rest4.headOption match {
+              case Some(_: ColonToken) =>
+                val rest4_1 = rest4.tail
+                parseStmTyp(rest4_1, constants)
+              case _ =>
+                (Missing, rest4)
+            }
+            // TODO: check typ != Missing iff logical.isEmpty && physical.isEmpty
+            (StmLiteral(physical, logical)(typ), rest5)
           case Some(tok) =>
             throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
           case None => throw SyntaxError("unexpected end of file", None)
         }
     }
+  }
+
+  private def parseLogicalStreamLiteral(
+      tokens: Seq[Token],
+      constants: Map[Param, Type]
+  ): (Seq[Expr], Seq[Token]) = {
+    val (_, rest1) = expect(LeftSquareToken, tokens)
+    val (elems, rest2) = parseExprList(rest1, constants)
+    val (_, rest3) = expect(RightSquareSToken, rest2)
+    (elems, rest3)
   }
 
   private def parseExprList(

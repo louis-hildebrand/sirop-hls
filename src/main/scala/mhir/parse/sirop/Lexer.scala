@@ -169,6 +169,8 @@ object Lexer {
               case _ =>
                 lex(tail2, tokens :+ PlusPercentToken(p), p.moveRightBy(2))
             }
+          case Some('+') =>
+            lex(tail.tail, tokens :+ PlusPlusToken(p), p.moveRightBy(2))
           case _ =>
             lex(tail, tokens :+ PlusToken(p), p.moveRightBy(1))
         }

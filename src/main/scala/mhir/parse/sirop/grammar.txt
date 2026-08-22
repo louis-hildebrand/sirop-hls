@@ -111,25 +111,31 @@ expr0           ::= "(" expr ")"
                   | "default" "[" typ "]"
                   | "true" | "false"
                   | int_cst
-                  # Type annotation is required if the vec/stm literal is empty.
-                  # Without it, the type checker cannot handle empty sequences.
-                  # Type annotation is forbidden otherwise.
-                  # If it was allowed, the compiler would need to carefully check that
-                  # the type is correct.
-                  # Furthermore, the type annotation cannot be stored directly in the
-                  # literal, since the elements might not have been type checked yet.
-                  # In short, supporting type annotations on any sequence literals would
-                  # require a new primitive like `AssertType` which causes the type
-                  # checker to check that the given expression has the expected type.
-                  | "[" "]v" ":" vec_typ
-                  | "[" expr ( "," expr )* "]v"
-                  | "[" "]s" ":" stm_typ
-                  | "[" expr ( "," expr )* "]s"
+                  | vec_literal
+                  | stm_literal
                   # You can use these symbols in isolation to describe a binary function
                   | binop_symbol
 int_cst         ::= ( "+" | "-" | "" ) nat [ ":" typ ]
 expr_list       ::= ""
                   | expr ( "," expr )*
+# Type annotation is required if the vec/stm literal is empty.
+# Without it, the type checker cannot handle empty sequences.
+# Type annotation is forbidden otherwise.
+# If it was allowed, the compiler would need to carefully check that
+# the type is correct.
+# Furthermore, the type annotation cannot be stored directly in the
+# literal, since the elements might not have been type checked yet.
+# In short, supporting type annotations on any sequence literals would
+# require a new primitive like `AssertType` which causes the type
+# checker to check that the given expression has the expected type.
+vec_literal     ::= "[" "]v" ":" vec_typ
+                  | "[" expr ( "," expr )* "]v"
+stm_literal     ::=                                  "[" "]s"                    ":" stm_typ
+                  |                                  "[" expr ( "," expr )* "]s"
+                  | "[" "]s"                    "++" "[" "]s"                    ":" stm_typ
+                  | "[" "]s"                    "++" "[" expr ( "," expr )* "]s"
+                  | "[" expr ( "," expr )* "]s" "++" "[" "]s"
+                  | "[" expr ( "," expr )* "]s" "++" "[" expr ( "," expr )* "]s"
 
 # First(typ) = { "bool", "u", "i", "(", "Vec", "Stm" }
 typ             ::= "(" typ ")"

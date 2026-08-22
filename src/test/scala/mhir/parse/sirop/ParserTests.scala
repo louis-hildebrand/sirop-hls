@@ -184,6 +184,20 @@ class ParserTests extends AnyFunSuite {
     assert(exc.getMessage.contains("expected a Stm type"))
   }
 
+  test("StmLiteral:Empty++Empty") {
+    val src = "[]s ++ []s:Stm[u8,0]"
+    val actual = Parser.parse(src).body
+    assert(actual == StmLiteral()())
+    assert(actual.typ == TyStm(U8, 0))
+  }
+
+  test("StmLiteral:Empty++Empty:MissingTypeAnnotation") {
+    val exc = intercept[SyntaxError](Parser.parse("[]s ++ []s"))
+    assert(
+      exc.getMessage.contains("missing type annotation for empty Stm literal")
+    )
+  }
+
   test("StmLiteral:OneElem") {
     assert(Parser.parse("[42:u8]s").body == StmLiteral(C(42)(U8))())
   }
@@ -201,6 +215,55 @@ class ParserTests extends AnyFunSuite {
     val src = "[false, true, false]s"
     val expected = StmLiteral(False, True, False)()
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("StmLiteral:Empty++NonEmpty") {
+    val src = "[]s ++ [42:u8, 43:u8]s"
+    val expected = StmLiteral(Seq(), Seq(C(42)(U8), C(43)(U8)))(Missing)
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("StmLiteral:Empty++NonEmpty:TypeAnnotation") {
+    val exc = intercept[SyntaxError](Parser.parse("[]s ++ [1:u8]s:Stm[u8, 1]"))
+    assert(
+      exc.getMessage.contains(
+        "type annotations are forbidden for non-empty Stm literals"
+      )
+    )
+  }
+
+  test("StmLiteral:NonEmpty++Empty") {
+    val src = "[1:u8, 2:u8]s ++ []s"
+    val expected = StmLiteral(Seq(C(1)(U8), C(2)(U8)), Seq())(Missing)
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("StmLiteral:NonEmpty++Empty:TypeAnnotation") {
+    val exc = intercept[SyntaxError](Parser.parse("[1:u8]s ++ []s:Stm[u8, 0]"))
+    assert(
+      exc.getMessage.contains(
+        "type annotations are forbidden for non-empty Stm literals"
+      )
+    )
+  }
+
+  test("StmLiteral:NonEmpty++NonEmpty") {
+    val src = "[1:i8, 2:i8]s ++ [-1:i8, -2:i8, -3:i8]s"
+    val expected = StmLiteral(
+      Seq(C(1)(I8), C(2)(I8)),
+      Seq(C(-1)(I8), C(-2)(I8), C(-3)(I8))
+    )(Missing)
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("StmLiteral:NonEmpty++NonEmpty:TypeAnnotation") {
+    val exc =
+      intercept[SyntaxError](Parser.parse("[1:u8]s ++ [1:u8]s:Stm[u8, 1]"))
+    assert(
+      exc.getMessage.contains(
+        "type annotations are forbidden for non-empty Stm literals"
+      )
+    )
   }
 
   test("Pad") {

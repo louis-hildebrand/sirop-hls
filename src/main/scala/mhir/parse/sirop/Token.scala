@@ -753,6 +753,17 @@ case class PlusTickToken(loc: SourcePoint) extends Token {
   */
 object PlusTickToken extends SymbolCategory("+`")
 
+/** The symbol "++".
+  */
+case class PlusPlusToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = PlusPlusToken
+  override def original: String = "++"
+}
+
+/** Category of [[PlusPlusToken]].
+  */
+object PlusPlusToken extends SymbolCategory("++")
+
 /** The symbol "+".
   */
 case class PlusToken(loc: SourcePoint) extends Token {
