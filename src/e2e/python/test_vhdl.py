@@ -155,10 +155,10 @@ def _get_tree(vhdl_dir: Path) -> str:
     Get the output of the `tree` command for the given path.
     """
     cwd = os.getcwd()
-    os.chdir(c.ROOT)
+    os.chdir(vhdl_dir)
     try:
         result = subprocess.run(
-            ["tree", vhdl_dir.resolve().relative_to(c.ROOT).as_posix(), "--noreport"],
+            ["tree", ".", "--noreport"],
             check=True,
             encoding="utf-8",
             stdout=subprocess.PIPE,

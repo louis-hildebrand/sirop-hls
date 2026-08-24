@@ -1,4 +1,4 @@
-src/e2e/resources/actual/Basic/StmMap
+.
 ├── add5.qpf
 ├── add5.qsf
 ├── add5.sdc

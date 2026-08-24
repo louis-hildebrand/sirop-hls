@@ -146,7 +146,7 @@ object StmPipeline {
         val IntCst(bufSizeVal) = eval(bufSize)
         if (bufSizeVal != 0) {
           logger.warn(
-            "cannot implement letstm with nonzero buffer size when the handshake protocol is disabled." +
+            s"cannot implement letstm with nonzero buffer size ($bufSizeVal) when the handshake protocol is disabled." +
               " The buffer size will be ignored, which may lead to the program producing incorrect results."
           )
         }
@@ -176,7 +176,7 @@ object StmPipeline {
     val inputs = s.producers.map({ case (x, (z, _, _)) =>
       x -> init(pipe, z, idByVar, loc)
     })
-    val myEpochs = s.producers
+    val myEpochByProducer = s.producers
       .map({ case (x, (_, _, delayExpr)) =>
         // TODO: what if it turns out to be undefined?
         val IntCst(relativeDelay) = eval(delayExpr)
@@ -186,14 +186,17 @@ object StmPipeline {
         // Furthermore, I know the actual, absolute delay:
         //     absoluteDelay = T + relativeDelay
         val absoluteDelay = pipe.nodes(inputs(x)).absoluteDelayToFirst
-        absoluteDelay - relativeDelay.toInt
+        x -> (absoluteDelay - relativeDelay.toInt)
       })
-      .toSet
+      .toMap
+    val myEpochs = myEpochByProducer.values.toSet
     val myEpoch = if (myEpochs.isEmpty) {
       // Stream sources (e.g., counters) start running immediately
       0
     } else if (myEpochs.size > 1) {
-      throw DelayMismatch
+      val str =
+        myEpochByProducer.map({ case (x, d) => s"$x -> $d" }).mkString(", ")
+      throw DelayMismatch(s"there is a delay mismatch: $str")
     } else {
       myEpochs.head
     }

@@ -17,7 +17,7 @@ class EvalNoHandshakeTests extends AnyFunSuite {
         .tchk()
         .lower
 
-    assertThrows[DelayMismatch.type](
+    assertThrows[DelayMismatch](
       mhir.eval.eval(original, handshake = false)
     )
   }

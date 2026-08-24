@@ -347,7 +347,7 @@ class LatencyMatcherTests extends AnyFunSuite {
       .asInstanceOf[Function]
       .body
       .subPreserveType(inputs)
-    assertThrows[DelayMismatch.type](
+    assertThrows[DelayMismatch](
       mhir.eval.eval(originalWithInputs, handshake = false)
     )
     // After latency matching, evaluation should succeed

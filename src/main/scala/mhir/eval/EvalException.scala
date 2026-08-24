@@ -45,4 +45,4 @@ object PipelineFixpoint extends DeadlockReason {
   override def name: String = "pipeline reached fixpoint"
 }
 
-object DelayMismatch extends EvalException("there is a delay mismatch")
+case class DelayMismatch(msg: String) extends EvalException(msg)

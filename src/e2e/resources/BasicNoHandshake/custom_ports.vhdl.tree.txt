@@ -1,4 +1,4 @@
-src/e2e/resources/actual/Basic/custom_ports_no_handshake
+.
 ├── design
 │   ├── conversions.vhd
 │   ├── sbuild_1.vhd
