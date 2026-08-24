@@ -51,8 +51,7 @@ private[vhdl] object StmBuildVhdl {
   private def defaultInPorts(options: VhdlGeneratorOptions): Seq[InPort] = {
     Seq(
       InPort(options.clock, VhdlStdLogic),
-      InPort(options.reset, VhdlStdLogic),
-      InPort("go", VhdlStdLogic)
+      InPort(options.reset, VhdlStdLogic)
     )
   }
 
@@ -80,7 +79,7 @@ private[vhdl] object StmBuildVhdl {
   ): Seq[Signal] = {
     accumulators
       .map({ case (x, acc) =>
-        acc.toVhdl(Target(x), enable = s"sl2bool(go)", options = options)
+        acc.toVhdl(Target(x), enable = "true", options = options)
       })
       .toSeq
   }

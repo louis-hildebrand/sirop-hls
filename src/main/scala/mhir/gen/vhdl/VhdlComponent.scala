@@ -17,34 +17,6 @@ private[vhdl] trait PredefinedComponent extends VhdlComponent {
   def typesUsed: Set[VhdlType]
 }
 
-/** The predefined `start_delay` component.
-  *
-  * @param maxLatency
-  *   the value for the `MAX_LATENCY` generic.
-  */
-private[vhdl] case class StartDelayComponent(maxLatency: Int)
-    extends PredefinedComponent {
-
-  override def entityName: String = "work.start_delay"
-
-  override def generics: ListMap[String, String] = {
-    ListMap("MAX_LATENCY" -> this.maxLatency.toString)
-  }
-
-  override def portNames: Set[String] = Set("clk", "reset", "go")
-
-  override def filesToCopy(vhdlDir: Path): Map[Path, String] = {
-    Map(vhdlDir / "start_delay.vhd" -> "mhir/gen/vhdl/start_delay.vhd")
-  }
-
-  override def typesUsed: Set[VhdlType] = {
-    Set(
-      VhdlStdLogic,
-      VhdlStdLogicVec(n = 1 + this.maxLatency, direction = IndexUp)
-    )
-  }
-}
-
 /** The predefined `letstm_buf` component.
   *
   * @param bitWidth

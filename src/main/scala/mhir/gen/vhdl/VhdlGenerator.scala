@@ -83,8 +83,9 @@ object VhdlGenerator {
 
   def valueToStdLogicVector(v: Expr): String = {
     mhir.eval.eval(v).tchk() match {
-      case False => "\"0\""
-      case True  => "\"1\""
+      case _: Undefined => "(others => 'X')"
+      case False        => "\"0\""
+      case True         => "\"1\""
       case c: IntCst =>
         c.typ.asInstanceOf[TyAnyInt] match {
           case TyUInt(w) => s"std_logic_vector(to_unsigned(${c.i}, $w))"
