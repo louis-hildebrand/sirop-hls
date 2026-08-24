@@ -154,7 +154,7 @@ object Streamifier {
       True,
       Map(),
       oldInputs
-        .map(x => newAccumulators(x) -> (oldToNewInputs(x), True, C(1)()))
+        .map(x => newAccumulators(x) -> (oldToNewInputs(x), True, C(0)()))
         .toMap
     )().annotate(NoInputsAfterLastOut).annotateWithName("scalar2scalar")
   }
