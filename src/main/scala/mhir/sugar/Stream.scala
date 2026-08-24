@@ -2,6 +2,7 @@ package mhir.sugar
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir.{ExprPrinter => EP, _}
+import mhir.optimize.StmAccRemovalPass
 import mhir.sugar.Streamifier.Streamify
 import mhir.typecheck._
 
@@ -392,8 +393,9 @@ private[sugar] case class StmReset(
             val newStm = addCountersAndReset(s)
             x -> (newStm, ready, delay)
           })
-        )(annotations = withCtrs.annotations).tchk()
-        result
+        )(annotations = withCtrs.annotations).tchk().asInstanceOf[StmBuild]
+        val simplifiedResult = StmAccRemovalPass.removeUnusedVars(result)
+        simplifiedResult
       case LetStm(bufSize, x, in, out) =>
         LetStm(bufSize, x, addCountersAndReset(in), addCountersAndReset(out))()
           .tchk()

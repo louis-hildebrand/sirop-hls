@@ -2,9 +2,13 @@
 ├── add5.qpf
 ├── add5.qsf
 ├── add5.sdc
-└── design
-    ├── add5.vhd
-    ├── conversions.vhd
-    ├── sbuild_1.vhd
-    ├── start_delay.vhd
-    └── typedefs.vhd
+├── design
+│   ├── add5.vhd
+│   ├── conversions.vhd
+│   ├── sbuild_1.vhd
+│   └── typedefs.vhd
+├── Makefile
+├── scripts
+│   └── test_vhdl.sh
+└── test
+    └── test_add5.vhd

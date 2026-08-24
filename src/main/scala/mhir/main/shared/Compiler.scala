@@ -3,6 +3,7 @@ package mhir.main.shared
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.debug.{DotPrinter, Tracer}
+import mhir.delay.ReplaceAccumulatorDelaysWithGo
 import mhir.eval.{Evaluator, TestError, TestRunner}
 import mhir.gen._
 import mhir.gen.vhdl.test._
@@ -79,22 +80,24 @@ object Compiler {
       vhdl3
     }
     val options = originalOptions.copy(vhdl = vhdlOptions)
-    val (checked, tchkTime) = typecheck(prog)
-    time("semantic analysis (only names)", Level.DEBUG) {
-      SemanticAnalyzer.checkNames(checked)
+    val (typeChecked, tchkTime) = typecheck(prog)
+    val checked = time("semantic analysis (only names)", Level.DEBUG) {
+      SemanticAnalyzer.checkNames(typeChecked)
     }
     val (lowered, lowerTime) = lower(checked)
-    val (synthesizable, synthTime) = makeSynthesizable(lowered.body)
+    val (synthesizable, synthTime) = makeSynthesizable(lowered)
     time("semantic analysis", Level.DEBUG) {
-      SemanticAnalyzer.check(
-        lowered.copy(accel = lowered.accel.copy(body = synthesizable))
-      )
+      SemanticAnalyzer.check(synthesizable)
     }
     val (finalExpr, optimTime) =
-      optimize(synthesizable, options.optFlags, handshake = lowered.handshake)
+      optimize(
+        synthesizable.body,
+        options.optFlags,
+        handshake = lowered.handshake
+      )
     val finalProgram =
-      lowered.copy(accel = lowered.accel.copy(body = finalExpr))
-    val latency = new LatencyAnalysis(handshake = lowered.handshake)
+      synthesizable.copy(accel = synthesizable.accel.copy(body = finalExpr))
+    val latency = new LatencyAnalysis(handshake = finalProgram.handshake)
       .actualLatency(finalProgram.body)
       .latency
     latency match {
@@ -117,9 +120,7 @@ object Compiler {
         }
     }
     time("post-optimization semantic analysis", Level.DEBUG) {
-      SemanticAnalyzer.check(
-        lowered.copy(accel = lowered.accel.copy(body = finalExpr))
-      )
+      SemanticAnalyzer.check(finalProgram)
     }
     val genTime =
       generateCode(options.vhdl, finalProgram, options.targets, latency)
@@ -290,13 +291,23 @@ object Compiler {
     Program(Seq(), newAccel, newTestSuite)
   }
 
-  private def makeSynthesizable(e: Expr): (Expr, Duration) = {
+  private def makeSynthesizable(prog: Program): (Program, Duration) = {
     time2("making expression synthesizable", Level.DEBUG) {
-      val e1 = inlineFunCalls(e)
+      val e1 = inlineFunCalls(prog.body)
       val e2 = e1.streamify
-      val e3 = insertLetForTopLevelInputs(e2)
-      val e4 = uncurryBody(e3)
-      e4
+      val e3 = if (prog.handshake) {
+        // TODO: should I do anything here? Emit a warning that accumulator delays will be ignored?
+        e2
+      } else {
+        new ReplaceAccumulatorDelaysWithGo(prog.go).apply(e2)
+      }
+      val e4 = {
+        // This needs to happen after accumulator delay removal, since that
+        // tends to increase the fanout of the "go" input
+        insertLetForTopLevelInputs(e3)
+      }
+      val e5 = uncurryBody(e4)
+      prog.copy(accel = prog.accel.copy(body = e5))
     }
   }
 

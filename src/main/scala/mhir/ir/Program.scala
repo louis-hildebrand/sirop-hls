@@ -28,6 +28,18 @@ case class Program(
     this.accel.annotations.get("reset").collect({ case x: Param => x.name })
   }
 
+  def go: Option[Param] = {
+    this.accel.annotations
+      .get("go")
+      .map({
+        case x: Param => x
+        case e =>
+          throw new AssertionError(
+            s"value for annotation 'go' is not a variable: $e"
+          )
+      })
+  }
+
   def handshake: Boolean = {
     !this.accel.annotations.contains("no_handshake")
   }
@@ -57,6 +69,7 @@ object Program {
         }
       case "out_name" => expectIdent(key, value, err)
       case "reset"    => expectIdent(key, value, err)
+      case "go"       => expectIdent(key, value, err)
       case _          => err(s"unknown annotation key: '$key'")
     }
   }

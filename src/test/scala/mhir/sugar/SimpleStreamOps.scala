@@ -41,7 +41,7 @@ object SimpleCount {
         )
       ),
       Map()
-    )().tchk().lower
+    )().annotateWithName("SimpleCount").tchk().lower
   }
 }
 
@@ -59,7 +59,7 @@ object SimpleMap {
       Map[Param, (Expr, Expr, Expr)](
         sAcc -> (input, True, C(0)())
       )
-    )().tchk().lower
+    )().annotateWithName("SimpleMap").tchk().lower
   }
 }
 
@@ -92,7 +92,7 @@ object SimpleZip {
         .zip(inputs)
         .map({ case (acc, in) => acc -> (in, True, C(0)()) })
         .toMap
-    )().tchk().lower
+    )().annotateWithName("SimpleZip").tchk().lower
   }
 }
 
@@ -116,6 +116,6 @@ object SimpleConcatHandshake {
         s0 -> (in0, i < n0, Tuple()()),
         s1 -> (in1, i >= n0, Tuple()())
       )
-    )()
+    )().annotateWithName("SimpleConcat").tchk().lower
   }
 }

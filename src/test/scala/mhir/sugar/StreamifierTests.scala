@@ -1,6 +1,7 @@
 package mhir.sugar
 
 import mhir.canonicalize._
+import mhir.delay.DiscardAccumulatorDelays
 import mhir.gen.vhdl.VhdlGenerator
 import mhir.ir._
 import mhir.sugar.Streamifier.Streamify
@@ -8,12 +9,15 @@ import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class StreamifierTests extends AnyFunSuite {
+
   test("u8") {
     val e = C(42)(U8)
     val actual = e.streamify.tchk().lower
     val expected = StmLiteral(e)()
     assert(mhir.eval.eval(actual) == expected)
-    VhdlGenerator.validateExpr(actual)
+    // TODO: use semantic analyzer instead of VhdlGenerator.validateExpr?
+    //       Would first need to ensure the semantic analyzer includes all the necessary checks.
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("Vec[bool, 20]") {
@@ -21,7 +25,7 @@ class StreamifierTests extends AnyFunSuite {
     val actual = e.streamify.tchk().lower
     val expected = mhir.eval.eval(StmLiteral(e)())
     assert(mhir.eval.eval(actual) == expected)
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("u8 -> u8") {
@@ -35,7 +39,7 @@ class StreamifierTests extends AnyFunSuite {
       val actualVal = mhir.eval.eval(LetStm(1, actual.param, in, actual.body)())
       assert(actualVal == out)
     }
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("i16 -> i16 -> i16") {
@@ -58,7 +62,7 @@ class StreamifierTests extends AnyFunSuite {
       val expectedVal = StmLiteral(C(out)(I16))()
       assert(actualVal == expectedVal)
     }
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("s => StmMap(x, +5)") {
@@ -96,7 +100,7 @@ class StreamifierTests extends AnyFunSuite {
       val actualVal = mhir.eval.eval(LetStm(1, actual.param, in, actual.body)())
       assert(actualVal == out)
     }
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("(x : Stm[u8, 10]) => (y : Stm[u8, 10]) => x") {
@@ -117,7 +121,7 @@ class StreamifierTests extends AnyFunSuite {
         )
       )).tchk().lower
     assert(actual == expected)
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("(x : Stm[u8, 10]) => (y : Stm[u8, 10]) => y") {
@@ -138,7 +142,7 @@ class StreamifierTests extends AnyFunSuite {
         )
       )).tchk().lower
     assert(actual == expected)
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("u8 -> Stm[(u8, u8), 10]:UsedDirectly") {
@@ -165,7 +169,7 @@ class StreamifierTests extends AnyFunSuite {
       val expectedVal = mhir.eval.eval(f.body.subPreserveType(f.param -> c))
       assert(actualVal == expectedVal)
     }
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("u8 -> Stm[(u8, u8), n]:UsedInProducers") {
@@ -184,7 +188,7 @@ class StreamifierTests extends AnyFunSuite {
       val expectedVal = mhir.eval.eval(f.body.subPreserveType(f.param -> c))
       assert(actualVal == expectedVal)
     }
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("c => StmConcat(StmCst(3, c), StmCst(5, 42))") {
@@ -306,7 +310,7 @@ class StreamifierTests extends AnyFunSuite {
     }
     assert(actual == expected)
 
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("ReadyDependsDirectlyOnInput") {
@@ -405,7 +409,7 @@ class StreamifierTests extends AnyFunSuite {
       )
       assert(actualVal == expectedVal)
     }
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("Stm[i16, 10] -> u32 -> Stm[(i16, u32), 10]") {
@@ -430,7 +434,7 @@ class StreamifierTests extends AnyFunSuite {
       )
       assert(actualVal == expectedVal)
     }
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   test("LetStm") {
@@ -470,7 +474,7 @@ class StreamifierTests extends AnyFunSuite {
       )
       assert(actualVal == expectedVal)
     }
-    VhdlGenerator.validateExpr(actual)
+    VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
   // The streamifier should leave free variables as-is

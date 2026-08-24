@@ -212,6 +212,15 @@ trait StmBuildUtils {
       )
     }
 
+    def mapAccumulators(
+        f: (Param, (Expr, Expr, Expr)) => (Param, (Expr, Expr, Expr))
+    ): StmBuild = {
+      this.stm.copy(accumulators = this.stm.accumulators.map(f.tupled))(
+        typ = Missing,
+        annotations = this.stm.annotations
+      )
+    }
+
     def mapProducers(
         f: (Param, (Expr, Expr, Expr)) => (Param, (Expr, Expr, Expr))
     ): StmBuild = {
