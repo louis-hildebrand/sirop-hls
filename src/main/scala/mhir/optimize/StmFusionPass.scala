@@ -14,8 +14,10 @@ import mhir.typecheck.TypeCheck
   * which is why a cost model is needed to decide when to apply fusion.
   */
 trait StmFusionPass {
-  def enabled: Boolean
-  def disabled: Boolean = !enabled
+
+  /** Brief, user-readable summary of the fusion strategy.
+    */
+  def strategy: String
 
   def fuse(stm: Expr): Expr
 }
@@ -24,9 +26,11 @@ object StmFusionPass {
   def apply(
       simplifier: StmBuildSimplifier,
       delayCostModel: SimpleDelayCostModel,
+      handshake: Boolean,
       enabled: Boolean = true
   ): StmFusionPass = {
     if (enabled) new GreedyStmFusionPass(simplifier, delayCostModel)
+    else if (!handshake) StmSourceFusionPass(simplifier)
     else DisabledStmFusionPass
   }
 }
@@ -36,7 +40,7 @@ class GreedyStmFusionPass(
     delayCostModel: SimpleDelayCostModel
 ) extends StmFusionPass {
 
-  override def enabled: Boolean = true
+  override def strategy: String = "greedy"
 
   override def fuse(stm: Expr): Expr = {
     require(stm.hasType)
@@ -58,9 +62,9 @@ class GreedyStmFusionPass(
           if (keep) fused else acc
         })
       case LetStm(_, x, in, out) =>
-        val TyStm(_, inLen) = in.typ
         // Fusion may change the latency along the different branches, so reset
         // the buffer size to the worst-case value
+        val TyStm(_, inLen) = in.typ
         LetStm(inLen, x, fuse(in), fuse(out))()
       case e => e.map(fuse)
     }
@@ -73,8 +77,55 @@ class GreedyStmFusionPass(
   }
 }
 
+case class StmSourceFusionPass(simplifier: StmBuildSimplifier)
+    extends StmFusionPass {
+
+  override def strategy: String = "only internal streams sources"
+
+  override def fuse(stm: Expr): Expr = {
+    stm.requireType("fusion")
+    val result = stm match {
+      case s: StmBuild =>
+        val withFusedProducers = s
+          .mapProducers({ case (x, (s, ready, delay)) =>
+            x -> (fuse(s), ready, delay)
+          })
+          .tchk()
+          .asInstanceOf[StmBuild]
+        val toFuseWith = withFusedProducers.producers
+          .collect({ case (x, (stm, _, _)) if isSource(stm) => x })
+        toFuseWith.foldLeft(withFusedProducers)({ case (acc, x) =>
+          simplifier.simplify(acc.fuseWith(x), skipConst = true)()
+        })
+      case LetStm(_, x, in, out) =>
+        val newIn = this.fuse(in)
+        if (isSource(newIn)) {
+          this.fuse(out.subPreserveType(x -> newIn))
+        } else {
+          val newOut = this.fuse(out)
+          // Fusion may change the latency along the different branches, so reset
+          // the buffer size to the worst-case value
+          val TyStm(_, inLen) = in.typ
+          LetStm(inLen, x, newIn, newOut)()
+        }
+      case e => e.map(fuse)
+    }
+    val checkedResult = result.tchk()
+    assert(checkedResult.typ ~= stm.typ, "fusion should preserve the type")
+    checkedResult
+  }
+
+  private def isSource(e: Expr): Boolean = {
+    e match {
+      case s: StmBuild => s.producers.isEmpty
+      case _           => false
+    }
+  }
+}
+
 object DisabledStmFusionPass extends StmFusionPass {
-  override def enabled: Boolean = false
+
+  override def strategy: String = "disabled"
 
   override def fuse(stm: Expr): Expr = stm
 }

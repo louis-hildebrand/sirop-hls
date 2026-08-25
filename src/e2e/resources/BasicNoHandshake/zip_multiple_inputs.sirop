@@ -1,9 +1,15 @@
 const N: u32 = 16
 
-/* Computes (a^2 + b + 2) * (a^2 + b).
+/* Computes (a^2 + b + 2) * (a^2 + b) element-wise.
  */
 accelerator[no_handshake]
 top = (a: Stm[u16, N]) => (b: Stm[u16, N]) =>
+    let two =
+        StmCst(N, 0)
+        .StmMap( x => x +^ 1 )
+        .StmZip(StmCst(N, 1))
+        .StmMap( @(x, y) => x +^ y )
+    in
     let a_squared_plus_b =
         a
         .StmMap( (x) => x * x )
@@ -11,12 +17,10 @@ top = (a: Stm[u16, N]) => (b: Stm[u16, N]) =>
         .StmMap( (x) => x.0 + x.1 )
     in
     a_squared_plus_b
-    .StmZip(StmCst(N, 2))
+    .StmZip(two)
     .StmMap( @(x, y) => x + y )
-    .StmZip(a_squared_plus_b)
-    .StmMap( @(x, y) => x * y )
-    .StmZip(a)
-    .StmMap( @(x, y) => x + y )
+    .StmMap2(a_squared_plus_b, (x: u16) => (y: u16) => x * y )
+    .StmMap2(a, (x: u16) => (y: u16) => x + y )
 
 assert {
     a = StmCount2D(4:u16, 4:u16).StmJoin().StmMap( (x) => x.0 ),

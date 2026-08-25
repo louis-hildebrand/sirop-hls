@@ -43,17 +43,11 @@ class Optimizer(
 
     val s2 = fissionPass.fission(s1)
 
-    if (fusionPass.disabled) {
-      logger.debug("stream fusion is disabled")
-    }
-    val s3 = time(
-      "greedy stream fusion",
-      mute = fusionPass.disabled,
-      level = Level.DEBUG
-    ) {
+    logger.debug(s"stream fusion: ${fusionPass.strategy}")
+    val s3 = time("stream fusion", level = Level.DEBUG) {
       @tailrec
       def fix(s: Expr, i: Int): Expr = {
-        logger.debug(s"greedy stream fusion: iteration $i")
+        logger.debug(s"stream fusion + letstm simplification: iteration $i")
         val fused = fusionPass.fuse(s)
         // Simplify in case there are some instances of LetStm which now have
         // at most one consumer
@@ -89,13 +83,13 @@ class Optimizer(
 
     val delayCost = delay.cost(s8)
     logger.debug(
-      s"final delay cost: $delayCost (max ${delay.FullCycleDelay})"
+      s"final combinational delay cost: $delayCost (max ${delay.FullCycleDelay})"
     )
     if (delayCost > delay.FullCycleDelay) {
       val percent =
         100 * (delayCost / delay.FullCycleDelay.toDouble)
       logger.warn(
-        f"delay cost of $delayCost is $percent%.0f%% of maximum."
+        f"combinational delay cost is $percent%.0f%% of maximum."
           + " Design may not meet timing requirements."
       )
     }
@@ -119,6 +113,7 @@ object Optimizer {
     val fusionPass = StmFusionPass(
       simplifier = stmBuildSimplifier,
       delayCostModel = delayCostModel,
+      handshake = handshake,
       enabled = options.fuse
     )
     val fissionPass = StmFissionPassWithLogging(

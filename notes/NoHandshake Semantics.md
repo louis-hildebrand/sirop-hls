@@ -171,3 +171,23 @@ I'll use the term "physical prefix" for the part of the physical output that is 
 	- Implement version that properly handles delays
 - Fission pass:
 	- Implement version that correctly handles initial output
+
+## Edge Cases
+- What about `StmCount`?
+	- Add a producer called `go = [false, false, ...]s ++ [true, true, ...]s`
+	- Only update the accumulator when `sdata(go)` is true
+- What about `StmCst` (zipped with an input, for instance)?
+	- Tricky! The solution for `StmCount` doesn't work immediately because the producer will be unused, so the optimizer would remove it
+	- Options:
+		1. Ensure the `go` stream gets added and ensure it is not removed during optimization
+		2. Update the evaluator and latency matcher (and possibly other places?) to recognize this case
+			1. The latency doesn't need to match exactly; you can drop elements from the stream of constants without changing its meaning
+		3. Say that fusion is required for "internal source streams" (i.e., ones that have no producers) in `no_handshake` mode
+	- Drawbacks of each approach:
+		- Option (1) introduces a spurious dependency on the `go` stream
+			- The programmer might not want the `go` stream at all
+		- Option (2) seems like a hassle; it would make the evaluator and latency matcher (and possibly other places) more complex
+			- This is surely not a very common case (why would you turn off fusion?), so I'm not sure I want to spend a lot of time on it
+		- Option (3) strips away the option to turn off fusion for `StmCst`
+			- If I want to compare resource usage with and without fusion, this seems like it wouldn't be ideal
+	- Choice (as of 2026-08-25): option 3 (require fusion)
