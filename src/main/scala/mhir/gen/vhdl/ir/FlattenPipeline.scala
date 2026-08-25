@@ -23,8 +23,10 @@ object FlattenPipeline {
     validateExpr(f, options)
     val (inputs, stm) = TypeChecker.unwrapTopLevelFunction(f)
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
-    val latency =
-      new LatencyAnalysis(handshake = options.handshake).actualLatency(f)
+    val latency = {
+      val analysis = new LatencyAnalysis(handshake = options.handshake)
+      analysis.actualLatency(stm, inputs.map(_ -> Some(0)).toMap)
+    }
     val (sink1, nodes1) = makePipeline(stm, latency)
     val (sink2, nodes2) = deduplicateVars(sink1, nodes1)
     val pipe1 = FlatPipeline(

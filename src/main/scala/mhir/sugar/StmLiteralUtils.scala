@@ -1,17 +1,16 @@
 package mhir.sugar
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.typecheck.TypeCheck
 
 trait StmLiteralUtils {
 
+  private implicit val logger: Logger = Logger(getClass.getName)
+
   implicit class StmLiteralUtilsImplicit(stm: StmLiteral) {
     def toStmBuild(implicit c: Canonicalizer): StmBuild = {
-      if (!this.stm.hasType) {
-        throw new IllegalArgumentException(
-          s"StmLiteral must be type-checked before it can be translated to a StmBuild."
-        )
-      }
+      this.stm.requireType("translation to StmBuild")
       val isLowered = (
         !this.stm.hasSyntaxSugar
           && this.stm.typ == this.stm.typ.lower
@@ -22,8 +21,17 @@ trait StmLiteralUtils {
         )
       }
       val TyStm(elemTyp, _) = this.stm.typ
-      val delay = math.max(1, this.stm.physical.length)
-      val (initData, vecElems) = this.stm.physical match {
+      val physical =
+        if (mhir.ir.globalOptions.handshake && this.stm.physical.nonEmpty) {
+          val elems = this.stm.physical.mkString("[", ", ", "]s")
+          logger.warn(
+            s"physical prefix of stream literal ($elems) will be ignored because the handshake protocol is enabled"
+          )
+          Seq()
+        } else {
+          this.stm.physical
+        }
+      val (initData, vecElems) = physical match {
         case Seq() =>
           (Undefined(elemTyp), this.stm.logical)
         case Seq(initData, physical @ _*) =>
@@ -42,7 +50,7 @@ trait StmLiteralUtils {
       }
       val lowered = StmBuild(
         this.stm.logical.length,
-        C(delay)(),
+        C(math.max(1, physical.length))(),
         initData,
         nextData,
         True,

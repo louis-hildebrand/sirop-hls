@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
-import mhir.typecheck.TypeCheck
+import mhir.typecheck._
 import org.slf4j.event.Level
 
 class StaticLetStmBufferShrinker(
@@ -18,7 +18,12 @@ class StaticLetStmBufferShrinker(
 
   override def shrinkBuffers(e: Expr): Expr = {
     time("statically shrinking letstm buffers", Level.DEBUG) {
-      shrinkBuffers(e, latencyAnalysis.actualLatency(e))
+      val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
+      val newBody = shrinkBuffers(
+        body,
+        latencyAnalysis.actualLatency(body, inputs.map(_ -> Some(0)).toMap)
+      )
+      TypeChecker.wrapTopLevelFunction(inputs, newBody)
     }
   }
 

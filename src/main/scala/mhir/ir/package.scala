@@ -24,8 +24,25 @@ package object ir
   /** Reset all global mutable state in this package.
     */
   def reset(): Unit = {
+    this.reset(this.globalOptions)
+  }
+
+  def reset(globalOptions: GlobalOptions): Unit = {
     Function.forceInit()
     StmBuild.forceInit()
     Param.reset()
+    this.globalOptions = globalOptions
   }
+
+  /** Compiler options that should be accessible from anywhere.
+    *
+    * Some options (e.g., whether the handshake protocol is enabled) need to be
+    * accessed during lowering. However, the lower() method is called in
+    * literally hundreds of places (including places where this information
+    * shouldn't normally be needed, like lowering stream lengths). It would be a
+    * massive pain to pass this information via method parameters, even implicit
+    * ones (I've tried!). Therefore, just set them here and read them during
+    * lowering.
+    */
+  var globalOptions = GlobalOptions()
 }

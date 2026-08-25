@@ -1,0 +1,2 @@
+[WARN ] physical prefix of stream literal ([1:u8, 2:u8, 3:u8]s) will be ignored because the handshake protocol is enabled
+[INFO ] VHDL testbench passed!

@@ -19,16 +19,6 @@ class LatencyAnalysis(handshake: Boolean) {
 
   private def letStmLatency: Int = if (this.handshake) 2 else 0
 
-  /** Decide whether the actual latency of the final node in the given
-    * expression is well-defined.
-    *
-    * If this method returns `true`, it means all branches in [[mhir.ir.LetStm]]
-    * are balanced, the latency of different accelerator inputs is matched, etc.
-    */
-  def allLatenciesMatch(e: Expr): Boolean = {
-    this.actualLatency(e).latency.nonEmpty
-  }
-
   /** Find the latency of each node, but only if the latency along each path is
     * consistent.
     *
@@ -36,8 +26,13 @@ class LatencyAnalysis(handshake: Boolean) {
     * will take the maximum of all their latencies (plus the delay added by the
     * [[mhir.ir.StmBuild]] itself).
     */
-  def actualLatency(e: Expr): LatencyNode = {
-    latency(e, Map(), xs => if (xs.toSet.size > 1) None else xs.headOption)
+  def actualLatency(
+      e: Expr,
+      inputLatencies: Map[Param, Option[Int]]
+  ): LatencyNode = {
+    val aggregator = (xs: Iterable[Int]) =>
+      if (xs.toSet.size > 1) None else xs.headOption
+    latency(e, inputLatencies, aggregator)
   }
 
   /** Find the latency of each node assuming latency matching will be
@@ -47,8 +42,11 @@ class LatencyAnalysis(handshake: Boolean) {
     * will take the maximum of all their latencies (plus the delay added by the
     * [[mhir.ir.StmBuild]] itself).
     */
-  def idealLatency(e: Expr): LatencyNode = {
-    latency(e, Map(), xs => Some(xs.max))
+  def idealLatency(
+      e: Expr,
+      inputLatencies: Map[Param, Option[Int]]
+  ): LatencyNode = {
+    latency(e, inputLatencies, xs => Some(xs.max))
   }
 
   private def latency(
@@ -57,10 +55,6 @@ class LatencyAnalysis(handshake: Boolean) {
       sbuildAggregator: Iterable[Int] => Option[Int]
   ): LatencyNode = {
     e match {
-      case Function(x, body) =>
-        // Assume the inputs are available immediately, at the first rising
-        // clock edge where reset is not asserted
-        latency(body, latencyByVar + (x -> Some(0)), sbuildAggregator)
       case x: Param =>
         latencyByVar.get(x) match {
           case Some(lat) => LatencyParam(lat)

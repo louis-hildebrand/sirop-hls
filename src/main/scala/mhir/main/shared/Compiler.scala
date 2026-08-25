@@ -3,7 +3,7 @@ package mhir.main.shared
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.debug.{DotPrinter, Tracer}
-import mhir.delay.ReplaceAccumulatorDelaysWithGo
+import mhir.delay.{DiscardAccumulatorDelays, ReplaceAccumulatorDelaysWithGo}
 import mhir.eval.{Evaluator, TestError, TestRunner}
 import mhir.gen._
 import mhir.gen.vhdl.test._
@@ -62,6 +62,9 @@ object Compiler {
       argparseTime: Duration,
       parseTime: Duration
   ): Expr = {
+    // HACK: set global options so the lowering pass can read them easily (see
+    // comment on the mhir.ir.globalOptions field)
+    mhir.ir.globalOptions = GlobalOptions(handshake = prog.handshake)
     val topName = prog.name
     val vhdlOptions = {
       val vhdl0 = originalOptions.vhdl.copy(
@@ -97,9 +100,11 @@ object Compiler {
       )
     val finalProgram =
       synthesizable.copy(accel = synthesizable.accel.copy(body = finalExpr))
-    val latency = new LatencyAnalysis(handshake = finalProgram.handshake)
-      .actualLatency(finalProgram.body)
-      .latency
+    val latency = {
+      val (inputs, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
+      val analysis = new LatencyAnalysis(handshake = finalProgram.handshake)
+      analysis.actualLatency(body, inputs.map(_ -> Some(0)).toMap).latency
+    }
     latency match {
       case None =>
         if (finalProgram.handshake) {
@@ -122,8 +127,7 @@ object Compiler {
     time("post-optimization semantic analysis", Level.DEBUG) {
       SemanticAnalyzer.check(finalProgram)
     }
-    val genTime =
-      generateCode(options.vhdl, finalProgram, options.targets, latency)
+    val genTime = generateCode(options.vhdl, finalProgram, options.targets)
     options.targets.toSeq
       .sortBy({
         case NullTarget                        => 0
@@ -296,8 +300,8 @@ object Compiler {
       val e1 = inlineFunCalls(prog.body)
       val e2 = e1.streamify
       val e3 = if (prog.handshake) {
-        // TODO: should I do anything here? Emit a warning that accumulator delays will be ignored?
-        e2
+        // TODO: should I emit a warning that accumulator delays will be ignored?
+        DiscardAccumulatorDelays.apply(e2)
       } else {
         new ReplaceAccumulatorDelaysWithGo(prog.go).apply(e2)
       }
@@ -324,19 +328,12 @@ object Compiler {
   private def generateCode(
       options: VhdlGeneratorOptions,
       prog: Program,
-      targets: Set[CompilerTarget],
-      latency: Option[Int]
+      targets: Set[CompilerTarget]
   ): Duration = {
     val (_, codegenTime) = time2("codegen", Level.DEBUG) {
       targets.foreach({
         case VhdlTarget(outDir, overwrite, _) =>
-          emitVhdl(
-            options,
-            prog,
-            outDir,
-            latency = latency,
-            overwrite = overwrite
-          )
+          emitVhdl(options, prog, outDir, overwrite = overwrite)
         case _: EvalTarget                     => ()
         case _: TraceTarget                    => ()
         case _: TestTarget                     => ()
@@ -373,8 +370,7 @@ object Compiler {
       options: VhdlGeneratorOptions,
       finalProgram: Program,
       outDir: Path,
-      overwrite: Boolean,
-      latency: Option[Int]
+      overwrite: Boolean
   ): Unit = {
     val pipe = time("generating VHDL design", Level.DEBUG) {
       if (os.exists(outDir)) {
@@ -388,13 +384,12 @@ object Compiler {
       }
       VhdlGenerator.emitVhdl(finalProgram.body, outDir, options)
     }
-    val assertions = finalProgram.test.collect({ case a: Assertion => a })
-    if (assertions.nonEmpty) {
+    val hasAssertions = finalProgram.test.exists(_.isInstanceOf[Assertion])
+    if (hasAssertions) {
       emitVhdlTestbench(
-        assertions,
+        finalProgram,
         options,
         outDir,
-        latency,
         designUsesIpBlocks = pipe.usesIpBlocks
       )
     } else {
@@ -405,44 +400,44 @@ object Compiler {
   }
 
   private def emitVhdlTestbench(
-      assertions: Seq[Assertion],
+      prog: Program,
       options: VhdlGeneratorOptions,
       outDir: Path,
-      latency: Option[Int],
       designUsesIpBlocks: Boolean
   ): Unit = {
     time("generating VHDL testbench", Level.DEBUG) {
       assert(os.isDir(outDir))
+      val assertions = prog.test.collect({ case a: Assertion => a })
       val io = TestSuiteIO(assertions.map({ case Assertion(in, out, ignore) =>
-        val inputs = in.map({ case (x, e) =>
+        val inputValues = in.map({ case (x, e) =>
+          // TODO: enforce rule that inputs must be streams while type checking program
+          x -> mhir.eval
+            .eval(e, handshake = options.handshake)
+            .asInstanceOf[StmLiteral]
+        })
+        val inputLatencies = inputValues.map({ case (x, s) =>
+          x -> Some(s.physical.length)
+        })
+        val inputs = inputValues.map({ case (x, s) =>
           // TODO: Enforce rule that inputs must be streams while type checking program
-          x -> {
-            val StmLiteral(physical, logical) = mhir.eval.eval(e)
-            assert(
-              physical.isEmpty,
-              "TODO: implement VHDL testbench gen properly for no_handshake mode"
-            )
-            DirectTestInput(logical.map(Some(_)))
-          }
+          x -> DirectTestInput((s.physical ++ s.logical).map(Some(_)))
         })
         val TyStm(elemTyp, _) = out.typ
         val expectedOutput = {
-          val StmLiteral(physical, elems) = mhir.eval.eval(out)
-          assert(
-            physical.isEmpty,
-            "TODO: implement VHDL testbench gen properly for no_handshake mode"
-          )
+          val StmLiteral(_, elems) =
+            mhir.eval.eval(out, handshake = options.handshake)
           val ignoreElems = ignore match {
             case Some(ignore) =>
-              val StmLiteral(ignorePhysical, ignoreLogical) =
-                mhir.eval.eval(ignore)
-              assert(
-                ignorePhysical.isEmpty,
-                "TODO: implement VHDL testbench gen properly for no_handshake mode"
-              )
+              val StmLiteral(_, ignoreLogical) =
+                mhir.eval.eval(ignore, handshake = options.handshake)
               ignoreLogical
             case None =>
               elems.map(_ => AllZero(elemTyp))
+          }
+          val latency = {
+            val analysis = new LatencyAnalysis(handshake = options.handshake)
+            val (_, body) = TypeChecker.unwrapTopLevelFunction(prog.body)
+            analysis.actualLatency(body, inputLatencies).latency
           }
           latency match {
             case Some(latency) if !options.handshake =>

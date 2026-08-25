@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
-import mhir.typecheck.TypeCheck
+import mhir.typecheck._
 import org.slf4j.event.Level
 
 trait LatencyMatcher {
@@ -50,68 +50,66 @@ class EnabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
     */
   def matchLatencies(e: Expr): Expr = {
     time("latency matching", Level.DEBUG) {
-      val lat = latencyAnalysis.idealLatency(e)
-      matchLatencies(e, lat)
+      val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
+      val lat =
+        latencyAnalysis.idealLatency(body, inputs.map(_ -> Some(0)).toMap)
+      val newBody = matchLatencies(body, lat)
+      TypeChecker.wrapTopLevelFunction(inputs, newBody)
     }
   }
 
   private def matchLatencies(e: Expr, lat: LatencyNode): Expr = {
-    e match {
-      case Function(x, body) =>
-        Function(x, matchLatencies(body, lat))().tchk()
-      case _ =>
-        lat match {
-          case _: LatencyParam =>
-            assert(
-              e.isInstanceOf[Param],
-              s"expression $e does not correspond to latency node $lat"
-            )
-            e
-          case LatencyStmBuild(outLat, selfLat, producersLat) =>
-            assert(
-              e.isInstanceOf[StmBuild],
-              s"expression $e does not correspond to latency node $lat"
-            )
-            val s = e.asInstanceOf[StmBuild]
-            assert(
-              s.producers.keySet == producersLat.keySet,
-              "stream producers in expression do not match latency node" +
-                s" (${s.producers.keySet} vs ${producersLat.keySet})"
-            )
-            s.mapProducers({ case (x, (p0, ready, delay)) =>
-              val p = matchLatencies(p0, producersLat(x))
-              (outLat, producersLat(x).latency) match {
-                case (Some(outLat), Some(pLat)) =>
-                  assert(
-                    selfLat.nonEmpty,
-                    "missing self latency for sbuild node"
-                  )
-                  assert(
-                    outLat >= pLat + selfLat.get,
-                    "consumer's latency is too small"
-                  )
-                  x -> (
-                    increaseLatency(
-                      p,
-                      outLat - selfLat.get - pLat
-                    ),
-                    ready,
-                    delay
-                  )
-                case _ =>
-                  x -> (p, ready, delay)
-              }
-            }).tchk()
-          case LatencyLetStm(_, inLat, outLat) =>
-            assert(
-              e.isInstanceOf[LetStm],
-              s"expression $e does not correspond to latency node $lat"
-            )
-            val LetStm(bufSize, x, in, out) = e.asInstanceOf[LetStm]
-            val newIn = matchLatencies(in, inLat)
-            val newOut = matchLatencies(out, outLat)
-            LetStm(bufSize, x, newIn, newOut)().tchk()
-        }
+    lat match {
+      case _: LatencyParam =>
+        assert(
+          e.isInstanceOf[Param],
+          s"expression $e does not correspond to latency node $lat"
+        )
+        e
+      case LatencyStmBuild(outLat, selfLat, producersLat) =>
+        assert(
+          e.isInstanceOf[StmBuild],
+          s"expression $e does not correspond to latency node $lat"
+        )
+        val s = e.asInstanceOf[StmBuild]
+        assert(
+          s.producers.keySet == producersLat.keySet,
+          "stream producers in expression do not match latency node" +
+            s" (${s.producers.keySet} vs ${producersLat.keySet})"
+        )
+        s.mapProducers({ case (x, (p0, ready, delay)) =>
+          val p = matchLatencies(p0, producersLat(x))
+          (outLat, producersLat(x).latency) match {
+            case (Some(outLat), Some(pLat)) =>
+              assert(
+                selfLat.nonEmpty,
+                "missing self latency for sbuild node"
+              )
+              assert(
+                outLat >= pLat + selfLat.get,
+                "consumer's latency is too small"
+              )
+              x -> (
+                increaseLatency(
+                  p,
+                  outLat - selfLat.get - pLat
+                ),
+                ready,
+                delay
+              )
+            case _ =>
+              x -> (p, ready, delay)
+          }
+        }).tchk()
+      case LatencyLetStm(_, inLat, outLat) =>
+        assert(
+          e.isInstanceOf[LetStm],
+          s"expression $e does not correspond to latency node $lat"
+        )
+        val LetStm(bufSize, x, in, out) = e.asInstanceOf[LetStm]
+        val newIn = matchLatencies(in, inLat)
+        val newOut = matchLatencies(out, outLat)
+        LetStm(bufSize, x, newIn, newOut)().tchk()
     }
   }
 
