@@ -10,7 +10,7 @@ import mhir.gen.vhdl.test._
 import mhir.gen.vhdl.{VhdlGenerator, VhdlGeneratorOptions}
 import mhir.ir._
 import mhir.logging.{time, time2}
-import mhir.optimize.{LatencyAnalysis, Optimizer, OptimizerOptions}
+import mhir.optimize._
 import mhir.sem.SemanticAnalyzer
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
@@ -92,14 +92,12 @@ object Compiler {
     time("semantic analysis", Level.DEBUG) {
       SemanticAnalyzer.check(synthesizable)
     }
-    val (finalExpr, optimTime) =
+    val (finalProgram, optimTime) =
       optimize(
-        synthesizable.body,
+        synthesizable,
         options.optFlags,
         handshake = lowered.handshake
       )
-    val finalProgram =
-      synthesizable.copy(accel = synthesizable.accel.copy(body = finalExpr))
     val latency = {
       val (inputs, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
       val analysis = new LatencyAnalysis(handshake = finalProgram.handshake)
@@ -150,7 +148,7 @@ object Compiler {
             maxInvalidSteps = maxInvalidSteps
           )
           val result = time("evaluation", Level.DEBUG) {
-            evaluator.eval(finalExpr)
+            evaluator.eval(finalProgram.body)
           }
           println(ExprPrinter.display(result))
         case TraceTarget(outDir, testIdx, overwrite) =>
@@ -227,7 +225,11 @@ object Compiler {
             }
           }
         case PrettyPrintTarget(dest, overwrite) =>
-          emitPrettyPrinted(finalExpr, dest = dest, overwrite = overwrite)
+          emitPrettyPrinted(
+            finalProgram.body,
+            dest = dest,
+            overwrite = overwrite
+          )
         case PrettyPrintAfterLoweringTarget(dest, overwrite) =>
           emitPrettyPrinted(lowered.body, dest = dest, overwrite = overwrite)
         case CompileTimeTarget(f, overwrite) =>
@@ -243,7 +245,7 @@ object Compiler {
             codegen = genTime
           )
       })
-    finalExpr
+    finalProgram.body
   }
 
   private def typecheck(prog: Program): (Program, Duration) = {
@@ -316,12 +318,41 @@ object Compiler {
   }
 
   private def optimize(
-      e: Expr,
+      prog: Program,
       optFlags: OptimizerOptions,
       handshake: Boolean
-  ): (Expr, Duration) = {
+  ): (Program, Duration) = {
     time2("optimization", Level.DEBUG) {
-      Optimizer(optFlags, handshake = handshake).optimize(e)
+      val newBody =
+        Optimizer(optFlags, handshake = handshake).optimize(prog.body)
+      val transform = if (prog.handshake) { (e: Expr) =>
+        PartialEvalPass.partialEval(e)()
+      } else {
+        val latencyAnalysis = new LatencyAnalysis(handshake = prog.handshake)
+        val latencyMatcher = new EnabledLatencyMatcher(latencyAnalysis)
+        val letBufShrinker = new StaticLetStmBufferShrinker(
+          latencyAnalysis,
+          handshake = prog.handshake,
+          assumeThroughputsMatch = optFlags.assumeThroughputsMatch
+        )
+        (e: Expr) => {
+          val e0 = PartialEvalPass.partialEval(e)()
+          // Need to run latency matching and shrink all the letstm buffers
+          // to avoid errors and warnings during evaluation
+          val e1 = latencyMatcher.matchLatencies(e0)
+          val e2 = letBufShrinker.shrinkBuffers(e1)
+          e2
+        }
+      }
+      val newTests = prog.test.map({
+        case cd: ConstDecl => cd
+        case Assertion(inputs, expectedOutput, ignore) =>
+          val newInputs = inputs.map({ case (x, e) =>
+            x -> transform(e)
+          })
+          Assertion(newInputs, expectedOutput, ignore)
+      })
+      prog.copy(accel = prog.accel.copy(body = newBody), test = newTests)
     }
   }
 

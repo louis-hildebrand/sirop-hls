@@ -33,12 +33,7 @@ class StaticLetStmBufferShrinker(
         Function(x, shrinkBuffers(body, lat))()
       case _ =>
         lat match {
-          case _: LatencyParam =>
-            assert(
-              e.isInstanceOf[Param],
-              s"expression $e does not correspond to latency node $lat"
-            )
-            e
+          case _: LatencySource => e
           case LatencyStmBuild(_, _, producersLat) =>
             assert(
               e.isInstanceOf[StmBuild],

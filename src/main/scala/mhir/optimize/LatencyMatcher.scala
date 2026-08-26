@@ -60,12 +60,7 @@ class EnabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
 
   private def matchLatencies(e: Expr, lat: LatencyNode): Expr = {
     lat match {
-      case _: LatencyParam =>
-        assert(
-          e.isInstanceOf[Param],
-          s"expression $e does not correspond to latency node $lat"
-        )
-        e
+      case _: LatencySource => e
       case LatencyStmBuild(outLat, selfLat, producersLat) =>
         assert(
           e.isInstanceOf[StmBuild],

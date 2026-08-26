@@ -1,2 +1,2 @@
-[INFO ] the design has a latency of 9 cycles
+[INFO ] the design has a latency of 7 cycles
 [INFO ] VHDL testbench passed!

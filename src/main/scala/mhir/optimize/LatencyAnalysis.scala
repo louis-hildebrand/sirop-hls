@@ -57,12 +57,14 @@ class LatencyAnalysis(handshake: Boolean) {
     e match {
       case x: Param =>
         latencyByVar.get(x) match {
-          case Some(lat) => LatencyParam(lat)
+          case Some(lat) => LatencySource(lat)
           case None =>
             throw new IllegalArgumentException(
               s"cannot find latency for unknown variable: '$x'"
             )
         }
+      case StmLiteral(physical, _) =>
+        LatencySource(Some(physical.length))
       case LetStm(_, x, in, out) =>
         val inLatency = latency(in, latencyByVar, sbuildAggregator)
         val selfLatency = this.letStmLatency
