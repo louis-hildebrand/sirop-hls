@@ -103,7 +103,7 @@ object FlattenPipeline {
           latency.isInstanceOf[LatencyStmBuild],
           s"expression $s does not correspond to latency node $latency"
         )
-        val lat @ LatencyStmBuild(_, _, producerLatencies) = latency
+        val LatencyStmBuild(_, _, producerLatencies) = latency
         // TODO: Use the delay
         for ((x, (stm, ready, _)) <- s.producers) {
           val (sink, nodes) = makePipeline(stm, producerLatencies(x))
@@ -128,14 +128,7 @@ object FlattenPipeline {
           intermediates = ListMap()
         )
         val x = Param("s")(s.typ)
-        (
-          x,
-          newNodes :+ StmBuildNode(
-            x,
-            genSbuild,
-            inputLatency = lat.inputLatency
-          )
-        )
+        (x, newNodes :+ StmBuildNode(x, genSbuild))
       case LetStm(bufSizeExpr, x, in, out) =>
         assert(
           latency.isInstanceOf[LatencyLetStm],
@@ -194,7 +187,7 @@ object FlattenPipeline {
           } else {
             (Map(), sink, Seq())
           }
-        case Seq(StmBuildNode(x, s, latency), rest @ _*) =>
+        case Seq(StmBuildNode(x, s), rest @ _*) =>
           var (renamings, newSink, newRest) =
             deduplicateVars(rest, varsToRename)
           var newProducers = Map[Param, (Param, Expr)]()
@@ -217,7 +210,7 @@ object FlattenPipeline {
             producers = newProducers,
             intermediates = s.intermediates
           )
-          val newNode = StmBuildNode(x, newSbuild, latency)
+          val newNode = StmBuildNode(x, newSbuild)
           (renamings, newSink, newNode +: newRest)
         case Seq(LetStmNode(in, bufSize, out), rest @ _*) =>
           val (renamings, newSink, newRest) =
@@ -245,8 +238,8 @@ object FlattenPipeline {
 
   private def cleanUpSbuilds(pipe: FlatPipeline): FlatPipeline = {
     FlatPipeline(
-      sbuilds = pipe.sbuilds.map({ case StmBuildNode(out, s, inputLatency) =>
-        StmBuildNode(out, cleanUpSbuild(s), inputLatency)
+      sbuilds = pipe.sbuilds.map({ case StmBuildNode(out, s) =>
+        StmBuildNode(out, cleanUpSbuild(s))
       }),
       lets = pipe.lets,
       inputs = pipe.inputs,
@@ -330,7 +323,7 @@ object FlattenPipeline {
         producers = Map(pipe.sink -> (pipe.sink, True)),
         intermediates = ListMap()
       )
-      val newNode = StmBuildNode(newSink, nop, Some(0))
+      val newNode = StmBuildNode(newSink, nop)
       pipe.copy(sbuilds = pipe.sbuilds :+ newNode, sink = newSink)
     } else {
       pipe

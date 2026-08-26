@@ -31,7 +31,7 @@ object TopVhdl {
       )
     }
     val childComponents = pipe.sbuilds.zipWithIndex.map({
-      case (StmBuildNode(x, s, _), i) =>
+      case (StmBuildNode(x, s), i) =>
         val inputsOfS = s.producers.values.map(_._1).toSet
         val component = StmBuildVhdl(
           s,
@@ -49,7 +49,7 @@ object TopVhdl {
         VhdlEntityInstantiation(component.name, component, portMap)
     })
     val signals = {
-      val sbuildOutputs = pipe.sbuilds.flatMap({ case StmBuildNode(x, _, _) =>
+      val sbuildOutputs = pipe.sbuilds.flatMap({ case StmBuildNode(x, _) =>
         Seq(
           Signal(
             category = "sbuild outputs",
