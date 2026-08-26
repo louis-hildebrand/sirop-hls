@@ -323,13 +323,18 @@ object Compiler {
       handshake: Boolean
   ): (Program, Duration) = {
     time2("optimization", Level.DEBUG) {
-      val newBody =
-        Optimizer(optFlags, handshake = handshake).optimize(prog.body)
+      val optimizer = Optimizer(
+        optFlags,
+        handshake = handshake,
+        headByParam = prog.headByParam
+      )
+      val newBody = optimizer.optimize(prog.body)
       val transform = if (prog.handshake) { (e: Expr) =>
         PartialEvalPass.partialEval(e)()
       } else {
         val latencyAnalysis = new LatencyAnalysis(handshake = prog.handshake)
-        val latencyMatcher = new EnabledLatencyMatcher(latencyAnalysis)
+        val latencyMatcher =
+          new EnabledLatencyMatcher(latencyAnalysis, handshake = prog.handshake)
         val letBufShrinker = new StaticLetStmBufferShrinker(
           latencyAnalysis,
           handshake = prog.handshake,
@@ -339,7 +344,7 @@ object Compiler {
           val e0 = PartialEvalPass.partialEval(e)()
           // Need to run latency matching and shrink all the letstm buffers
           // to avoid errors and warnings during evaluation
-          val e1 = latencyMatcher.matchLatencies(e0)
+          val e1 = latencyMatcher.matchLatencies(e0, headByParam = Map())
           val e2 = letBufShrinker.shrinkBuffers(e1)
           e2
         }

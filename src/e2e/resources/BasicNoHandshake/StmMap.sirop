@@ -10,7 +10,7 @@ accelerator[no_handshake] add5 = (original: Stm[Vec[u16, m], n]) =>
 
 assert {
     original = [
-        undefined[Vec[u16, 4]]
+        undefined:Vec[u16, 4]
     ]s ++ [
         [ 0:u16,  1:u16,  2:u16,  3:u16]v,
         [ 4:u16,  5:u16,  6:u16,  7:u16]v,

@@ -5,15 +5,14 @@ import mhir.ir._
 /** Analysis for finding the latency of each node in the pipeline.
   *
   * The latency of a node is the number of clock cycles until its output
-  * represents a valid logical element. For example, inputs to the accelerator
-  * are available immediately. By contrast, an expression like
-  * `s.StmMap(f).StmMap(g)` (where `s` is an accelerator input and `f` and `g`
-  * are scalar functions) has a latency of 2 cycles. In VHDL, the first two
-  * outputs from this expression will be undefined.
+  * represents a valid logical element. For example, if `s` is available at time
+  * 0, an expression like `s.StmMap(f).StmMap(g)` (where `f` and `g` are scalar
+  * functions) has a latency of 2 cycles. In VHDL, the first two outputs from
+  * this expression will be undefined (when the handshake protocol is enabled)
+  * or part of the "physical output" (when the handshake protocol is disabled).
   *
   * @param handshake
-  *   whether the handshake protocol is enabled (this affects the latency of
-  *   some nodes, like [[mhir.ir.LetStm]]).
+  *   whether the handshake protocol is enabled.
   */
 class LatencyAnalysis(handshake: Boolean) {
 
@@ -23,8 +22,8 @@ class LatencyAnalysis(handshake: Boolean) {
     * consistent.
     *
     * If a [[mhir.ir.StmBuild]] node has multiple producer streams, this method
-    * will take the maximum of all their latencies (plus the delay added by the
-    * [[mhir.ir.StmBuild]] itself).
+    * will insist that their latencies all be consistent with the corresponding
+    * delay annotations.
     */
   def actualLatency(
       e: Expr,
@@ -75,46 +74,76 @@ class LatencyAnalysis(handshake: Boolean) {
         )
         LatencyLetStm(outLatency.latency, inLatency, outLatency)
       case s: StmBuild =>
-        val latencyChildren = s.producers
-          // TODO: Use the delay here
-          .map({ case (x, (p, _, _)) =>
-            x -> latency(p, latencyByVar, sbuildAggregator)
-          })
-        val alwaysReady = s.producers
-          .forall({ case (_, (_, ready, _)) => ready == True })
-        val selfLatency = stmBuildSelfLatency(s)
-        val outLatency = if (latencyChildren.isEmpty) {
-          // The output from this node will not be available immediately: you
-          // need to take the self-latency into account.
-          // (Usually this would be one cycle, since there is a register for the
-          // output.)
-          selfLatency
-        } else if (alwaysReady) {
-          if (latencyChildren.exists({ case (_, c) => c.latency.isEmpty })) {
-            None
-          } else {
-            sbuildAggregator(
-              latencyChildren.map({ case (_, c) => c.latency.get })
-            ).zip(selfLatency)
-              .map({ case (x, y) => x + y })
-              .headOption
-          }
+        val latencyChildren = s.producers.map({ case (x, (p, _, _)) =>
+          x -> latency(p, latencyByVar, sbuildAggregator)
+        })
+        val delayAnnotations = s.producers.map({
+          case (x, (_, _, IntCst(delay)))            => x -> Some(delay.toInt)
+          case (x, (_, _, delay)) if !this.handshake =>
+            // TODO: support non-static delay annotations?
+            throw new IllegalArgumentException(
+              s"non-static delay annotation $delay (on producer $x) is not supported yet"
+            )
+          case (x, p) => x -> guessProducerDelay(p)
+        })
+        // For each producer, we can work out what the local epoch should be
+        // knowing that the absolute latency of that producer should equal the
+        // local epoch plus the corresponding delay annotation...
+        val localEpochByProducer = s.producers.map({ case (x, _) =>
+          val epoch = latencyChildren(x).latency
+            .zip(delayAnnotations(x))
+            .map({ case (latency, delayAnnotation) =>
+              latency - delayAnnotation
+            })
+            .headOption
+          x -> epoch
+        })
+        // ... then we aggregate those answers using the given function (take
+        // the maximum, insist they all be the same, etc.)
+        val localEpoch = if (localEpochByProducer.isEmpty) {
+          // Assume "internal source nodes" have local epoch 0
+          Some(0)
+        } else if (localEpochByProducer.values.forall(_.nonEmpty)) {
+          sbuildAggregator(localEpochByProducer.values.map(_.get))
         } else {
+          // At least one of the producers are missing a latency or a delay
+          // annotation, so I have no idea what the epoch of this sbuild is
           None
         }
-        LatencyStmBuild(outLatency, selfLatency, latencyChildren)
+        val outDelay = s.delay match {
+          case IntCst(delay)            => Some(delay.toInt)
+          case delay if !this.handshake =>
+            // TODO: support non-static delay annotations?
+            throw new IllegalArgumentException(
+              s"non-static delay annotation $delay (for sbuild output) is not supported yet"
+            )
+          case _ => guessOutDelay(s)
+        }
+        val outLatency = localEpoch
+          .zip(outDelay)
+          .map({ case (localEpoch, outDelay) => localEpoch + outDelay })
+          .headOption
+        LatencyStmBuild(outLatency, localEpoch, latencyChildren)
       case e =>
         throw new IllegalArgumentException(s"cannot find latency for $e")
     }
   }
 
-  /** The latency added by one [[mhir.ir.StmBuild]] node, without considering
-    * the latencies of its producer streams.
+  private def guessProducerDelay(producer: (Expr, Expr, Expr)): Option[Int] = {
+    producer match {
+      case (_, True, Tuple()) => Some(0)
+      // TODO: add case for StmConcat?
+      case _ => None
+    }
+  }
+
+  /** A guess at the output delay for one [[mhir.ir.StmBuild]] node, i.e., the
+    * time at which the output becomes valid, relative to the <i>local<i> epoch.
     *
     * In other words, this is the latency the node would have if all its inputs
-    * have zero latency.
+    * were immediately valid, at the global epoch.
     */
-  private def stmBuildSelfLatency(s: StmBuild): Option[Int] = {
+  private def guessOutDelay(s: StmBuild): Option[Int] = {
     s.valid match {
       case True => Some(1)
       case Equal(t: Param, IntCst(k))

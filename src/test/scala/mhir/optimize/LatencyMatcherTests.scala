@@ -10,10 +10,10 @@ import org.scalatest.funsuite.AnyFunSuite
 class LatencyMatcherTests extends AnyFunSuite {
 
   private val passWithHandshake = {
-    LatencyMatcher(new LatencyAnalysis(handshake = true))
+    LatencyMatcher(new LatencyAnalysis(handshake = true), handshake = true)
   }
   private val passWithoutHandshake = {
-    LatencyMatcher(new LatencyAnalysis(handshake = false))
+    LatencyMatcher(new LatencyAnalysis(handshake = false), handshake = false)
   }
 
   test("let s = ... in Dynamic(StmZip(s, s |> StmMap(+5) |> StmMap(*2)))") {
@@ -65,7 +65,8 @@ class LatencyMatcherTests extends AnyFunSuite {
       }
       LetStm(1, s, count, delay)().tchk().lower
     }
-    val optimized = passWithHandshake.matchLatencies(original)
+    val optimized =
+      passWithHandshake.matchLatencies(original, headByVar = Map())
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -90,7 +91,8 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(sA, sB, timesTwo)
       LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower
     }
-    val optimized = passWithHandshake.matchLatencies(original)
+    val optimized =
+      passWithHandshake.matchLatencies(original, headByVar = Map())
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -104,35 +106,6 @@ class LatencyMatcherTests extends AnyFunSuite {
       CycleCounter.count(optimized, handshake = true).get
     assert(optimizedCycleCount < originalCycleCount)
     assert(optimizedCycleCount == 17)
-  }
-
-  test("ForkTwice:NoHandshake") {
-    val n = 10
-    val original = {
-      val sA = Param("s_a")(TyStm(U8, n))
-      val sB = Param("s_b")(TyStm(U8, n))
-      val count = SimpleCount(C(n)(U8))
-      val plusFive = SimpleMap(sA, x => Sum(C(5)(U8), x)())
-      val timesTwo = SimpleMap(sB, x => Prod(C(2)(U8), x)())
-      val zip = SimpleZip(sA, sB, timesTwo)
-      LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower
-    }
-    val optimized = passWithoutHandshake.matchLatencies(original)
-
-    // Correct behaviour
-    val expectedVal = StmLiteral(
-      (0 until n)
-        .map(t => Tuple(C(t)(U8), C(t + 5)(U8), C(2 * (t + 5))(U8))()): _*
-    )(Missing).tchk()
-    val actualVal =
-      mhir.eval.eval(optimized, handshake = false).asInstanceOf[StmLiteral]
-    assert(actualVal.dropPhysical(4) == expectedVal)
-
-    // Effective optimization
-    // (Cycle count should be decreased due to improved initiation interval)
-    val optimizedCycleCount =
-      CycleCounter.count(optimized, handshake = false).get
-    assert(optimizedCycleCount == 13)
   }
 
   /** Suppose that one branch has a sequence of three [[mhir.ir.StmBuild]]s,
@@ -176,7 +149,8 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(delay, plusOne)
       LetStm(1, s, count, zip)().tchk().lower
     }
-    val optimized = passWithHandshake.matchLatencies(original)
+    val optimized =
+      passWithHandshake.matchLatencies(original, headByVar = Map())
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -264,7 +238,8 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zipped = SimpleZip(sumPlusFive, stm2Vec)
       LetStm(1, x, count, zipped)().tchk().lower
     }
-    val optimized = passWithHandshake.matchLatencies(original)
+    val optimized =
+      passWithHandshake.matchLatencies(original, headByVar = Map())
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -288,7 +263,8 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(s0, plusFive)
       LetStm(1, s1, LetStm(1, s0, count, zip)(), s1)().tchk().lower
     }
-    val optimized = passWithHandshake.matchLatencies(original)
+    val optimized =
+      passWithHandshake.matchLatencies(original, headByVar = Map())
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -311,7 +287,8 @@ class LatencyMatcherTests extends AnyFunSuite {
         SimpleConcatHandshake(s0, SimpleMap(s0, x => Sum(C(5)(U8), x)()))
       LetStm(n, s0, count, concat)().tchk().lower
     }
-    val optimized = passWithHandshake.matchLatencies(original)
+    val optimized =
+      passWithHandshake.matchLatencies(original, headByVar = Map())
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -325,45 +302,274 @@ class LatencyMatcherTests extends AnyFunSuite {
     assert(optimizedCount <= originalCount)
   }
 
-  test("AcceleratorInputs") {
-    val n = 5
-    val a = Param("a")(TyStm(U8, n))
-    val b = Param("b")(TyStm(I8, n))
-    val original = Function(
-      a,
-      Function(b, SimpleZip(a, SimpleMap(b, x => Sum(x, C(-5)(I8))())))()
-    )().tchk()
-    val optimized = passWithoutHandshake.matchLatencies(original)
+  test("NoHandshake:ForkTwice") {
+    val n = 10
+    val sA = Param("s_a")(TyStm(U8, n))
+    val sB = Param("s_b")(TyStm(U8, n))
+    val original = {
+      val count = SimpleCount(C(n)(U8))
+      val plusFive = SimpleMap(sA, x => Sum(C(5)(U8), x)())
+      val timesTwo = SimpleMap(sB, x => Prod(C(2)(U8), x)())
+      val zip = SimpleZip(sA, sB, timesTwo)
+      LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower
+    }
+    val optimized = passWithoutHandshake.matchLatencies(
+      original,
+      headByVar = Map(sA -> Undefined(Missing), sB -> Undefined(Missing))
+    )
 
-    val inputs = Map[Expr, Expr](
-      a -> StmRange(n, C(0)(U8), C(1)(U8))().tchk().lower,
-      b -> StmRange(n, C(-2)(I8), C(1)(I8))().tchk().lower
+    // Correct behaviour
+    val expectedVal = StmLiteral(
+      (0 until n)
+        .map(t => Tuple(C(t)(U8), C(t + 5)(U8), C(2 * (t + 5))(U8))()): _*
+    )(Missing).tchk()
+    val actualVal =
+      mhir.eval.eval(optimized, handshake = false).asInstanceOf[StmLiteral]
+    assert(actualVal.dropPhysical(4) == expectedVal)
+
+    // Effective optimization
+    // (Cycle count should be decreased due to improved initiation interval)
+    val optimizedCycleCount =
+      CycleCounter.count(optimized, handshake = false).get
+    assert(optimizedCycleCount == 13)
+  }
+
+  test("NoHandshake:TakeAndDrop") {
+    val n = 8
+    val k = 3
+    // EXAMPLE: [u]s ++ [42, 43, 44, 45, 46, 47, 48, 49]s
+    val input = Param("input")(TyStm(U8, n))
+    val original = {
+      val take = {
+        // EXAMPLE: [u, u]s ++ [42, 43, 44, 45, 46]s
+        val p = Param("p")(TyStm(U8, -1))
+        StmBuild(
+          n - k,
+          C(1)(),
+          Undefined(Missing),
+          StmData(p)(),
+          True,
+          Map(),
+          Map(p -> (input, True, C(0)()))
+        )().tchk()
+      }
+      val drop = {
+        // EXAMPLE: [u, u, 42, 43, 44]s ++ [45, 46, 47, 48, 49]s
+        val p = Param("p")(TyStm(U8, -1))
+        StmBuild(
+          n - k,
+          C(1 + k)(),
+          Undefined(Missing),
+          StmData(p)(),
+          True,
+          Map(),
+          Map(p -> (input, True, C(0)()))
+        )().tchk()
+      }
+      val zip = {
+        // EXAMPLE (with latency matching):
+        // take: [u, u,  u,  u,  u]s ++ [42, 43, 44, 45, 46]s
+        // drop: [u, u, 42, 43, 44]s ++ [45, 46, 47, 48, 49]s
+        //  zip: [u, (u, u), (u, u), (u, 42), (u, 43), (u, 44)]s ++ [(42, 45), (43, 46), (44, 47), (45, 48), (46, 49)]s
+        val p1 = Param("p1")(TyStm(U8, -1))
+        val p2 = Param("p2")(TyStm(U8, -1))
+        StmBuild(
+          n - k,
+          C(1)(),
+          Undefined(Missing),
+          Tuple(StmData(p1)(), StmData(p2)())(),
+          True,
+          Map(),
+          Map(
+            p1 -> (take, True, C(0)()),
+            p2 -> (drop, True, C(0)())
+          )
+        )().tchk()
+      }
+      Function(input, zip)().tchk()
+    }
+    val actual =
+      passWithoutHandshake.matchLatencies(original, headByVar = Map())
+
+    val inputs = Map(
+      input -> StmRange(n, C(42)(U8), C(1)(U8))().tchk().lower
     )
-    // Before latency matching, evaluation fails because StmZip will try to
-    // apply backpressure
-    val originalWithInputs = original
-      .asInstanceOf[Function]
-      .body
-      .asInstanceOf[Function]
-      .body
-      .subPreserveType(inputs)
+
+    // There should be a latency mismatch at first
     assertThrows[DelayMismatch](
-      mhir.eval.eval(originalWithInputs, handshake = false)
+      mhir.eval.eval(
+        original.asInstanceOf[Function].body,
+        handshake = false,
+        inputs = inputs
+      )
     )
-    // After latency matching, evaluation should succeed
-    val optimizedWithInputs = optimized
-      .asInstanceOf[Function]
-      .body
-      .asInstanceOf[Function]
-      .body
-      .subPreserveType(inputs)
-    val actual = mhir.eval
-      .eval(optimizedWithInputs, handshake = false)
-      .asInstanceOf[StmLiteral]
-    val expected =
-      StmLiteral(
-        (0 until n).map(t => Tuple(C(t)(U8), C(t - 2 - 5)(I8))()): _*
-      )().tchk()
-    assert(actual.dropPhysical(3) == expected)
+
+    // There should NOT be a latency mismatch afterwards
+    val expectedVal = StmLiteral(
+      Seq(
+        Undefined(TyTuple(U8, U8)),
+        Tuple(Undefined(U8), Undefined(U8))(),
+        Tuple(Undefined(U8), Undefined(U8))(),
+        Tuple(Undefined(U8), C(42)(U8))(),
+        Tuple(Undefined(U8), C(43)(U8))(),
+        Tuple(Undefined(U8), C(44)(U8))()
+      ),
+      Seq(
+        Tuple(C(42)(U8), C(45)(U8))(),
+        Tuple(C(43)(U8), C(46)(U8))(),
+        Tuple(C(44)(U8), C(47)(U8))(),
+        Tuple(C(45)(U8), C(48)(U8))(),
+        Tuple(C(46)(U8), C(49)(U8))()
+      )
+    )(Missing).tchk()
+    val actualVal = mhir.eval.eval(
+      actual.asInstanceOf[Function].body,
+      handshake = false,
+      inputs = inputs
+    )
+    assert(actualVal == expectedVal)
+  }
+
+  test("PreserveInitData:FromStmBuild") {
+    val n = 5
+    val original @ Function(input1, Function(input2, originalBody)) = {
+      val input1 = Param("input1")(TyStm(U16, n))
+      val input2 = Param("input1")(TyStm(TyBool, n))
+      val power4 = SimpleMap(
+        SimpleMap(input1, x => Prod(x, x)()).tchk(),
+        x => Prod(x, x)()
+      ).tchk()
+      val nop = {
+        val p = Param("p")(TyStm(TyBool, -1))
+        StmBuild(
+          n,
+          C(1)(),
+          False,
+          StmData(p)(),
+          True,
+          Map(),
+          Map(p -> (input2, True, C(0)()))
+        )().tchk()
+      }
+      val zip = {
+        val p1 = Param("p1")(TyStm(U16, -1))
+        val p2 = Param("p2")(TyStm(TyBool, -1))
+        StmBuild(
+          n,
+          C(1)(),
+          Tuple(Undefined(U16), False)(),
+          Tuple(StmData(p1)(), StmData(p2)())(),
+          True,
+          Map(),
+          Map(
+            p1 -> (power4, True, C(0)()),
+            p2 -> (nop, True, C(0)())
+          )
+        )().tchk()
+      }
+      Function(input1, Function(input2, zip)())().tchk()
+    }
+    val Function(_, Function(_, actualBody)) =
+      passWithoutHandshake.matchLatencies(original, headByVar = Map())
+
+    val inputs = Map(
+      input1 -> StmRange(n, C(1)(U16), C(1)(U16))().tchk().lower,
+      input2 -> StmLiteral(
+        Seq(False),
+        (0 until n).map(_ % 2 == 0).map(if (_) True else False)
+      )(Missing).tchk()
+    )
+
+    // There should be a latency mismatch at first
+    assertThrows[DelayMismatch](
+      mhir.eval.eval(originalBody, handshake = false, inputs = inputs)
+    )
+
+    // There should NOT be a latency mismatch afterwards
+    val expectedVal = StmLiteral(
+      Seq(
+        Tuple(Undefined(U16), False)(),
+        Tuple(Undefined(U16), False)(),
+        Tuple(Undefined(U16), False)(),
+        Tuple(Undefined(U16), False)()
+      ),
+      Seq(
+        Tuple(C(1)(U16), True)(),
+        Tuple(C(16)(U16), False)(),
+        Tuple(C(81)(U16), True)(),
+        Tuple(C(256)(U16), False)(),
+        Tuple(C(625)(U16), True)()
+      )
+    )(Missing).tchk()
+    val actualVal =
+      mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
+    assert(actualVal == expectedVal)
+  }
+
+  test("PreserveInitData:FromInput") {
+    val n = 5
+    val original @ Function(input1, Function(input2, originalBody)) = {
+      val input1 = Param("input1")(TyStm(U16, n))
+      val input2 = Param("input1")(TyStm(TyBool, n))
+      val power4 = SimpleMap(
+        SimpleMap(input1, x => Prod(x, x)()).tchk(),
+        x => Prod(x, x)()
+      ).tchk()
+      val zip = {
+        val p1 = Param("p1")(TyStm(U16, -1))
+        val p2 = Param("p2")(TyStm(TyBool, -1))
+        StmBuild(
+          n,
+          C(1)(),
+          Tuple(Undefined(U16), False)(),
+          Tuple(StmData(p1)(), StmData(p2)())(),
+          True,
+          Map(),
+          Map(
+            p1 -> (power4, True, C(0)()),
+            p2 -> (input2, True, C(0)())
+          )
+        )().tchk()
+      }
+      Function(input1, Function(input2, zip)())().tchk()
+    }
+    val Function(_, Function(_, actualBody)) =
+      passWithoutHandshake.matchLatencies(
+        original,
+        headByVar = Map(input2 -> False)
+      )
+
+    val inputs = Map(
+      input1 -> StmRange(n, C(1)(U16), C(1)(U16))().tchk().lower,
+      input2 -> StmLiteral(
+        Seq(False),
+        (0 until n).map(_ % 2 == 0).map(if (_) True else False)
+      )(Missing).tchk()
+    )
+
+    // There should be a latency mismatch at first
+    assertThrows[DelayMismatch](
+      mhir.eval.eval(originalBody, handshake = false, inputs = inputs)
+    )
+
+    // There should NOT be a latency mismatch afterwards
+    val expectedVal = StmLiteral(
+      Seq(
+        Tuple(Undefined(U16), False)(),
+        Tuple(Undefined(U16), False)(),
+        Tuple(Undefined(U16), False)(),
+        Tuple(Undefined(U16), False)()
+      ),
+      Seq(
+        Tuple(C(1)(U16), True)(),
+        Tuple(C(16)(U16), False)(),
+        Tuple(C(81)(U16), True)(),
+        Tuple(C(256)(U16), False)(),
+        Tuple(C(625)(U16), True)()
+      )
+    )(Missing).tchk()
+    val actualVal =
+      mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
+    assert(actualVal == expectedVal)
   }
 }

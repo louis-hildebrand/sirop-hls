@@ -6,7 +6,7 @@ top = (s: Stm[i16, N]) => (my_go: Stm[u8, N]) =>
     .StmZip(s)
 
 assert {
-    s = [undefined[i16]]s ++ [-1:i16, 2:i16, -3:i16, 4:i16, -5:i16]s,
+    s = [undefined:i16]s ++ [-1:i16, 2:i16, -3:i16, 4:i16, -5:i16]s,
     my_go = [0:u8]s ++ [1:u8, 1:u8, 1:u8, 1:u8, 1:u8]s
 }
 yields [(0:u8, -1:i16), (1:u8, 2:i16), (2:u8, -3:i16), (3:u8, 4:i16), (4:u8, -5:i16)]s

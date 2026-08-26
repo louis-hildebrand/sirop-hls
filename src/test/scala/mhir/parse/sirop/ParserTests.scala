@@ -39,19 +39,31 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse("x").body == x)
   }
 
-  test("undefined[()]") {
-    assert(Parser.parse("undefined[()]").body == Undefined(TyTuple()))
+  test("undefined") {
+    val actual = Parser.parse("undefined").body
+    assert(actual == Undefined(Missing))
+    assert(actual.typ == Missing)
   }
 
-  test("undefined[(u8,)]") {
-    assert(Parser.parse("undefined[(u8,)]").body == Undefined(TyTuple(U8)))
+  test("undefined:()") {
+    val actual = Parser.parse("undefined:()").body
+    assert(actual == Undefined(TyTuple()))
+    assert(actual.typ == TyTuple())
   }
 
-  test("undefined[(u8)]") {
-    assert(Parser.parse("undefined[(u8)]").body == Undefined(U8))
+  test("undefined:(u8,)") {
+    val actual = Parser.parse("undefined:(u8,)").body
+    assert(actual == Undefined(TyTuple(U8)))
+    assert(actual.typ == TyTuple(U8))
   }
 
-  test("undefined[(i16, bool, u8, Vec[u32, 5])]") {
+  test("undefined:(u8)") {
+    val actual = Parser.parse("undefined:(u8)").body
+    assert(actual == Undefined(U8))
+    assert(actual.typ == U8)
+  }
+
+  test("undefined:(i16, bool, u8, Vec[u32, 5])") {
     val src = "undefined[(i16, bool, u8, Vec[u32, 5])]"
     val expected = Undefined(TyTuple(I16, TyBool, U8, TyVec(U32, 5)))
     assert(Parser.parse(src).body == expected)
@@ -1516,6 +1528,35 @@ class ParserTests extends AnyFunSuite {
     assert(ex.loc.contains(SourcePoint(1, 13)))
   }
 
+  test("AcceleratorAnnotation:Head") {
+    val src =
+      """accelerator[head(a)=undefined, head(b)=0]
+        |top = (a: Stm[u8, 8]) => (b: Stm[u8, 8]) =>
+        |  StmZip(a, b)
+        |""".stripMargin.stripTrailing
+    val prog = Parser.parse(src)
+    val a = Param("a", -1)(Missing)
+    val b = Param("b", -1)(Missing)
+    val expected = Map(a -> Undefined(Missing), b -> C(0)(U8))
+    assert(prog.headByParam == expected)
+    assert(prog.headByParam.get(a).exists(_.typ == Missing))
+    assert(prog.headByParam.get(b).exists(_.typ == Missing))
+  }
+
+  test("AcceleratorAnnotation:Head:MissingParam") {
+    val src = "accelerator[head=foo] top = (s: Stm[u8, 8]) => s"
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(ex.msg == "missing parameter for annotation 'head'")
+    assert(ex.loc.contains(SourcePoint(1, 13)))
+  }
+
+  test("AcceleratorAnnotation:Head:MissingValue") {
+    val src = "accelerator[head(s)] top = (s: Stm[u8, 8]) => s"
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(ex.msg == "missing value for annotation 'head(s)'")
+    assert(ex.loc.contains(SourcePoint(1, 13)))
+  }
+
   test("TestSuite:OK1") {
     val src =
       """const N: u32 = 10
@@ -1549,6 +1590,7 @@ class ParserTests extends AnyFunSuite {
         AccelDecl(
           "top",
           Function(s, StmMap(s, Missing ::+ (x => SmartSum(x, C(5)())()))())(),
+          Map(),
           Map()
         ),
         Seq(
@@ -1607,7 +1649,12 @@ class ParserTests extends AnyFunSuite {
       val b = Param("b", -1)(TyStm(TyBool, 4))
       Program(
         Seq(),
-        AccelDecl("top", Function(a, Function(b, StmZip(a, b)())())(), Map()),
+        AccelDecl(
+          "top",
+          Function(a, Function(b, StmZip(a, b)())())(),
+          Map(),
+          Map()
+        ),
         Seq(
           Assertion(
             Map(
@@ -1637,7 +1684,7 @@ class ParserTests extends AnyFunSuite {
     val actual = Parser.parse(src)
     val expected = Program(
       Seq(),
-      AccelDecl("top", StmRange(5, C(-2)(I16), C(1)(I16))(), Map()),
+      AccelDecl("top", StmRange(5, C(-2)(I16), C(1)(I16))(), Map(), Map()),
       Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None))
     )
     assert(actual == expected)
@@ -1652,7 +1699,7 @@ class ParserTests extends AnyFunSuite {
     val actual = Parser.parse(src)
     val expected = Program(
       Seq(),
-      AccelDecl("top", StmRange(5, C(-2)(I16), C(1)(I16))(), Map()),
+      AccelDecl("top", StmRange(5, C(-2)(I16), C(1)(I16))(), Map(), Map()),
       Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None))
     )
     assert(actual == expected)

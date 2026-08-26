@@ -1,7 +1,7 @@
 package mhir.sem
 
 import mhir.ir._
-import mhir.typecheck.TypeChecker
+import mhir.typecheck.{NameError, TypeChecker}
 
 object SemanticAnalyzer {
 
@@ -28,6 +28,14 @@ object SemanticAnalyzer {
       case Some(name) if inputs.exists(x => x.name == name) =>
         throw SemanticError(s"output name '$name' is already used for an input")
       case _ => ()
+    }
+
+    for (((key, x), _) <- prog.accel.annotationsByParam) {
+      if (!inputs.contains(x)) {
+        throw NameError(
+          s"unknown input '$x' (in annotation key '$key($x)')"
+        )
+      }
     }
 
     prog.go match {

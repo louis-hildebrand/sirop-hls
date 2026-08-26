@@ -182,13 +182,14 @@ object Parser {
   ): (AccelDecl, Seq[Token]) = {
     logger.trace(s"(${loc(tokens)}) parsing accel_decl")
     val (_, rest1) = expect(AcceleratorToken, tokens)
-    val (annotations, rest2) = rest1.headOption match {
+    val (annotations, annotationsByParam, rest2) = rest1.headOption match {
       case Some(_: LeftSquareToken) =>
         val rest2 = rest1.tail
-        val (annotations, rest3) = parseAcceleratorAnnotations(rest2)
+        val (annotations, annotationsByParam, rest3) =
+          parseAcceleratorAnnotations(rest2)
         val (_, rest4) = expect(RightSquareToken, rest3)
-        (annotations, rest4)
-      case _ => (Map[String, Expr](), rest1)
+        (annotations, annotationsByParam, rest4)
+      case _ => (Map[String, Expr](), Map[(String, Param), Expr](), rest1)
     }
     val (IdentToken(name), rest3) = expect(IdentToken, rest2)
     val (_, rest4) = expect(AssignToken, rest3)
@@ -197,44 +198,63 @@ object Parser {
         rest4,
         constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
       )
-    (AccelDecl(name, body, annotations), rest5)
+    (AccelDecl(name, body, annotations, annotationsByParam), rest5)
   }
 
   private def parseAcceleratorAnnotations(
       tokens: Seq[Token]
-  ): (Map[String, Expr], Seq[Token]) = {
+  ): (Map[String, Expr], Map[(String, Param), Expr], Seq[Token]) = {
     tokens.headOption match {
       case Some(_: IdentToken) =>
-        val (acc, rest1) = parseAcceleratorAnnotation(tokens)
-        var annotations = Map(acc)
-        var rest2 = rest1
-        while (rest2.headOption.exists(_.category == CommaToken)) {
-          val (acc, rest3) = parseAcceleratorAnnotation(rest2.tail)
-          annotations = annotations + acc
-          rest2 = rest3
+        var annotations = Map[String, Expr]()
+        var annotationsByParam = Map[(String, Param), Expr]()
+        var rest = tokens
+        def parseOneAndStore(): Unit = {
+          parseAcceleratorAnnotation(rest) match {
+            case ((key, None, value), rest1) =>
+              annotations += (key -> value)
+              rest = rest1
+            case ((key, Some(param), value), rest1) =>
+              annotationsByParam += ((key, param) -> value)
+              rest = rest1
+          }
         }
-        (annotations, rest2)
-      case _ => (Map(), tokens)
+        parseOneAndStore()
+        while (rest.headOption.exists(_.category == CommaToken)) {
+          rest = rest.tail // drop the comma
+          parseOneAndStore()
+        }
+        (annotations, annotationsByParam, rest)
+      case _ => (Map(), Map(), tokens)
     }
   }
 
   private def parseAcceleratorAnnotation(
       tokens: Seq[Token]
-  ): ((String, Expr), Seq[Token]) = {
+  ): ((String, Option[Param], Expr), Seq[Token]) = {
     val (keyTok @ IdentToken(key), rest1) = expect(IdentToken, tokens)
-    val (value, rest2) = rest1.headOption match {
-      case Some(_: AssignToken) =>
-        val rest2 = rest1.tail
-        val (e, rest3) = parseExpr(rest2, Map())
-        (Some(e), rest3)
+    val (param, rest2) = rest1.headOption match {
+      case Some(_: LeftParToken) =>
+        val rest1_1 = rest1.tail
+        val (IdentToken(x), rest1_2) = expect(IdentToken, rest1_1)
+        val (_, rest1_3) = expect(RightParToken, rest1_2)
+        (Some(Param(x, -1)(Missing)), rest1_3)
       case _ => (None, rest1)
+    }
+    val (value, rest3) = rest2.headOption match {
+      case Some(_: AssignToken) =>
+        val rest2_1 = rest2.tail
+        val (e, rest2_2) = parseExpr(rest2_1, Map())
+        (Some(e), rest2_2)
+      case _ => (None, rest2)
     }
     Program.checkAnnotation(
       key,
+      param,
       value,
       msg => throw SyntaxError(msg, keyTok.loc)
     )
-    ((key, value.getOrElse(True)), rest2)
+    ((key, param, value.getOrElse(True)), rest3)
   }
 
   private def parseAssertion(
@@ -1257,16 +1277,33 @@ object Parser {
         (Param(ident, -1)(Missing), rest)
       case Some(_: UndefinedToken) =>
         val rest1 = tokens.tail
-        val (_, rest2) = expect(LeftSquareToken, rest1)
-        val (typ, rest3) = parseTyp(rest2, constants)
-        val (_, rest4) = expect(RightSquareToken, rest3)
-        (Undefined(typ), rest4)
+        val (typ, rest2) = rest1.headOption match {
+          case Some(_: LeftSquareToken) =>
+            val rest1_1 = rest1.tail
+            val (typ, rest1_2) = parseTyp(rest1_1, constants)
+            val typStr = reconstructSource(
+              rest1_1.take(rest1_1.length - rest1_2.length)
+            )
+            logger.warn(
+              s"the syntax undefined[$typStr] is deprecated." +
+                s" Please use undefined:$typStr instead."
+            )
+            val (_, rest1_3) = expect(RightSquareToken, rest1_2)
+            (typ, rest1_3)
+          case Some(_: ColonToken) =>
+            val rest1_1 = rest1.tail
+            val (typ, rest1_2) = parseTyp(rest1_1, constants)
+            (typ, rest1_2)
+          case _ =>
+            (Missing, rest1)
+        }
+        (Undefined(typ), rest2)
       case Some(_: DefaultToken) =>
         val rest1 = tokens.tail
         val (_, rest2) = expect(LeftSquareToken, rest1)
         val (typ, rest3) = parseTyp(rest2, constants)
         val (_, rest4) = expect(RightSquareToken, rest3)
-        val typStr = reconstructSource(rest1.take(rest1.length - rest3.length))
+        val typStr = reconstructSource(rest2.take(rest2.length - rest3.length))
         logger.warn(
           s"the syntax default[$typStr] is deprecated."
             + s" Please use zeros:[$typStr]() instead."

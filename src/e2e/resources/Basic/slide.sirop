@@ -1,6 +1,6 @@
 accelerator top =
 (s: Stm[u8, 8]) =>
-    s.StmSlideStartingWith(undefined[Vec[u8, 4]])
+    s.StmSlideStartingWith(undefined:Vec[u8, 4])
 
 const _____ : u8 = 255:u8 /* garbage data */
 const ____  : u8 = 255:u8 /* garbage data */

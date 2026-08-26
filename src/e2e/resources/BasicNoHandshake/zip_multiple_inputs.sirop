@@ -2,7 +2,7 @@ const N: u32 = 16
 
 /* Computes (a^2 + b + 2) * (a^2 + b) element-wise.
  */
-accelerator[no_handshake]
+accelerator[no_handshake, head(a)=undefined, head(b)=undefined]
 top = (a: Stm[u16, N]) => (b: Stm[u16, N]) =>
     let two =
         StmCst(N, 0)

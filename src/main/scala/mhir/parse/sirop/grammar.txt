@@ -11,7 +11,7 @@ const_decl        ::= "const" ident ":" typ "=" expr
 accel_decl        ::= "accelerator" [ "[" accel_annotations "]" ] ident "=" expr
 accel_annotations ::= ""
                     | accel_annotation ( "," accel_annotation )*
-accel_annotation  ::= ident [ "=" expr ]
+accel_annotation  ::= ident [ "(" ident ")" ] [ "=" expr ]
 
 test_decl         ::= const_decl
                     | assertion
@@ -107,7 +107,7 @@ expr0           ::= "(" expr ")"
                   | "{" expr "}"
                   | "()" | "(" expr "," ")" | "(" expr ( "," expr )+ ")"
                   | ident
-                  | "undefined" "[" typ "]"
+                  | "undefined" [ ":" typ ]
                   | "default" "[" typ "]"
                   | "true" | "false"
                   | int_cst

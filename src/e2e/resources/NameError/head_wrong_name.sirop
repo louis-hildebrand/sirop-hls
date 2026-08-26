@@ -1,0 +1,3 @@
+accelerator[no_handshake, head(foo)=undefined]
+top = (bar: Stm[u8, 8]) =>
+    bar.StmMap( x => x + 5 )

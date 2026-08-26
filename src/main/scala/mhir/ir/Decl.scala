@@ -21,8 +21,15 @@ case class ConstDecl(x: Param, e: Expr) extends TestDecl
   *   the expression describing the accelerator.
   * @param annotations
   *   annotations (e.g., giving the names of the ports in the top-level entity).
+  * @param annotationsByParam
+  *   annotations associated with a specific parameter.
   */
-case class AccelDecl(name: String, body: Expr, annotations: Map[String, Expr])
+case class AccelDecl(
+    name: String,
+    body: Expr,
+    annotations: Map[String, Expr],
+    annotationsByParam: Map[(String, Param), Expr]
+)
 
 /** One assertion in a user-defined test suite.
   *

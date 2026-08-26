@@ -20,8 +20,10 @@ class Optimizer(
     latencyMatcher: LatencyMatcher,
     letStmBufShrinker: LetStmBufferShrinker,
     binOpBalancer: BinOpTreeBalancingPass,
-    unusedDataRemover: UnusedDataRemover
+    unusedDataRemover: UnusedDataRemover,
+    headByParam: Map[Param, Expr]
 ) {
+
   private implicit val logger: Logger = Logger(getClass.getName)
 
   def optimize(s: Expr): Expr = {
@@ -66,7 +68,8 @@ class Optimizer(
       fix(s2, i = 0)
     }
 
-    val s4 = latencyMatcher.matchLatencies(s3)
+    // TODO: pass in the head provided by the programmer for each input stream
+    val s4 = latencyMatcher.matchLatencies(s3, headByVar = headByParam)
 
     val s5 = unusedDataRemover.removeUnusedData(s4)
 
@@ -99,7 +102,11 @@ class Optimizer(
 }
 
 object Optimizer {
-  def apply(options: OptimizerOptions, handshake: Boolean): Optimizer = {
+  def apply(
+      options: OptimizerOptions,
+      handshake: Boolean,
+      headByParam: Map[Param, Expr]
+  ): Optimizer = {
     val stmBuildSimplifier =
       StmBuildSimplifier(enabled = options.simplifyStmBuild)
     val letStmSimplifier = LetStmSimplifier(enabled = options.inlineLetStm)
@@ -123,8 +130,11 @@ object Optimizer {
       )
     )
     val latencyAnalysis = new LatencyAnalysis(handshake = handshake)
-    val latencyMatcher =
-      LatencyMatcher(latencyAnalysis, enabled = options.matchLatency)
+    val latencyMatcher = LatencyMatcher(
+      latencyAnalysis,
+      handshake = handshake,
+      enabled = options.matchLatency
+    )
     val letStmBufShrinker = {
       val staticPass = if (options.staticallyShrinkLetStmBuffers) {
         Some(
@@ -152,7 +162,8 @@ object Optimizer {
       latencyMatcher,
       letStmBufShrinker,
       binOpBalancerWithLogging,
-      unusedDataRemover
+      unusedDataRemover,
+      headByParam = headByParam
     )
   }
 }

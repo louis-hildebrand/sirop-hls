@@ -19,7 +19,8 @@ class DspSelectionTests extends AnyFunSuite {
         maxLetStmBufSize = None
       )
       .copy(madd = true),
-    handshake = true
+    handshake = true,
+    headByParam = Map()
   )
   private def simplify(e: Expr): Expr = {
     optimizer.optimize(e)
