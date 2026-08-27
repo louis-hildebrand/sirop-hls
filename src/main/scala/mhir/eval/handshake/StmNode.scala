@@ -515,7 +515,7 @@ private[handshake] object LetStmNode {
       // With the extra slot, the consumer can read from the one slot while the
       // next slot is being filled.
       internalBuffer = (0 to (bufSize + 1))
-        .map(_ => mhir.eval.eval(DefaultVal(elemTyp)))
+        .map(_ => mhir.eval.eval(Undefined(elemTyp)))
         .toArray,
       tail = 0,
       head = 0,

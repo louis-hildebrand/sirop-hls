@@ -1,7 +1,6 @@
 package mhir.eval
 package handshake
 
-import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.eval._
 import mhir.ir._
@@ -73,8 +72,6 @@ private[eval] class StmPipeline(
 /** Companion object for [[StmPipeline]].
   */
 private[eval] object StmPipeline {
-
-  private implicit val logger: Logger = Logger(getClass.getName)
 
   /** Makes a pipeline representing the given stream expression.
     *
@@ -200,15 +197,7 @@ private[eval] object StmPipeline {
         typ = s.typ.asInstanceOf[TyStm]
       ),
       n = n,
-      acc = s.accumulators.map({
-        case (x, (Undefined(typ), _, _)) =>
-          logger.debug(
-            s"Undefined initial value for accumulator $x will be replaced by default value."
-              + " I hope you know what you're doing."
-          )
-          x -> eval(DefaultVal(typ))
-        case (x, (z, _, _)) => x -> eval(z)
-      }),
+      acc = s.accumulators.map({ case (x, (z, _, _)) => x -> eval(z) }),
       invalidSteps = 0,
       loc = loc
     )

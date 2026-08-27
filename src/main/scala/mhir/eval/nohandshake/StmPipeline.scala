@@ -62,17 +62,6 @@ private[eval] class StmPipeline(
     this.nodes = this.nodes + (node.id -> node)
   }
 
-  /** Adds new nodes to this pipeline.
-    *
-    * @param nodes
-    *   the nodes to add.
-    */
-  private def addNodes(nodes: StmNode with NoHandshakeStmNode*): Unit = {
-    for (v <- nodes) {
-      this.addNode(v)
-    }
-  }
-
   /** Adds new edges to this pipeline.
     *
     * @param edgesToAdd
@@ -188,7 +177,6 @@ object StmPipeline {
         val absoluteDelay = pipe.nodes(inputs(x)).absoluteDelayToFirst
         x -> (absoluteDelay - relativeDelay.toInt)
       })
-      .toMap
     val myEpochs = myEpochByProducer.values.toSet
     val myEpoch = if (myEpochs.isEmpty) {
       // Stream sources (e.g., counters) start running immediately
@@ -224,15 +212,7 @@ object StmPipeline {
         absoluteDelayToLast = (myEpoch + outDelay + n - 1).toInt,
         absoluteDelayByAccumulator = delayByAccumulator
       ),
-      acc = s.accumulators.map({
-        case (x, (Undefined(typ), _, _)) =>
-          logger.debug(
-            s"Undefined initial value for accumulator $x will be replaced by default value."
-              + " I hope you know what you're doing."
-          )
-          x -> eval(DefaultVal(typ))
-        case (x, (z, _, _)) => x -> eval(z)
-      })
+      acc = s.accumulators.map({ case (x, (z, _, _)) => x -> eval(z) })
     )
   }
 }
