@@ -7,21 +7,21 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class ExprPrinterTests extends AnyFunSuite {
 
-  test("undefined[Missing]") {
+  test("undefined:Missing") {
     val e = Undefined(Missing)
     assert(ExprPrinter.displayOneLine(e) == "undefined")
     assert(ExprPrinter.displayMultiLine(e, maxWidth = 120) == "undefined")
   }
 
-  test("undefined[u8]") {
+  test("undefined:u8") {
     val e = Undefined(U8)
-    assert(ExprPrinter.displayOneLine(e) == "undefined[u8]")
-    assert(ExprPrinter.displayMultiLine(e, maxWidth = 120) == "undefined[u8]")
+    assert(ExprPrinter.displayOneLine(e) == "undefined:u8")
+    assert(ExprPrinter.displayMultiLine(e, maxWidth = 120) == "undefined:u8")
   }
 
-  test("undefined[Vec[i16, 42:u6]]") {
+  test("undefined:Vec[i16, 42:u6]") {
     val e = Undefined(TyVec(I16, 42))
-    val expected = "undefined[Vec[i16, 42:u6]]"
+    val expected = "undefined:Vec[i16, 42:u6]"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.displayMultiLine(e, maxWidth = 120) == expected)
   }

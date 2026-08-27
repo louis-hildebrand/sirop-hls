@@ -569,7 +569,7 @@ object ExprPrinter {
       case Undefined(Missing) =>
         "undefined"
       case Undefined(typ) =>
-        s"undefined[$typ]"
+        s"undefined:$typ"
       case Tuple(e) =>
         s"(${displayOneLine(e)},)"
       case Tuple(elems @ _*) =>
