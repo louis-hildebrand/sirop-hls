@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 
+from helpers import assert_equals, TestFailed
 import constants as c
 import test_test as stest
 import test_vhdl as vhdl
@@ -137,7 +138,7 @@ def check_files_that_shouldnt_be_overwritten() -> int:
     return error_count
 
 
-def test_plain(expected_stderr_file: Path, cli_args: list[str]) -> bool:
+def test_plain(expected_stderr_file: Path, cli_args: list[str], save: bool) -> bool:
     """
     Test that running the compiler with the given CLI arguments produces the expected output on
     stderr.
@@ -165,24 +166,21 @@ def test_plain(expected_stderr_file: Path, cli_args: list[str]) -> bool:
     actual_stderr_file = c.ACTUAL_OUTPUTS / f"{name}.stderr.txt"
     actual_stderr_file.parent.mkdir(exist_ok=True, parents=True)
     actual_stderr_file.write_text(result.stderr, encoding="utf-8")
-    # Check status code
-    expected_code = 1 if expected_stderr_file.parent.name.endswith("Error") else 0
-    if result.returncode != expected_code:
-        print(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
+    try:
+        # Check status code
+        expected_code = 1 if expected_stderr_file.parent.name.endswith("Error") else 0
+        if result.returncode != expected_code:
+            raise TestFailed(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
+        # Check stderr
+        assert_equals("stderr", actual_stderr_file, expected_stderr_file, save=save)
+        print("OK")
+        return True
+    except TestFailed as e:
+        print(e)
         return False
-    # Check stderr
-    expected_stderr = expected_stderr_file.read_text(encoding="utf-8")
-    if result.stderr != expected_stderr:
-        print(
-            f"WRONG STDERR (compare {expected_stderr_file.relative_to(c.ROOT)})"
-            f" with {actual_stderr_file.relative_to(c.ROOT)})"
-        )
-        return False
-    print("OK")
-    return True
 
 
-def test_eval(eval_output: Path, cli_args: list[str]) -> bool:
+def test_eval(eval_output: Path, cli_args: list[str], save: bool) -> bool:
     """
     Test that evaluating the program produces the expected output from the given file.
     """
@@ -204,20 +202,18 @@ def test_eval(eval_output: Path, cli_args: list[str]) -> bool:
     if not actual_out_file.parent.exists():
         actual_out_file.parent.mkdir(exist_ok=True, parents=True)
     actual_out_file.write_text(result.stdout, encoding="utf-8")
-    expected_code = 1 if eval_output.parent.name.endswith("Error") else 0
-    if result.returncode != expected_code:
-        print(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
+    try:
+        # Check status code
+        expected_code = 1 if eval_output.parent.name.endswith("Error") else 0
+        if result.returncode != expected_code:
+            raise TestFailed(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
+        # Check output
+        assert_equals("output", actual_out_file, eval_output, save=save)
+        print("OK")
+        return True
+    except TestFailed as e:
+        print(e)
         return False
-    expected = eval_output.read_text(encoding="utf-8")
-    if result.stdout != expected:
-        print(
-            f"WRONG OUTPUT (compare {eval_output.relative_to(c.ROOT)}"
-            f" with {actual_out_file.relative_to(c.ROOT)})"
-        )
-        return False
-    actual_out_file.unlink(missing_ok=True)
-    print("OK")
-    return True
 
 
 def test_repl(repl_output: Path, compiler_version: str, cli_args: list[str]) -> bool:
@@ -252,26 +248,30 @@ def test_repl(repl_output: Path, compiler_version: str, cli_args: list[str]) -> 
     if not actual_out_file.parent.exists():
         actual_out_file.parent.mkdir(exist_ok=True, parents=True)
     actual_out_file.write_text(result.stdout, encoding="utf-8")
-    expected_code = 0
-    if result.returncode != expected_code:
-        print(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
-        return False
-    expected = (
-        repl_output.read_text(encoding="utf-8")
-            .replace("${COMPILER_VERSION}", compiler_version)
-    )
-    if result.stdout.rstrip() != expected.rstrip():
-        print(
-            f"WRONG OUTPUT (compare {repl_output.relative_to(c.ROOT)}"
-            f" with {actual_out_file.relative_to(c.ROOT)})"
+    try:
+        # Check status code
+        expected_code = 0
+        if result.returncode != expected_code:
+            raise TestFailed(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
+        # Check output
+        expected = (
+            repl_output.read_text(encoding="utf-8")
+                .replace("${COMPILER_VERSION}", compiler_version)
         )
+        if result.stdout.rstrip() != expected.rstrip():
+            raise TestFailed(
+                f"WRONG OUTPUT (compare {repl_output.relative_to(c.ROOT)}"
+                f" with {actual_out_file.relative_to(c.ROOT)})"
+            )
+        actual_out_file.unlink(missing_ok=True)
+        print("OK")
+        return True
+    except TestFailed as e:
+        print(e)
         return False
-    actual_out_file.unlink(missing_ok=True)
-    print("OK")
-    return True
 
 
-def main(test_sources: list[Path], skip_vsim: bool) -> None:
+def main(test_sources: list[Path], skip_vsim: bool, save: bool) -> None:
     """
     Script entry point.
     """
@@ -301,7 +301,7 @@ def main(test_sources: list[Path], skip_vsim: bool) -> None:
             cli_args = []
         if (eval_output := test.with_suffix(".eval.txt")).is_file():
             ran = True
-            ok = test_eval(eval_output, cli_args=cli_args)
+            ok = test_eval(eval_output, cli_args=cli_args, save=save)
             if not ok:
                 error_count += 1
         if (repl_output := test.with_suffix(".repl.txt")).is_file():
@@ -311,22 +311,22 @@ def main(test_sources: list[Path], skip_vsim: bool) -> None:
                 error_count += 1
         if (stderr_file := test.with_suffix(".stderr.txt")).is_file():
             ran = True
-            ok = test_plain(stderr_file, cli_args=cli_args)
+            ok = test_plain(stderr_file, cli_args=cli_args, save=save)
             if not ok:
                 error_count += 1
         if vhdl.can_run(test):
             ran = True
-            ok = vhdl.run(test, cli_args=cli_args)
+            ok = vhdl.run(test, cli_args=cli_args, save=save)
             if not ok:
                 error_count += 1
         if stest.can_run(test):
             ran = True
-            ok = stest.run(test, cli_args=cli_args)
+            ok = stest.run(test, cli_args=cli_args, save=save)
             if not ok:
                 error_count += 1
         if vsim.can_run(test):
             ran = True
-            ok = skip_vsim or vsim.run(test, cli_args=cli_args)
+            ok = skip_vsim or vsim.run(test, cli_args=cli_args, save=save)
             if not ok:
                 error_count += 1
         if not ran and test not in c.IGNORE_FILES:
@@ -360,6 +360,11 @@ def _parse_args() -> Namespace:
         action="store_true",
         help="don't run the tests related to VHDL simulation",
     )
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        help="overwrite the expected results with whatever the compiler currently outputs",
+    )
     args = parser.parse_args()
     if not args.test_sources:
         args.test_sources = sorted(list(c.RESOURCES.glob("**/*.sirop")) + c.MISSING_FILES)
@@ -376,4 +381,4 @@ def _parse_args() -> Namespace:
 
 if __name__ == "__main__":
     _args = _parse_args()
-    main(_args.test_sources, skip_vsim=_args.skip_vsim)
+    main(_args.test_sources, skip_vsim=_args.skip_vsim, save=_args.save)

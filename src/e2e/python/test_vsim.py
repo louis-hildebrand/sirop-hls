@@ -7,7 +7,9 @@ Functions for testing the Sirop compiler's ability to generate and run VHDL test
 from pathlib import Path
 import subprocess
 
+from helpers import assert_equals, TestFailed
 import constants as c
+
 
 def uses_file(p: Path) -> bool:
     """
@@ -27,7 +29,7 @@ def can_run(src: Path) -> bool:
     return src.with_suffix(".vsim.txt").is_file()
 
 
-def run(src: Path, cli_args: list[str]) -> bool:
+def run(src: Path, cli_args: list[str], save: bool) -> bool:
     """
     Test that generating and running a VHDL testbench produces the expected outputs.
     """
@@ -51,18 +53,16 @@ def run(src: Path, cli_args: list[str]) -> bool:
     if not actual_out_file.parent.exists():
         actual_out_file.parent.mkdir(exist_ok=True, parents=True)
     actual_out_file.write_text(result.stdout, encoding="utf-8")
-    expected_code = 1 if src.parent.name.endswith("Error") else 0
-    if result.returncode != expected_code:
-        print(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
+    try:
+        # Check status code
+        expected_code = 1 if src.parent.name.endswith("Error") else 0
+        if result.returncode != expected_code:
+            raise TestFailed(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
+        # Check output
+        expected_out_file = src.with_suffix(".vsim.txt")
+        assert_equals("output", actual_out_file, expected_out_file, save=save)
+        print("OK")
+        return True
+    except TestFailed as e:
+        print(str(e))
         return False
-    expected_out_file = src.with_suffix(".vsim.txt")
-    expected = expected_out_file.read_text(encoding="utf-8")
-    if result.stdout != expected:
-        print(
-            f"WRONG OUTPUT (compare {expected_out_file.relative_to(c.ROOT)}"
-            f" with {actual_out_file.relative_to(c.ROOT)})"
-        )
-        return False
-    actual_out_file.unlink(missing_ok=True)
-    print("OK")
-    return True

@@ -7,7 +7,9 @@ Functions for testing the Sirop compiler's ability to run Sirop test suites.
 from pathlib import Path
 import subprocess
 
+from helpers import assert_equals, TestFailed
 import constants as c
+
 
 def uses_file(p: Path) -> bool:
     """
@@ -38,7 +40,7 @@ def can_run(src: Path) -> bool:
     return src.with_suffix(".test.txt").is_file()
 
 
-def run(src: Path, cli_args: list[str]) -> bool:
+def run(src: Path, cli_args: list[str], save: bool) -> bool:
     """
     Test that the Sirop test runner produces the expected outputs.
     """
@@ -69,55 +71,39 @@ def run(src: Path, cli_args: list[str]) -> bool:
         check=False,
     )
     actual_compiler_output_file.write_text(result.stdout, encoding="utf-8")
-    # Check status code
-    expected_code = 1 if src.parent.name.endswith("Error") else 0
-    if result.returncode != expected_code:
-        print(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
-        return False
-    # Check compiler messages
-    expected_compiler_output_file = src.with_suffix(".test.txt")
-    expected = expected_compiler_output_file.read_text(encoding="utf-8")
-    if result.stdout != expected:
-        print(
-            f"WRONG OUTPUT (compare {expected_compiler_output_file.relative_to(c.ROOT)}"
-            f" with {actual_compiler_output_file.relative_to(c.ROOT)})"
+    try:
+        # Check status code
+        expected_code = 1 if src.parent.name.endswith("Error") else 0
+        if result.returncode != expected_code:
+            raise TestFailed(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
+        # Check compiler messages
+        expected_compiler_output_file = src.with_suffix(".test.txt")
+        assert_equals(
+            "output",
+            actual_compiler_output_file,
+            expected_compiler_output_file,
+            save=save,
         )
+        # Check dump of expected test outputs
+        expected_expected_output_file = src.with_suffix(".test.expected.txt")
+        if expected_expected_output_file.is_file():
+            assert_equals(
+                "expected dump",
+                actual_expected_output_file,
+                expected_expected_output_file,
+                save=save,
+            )
+        # Check dump of actual test outputs
+        expected_actual_output_file = src.with_suffix(".test.actual.txt")
+        if expected_actual_output_file.is_file():
+            assert_equals(
+                "actual dump",
+                actual_actual_output_file,
+                expected_actual_output_file,
+                save=save,
+            )
+        print("OK")
+        return True
+    except TestFailed as e:
+        print(str(e))
         return False
-    # Check dump of expected test outputs
-    expected_expected_output_file = src.with_suffix(".test.expected.txt")
-    if expected_expected_output_file.is_file():
-        if not actual_expected_output_file.is_file():
-            print(
-                "MISSING EXPECTED DUMP"
-                f" ({actual_expected_output_file.relative_to(c.ROOT)} should have been created)"
-            )
-            return False
-        expected = expected_expected_output_file.read_text(encoding="utf-8")
-        actual = actual_expected_output_file.read_text(encoding="utf-8")
-        if actual != expected:
-            print(
-                "WRONG EXPECTED DUMP"
-                f" (compare {expected_expected_output_file.relative_to(c.ROOT)})"
-                f" with {actual_expected_output_file.relative_to(c.ROOT)})"
-            )
-            return False
-    # Check dump of actual test outputs
-    expected_actual_output_file = src.with_suffix(".test.actual.txt")
-    if expected_actual_output_file.is_file():
-        if not actual_actual_output_file.is_file():
-            print(
-                "MISSING ACTUAL DUMP"
-                f" ({actual_actual_output_file.relative_to(c.ROOT)} should have been created)"
-            )
-            return False
-        expected = expected_actual_output_file.read_text(encoding="utf-8")
-        actual = actual_actual_output_file.read_text(encoding="utf-8")
-        if actual != expected:
-            print(
-                "WRONG ACTUAL DUMP"
-                f" (compare {expected_actual_output_file.relative_to(c.ROOT)})"
-                f" with {actual_actual_output_file.relative_to(c.ROOT)})"
-            )
-            return False
-    print("OK")
-    return True

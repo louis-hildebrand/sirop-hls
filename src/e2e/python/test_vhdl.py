@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 
+from helpers import assert_equals, TestFailed
 import constants as c
 
 
@@ -71,7 +72,7 @@ def can_run(src: Path) -> bool:
     return False
 
 
-def run(src: Path, cli_args: list[str]) -> bool:
+def run(src: Path, cli_args: list[str], save: bool) -> bool:
     """
     Test that the VHDL code looks OK (files generated, interface of the top-level entity).
     """
@@ -89,65 +90,41 @@ def run(src: Path, cli_args: list[str]) -> bool:
         capture_output=True,
         check=False,
     )
-    # Check error code
-    actual_stderr = result.stderr
-    actual_stderr_file = c.ACTUAL_OUTPUTS / f"{name}.vhdl.stderr.txt"
-    actual_stderr_file.write_text(actual_stderr, encoding="utf-8")
-    expected_code = 1 if src.parent.name.endswith("Error") else 0
-    if result.returncode != expected_code:
-        print(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
+    try:
+        # Check error code
+        actual_stderr = result.stderr
+        actual_stderr_file = c.ACTUAL_OUTPUTS / f"{name}.vhdl.stderr.txt"
+        actual_stderr_file.write_text(actual_stderr, encoding="utf-8")
+        expected_code = 1 if src.parent.name.endswith("Error") else 0
+        if result.returncode != expected_code:
+            raise TestFailed(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
+        # Check stderr
+        expected_out_path = src.with_suffix(".vhdl.stderr.txt")
+        if expected_out_path.is_file():
+            assert_equals("stderr", actual_stderr_file, expected_out_path, save=save)
+        # Check file tree (if applicable)
+        expected_tree_path = src.with_suffix(".vhdl.tree.txt")
+        if expected_tree_path.is_file():
+            actual_tree_path = c.ACTUAL_OUTPUTS / f"{name}.vhdl.tree.txt"
+            actual_tree_path.write_text(_get_tree(vhdl_dir), encoding="utf-8")
+            assert_equals("file structure", actual_tree_path, expected_tree_path, save=save)
+        # Check entity interface (if applicable)
+        expected_interface_path = src.with_suffix(".vhdl.interface.txt")
+        if expected_interface_path.is_file():
+            actual_interface_path = c.ACTUAL_OUTPUTS / f"{name}.vhdl.interface.txt"
+            actual_interface_path.write_text(_get_interface(vhdl_dir), encoding="utf-8")
+            assert_equals("interface", actual_interface_path, expected_interface_path, save=save)
+        # Check IP blocks (if applicable)
+        expected_ip_blocks_path = src.with_suffix(".vhdl.ip.txt")
+        if expected_ip_blocks_path.is_file():
+            actual_ip_blocks_path = c.ACTUAL_OUTPUTS / f"{name}.vhdl.ip.txt"
+            actual_ip_blocks_path.write_text(_get_ip_blocks(vhdl_dir), encoding="utf-8")
+            assert_equals("IP blocks", actual_ip_blocks_path, expected_ip_blocks_path, save=save)
+        print("OK")
+        return True
+    except TestFailed as e:
+        print(str(e))
         return False
-    # Check stderr
-    expected_out_path = src.with_suffix(".vhdl.stderr.txt")
-    if expected_out_path.is_file():
-        expected_stderr = expected_out_path.read_text(encoding="utf-8")
-        if actual_stderr != expected_stderr:
-            print(
-                f"WRONG OUTPUT (compare {expected_out_path.relative_to(c.ROOT)}"
-                f" with {actual_stderr_file.relative_to(c.ROOT)})"
-            )
-            return False
-    # Check file tree (if applicable)
-    expected_tree_path = src.with_suffix(".vhdl.tree.txt")
-    if expected_tree_path.is_file():
-        expected_tree = expected_tree_path.read_text(encoding="utf-8")
-        actual_tree = _get_tree(vhdl_dir)
-        actual_out_file = c.ACTUAL_OUTPUTS / f"{name}.vhdl.tree.txt"
-        actual_out_file.write_text(actual_tree, encoding="utf-8")
-        if actual_tree != expected_tree:
-            print(
-                f"WRONG FILE STRUCTURE (compare {expected_tree_path.relative_to(c.ROOT)}"
-                f" with {actual_out_file.relative_to(c.ROOT)})"
-            )
-            return False
-    # Check entity interface (if applicable)
-    expected_interface_path = src.with_suffix(".vhdl.interface.txt")
-    if expected_interface_path.is_file():
-        expected_interface = expected_interface_path.read_text(encoding="utf-8")
-        actual_interface = _get_interface(vhdl_dir)
-        actual_out_file = c.ACTUAL_OUTPUTS / f"{name}.vhdl.interface.txt"
-        actual_out_file.write_text(actual_interface, encoding="utf-8")
-        if actual_interface != expected_interface:
-            print(
-                f"WRONG INTERFACE (compare {expected_interface_path.relative_to(c.ROOT)}"
-                f" with {actual_out_file.relative_to(c.ROOT)})"
-            )
-            return False
-    # Check IP blocks (if applicable)
-    expected_ip_blocks_path = src.with_suffix(".vhdl.ip.txt")
-    if expected_ip_blocks_path.is_file():
-        expected_ip_blocks = expected_ip_blocks_path.read_text(encoding="utf-8")
-        actual_ip_blocks = _get_ip_blocks(vhdl_dir)
-        actual_ip_blocks_path = c.ACTUAL_OUTPUTS / f"{name}.vhdl.ip.txt"
-        actual_ip_blocks_path.write_text(actual_ip_blocks, encoding="utf-8")
-        if actual_ip_blocks != expected_ip_blocks:
-            print(
-                f"WRONG IP BLOCKS (compare {expected_ip_blocks_path.relative_to(c.ROOT)}"
-                f" with {actual_ip_blocks_path.relative_to(c.ROOT)})"
-            )
-            return False
-    print("OK")
-    return True
 
 
 def _get_tree(vhdl_dir: Path) -> str:
