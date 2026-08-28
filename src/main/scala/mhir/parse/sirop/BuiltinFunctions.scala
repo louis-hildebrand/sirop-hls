@@ -181,8 +181,9 @@ private[sirop] object BuiltinFunctions {
         }
       case f @ Param("StmZip", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s1, s2)) => StmZip(s1, s2)()
-          case _                    => error(f)
+          case (Seq(), Seq(s1, s2))       => StmZip(s1, s2)()
+          case (Seq(), Seq(s1, s2, head)) => StmZip(s1, s2, head)()
+          case _                          => error(f)
         }
       case f @ Param("StmReduce", -1) =>
         combinedArgs match {

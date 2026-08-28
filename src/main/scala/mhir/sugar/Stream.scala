@@ -2330,14 +2330,17 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
   }
 }
 
-case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
-    typ: Type = Missing
-) /* Stm<(A, B); n> */
-    extends SyntaxSugar(a, b)(typ) {
+case class StmZip(
+    a: Expr,
+    b: Expr,
+    head: Expr = Undefined(Missing)
+)(typ: Type = Missing)
+    extends SyntaxSugar(a, b, head)(typ) {
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(a, b) => StmZip(a, b)(typ)
-      case _         => throw new BadRebuildError(this, newChildren)
+      case Seq(a, b, head) => StmZip(a, b, head)(typ)
+      case _               => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -2346,31 +2349,59 @@ case class StmZip(a: Expr /* Stm<A; n> */, b: Expr /* Stm<B; n> */ )(
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr = {
     val newA = a.tchk(context, constValues)
-    val (t1, n) = newA.typ match {
-      case TyStm(t1, n) if t1.isData => (t1, n)
+    val (t1, n1) = newA.typ match {
+      case TyStm(TyData(t), n) => (t, n)
       case t =>
         throw new TypeError(
           s"First stream in StmZip has type $t. Expected a non-nested stream."
         )
     }
     val newB = b.tchk(context, constValues)
-    val t2 = newB.typ match {
-      case TyStm(t2, _) if t1.isData => t2
+    val (t2, n2) = newB.typ match {
+      case TyStm(TyData(t), n) => (t, n)
       case t =>
         throw new TypeError(
           s"Second stream in StmZip has type $t. Expected a non-nested stream."
         )
     }
-    this.rebuild(TyStm(TyTuple(t1, t2), n), Seq(newA, newB))
+    if (!c.sameLen(n1, n2, constValues)) {
+      throw new TypeError(
+        s"lengths of inputs to $className differ: $n1 and $n2."
+      )
+    }
+    val newHead = this.head match {
+      case Undefined(Missing) => Undefined(TyTuple(t1, t2))
+      case head =>
+        head.tchk(context, constValues).expectType(TyTuple(t1, t2), constValues)
+    }
+    this.rebuild(TyStm(TyTuple(t1, t2), n1), Seq(newA, newB, newHead))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val t1 = this.a.typ.asInstanceOf[TyStm].t
-    val t2 = this.b.typ.asInstanceOf[TyStm].t
-    StmMap2(this.a, this.b, t1 ::+ (x => t2 ::+ (y => Tuple(x, y)())))()
+    val a = this.a.lower
+    val b = this.b.lower
+    val head = this.head.lower
+    val TyStm(aElemTyp, n) = a.typ
+    val TyStm(bElemTyp, _) = b.typ
+    val p1 = Param("p1")(TyStm(aElemTyp, -1))
+    val p2 = Param("p2")(TyStm(bElemTyp, -1))
+    StmBuild(
+      n,
+      C(1)(),
+      head,
+      Tuple(StmData(p1)(), StmData(p2)())(),
+      True,
+      Map(),
+      Map(
+        p1 -> (a, True, C(0)()),
+        p2 -> (b, True, C(0)())
+      )
+    )()
+      .annotateWithName("StmZip")
+      .annotate(NoInputsAfterLastOut)
+      .annotate(NoOutputsAfterLastIn)
       .tchk()
-      .lower
   }
 }
 

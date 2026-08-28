@@ -719,23 +719,30 @@ class ExprPrinterTests extends AnyFunSuite {
     val s1Val = StmCount(C(n)(U8))()
     val s2 = Param("s2", -1)(Missing)
     val s2Val = StmCst(C(n)(U8), True)()
-    val let =
+    val let = LetStm(
+      1,
+      s1,
+      s1Val,
       LetStm(
         1,
-        s1,
-        s1Val,
-        LetStm(1, s2, s2Val, StmZip(StmZip(s1, s2)(), StmZip(s2, s1)())())()
+        s2,
+        s2Val,
+        StmZip(
+          StmZip(s1, s2, Tuple(C(0)(U8), C(0)(U8))())(),
+          StmZip(s2, s1)()
+        )()
       )()
+    )()
 
     val expectedOneLine =
-      s"letstm[1] s1 = StmCount($n:u8) in letstm[1] s2 = StmCst($n:u8, true) in StmZip(StmZip(s1, s2), StmZip(s2, s1))"
+      s"letstm[1] s1 = StmCount($n:u8) in letstm[1] s2 = StmCst($n:u8, true) in StmZip(StmZip(s1, s2, (0:u8, 0:u8)), StmZip(s2, s1, undefined), undefined)"
     val actualOneLine = ExprPrinter.displayOneLine(let)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
       s"""letstm[1] s1 = StmCount($n:u8) in
          |letstm[1] s2 = StmCst($n:u8, true) in
-         |StmZip(StmZip(s1, s2), StmZip(s2, s1))
+         |StmZip(StmZip(s1, s2, (0:u8, 0:u8)), StmZip(s2, s1, undefined), undefined)
          |""".stripMargin.stripTrailing
     val actualMultiLine = ExprPrinter.displayMultiLine(let)
     assert(actualMultiLine == expectedMultiLine)
