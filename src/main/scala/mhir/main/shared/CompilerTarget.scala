@@ -33,10 +33,13 @@ case class TraceTarget(outDir: Path, testIdx: Int, overwrite: Boolean)
   *   the path in which to write the expected outputs.
   * @param actualPath
   *   the path in which to write the actual outputs.
+  * @param showPhysical
+  *   include the physical prefix in the actual output dump.
   */
 case class TestTarget(
     expectedPath: Option[Path],
     actualPath: Option[Path],
+    showPhysical: Boolean,
     overwrite: Boolean
 ) extends CompilerTarget
 

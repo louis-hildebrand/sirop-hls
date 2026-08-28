@@ -26,6 +26,7 @@ object TestRunner {
       prog: Program,
       expectedPath: Option[Path],
       actualPath: Option[Path],
+      showPhysical: Boolean,
       overwrite: Boolean
   ): Unit = {
     expectedPath.foreach(checkIfFileExists(_, overwrite))
@@ -46,7 +47,8 @@ object TestRunner {
           body,
           handshake = prog.handshake,
           expectedPath = expectedPath,
-          actualPath = actualPath
+          actualPath = actualPath,
+          showPhysical = showPhysical
         )
         if (!ok) {
           errors += 1
@@ -83,7 +85,8 @@ object TestRunner {
       body: Expr,
       handshake: Boolean,
       expectedPath: Option[Path],
-      actualPath: Option[Path]
+      actualPath: Option[Path],
+      showPhysical: Boolean
   ): Boolean = {
     logger.debug(s"running test $testIdx ... ")
     val rawExpectedOutput =
@@ -109,7 +112,8 @@ object TestRunner {
     }
     val expectedOutput =
       try {
-        val result = applyMask(rawExpectedOutput, ignore)
+        // The physical prefix is always ignored for the expected output sequence
+        val result = applyMask(rawExpectedOutput, ignore, showPhysical = false)
         logResult(expectedPath, result, testIdx, "expected output")
       } catch {
         case ex: EvalException =>
@@ -126,14 +130,16 @@ object TestRunner {
       }
     val actualOutput =
       try {
-        val result = applyMask(rawActualOutput, ignore)
+        val result =
+          applyMask(rawActualOutput, ignore, showPhysical = showPhysical)
         logResult(actualPath, result, testIdx, "actual output")
       } catch {
         case ex: EvalException =>
           logError(actualPath, ex, testIdx, "actual output")
       }
     (expectedOutput, actualOutput) match {
-      case (Some(expected), Some(actual)) if actual == expected =>
+      case (Some(expected), Some(actual))
+          if dropPhysicalPrefix(actual) == dropPhysicalPrefix(expected) =>
         logger.info(s"test $testIdx: PASSED")
         true
       case (Some(_), Some(_)) =>
@@ -153,29 +159,38 @@ object TestRunner {
     }
   }
 
+  private def dropPhysicalPrefix(e: Expr): Expr = {
+    e match {
+      case StmLiteral(_, logical) => StmLiteral(logical: _*)()
+      case e                      => e
+    }
+  }
+
   private def applyMask(
       output: Option[Expr],
-      ignore: Option[Expr]
+      ignore: Option[Expr],
+      showPhysical: Boolean
   ): Option[Expr] = {
     (output, ignore) match {
       case (Some(output), Some(ignore)) =>
-        val StmLiteral(_, outElems) = output
+        val StmLiteral(outPhysical, outLogical) = output
         val StmLiteral(_, ignoreElems) = ignore
         val TyStm(elemTyp, _) = ignore.typ
         val ones = mhir.eval.eval(AllOne(elemTyp))
         val zeros = mhir.eval.eval(AllZero(elemTyp))
-        assert(outElems.length == ignoreElems.length)
+        assert(outLogical.length == ignoreElems.length)
         Some(
           StmLiteral(
-            outElems
+            if (showPhysical) outPhysical else Seq(),
+            outLogical
               .zip(ignoreElems)
               .map({
                 case (out, ignore) if ignore == zeros => out
                 case (_, ignore) if ignore == ones    => zeros
                 case (out, ignore) =>
                   mhir.eval.eval(BitwiseAnd(out, BitwiseNot(ignore)())())
-              }): _*
-          )()
+              })
+          )(Missing)
         )
       case _ =>
         None

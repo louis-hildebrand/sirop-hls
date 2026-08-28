@@ -3,7 +3,7 @@ const N: u32 = 5
 accelerator[no_handshake, go=go]
 top = (s: Stm[i16, N]) => (go: Stm[bool, N]) =>
     StmRange(N, 0:u8, 1:u8)
-    .StmZip(s)
+    .StmZip(s, /* head= */ (0:u8, 0:i16))
 
 assert {
     s = [undefined:i16]s ++ [-1:i16, 2:i16, -3:i16, 4:i16, -5:i16]s,

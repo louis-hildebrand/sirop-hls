@@ -35,7 +35,6 @@ object Args {
 
     // Input args
     var sourceLang = "sirop"
-    var inputCount = 0
     var input: Option[String] = None
     var constOverrides = Map[String, String]()
     // Output args
@@ -55,6 +54,7 @@ object Args {
     var runTests: Boolean = false
     var testExpectedPath: Option[String] = None
     var testActualPath: Option[String] = None
+    var testActualShowPhysical: Boolean = false
     var maxInvalidSteps: Option[Int] = None
     var overwrite = false
     var mutArgs = args
@@ -257,6 +257,8 @@ object Args {
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
+        case "--out:test:actual:show-physical" =>
+          testActualShowPhysical = true
         case "--overwrite" =>
           overwrite = true
         case "-q" | "--quiet" =>
@@ -342,7 +344,8 @@ object Args {
           TestTarget(
             testExpectedPath.map(Path(_, base = os.pwd)),
             testActualPath.map(Path(_, base = os.pwd)),
-            overwrite
+            showPhysical = testActualShowPhysical,
+            overwrite = overwrite
           )
         )
       } else {
@@ -545,6 +548,8 @@ object Args {
          |  --out:test                       run the tests and print the results
          |  --out:test:expected FILE         where to write the expected outputs
          |  --out:test:actual FILE           where to write the actual outputs
+         |  --out:test:actual:show-physical  include the physical prefix when printing
+         |                                   the actual outputs
          |
          |  --out:vhdl DIR                   emit VHDL code in the given directory
          |  --out:vhdl:run-sim               run the VHDL testbench after codegen
