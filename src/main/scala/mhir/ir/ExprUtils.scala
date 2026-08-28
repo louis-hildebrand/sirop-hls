@@ -229,6 +229,15 @@ trait ExprUtils {
       }
     }
 
+    /** If this expression is a stream literal, discard its physical prefix.
+      */
+    def dropPhysicalPrefix: Expr = {
+      this.expr match {
+        case s: StmLiteral => s.copy(physical = Seq())(s.typ)
+        case _             => this.expr
+      }
+    }
+
     /** Whether this stream operator will have consumed all its inputs by the
       * time it produces its last output.
       *

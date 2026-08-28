@@ -137,7 +137,24 @@ class EnabledLatencyMatcher(
         case LetStm(_, x, in, out) =>
           val inHead = findInitData(in, headByVar)
           findInitData(out, headByVar + (x -> inHead))
-        case e =>
+        case StmLiteral(Seq(head, _*), _) =>
+          head
+        case s @ StmLiteral(Seq(), _) =>
+          val undefined = s.typ match {
+            case TyStm(elemTyp, _) => Undefined(elemTyp)
+            case _                 =>
+              // The latency matching code should still be fine in this case,
+              // but the warning message will be incomplete; undefined should
+              // have a type annotation here.
+              Undefined(Missing)
+          }
+          logger.warn(
+            s"no physical prefix specified for stream literal $s."
+              + " The latency matcher will delay the stream by prepending undefined elements."
+              + s" To dismiss this warning, add a physical prefix (e.g., [$undefined]s ++ $s)."
+          )
+          undefined
+        case _ =>
           ???
       }
     }

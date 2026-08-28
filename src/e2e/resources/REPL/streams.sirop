@@ -1,0 +1,10 @@
+u = [1:u8, 2:u8, 3:u8, 4:u8]s
+v = [5:u8, 6:u8, 7:u8, 8:u8]s
+StmZip(u, v).StmMap( @(x, y) => x * y ).StmSum()
+__foo = true
+__handshake = false
+StmZip(u, v).StmMap( @(x, y) => x * y ).StmSum()
+__show_physical = true
+StmZip(u, v).StmMap( @(x, y) => x * y ).StmSum()
+u.StmMap( x => x * x ).StmZip(v)
+exit
