@@ -1,9 +1,12 @@
 package mhir.sem
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.typecheck.{NameError, TypeChecker}
 
 object SemanticAnalyzer {
+
+  private val logger: Logger = Logger(getClass.getName)
 
   /** Check for errors like duplicate input names, collisions between the input
     * and output names, etc.
@@ -87,6 +90,16 @@ object SemanticAnalyzer {
       checkDelays(prog.body)
     }
     checkStmData(prog.body)
+  }
+
+  def checkForWarnings(prog: Program): Unit = {
+    prog.test.zipWithIndex.foreach({
+      case (Assertion(_, StmLiteral(physical, _), _), i) if physical.nonEmpty =>
+        logger.warn(
+          s"physical prefix in expected output of test $i will be ignored"
+        )
+      case _ => ()
+    })
   }
 
   /** Check that the `valid` and `ready` expressions are always `true`.

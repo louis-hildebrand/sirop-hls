@@ -1,6 +1,6 @@
 /* Test 0 */
 [
-  1:u8
+  undefined:u8
 ]s ++ [
   1:u8,
   3:u8,
@@ -10,7 +10,7 @@
 
 /* Test 1 */
 [
-  1:u8,
+  undefined:u8,
   1:u8
 ]s ++ [
   1:u8,
@@ -21,7 +21,7 @@
 
 /* Test 2 */
 [
-  1:u8,
+  undefined:u8,
   1:u8,
   1:u8
 ]s ++ [

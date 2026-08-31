@@ -1,2 +1,4 @@
+[WARN ] physical prefix in expected output of test 0 will be ignored
+[WARN ] physical prefix in expected output of test 1 will be ignored
 [INFO ] the design has a latency of 1 cycle
 [INFO ] VHDL testbench passed!

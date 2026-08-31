@@ -91,6 +91,7 @@ object Compiler {
     val (synthesizable, synthTime) = makeSynthesizable(lowered)
     time("semantic analysis", Level.DEBUG) {
       SemanticAnalyzer.check(synthesizable)
+      SemanticAnalyzer.checkForWarnings(synthesizable)
     }
     val (finalProgram, optimTime) =
       optimize(

@@ -91,7 +91,7 @@ object TestRunner {
     logger.debug(s"running test $testIdx ... ")
     val rawExpectedOutput =
       try {
-        val result = mhir.eval.eval(a.expectedOutput)
+        val result = mhir.eval.eval(a.expectedOutput, handshake = handshake)
         logResult(None, result, testIdx, "raw expected output")
       } catch {
         case ex: EvalException =>
@@ -100,7 +100,7 @@ object TestRunner {
     val ignore = a.ignore match {
       case Some(ignore) =>
         try {
-          val result = mhir.eval.eval(ignore)
+          val result = mhir.eval.eval(ignore, handshake = handshake)
           logResult(None, result, testIdx, "'ignoring' stream")
         } catch {
           case ex: EvalException =>
@@ -108,7 +108,7 @@ object TestRunner {
         }
       case None =>
         val TyStm(t, n) = a.expectedOutput.typ
-        Some(mhir.eval.eval(StmCst(n, AllZero(t))()))
+        Some(mhir.eval.eval(StmCst(n, AllZero(t))(), handshake = handshake))
     }
     val expectedOutput =
       try {
