@@ -1,0 +1,30 @@
+const N: u32 = 8
+const W: u32 = 3
+
+accelerator[no_handshake]
+slide = (s: Stm[u8, N]) =>
+    s.StmSlide(W)
+
+assert {
+    s = []s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8, 8:u8]s
+}
+yields [
+    [1:u8, 2:u8, 3:u8]v,
+    [2:u8, 3:u8, 4:u8]v,
+    [3:u8, 4:u8, 5:u8]v,
+    [4:u8, 5:u8, 6:u8]v,
+    [5:u8, 6:u8, 7:u8]v,
+    [6:u8, 7:u8, 8:u8]v
+]s
+
+assert {
+    s = [undefined:u8]s ++ [9:u8, 8:u8, 7:u8, 6:u8, 5:u8, 4:u8, 3:u8, 2:u8]s
+}
+yields [
+    [9:u8, 8:u8, 7:u8]v,
+    [8:u8, 7:u8, 6:u8]v,
+    [7:u8, 6:u8, 5:u8]v,
+    [6:u8, 5:u8, 4:u8]v,
+    [5:u8, 4:u8, 3:u8]v,
+    [4:u8, 3:u8, 2:u8]v
+]s

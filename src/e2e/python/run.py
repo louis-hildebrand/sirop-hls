@@ -295,10 +295,13 @@ def main(test_sources: list[Path], skip_vsim: bool, save: bool) -> None:
     for test in test_sources:
         ran = False
         os.chdir(test.parent)
+        cli_args = []
+        if (cli_args_file := test.parent.joinpath(".cliargs.txt")).is_file():
+            # Common CLI args
+            cli_args += cli_args_file.read_text(encoding="utf-8").splitlines()
         if (cli_args_file := test.with_suffix(".cliargs.txt")).is_file():
+            # Test-specific CLI args
             cli_args = cli_args_file.read_text(encoding="utf-8").splitlines()
-        else:
-            cli_args = []
         if (eval_output := test.with_suffix(".eval.txt")).is_file():
             ran = True
             ok = test_eval(eval_output, cli_args=cli_args, save=save)

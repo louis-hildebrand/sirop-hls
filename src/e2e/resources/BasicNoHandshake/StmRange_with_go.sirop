@@ -1,0 +1,16 @@
+const N: u32 = 4
+
+accelerator[no_handshake, go=go]
+count = (go: Stm[bool, N]) => StmRange(N, 1:u8, 2:u8)
+
+assert {
+    go = []s ++ [true, true, true, true]s
+} yields [1:u8, 3:u8, 5:u8, 7:u8]s
+
+assert {
+    go = [false]s ++ [true, true, true, true]s
+} yields [1:u8, 3:u8, 5:u8, 7:u8]s
+
+assert {
+    go = [false, false]s ++ [true, true, true, true]s
+} yields [1:u8, 3:u8, 5:u8, 7:u8]s

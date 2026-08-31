@@ -235,7 +235,8 @@ object TestRunner {
       case None =>
         logger.debug(s"$goal is $result")
       case Some(p) =>
-        val msg = formatOutput(testIdx, ExprPrinter.display(result))
+        // Print the result on multiple lines for easier comparison (e.g., with vimdiff)
+        val msg = formatOutput(testIdx, ExprPrinter.displayMultiLine(result))
         os.write.append(p, msg)
         logger.debug(s"appended $goal to $p")
     }

@@ -549,7 +549,7 @@ case class StmCst(n: Expr, k: Expr)(typ: Type = Missing)
     val out = k.typ match {
       case _: TyStm => StmRepeat(k, n)()
       case _ =>
-        StmBuild(n, C(1)(), Undefined(k.typ), k, True, Map(), Map())()
+        StmBuild(n, C(1)(), k, k, True, Map(), Map())()
           .annotate(NoInputsAfterLastOut)
           .annotateWithName(getClass.getSimpleName)
     }
@@ -621,7 +621,7 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     StmBuild(
       n,
       C(1)(),
-      Undefined(a.typ),
+      Undefined(Missing),
       a,
       True,
       Map[Param, (Expr, Expr, Expr)](
@@ -773,7 +773,7 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
     StmBuild(
       SafeProd(n, m)(),
       C(1)(),
-      Undefined(TyTuple(n.typ, m.typ)),
+      Undefined(Missing),
       Tuple(i, j)(),
       True,
       Map[Param, (Expr, Expr, Expr)](
@@ -2644,13 +2644,10 @@ case class StmSlide(
         // We want to know how many multiples of `stride` there are in the
         // range [0, n-winSize].
         // In general, that is ceil( (n - winSize + 1) / stride )
-        val newLen =
-          CeilDiv(
-            ToUnsigned(SafeSum(n, C(-1)() * newWinSize, 1)())(),
-            newStride
-          )()
-            .tchk()
-            .lower
+        val newLen = CeilDiv(
+          ToUnsigned(SafeSum(n, C(-1)() * newWinSize, 1)())(),
+          newStride
+        )().tchk().lower
         this.rebuild(
           TyStm(TyVec(t, newWinSize), newLen),
           Seq(newInput, newWinSize, newStride)
@@ -2788,7 +2785,7 @@ case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
             + s" Expected a vector whose elements have type $elemTyp."
         )
     }
-    this.rebuild(TyStm(TyVec(elemTyp, SafeSum(m, C(1)())()), n), Seq(s, z))
+    this.rebuild(TyStm(TyVec(elemTyp, m), n), Seq(s, z))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -2800,13 +2797,12 @@ case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
     val buf = Param("buf")(z.typ)
     StmBuild(
       n,
-      1,
-      // TODO: Change the definition of StmSlideStartingWith so even the first output is defined
-      Undefined(Missing),
-      VecAppend(buf, StmData(p)())().tchk().lower,
+      C(1)(),
+      z,
+      VecShiftLeft(buf, StmData(p)())().tchk().lower,
       True,
       Map[Param, (Expr, Expr, Expr)](
-        buf -> (z, VecShiftLeft(buf, StmData(p)())().tchk().lower, 1)
+        buf -> (z, VecShiftLeft(buf, StmData(p)())().tchk().lower, C(1)())
       ),
       Map[Param, (Expr, Expr, Expr)](
         p -> (s, True, 0)
