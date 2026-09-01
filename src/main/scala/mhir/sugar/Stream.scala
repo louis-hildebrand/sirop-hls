@@ -27,7 +27,7 @@ private[sugar] case class StmReset(
     s: Expr,
     inputs: Map[Param, Expr]
 )(typ: Type = Missing)
-    extends SyntaxSugar(
+    extends ResolvedSyntaxSugar(
       Seq(n, s) ++ inputs.flatMap({ case (x, in) => Seq(x, in) }): _*
     )(typ) {
 
@@ -35,7 +35,7 @@ private[sugar] case class StmReset(
 
   private def inputVars: Set[Param] = this.inputs.keySet
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmReset = {
     newChildren match {
       case Seq(n, s, xs @ _*) if xs.length % 2 == 0 =>
         val inputs = xs
@@ -53,7 +53,7 @@ private[sugar] case class StmReset(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmReset = {
     val n = this.n.tchk(context, constValues).expectUInt()
     val s = this.s.tchk(context, constValues).expectStream()
     val stmTyp = s.typ match {
@@ -477,8 +477,8 @@ case class Iterate(
     z: Expr /* A */,
     f: Expr /* A -> A */
 )(typ: Type = Missing) /* Stm<A; 1> */
-    extends SyntaxSugar(n, z, f)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(n, z, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Iterate = {
     newChildren match {
       case Seq(n, z, f) => Iterate(n, z, f)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
@@ -488,7 +488,7 @@ case class Iterate(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): Iterate = {
     val n = this.n.tchk(context, constValues).expectUInt()
     val z = this.z.tchk(context, constValues)
     val f = this.f
@@ -525,8 +525,8 @@ case class Iterate(
 }
 
 case class StmCst(n: Expr, k: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(n, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(n, k)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCst = {
     newChildren match {
       case Seq(n, c) => StmCst(n, c)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -536,7 +536,7 @@ case class StmCst(n: Expr, k: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmCst = {
     val n = this.n.tchk(context, constValues).expectUInt()
     val k = this.k.tchk(context, constValues)
     this.rebuild(TyStm(k.typ, n), Seq(n, k))
@@ -557,8 +557,9 @@ case class StmCst(n: Expr, k: Expr)(typ: Type = Missing)
   }
 }
 
-case class StmCount(n: Expr)(typ: Type = Missing) extends SyntaxSugar(n)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+case class StmCount(n: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(n)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCount = {
     newChildren match {
       case Seq(n) => StmCount(n)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -568,7 +569,7 @@ case class StmCount(n: Expr)(typ: Type = Missing) extends SyntaxSugar(n)(typ) {
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmCount = {
     val newN = n.tchk(context, constValues).expectUInt()
     this.rebuild(TyStm(newN.typ, newN), Seq(newN))
   }
@@ -593,8 +594,8 @@ case class StmCount(n: Expr)(typ: Type = Missing) extends SyntaxSugar(n)(typ) {
   *   2 * delta, ...]</code>.
   */
 case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(n, z, delta)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(n, z, delta)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmRange = {
     newChildren match {
       case Seq(n, z, delta) => StmRange(n, z, delta)(typ)
       case _                => throw new BadRebuildError(this, newChildren)
@@ -604,7 +605,7 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmRange = {
     val newN = n.tchk(context, constValues).expectUInt()
     val newZ = z.tchk(context, constValues).expectAnyInt()
     val newDelta = delta
@@ -654,8 +655,8 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
   */
 case class StmVecRange(n: Expr, m: Expr, z: Expr, delta: Expr)(
     typ: Type = Missing
-) extends SyntaxSugar(n, m, z, delta)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+) extends ResolvedSyntaxSugar(n, m, z, delta)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmVecRange = {
     newChildren match {
       case Seq(n, m, z, delta) => StmVecRange(n, m, z, delta)(typ)
       case _                   => throw new BadRebuildError(this, newChildren)
@@ -665,7 +666,7 @@ case class StmVecRange(n: Expr, m: Expr, z: Expr, delta: Expr)(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmVecRange = {
     val n = this.n.tchk(context, constValues).expectUInt()
     val m = this.m.tchk(context, constValues).expectUInt()
     val z = this.z.tchk(context, constValues).expectAnyInt()
@@ -708,8 +709,8 @@ case class StmCst2D(
     m: Expr /* Int */,
     k: Expr /* T */
 )(typ: Type = Missing) /* Stm<Stm<T; m>; n> */
-    extends SyntaxSugar(n, m, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(n, m, k)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCst2D = {
     newChildren match {
       case Seq(n, m, c) => StmCst2D(n, m, c)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
@@ -719,7 +720,7 @@ case class StmCst2D(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmCst2D = {
     val n = this.n.tchk(context, constValues).expectUInt()
     val m = this.m.tchk(context, constValues).expectUInt()
     val k = this.k.tchk(context, constValues)
@@ -747,8 +748,8 @@ case class StmCst2D(
 }
 
 case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(n, m)(typ) /* Stm<Stm<(Int, Int); m>; n> */ {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(n, m)(typ) /* Stm<Stm<(Int, Int); m>; n> */ {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCount2D = {
     newChildren match {
       case Seq(n, m) => StmCount2D(n, m)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -758,7 +759,7 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmCount2D = {
     val n = this.n.tchk(context, constValues).expectUInt()
     val m = this.m.tchk(context, constValues).expectUInt()
     this.rebuild(TyStm(TyStm((n.typ, m.typ), m), n), Seq(n, m))
@@ -790,8 +791,8 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
 }
 
 case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(n1, n2, n3)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(n1, n2, n3)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCount3D = {
     newChildren match {
       case Seq(n1, n2, n3) => StmCount3D(n1, n2, n3)(typ)
       case _               => throw new BadRebuildError(this, newChildren)
@@ -801,7 +802,7 @@ case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmCount3D = {
     val n1 = this.n1.tchk(context, constValues).expectUInt()
     val n2 = this.n2.tchk(context, constValues).expectUInt()
     val n3 = this.n3.tchk(context, constValues).expectUInt()
@@ -855,54 +856,9 @@ case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
   }
 }
 
-case class StmMap(
-    input: Expr /* Stm<A; n> */,
-    f: Expr /* A -> B */
-)(typ: Type = Missing) /* Stm<B; n> */
-    extends SyntaxSugar(input, f)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(s, f) => StmMap(s, f)(typ)
-      case _         => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
-    val newS = input.tchk(context, constValues)
-    val (t1, n) = newS.typ match {
-      case TyStm(t, n) => (t, n)
-      case t           => throw new TypeError(s"Stream in StmMap has type $t.")
-    }
-    val newF = f.annotateFunc(t1).tchk(context, constValues)
-    val t2 = newF.typ match {
-      case TyArrow(t, t2) if t.equalsGivenConstants(t1, constValues) =>
-        t2
-      case t =>
-        throw new TypeError(
-          s"function in StmMap has type $t. Expected a function whose input type is $t1",
-          TypeChecker.relevantBindings(constValues, t, t1)
-        )
-    }
-    this.rebuild(TyStm(t2, n), Seq(newS, newF))
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    SL.logger.trace(s"lowering $className: $this")
-    requireType()
-    val input = this.input.lower
-    val f = this.f.lower.asInstanceOf[Function]
-    val TyStm(_, n) = this.typ
-    val Function(s, innerStm) = f.streamify
-    StmReset(n, innerStm, Map(s -> input))().tchk().lower
-  }
-}
-
 case class StmMap2(s1: Expr, s2: Expr, f: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(s1, s2, f)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(s1, s2, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmMap2 = {
     newChildren match {
       case Seq(s1, s2, f) => StmMap2(s1, s2, f)(typ)
       case _              => throw new BadRebuildError(this, newChildren)
@@ -912,7 +868,7 @@ case class StmMap2(s1: Expr, s2: Expr, f: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmMap2 = {
     val s1 = this.s1.tchk(context, constValues)
     val (t1, n1) = s1.typ match {
       case TyStm(t, n) => (t, n)
@@ -968,8 +924,8 @@ case class StmAccess(
     stm: Expr /* Stm<A; n> */,
     k: Expr /* Int */
 )(typ: Type = Missing) /* Stm<A; 1> */
-    extends SyntaxSugar(stm, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm, k)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmAccess = {
     newChildren match {
       case Seq(s, k) => StmAccess(s, k)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -979,7 +935,7 @@ case class StmAccess(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmAccess = {
     val s = this.stm.tchk(context, constValues).expectStream()
     val t = s.typ.asInstanceOf[TyStm].t
     val k = this.k.tchk(context, constValues).expectUInt()
@@ -1060,8 +1016,8 @@ case class StmAccess(
   *   `(T, T) -> T`. The function to use for reducing.
   */
 case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(s, f)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(s, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmReduce = {
     newChildren match {
       case Seq(s, f) => StmReduce(s, f)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -1071,7 +1027,7 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmReduce = {
     val s = this.s.tchk(context, constValues)
     // The type of the accumulator, but possibly wrapped in a bunch of vectors
     // and streams of length 1
@@ -1197,9 +1153,9 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
 }
 
 case class StmCascade(s: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(s)(typ) {
+    extends ResolvedSyntaxSugar(s)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCascade = {
     newChildren match {
       case Seq(s) => StmCascade(s)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -1209,7 +1165,7 @@ case class StmCascade(s: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmCascade = {
     val s = this.s.tchk(context, constValues)
     s.typ match {
       case TyStm(TyVec(_, _), _) => ()
@@ -1279,9 +1235,9 @@ case class StmCascade(s: Expr)(typ: Type = Missing)
 // TODO: Generalize to include pre-adder?
 // TODO: Generalize to allow 27-bit systolic mode?
 case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(s1, s2, delay)(typ) {
+    extends ResolvedSyntaxSugar(s1, s2, delay)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): MulAddCascaded = {
     newChildren match {
       case Seq(s1, s2, d) => MulAddCascaded(s1, s2, d)(typ)
       case _              => throw new BadRebuildError(this, newChildren)
@@ -1291,7 +1247,7 @@ case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): MulAddCascaded = {
     val s1 = this.s1.tchk(context, constValues)
     val (elemTyp1, n, m) = s1.typ match {
       case TyStm(TyVec(t: TyAnyInt, m), n) =>
@@ -1427,9 +1383,9 @@ case class MulAddCascaded(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
 }
 
 case class StmMapDot(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(s1, s2, delay)(typ) {
+    extends ResolvedSyntaxSugar(s1, s2, delay)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmMapDot = {
     newChildren match {
       case Seq(s1, s2, delay) => StmMapDot(s1, s2, delay)(typ)
       case _                  => throw new BadRebuildError(this, newChildren)
@@ -1439,7 +1395,7 @@ case class StmMapDot(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmMapDot = {
     val s1 = this.s1.tchk(context, constValues)
     val (elemTyp1, n, m) = s1.typ match {
       case TyStm(TyVec(t: TyAnyInt, m), n) =>
@@ -1502,9 +1458,9 @@ case class StmMapDot(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
 }
 
 case class StmFold1D(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(s, z, f)(typ) {
+    extends ResolvedSyntaxSugar(s, z, f)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmFold1D = {
     newChildren match {
       case Seq(s, z, f) => StmFold1D(s, z, f)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
@@ -1514,7 +1470,7 @@ case class StmFold1D(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmFold1D = {
     val s = this.s.tchk(context, constValues)
     val t1 = s.typ match {
       case TyStm(TyData(t), _) => t
@@ -1581,9 +1537,10 @@ case class StmFold1D(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
   }
 }
 
-case class StmAll(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
+case class StmAll(s: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(s)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmAll = {
     newChildren match {
       case Seq(s) => StmAll(s)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -1593,7 +1550,7 @@ case class StmAll(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmAll = {
     val s = this.s.tchk(context, constValues)
     s.typ match {
       case TyStm(TyBool, _) => ()
@@ -1616,9 +1573,10 @@ case class StmAll(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
   }
 }
 
-case class StmAny(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
+case class StmAny(s: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(s)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmAny = {
     newChildren match {
       case Seq(s) => StmAny(s)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -1628,7 +1586,7 @@ case class StmAny(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmAny = {
     val s = this.s.tchk(context, constValues)
     s.typ match {
       case TyStm(TyBool, _) => ()
@@ -1651,9 +1609,10 @@ case class StmAny(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
   }
 }
 
-case class StmSum(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
+case class StmSum(s: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(s)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmSum = {
     newChildren match {
       case Seq(s) => StmSum(s)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -1663,7 +1622,7 @@ case class StmSum(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmSum = {
     val s = this.s.tchk(context, constValues)
     val typ = s.typ match {
       case TyStm(t: TyAnyInt, _) => t
@@ -1690,8 +1649,8 @@ case class StmSum(s: Expr)(typ: Type = Missing) extends SyntaxSugar(s)(typ) {
 case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
     typ: Type = Missing
 ) /* Stm<A; n> */
-    extends SyntaxSugar(v)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(v)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Vec2Stm = {
     newChildren match {
       case Seq(v) => Vec2Stm(v)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -1701,7 +1660,7 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): Vec2Stm = {
     val newV = v.tchk(context, constValues)
     newV.typ match {
       case TyVec(t, n) =>
@@ -1748,8 +1707,8 @@ case class Vec2Stm(v: Expr /* Vec<A; n> */ )(
 case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     typ: Type = Missing
 ) /* Stm<A; n+1> */
-    extends SyntaxSugar(stm, e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmPrepend = {
     newChildren match {
       case Seq(s, e) => StmPrepend(s, e)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -1759,7 +1718,7 @@ case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmPrepend = {
     val newS = stm.tchk(context, constValues)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -1778,8 +1737,8 @@ case class StmPrepend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
 case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     typ: Type = Missing
 ) /* Stm<A; n+1> */
-    extends SyntaxSugar(stm, e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmAppend = {
     newChildren match {
       case Seq(s, e) => StmAppend(s, e)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -1789,7 +1748,7 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmAppend = {
     val newS = stm.tchk(context, constValues)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -1820,8 +1779,8 @@ case class StmPrefix(
     stm: Expr /* Stm<A; n> */,
     k: Expr /* Int */
 )(typ: Type = Missing) /* Stm<A; k> */
-    extends SyntaxSugar(stm, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm, k)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmPrefix = {
     newChildren match {
       case Seq(stm, k) => StmPrefix(stm, k)(typ)
       case _           => throw new BadRebuildError(this, newChildren)
@@ -1831,7 +1790,7 @@ case class StmPrefix(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmPrefix = {
     val k = this.k.tchk(context, constValues).expectUInt()
     val s = this.stm.tchk(context, constValues)
     s.typ match {
@@ -1879,8 +1838,8 @@ case class StmSuffix(
     stm: Expr /* Stm<A; n> */,
     k: Expr /* Int */
 )(typ: Type = Missing) /* Stm<A; k> */
-    extends SyntaxSugar(stm, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm, k)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmSuffix = {
     newChildren match {
       case Seq(stm, k) => StmSuffix(stm, k)(typ)
       case _           => throw new BadRebuildError(this, newChildren)
@@ -1890,7 +1849,7 @@ case class StmSuffix(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmSuffix = {
     val newK = k.tchk(context, constValues).expectUInt()
     val newS = stm.tchk(context, constValues)
     newS.typ match {
@@ -1949,8 +1908,8 @@ case class StmSuffix(
 case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     typ: Type = Missing
 ) /* Stm<A; n> */
-    extends SyntaxSugar(stm, e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmShiftLeft = {
     newChildren match {
       case Seq(s, e) => StmShiftLeft(s, e)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -1960,7 +1919,7 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmShiftLeft = {
     val newS = stm.tchk(context, constValues)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -1988,8 +1947,8 @@ case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
 case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
     typ: Type = Missing
 ) /* Stm<A; n> */
-    extends SyntaxSugar(stm, e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmShiftRight = {
     newChildren match {
       case Seq(s, e) => StmShiftRight(s, e)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -1999,7 +1958,7 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmShiftRight = {
     val newS = stm.tchk(context, constValues)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -2026,8 +1985,11 @@ case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   */
 case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
     typ: Type = Missing
-) extends SyntaxSugar(stm, shiftAmount)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+) extends ResolvedSyntaxSugar(stm, shiftAmount)(typ) {
+  override def rebuild(
+      typ: Type,
+      newChildren: Seq[Expr]
+  ): StmShiftRightGarbage = {
     newChildren match {
       case Seq(s, m: IntCst) => StmShiftRightGarbage(s, m)(typ)
       case _                 => throw new BadRebuildError(this, newChildren)
@@ -2037,7 +1999,7 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmShiftRightGarbage = {
     val newS = stm.tchk(context, constValues)
     val (t, n) = newS.typ match {
       case TyStm(t, n) => (t, n)
@@ -2119,8 +2081,11 @@ case class StmShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
   */
 case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
     typ: Type = Missing
-) extends SyntaxSugar(stm, shiftAmount)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+) extends ResolvedSyntaxSugar(stm, shiftAmount)(typ) {
+  override def rebuild(
+      typ: Type,
+      newChildren: Seq[Expr]
+  ): StmVecShiftRightGarbage = {
     newChildren match {
       case Seq(s, m: IntCst) => StmVecShiftRightGarbage(s, m)(typ)
       case _                 => throw new BadRebuildError(this, newChildren)
@@ -2130,7 +2095,7 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmVecShiftRightGarbage = {
     val stm = this.stm.tchk(context, constValues)
     stm.typ match {
       case TyStm(_: TyVec, _) => ()
@@ -2205,9 +2170,9 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
 }
 
 case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(stm, delay)(typ) {
+    extends ResolvedSyntaxSugar(stm, delay)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmDelay = {
     newChildren match {
       case Seq(s, d) => StmDelay(s, d)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -2217,7 +2182,7 @@ case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmDelay = {
     val stm = this.stm.tchk(context, constValues)
     stm.typ match {
       case TyStm(TyData(_), _) => ()
@@ -2266,8 +2231,8 @@ case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
 case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
     typ: Type = Missing
 ) /* Stm<A; n1+n2> */
-    extends SyntaxSugar(stm1, stm2)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm1, stm2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmConcat = {
     newChildren match {
       case Seq(s1, s2) => StmConcat(s1, s2)(typ)
       case _           => throw new BadRebuildError(this, newChildren)
@@ -2277,7 +2242,7 @@ case class StmConcat(stm1: Expr /* Stm<A; n1> */, stm2: Expr /* Stm<A; n2> */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmConcat = {
     val newS1 = stm1.tchk(context, constValues)
     val (t1, n1) = newS1.typ match {
       case TyStm(t, n1) => (t, n1)
@@ -2335,9 +2300,9 @@ case class StmZip(
     b: Expr,
     head: Expr = Undefined(Missing)
 )(typ: Type = Missing)
-    extends SyntaxSugar(a, b, head)(typ) {
+    extends ResolvedSyntaxSugar(a, b, head)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmZip = {
     newChildren match {
       case Seq(a, b, head) => StmZip(a, b, head)(typ)
       case _               => throw new BadRebuildError(this, newChildren)
@@ -2347,7 +2312,7 @@ case class StmZip(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmZip = {
     val newA = a.tchk(context, constValues)
     val (t1, n1) = newA.typ match {
       case TyStm(TyData(t), n) => (t, n)
@@ -2420,8 +2385,8 @@ case class StmRepeat(
     stm: Expr /* Stm<A; n> */,
     m: Expr /* Int */
 )(typ: Type = Missing) /* Stm<Stm<A; n>; m> */
-    extends SyntaxSugar(stm, m)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm, m)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmRepeat = {
     newChildren match {
       case Seq(s, m) => StmRepeat(s, m)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -2431,7 +2396,7 @@ case class StmRepeat(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmRepeat = {
     val newM = m.tchk(context, constValues).expectUInt()
     val newS = stm.tchk(context, constValues)
     newS.typ match {
@@ -2501,8 +2466,8 @@ case class StmRepeat(
 case class StmReverse(stm: Expr /* Stm<A; n> */ )(
     typ: Type = Missing
 ) /* Stm<A; n> */
-    extends SyntaxSugar(stm)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmReverse = {
     newChildren match {
       case Seq(s) => StmReverse(s)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -2512,7 +2477,7 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmReverse = {
     val newS = stm.tchk(context, constValues)
     newS.typ match {
       case TyStm(t, n) =>
@@ -2544,8 +2509,8 @@ case class StmReverse(stm: Expr /* Stm<A; n> */ )(
 case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     typ: Type = Missing
 ) /* Stm<Stm<A; m>; n/m> */
-    extends SyntaxSugar(stm, m)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm, m)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmSplit = {
     newChildren match {
       case Seq(s, m) => StmSplit(s, m)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -2555,7 +2520,7 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmSplit = {
     val newM = m.tchk(context, constValues).expectUInt()
     val newS = stm.tchk(context, constValues)
     newS.typ match {
@@ -2574,8 +2539,8 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
 case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     typ: Type = Missing
 ) /* Stm<A; m*n> */
-    extends SyntaxSugar(stm)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmJoin = {
     newChildren match {
       case Seq(s) => StmJoin(s)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -2585,7 +2550,7 @@ case class StmJoin(stm: Expr /* Stm<Stm<A; m>; n> */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmJoin = {
     val newS = stm.tchk(context, constValues)
     newS.typ match {
       case TyStm(TyStm(t, m), n) =>
@@ -2622,8 +2587,8 @@ case class StmSlide(
     winSize: Expr /* Int */,
     stride: Expr = C(1)() /* Int */
 )(typ: Type = Missing) /* Stm<Vec<A; m>; n-m+1> */
-    extends SyntaxSugar(input, winSize, stride)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(input, winSize, stride)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmSlide = {
     newChildren match {
       case Seq(s, winSize, stride) => StmSlide(s, winSize, stride)(typ)
       case _ => throw new BadRebuildError(this, newChildren)
@@ -2633,7 +2598,7 @@ case class StmSlide(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmSlide = {
     val newWinSize = this.winSize.tchk(context, constValues).expectUInt()
     val newStride = this.stride.tchk(context, constValues).expectUInt()
     val newInput = this.input.tchk(context, constValues)
@@ -2713,8 +2678,8 @@ case class StmSlide(
 case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     typ: Type = Missing
 ) /* Stm<Stm<A; m>; n-m+1> */
-    extends SyntaxSugar(stm, m)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm, m)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmSlideS = {
     newChildren match {
       case Seq(stm, m) => StmSlideS(stm, m)(typ)
       case _           => throw new BadRebuildError(this, newChildren)
@@ -2724,7 +2689,7 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmSlideS = {
     val newM = m.tchk(context, constValues).expectUInt()
     val newS = stm.tchk(context, constValues)
     newS.typ match {
@@ -2755,9 +2720,12 @@ case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   * the output always being valid.
   */
 case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(s, z)(typ) {
+    extends ResolvedSyntaxSugar(s, z)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(
+      typ: Type,
+      newChildren: Seq[Expr]
+  ): StmSlideStartingWith = {
     newChildren match {
       case Seq(s, z) => StmSlideStartingWith(s, z)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -2767,7 +2735,7 @@ case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmSlideStartingWith = {
     val s = this.s.tchk(context, constValues)
     val (elemTyp, n) = s.typ match {
       case TyStm(TyData(t), n) => (t, n)
@@ -2824,8 +2792,8 @@ case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
   */
 case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
     typ: Type = Missing
-) extends SyntaxSugar(stm, winHeight, winWidth)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+) extends ResolvedSyntaxSugar(stm, winHeight, winWidth)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmSlide2D = {
     newChildren match {
       case Seq(s, h, w) => StmSlide2D(s, h, w)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
@@ -2835,7 +2803,7 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmSlide2D = {
     val stm = this.stm.tchk(context, constValues)
     val (t, n, m) = stm.typ match {
       case TyStm(TyStm(TyData(t), m), n) => (t, n, m)
@@ -2928,8 +2896,8 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
 case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
     typ: Type = Missing
 ) /* Stm<Stm<A; n>; m> */
-    extends SyntaxSugar(stm)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(stm)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmTranspose = {
     newChildren match {
       case Seq(s) => StmTranspose(s)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -2939,7 +2907,7 @@ case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): StmTranspose = {
     val newS = stm.tchk(context, constValues)
     newS.typ match {
       case TyStm(TyStm(t, m), n) if t.isData =>

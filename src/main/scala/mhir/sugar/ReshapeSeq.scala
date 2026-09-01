@@ -4,8 +4,8 @@ import mhir.ir._
 import mhir.typecheck.TypeCheck
 
 case class ReshapeSeq(e: Expr, targetTyp: Type)(typ: Type = Missing)
-    extends SyntaxSugar(e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): ReshapeSeq = {
     newChildren match {
       case Seq(e) => ReshapeSeq(e, this.targetTyp)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -15,7 +15,7 @@ case class ReshapeSeq(e: Expr, targetTyp: Type)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): ReshapeSeq = {
     val e = this.e.tchk(context, constValues)
     // TODO: Check whether the given in/out type combination is supported?
     this.rebuild(targetTyp, Seq(e))

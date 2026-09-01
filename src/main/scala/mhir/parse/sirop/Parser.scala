@@ -1082,27 +1082,21 @@ object Parser {
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens.headOption match {
-      case Some(lsq: ColonLeftSquareToken) =>
+      case Some(_: ColonLeftSquareToken) =>
         val rest1 = tokens.tail
         val (typArg, rest2) = parseTyp(rest1, constants)
         val (_, rest3) = expect(RightSquareToken, rest2)
         val (_, rest4) = expect(LeftParToken, rest3)
         val (args, rest5) = parseExprList(rest4, constants)
         val (_, rest6) = expect(RightParToken, rest5)
-        parseExpr100Prime(
-          BuiltinFunctions.parseFunCall(e, Seq(typArg), args, lsq.loc),
-          rest6,
-          constants
-        )
-      case Some(lpar: LeftParToken) =>
+        val call = Call(e, Seq(typArg), args)()
+        parseExpr100Prime(call, rest6, constants)
+      case Some(_: LeftParToken) =>
         val rest1 = tokens.tail
         val (args, rest2) = parseExprList(rest1, constants)
         val (_, rest3) = expect(RightParToken, rest2)
-        parseExpr100Prime(
-          BuiltinFunctions.parseFunCall(e, Seq(), args, lpar.loc),
-          rest3,
-          constants
-        )
+        val call = Call(e, Seq(), args)()
+        parseExpr100Prime(call, rest3, constants)
       case Some(_: DotToken) =>
         val rest1 = tokens.tail
         rest1.headOption match {
@@ -1124,12 +1118,8 @@ object Parser {
             val (args, rest5) = parseExprList(rest4, constants)
             val (_, rest6) = expect(RightParToken, rest5)
             val loc = lsq.map(_.loc).getOrElse(lpar.loc)
-            parseExpr100Prime(
-              BuiltinFunctions
-                .parseFunCall(Param(op, -1)(Missing), typArgs, e +: args, loc),
-              rest6,
-              constants
-            )
+            val call = Call(Param(op, -1)(Missing), typArgs, e +: args)()
+            parseExpr100Prime(call, rest6, constants)
           case Some(tok) =>
             throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
           case None => throw SyntaxError("unexpected end of file", None)

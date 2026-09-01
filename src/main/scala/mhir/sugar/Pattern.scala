@@ -7,12 +7,12 @@ import mhir.typecheck.TypeError
   * tuple).
   */
 sealed abstract class Pattern(children: Expr*)(typ: Type)
-    extends SyntaxSugar(children: _*)(typ) {
+    extends ResolvedSyntaxSugar(children: _*)(typ) {
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): Pattern = {
     if (this.typ == Missing) {
       throw new TypeError("missing type annotations for pattern")
     }
@@ -99,7 +99,7 @@ sealed abstract class Pattern(children: Expr*)(typ: Type)
 case class TuplePattern(elems: Pattern*)
     extends Pattern(elems: _*)(TuplePattern.chooseType(elems)) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Pattern = {
     if (newChildren.exists(e => !e.isInstanceOf[Pattern])) {
       throw new BadRebuildError(this, newChildren)
     } else {

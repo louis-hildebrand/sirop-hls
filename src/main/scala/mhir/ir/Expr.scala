@@ -1458,17 +1458,6 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr
 
-  /** Remove syntax sugar from this node and its children.
-    *
-    * If this expression has already been type checked, this method <i>MUST</i>
-    * return the flattened version of that same type. This method <i>MAY</i>
-    * assume that the expression has already been type checked, but it is
-    * acceptable to gracefully handle the case where it has not yet been type
-    * checked. (This would make it easier to test expressions where lowering
-    * does not require the type.)
-    */
-  def lowerSyntaxSugar(implicit c: Canonicalizer): Expr
-
   def sugarSubAndKeepType(
       subs: Map[Expr, Expr]
   )(implicit c: Canonicalizer): Expr = {
@@ -1485,4 +1474,25 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
   }
 
   def annotateFuncSyntaxSugar(typ: Type*): Expr = this
+}
+
+/** Syntax sugar that has already undergone name resolution.
+  *
+  * Name resolution happens during type checking. It is only after this that
+  * lowering can happen; before name resolution, we don't know which
+  * implementation will be chosen.
+  */
+abstract class ResolvedSyntaxSugar(children: Expr*)(typ: Type)
+    extends SyntaxSugar(children: _*)(typ) {
+
+  /** Remove syntax sugar from this node and its children.
+    *
+    * If this expression has already been type checked, this method <i>MUST</i>
+    * return the flattened version of that same type. This method <i>MAY</i>
+    * assume that the expression has already been type checked, but it is
+    * acceptable to gracefully handle the case where it has not yet been type
+    * checked. (This would make it easier to test expressions where lowering
+    * does not require the type.)
+    */
+  def lowerSyntaxSugar(implicit c: Canonicalizer): Expr
 }

@@ -1,7 +1,7 @@
 /* Test 0 */
 [
-  undefined:Vec[u16, 4:u32],
-  [0:u16, 0:u16, 0:u16, 0:u16]v
+  [0:u16, 0:u16, 0:u16, 0:u16]v,
+  [undefined:u16, undefined:u16, undefined:u16, undefined:u16]v
 ]s ++ [
   [5:u16, 6:u16, 7:u16, 8:u16]v,
   [9:u16, 10:u16, 11:u16, 12:u16]v,

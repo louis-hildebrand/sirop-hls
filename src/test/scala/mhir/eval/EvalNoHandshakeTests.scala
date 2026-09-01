@@ -36,11 +36,24 @@ class EvalNoHandshakeTests extends AnyFunSuite {
   test("StmMap") {
     val n = 8
     val s = Param("s")(TyStm(U16, n))
-    val original = SimpleMap(s, x => Prod(x, x)())
+    val original = {
+      val p = Param("p")(TyStm(U16, -1))
+      StmBuild(
+        n = n,
+        delay = C(1)(),
+        initData = Prod(C(2)(U16), C(3)(U16))(),
+        nextData = Prod(StmData(p)(), StmData(p)())(),
+        valid = True,
+        accumulators = Map(),
+        producers = Map(
+          p -> (s, True, C(0)())
+        )
+      )().tchk()
+    }
     val inputs = Map(s -> StmRange(n, C(2)(U16), C(3)(U16))())
     val actual = mhir.eval.eval(original, handshake = false, inputs = inputs)
     val expected = StmLiteral(
-      Seq(Undefined(U16), Undefined(U16)),
+      Seq(C(6)(U16), Undefined(U16)),
       (0 until n).map(t => 2 + 3 * t).map(t => t * t).map(C(_)(U16))
     )(Missing).tchk()
     assert(actual == expected)

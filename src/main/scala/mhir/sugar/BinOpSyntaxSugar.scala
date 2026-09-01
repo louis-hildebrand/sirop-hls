@@ -4,12 +4,15 @@ import mhir.ir.{ExprPrinter => EP, _}
 import mhir.typecheck._
 
 abstract class BinOpSyntaxSugar(e1: Expr, e2: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(e1, e2)(typ) {
+    extends ResolvedSyntaxSugar(e1, e2)(typ) {
 
-  def rebuild: PartialFunction[(Type, Seq[Expr]), Expr]
+  def rebuild: PartialFunction[(Type, Seq[Expr]), BinOpSyntaxSugar]
   def symbol: String
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(
+      typ: Type,
+      newChildren: Seq[Expr]
+  ): BinOpSyntaxSugar = {
     if (this.rebuild.isDefinedAt((typ, newChildren))) {
       this.rebuild((typ, newChildren))
     } else {
@@ -39,7 +42,7 @@ abstract class RelationalOpSyntaxSugar(e1: Expr, e2: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): BinOpSyntaxSugar = {
     val e1 = this.e1.tchk(context, constValues)
     this.checkInputType(e1.typ) match {
       case Some(err) =>
@@ -79,7 +82,7 @@ abstract class RelationalOpSyntaxSugar(e1: Expr, e2: Expr)(typ: Type = Missing)
 case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends RelationalOpSyntaxSugar(e1, e2)(typ) {
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), SmartEqual] = {
     case (typ, Seq(e1, e2)) => SmartEqual(e1, e2)(typ)
   }
 
@@ -111,7 +114,7 @@ case class SmartEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
 case class SmartNotEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends RelationalOpSyntaxSugar(e1, e2)(typ) {
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), SmartNotEqual] = {
     case (typ, Seq(e1, e2)) => SmartNotEqual(e1, e2)(typ)
   }
 
@@ -143,7 +146,7 @@ case class SmartNotEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
 case class SmartLessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends RelationalOpSyntaxSugar(e1, e2)(typ) {
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), SmartLessThan] = {
     case (typ, Seq(e1, e2)) => SmartLessThan(e1, e2)(typ)
   }
 
@@ -178,7 +181,7 @@ case class SmartLessThan(e1: Expr, e2: Expr)(typ: Type = Missing)
 case class SmartGreaterThan(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends RelationalOpSyntaxSugar(e1, e2)(typ) {
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), SmartGreaterThan] = {
     case (typ, Seq(e1, e2)) => SmartGreaterThan(e1, e2)(typ)
   }
 
@@ -212,7 +215,8 @@ case class SmartGreaterThan(e1: Expr, e2: Expr)(typ: Type = Missing)
 case class SmartLessThanOrEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends RelationalOpSyntaxSugar(e1, e2)(typ) {
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild
+      : PartialFunction[(Type, Seq[Expr]), SmartLessThanOrEqual] = {
     case (typ, Seq(e1, e2)) => SmartLessThanOrEqual(e1, e2)(typ)
   }
 
@@ -247,7 +251,8 @@ case class SmartLessThanOrEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
 case class SmartGreaterThanOrEqual(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends RelationalOpSyntaxSugar(e1, e2)(typ) {
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild
+      : PartialFunction[(Type, Seq[Expr]), SmartGreaterThanOrEqual] = {
     case (typ, Seq(e1, e2)) => SmartGreaterThanOrEqual(e1, e2)(typ)
   }
 

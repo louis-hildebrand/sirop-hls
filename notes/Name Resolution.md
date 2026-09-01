@@ -1,0 +1,13 @@
+- What is it?
+	- Given a macro name (e.g., `StmMap`), find the implementation
+- Isn't this trivial? When would there be multiple implementations per name?
+	- Implementation may need to change depending on whether the handshake protocol is enabled
+		- *Example:* `StmDrop`. With handshake protocol, need a counter to know when to stop dropping elements. Without handshake protocol, it's statically scheduled.
+	- Might want to overload macros
+		- *Example:* resolve `foo.Map(f)` to `StmMap(foo, f)` if `foo` is a stream, or `VecMap(foo, f)` if `foo` is a vector
+- How?
+	- At first, parser instantiates a general `Call` AST node
+	- *During type checking,* the `Call` node is replaced by its actual implementation (e.g., `StmMap`, `VecMap`)
+		- Name resolution can't happen before type checking, since you might need to know the types of the arguments to decide which overloaded alternative to choose
+		- Name resolution can't happen after type checking, since the signature can vary between overloads
+			- e.g., `StmSlide` can have a `stride` parameter when the handshake protocol is enabled, but this doesn't make sense when the handshake protocol is disabled

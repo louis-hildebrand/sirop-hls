@@ -33,8 +33,12 @@ trait Lowering {
       */
     def lower(implicit c: Canonicalizer): Expr = {
       val desugared = expr match {
-        case s: SyntaxSugar =>
+        case s: ResolvedSyntaxSugar =>
           s.lowerSyntaxSugar(c)
+        case s: SyntaxSugar =>
+          throw new IllegalArgumentException(
+            s"syntax sugar (${s.className}) should have been type checked before lowering"
+          )
         case mux: Mux =>
           mux.requireType()
           val cond = mux.c.lower

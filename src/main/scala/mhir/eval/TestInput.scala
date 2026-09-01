@@ -4,9 +4,9 @@ import mhir.ir._
 import mhir.typecheck.TypeCheck
 
 private[eval] case class TestInput(e: Expr, x: String)(typ: Type)
-    extends SyntaxSugar(e)(typ) {
+    extends ResolvedSyntaxSugar(e)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): TestInput = {
     newChildren match {
       case Seq(e) => TestInput(e, this.x)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -16,7 +16,7 @@ private[eval] case class TestInput(e: Expr, x: String)(typ: Type)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): ResolvedSyntaxSugar = {
     val e = this.e.tchk(context, constValues)
     this.rebuild(e.typ, Seq(e))
   }

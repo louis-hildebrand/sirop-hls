@@ -1,22 +1,32 @@
-package mhir.parse
-package sirop
+package mhir.sugar
 
 import mhir.ir._
-import mhir.sugar._
+import mhir.typecheck._
 
-private[sirop] object BuiltinFunctions {
+case class Call(
+    callee: Expr,
+    typArgs: Seq[Type],
+    args: Seq[Expr]
+)(typ: Type = Missing)
+    extends SyntaxSugar(callee +: args: _*)(typ) {
 
-  def parseFunCall(
-      f: Expr,
-      typArgs: Seq[Type],
-      args: Seq[Expr],
-      loc: SourcePoint
-  ): Expr = {
-    val error = { (f: Param) =>
-      throw SyntaxError(s"wrong number of arguments for $f", loc)
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(callee, args @ _*) => Call(callee, this.typArgs, args)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
     }
-    val combinedArgs = (typArgs, args)
-    f match {
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val error = { (f: Param) =>
+      throw new TypeError(s"wrong number of arguments for $f")
+    }
+    val combinedArgs = (this.typArgs, this.args)
+    val handshake = mhir.ir.globalOptions.handshake
+    val resolved = this.callee match {
       // Arithmetic operators ----------------------------------------------
       case f @ Param("min", -1) =>
         combinedArgs match {
@@ -171,8 +181,13 @@ private[sirop] object BuiltinFunctions {
         }
       case f @ Param("StmMap", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s, f)) => StmMap(s, f)()
-          case _                  => error(f)
+          case (Seq(), Seq(s, f)) if handshake =>
+            mhir.sugar.StmMap(s, f)()
+          case (Seq(), Seq(s, f)) if !handshake =>
+            mhir.sugar.nohandshake.StmMap(s, f, Undefined(Missing))()
+          case (Seq(), Seq(s, f, head)) if !handshake =>
+            mhir.sugar.nohandshake.StmMap(s, f, head)()
+          case _ => error(f)
         }
       case f @ Param("StmMap2", -1) =>
         combinedArgs match {
@@ -297,12 +312,56 @@ private[sirop] object BuiltinFunctions {
         }
       case _ =>
         combinedArgs match {
-          case (Seq(), Seq(x)) => FunCall(f, x)()
-          case (Seq(), args)   => FunCall(f, Tuple(args: _*)())()
+          case (Seq(), Seq(x)) => FunCall(this.callee, x)()
+          case (Seq(), args)   => FunCall(this.callee, Tuple(args: _*)())()
           case _ =>
-            throw SyntaxError("callee does not accept type arguments", loc)
+            throw new TypeError("callee does not accept type arguments")
         }
     }
+    resolved.tchk(context, constValues)
   }
 
+  /** The precedence of this expression. See [[Precedence]].
+    */
+  override def precedence: Int = Precedence.FunCall
+
+  /** See [[mhir.ir.ExprPrinter.displayOneLine]].
+    *
+    * @note
+    *   there is no need to wrap the final result in parentheses; that will be
+    *   handled outside this method.
+    */
+  override def displayOneLine(): String = {
+    val calleeStr = ExprPrinter.displayOneLine(this.callee)
+    val lhs = this.typArgs match {
+      case Seq() => calleeStr
+      case _ =>
+        val typArgsStr = this.typArgs.mkString(", ")
+        this.callee match {
+          case _: Param => s"$calleeStr:[$typArgsStr]"
+          case _        => s"($calleeStr):[$typArgsStr]"
+        }
+    }
+    ExprPrinter.displayFunCallOneLine(lhs, this.args)
+  }
+
+  /** Convert this expression to a string, with this expression being wrapped.
+    *
+    * @note
+    *   there is no need to wrap the final result in parentheses; that will be
+    *   handled outside this method.
+    */
+  override def displayMultiLine(maxWidth: Int): String = {
+    val calleeStr = ExprPrinter.displayOneLine(this.callee)
+    val lhs = this.typArgs match {
+      case Seq() => calleeStr
+      case _ =>
+        val typArgsStr = this.typArgs.mkString(", ")
+        this.callee match {
+          case _: Param => s"$calleeStr:[$typArgsStr]"
+          case _        => s"($calleeStr):[$typArgsStr]"
+        }
+    }
+    ExprPrinter.displayFunCallMultiLine(lhs, this.args, maxWidth)
+  }
 }

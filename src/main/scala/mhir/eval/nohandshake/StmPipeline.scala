@@ -199,7 +199,7 @@ object StmPipeline {
       })
     StmBuildNode(
       pipe = pipe,
-      data = s.initData,
+      data = eval(s.initData),
       hw = StmNodeHardware(
         id = StmNodeId(Param("sbuild")().name),
         data = s.nextData,

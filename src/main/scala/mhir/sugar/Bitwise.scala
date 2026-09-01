@@ -1,12 +1,12 @@
 package mhir.sugar
 
 import mhir.ir.{ExprPrinter => EP, _}
-import mhir.typecheck.{TypeCheck, TypeError}
+import mhir.typecheck.TypeCheck
 
 case class BitwiseAnd(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends BinOpSyntaxSugar(e1, e2)(typ) {
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), BitwiseAnd] = {
     case (typ, Seq(e1, e2)) => BitwiseAnd(e1, e2)(typ)
   }
 
@@ -17,7 +17,7 @@ case class BitwiseAnd(e1: Expr, e2: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): BinOpSyntaxSugar = {
     val e1 = this.e1.tchk(context, constValues).expectData()
     val e2 = this.e2.tchk(context, constValues).expectType(e1.typ, constValues)
     this.rebuild(e1.typ, Seq(e1, e2))
@@ -39,7 +39,7 @@ case class BitwiseAnd(e1: Expr, e2: Expr)(typ: Type = Missing)
 case class BitwiseOr(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends BinOpSyntaxSugar(e1, e2)(typ) {
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), BitwiseOr] = {
     case (typ, Seq(e1, e2)) => BitwiseOr(e1, e2)(typ)
   }
 
@@ -50,7 +50,7 @@ case class BitwiseOr(e1: Expr, e2: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): BinOpSyntaxSugar = {
     val e1 = this.e1.tchk(context, constValues).expectData()
     val e2 = this.e2.tchk(context, constValues).expectType(e1.typ, constValues)
     this.rebuild(e1.typ, Seq(e1, e2))
@@ -71,9 +71,9 @@ case class BitwiseOr(e1: Expr, e2: Expr)(typ: Type = Missing)
 }
 
 case class BitwiseNot(e: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(e)(typ) {
+    extends ResolvedSyntaxSugar(e)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): BitwiseNot = {
     newChildren match {
       case Seq(e) => BitwiseNot(e)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -83,7 +83,7 @@ case class BitwiseNot(e: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): BitwiseNot = {
     val e = this.e.tchk(context, constValues).expectData()
     this.rebuild(e.typ, Seq(e))
   }

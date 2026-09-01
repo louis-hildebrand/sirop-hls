@@ -2,4 +2,4 @@ const K: (u8, bool, i8) = (42:u8, true, -1:i8)
 
 accelerator[no_handshake] cst = StmCst(4, K)
 
-assert yields [K]s ++ [K, K, K, K]s
+assert yields [K, K, K, K]s
