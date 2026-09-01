@@ -2775,7 +2775,11 @@ case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
       Map[Param, (Expr, Expr, Expr)](
         p -> (s, True, 0)
       )
-    )().tchk()
+    )()
+      .annotate(NoInputsAfterLastOut)
+      .annotate(NoOutputsAfterLastIn)
+      .annotateWithName("StmSlideStartingWith")
+      .tchk()
   }
 }
 

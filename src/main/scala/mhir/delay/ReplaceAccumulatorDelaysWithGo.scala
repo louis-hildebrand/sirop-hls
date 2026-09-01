@@ -32,11 +32,12 @@ class ReplaceAccumulatorDelaysWithGo(go: Option[Param]) {
         } else {
           this.go match {
             case None =>
-              val sbuildName =
-                s0.nameAnnotation.getOrElse("unknown stream operator")
+              val example = s0.nameAnnotation
+                .map(name => s" (e.g., in $name)")
+                .getOrElse("")
               // TODO: make this a warning instead of an error?
               throw SemanticError(
-                s"the program seems to be latency-sensitive (e.g., in $sbuildName), but no 'go' stream is specified."
+                s"the program seems to be latency-sensitive$example, but no 'go' stream is specified."
                   + " Consider adding a stream of booleans as input and adding the 'go' annotation (as in 'accelerator[go=my_go] top = (my_go: Stm[bool, ...]) => ...')."
                   + " The value of this stream must be `[false, false, ...]s ++ [true, true, ...]s`."
               )
