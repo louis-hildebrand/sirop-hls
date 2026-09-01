@@ -113,16 +113,6 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(actual == expected)
   }
 
-  test("StmCst2D") {
-    val s = StmCst2D(3, 4, 42)().tchk()
-    val expected = StmLiteral(
-      StmLiteral.ints(42, 42, 42, 42),
-      StmLiteral.ints(42, 42, 42, 42),
-      StmLiteral.ints(42, 42, 42, 42)
-    )()
-    assert(mhir.eval.eval(s) == expected.flatten)
-  }
-
   test("StmCount2D") {
     val s = StmCount2D(2, 3)().tchk()
     val expected = StmLiteral(
@@ -138,40 +128,6 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
       )()
     )()
     assert(mhir.eval.eval(s) == expected.flatten)
-  }
-
-  test("StmCount3D") {
-    val s = StmCount3D(2, 3, 4)().tchk().lower
-    val expected = StmLiteral(
-      (0 until 2).flatMap(i =>
-        (0 until 3).flatMap(j => (0 until 4).map(k => Tuple(i, j, k)()))
-      ): _*
-    )()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("Iterate:Square") {
-    val x = Param("x")(U32)
-    val n = Param("n")()
-    val iter = Iterate(n, IntCst(3)(U32), Function(x, x * x)())()
-    val e = (nVal: Int) => Let(n, IntCst(nVal)(U8), iter)().tchk()
-    assert(mhir.eval.eval(e(0)) == StmLiteral(3)())
-    assert(mhir.eval.eval(e(1)) == StmLiteral(9)())
-    assert(mhir.eval.eval(e(2)) == StmLiteral(81)())
-    assert(mhir.eval.eval(e(3)) == StmLiteral(81 * 81)())
-  }
-
-  test("Iterate:PlusTwo") {
-    val x = Param("x")(TyTuple(I8))
-    val n = Param("n")(U8)
-    val iter =
-      Iterate(n, Tuple(IntCst(-10)(I8))(), Function(x, Tuple(x.__0 + 2)())())()
-    val e =
-      (nVal: Int) => Let(n, IntCst(nVal)(U8), iter)().tchk()
-    assert(mhir.eval.eval(e(0)) == StmLiteral(Tuple(-10)())())
-    assert(mhir.eval.eval(e(1)) == StmLiteral(Tuple(-8)())())
-    assert(mhir.eval.eval(e(2)) == StmLiteral(Tuple(-6)())())
-    assert(mhir.eval.eval(e(3)) == StmLiteral(Tuple(-4)())())
   }
 
   test("StmMap:1D-1D:+7") {
@@ -382,7 +338,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmMap:2D-2D:StmPrepend") {
     val s = StmMap(
-      StmCst2D(4, 5, C(42)(U8))(),
+      build2D(4, 5, _ => _ => C(42)(U8)),
       TyStm(U8, 5) ::+ (s => StmPrepend(s, C(43)(U8))())
     )().tchk()
     val expected = StmLiteral.ints(
@@ -398,7 +354,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmMap:2D-2D:StmAppend") {
     val s = StmMap(
-      StmCst2D(4, 5, C(42)(U8))(),
+      build2D(4, 5, _ => _ => C(42)(U8)),
       TyStm(U8, 5) ::+ (s => StmAppend(s, C(43)(U8))())
     )().tchk()
     val expected = StmLiteral.ints(
@@ -441,75 +397,9 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(s) == expected)
   }
 
-  test("StmMap:2D-2D:StmShiftLeft") {
-    val s = StmMap(
-      StmCount2D(C(2)(U8), C(3)(U8))(),
-      TyStm((U8, U8), 3) ::+ (s =>
-        StmShiftLeft(s, Tuple(C(100)(U8), C(101)(U8))())()
-      )
-    )().tchk()
-    val expected = StmLiteral(
-      Seq(
-        Seq(
-          Tuple(0, 1)(),
-          Tuple(0, 2)(),
-          Tuple(100, 101)()
-        ),
-        Seq(
-          Tuple(1, 1)(),
-          Tuple(1, 2)(),
-          Tuple(100, 101)()
-        )
-      ).flatten: _*
-    )()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("StmMap:2D-2D:StmShiftRight") {
-    val s = StmMap(
-      StmCount2D(C(4)(U8), C(5)(U8))(),
-      TyStm((U8, U8), 5) ::+ (s =>
-        StmShiftRight(s, Tuple(C(100)(U8), C(101)(U8))())()
-      )
-    )().tchk()
-    val expected = StmLiteral(
-      Seq(
-        Seq(
-          Tuple(100, 101)(),
-          Tuple(0, 0)(),
-          Tuple(0, 1)(),
-          Tuple(0, 2)(),
-          Tuple(0, 3)()
-        ),
-        Seq(
-          Tuple(100, 101)(),
-          Tuple(1, 0)(),
-          Tuple(1, 1)(),
-          Tuple(1, 2)(),
-          Tuple(1, 3)()
-        ),
-        Seq(
-          Tuple(100, 101)(),
-          Tuple(2, 0)(),
-          Tuple(2, 1)(),
-          Tuple(2, 2)(),
-          Tuple(2, 3)()
-        ),
-        Seq(
-          Tuple(100, 101)(),
-          Tuple(3, 0)(),
-          Tuple(3, 1)(),
-          Tuple(3, 2)(),
-          Tuple(3, 3)()
-        )
-      ).flatten: _*
-    )()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
   test("StmMap:2D-2D:StmConcatBefore") {
     val s = StmMap(
-      StmCst2D(5, 5, C(99)(U8))(),
+      build2D(5, 5, _ => _ => C(99)(U8)),
       TyStm(U8, 5) ::+ (s => StmConcat(StmCount(C(3)(U8))(), s)())
     )().tchk()
     val expected = StmLiteral.ints(
@@ -526,7 +416,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmMap:2D-2D:StmConcatAfter") {
     val s = StmMap(
-      StmCst2D(5, 5, C(99)(U8))(),
+      build2D(5, 5, _ => _ => C(99)(U8)),
       TyStm(U8, 5) ::+ (s => StmConcat(s, StmCount(C(3)(U8))())())
     )().tchk()
     val expected = StmLiteral.ints(
@@ -817,46 +707,6 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
       ).flatten.flatten: _*
     )()
     assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("StmMap:2D-3D:StmSlideS") {
-    val s = StmCount2D(C(3)(U8), C(5)(U8))()
-    val expected = StmLiteral(
-      Seq(
-        Seq(
-          Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
-          Seq(Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)()),
-          Seq(Tuple(0, 2)(), Tuple(0, 3)(), Tuple(0, 4)())
-        ),
-        Seq(
-          Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)()),
-          Seq(Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)()),
-          Seq(Tuple(1, 2)(), Tuple(1, 3)(), Tuple(1, 4)())
-        ),
-        Seq(
-          Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)()),
-          Seq(Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)()),
-          Seq(Tuple(2, 2)(), Tuple(2, 3)(), Tuple(2, 4)())
-        )
-      ).flatten.flatten: _*
-    )()
-    val actual =
-      StmMap(s, TyStm((U8, U8), 5) ::+ (s => StmSlideS(s, 3)()))().tchk()
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmMap:3D-3D:StmTranspose") {
-    val s = StmCount3D(C(2)(U8), C(2)(U8), C(2)(U8))()
-    val expected = StmLiteral(
-      (0 until 2).flatMap(i =>
-        (0 until 2).flatMap(j => (0 until 2).map(k => Tuple(i, k, j)()))
-      ): _*
-    )()
-    val actual =
-      StmMap(s, TyStm(TyStm((U8, U8, U8), 2), 2) ::+ (s => StmTranspose(s)()))()
-        .tchk()
-        .lower
-    assert(mhir.eval.eval(actual) == expected)
   }
 
   test("StmMap:RepeatedData1") {
@@ -1683,7 +1533,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   }
 
   test("StmConcat:2D") {
-    val s0 = StmCst2D(2, 2, Tuple(C(99)(U8), C(99)(U8))())()
+    val s0 = build2D(2, 2, _ => _ => Tuple(C(99)(U8), C(99)(U8))())
     val s1 = StmCount2D(C(3)(U8), C(2)(U8))()
     val actual = StmConcat(s0, s1)().tchk()
     val expected = Seq(
@@ -1751,7 +1601,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmPrepend:3D") {
     val s0 = build3D(2, 2, 2, _ => _ => _ => C(42)(U8))
-    val s1 = StmCst2D(2, 2, C(99)(U8))()
+    val s1 = build2D(2, 2, _ => _ => C(99)(U8))
     val actual = StmPrepend(s0, s1)().tchk()
 
     val expected = StmLiteral.ints(
@@ -1797,7 +1647,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmAppend:3D") {
     val s0 = build3D(2, 2, 2, _ => _ => _ => C(42)(U8))
-    val s1 = StmCst2D(2, 2, C(99)(U8))()
+    val s1 = build2D(2, 2, _ => _ => C(99)(U8))
     val actual = StmAppend(s0, s1)().tchk()
 
     val expected = StmLiteral.ints(
@@ -2026,93 +1876,6 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     )
   }
 
-  test("StmShiftLeft:1D") {
-    val s = StmShiftLeft(StmCount(C(3)(U8))(), C(42)(U8))().tchk()
-    assert(mhir.eval.eval(s) == StmLiteral(1, 2, 42)())
-  }
-
-  test("StmShiftLeft:2D") {
-    val s0 = StmCount2D(C(3)(U8), C(4)(U8))()
-    val s1 = build1D(4, j => Tuple(C(99)(U8), C(j)(U8))())
-    val s = StmShiftLeft(s0, s1)().tchk()
-
-    val expected = StmLiteral(
-      Seq(
-        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)()),
-        Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)()),
-        Seq(Tuple(99, 0)(), Tuple(99, 1)(), Tuple(99, 2)(), Tuple(99, 3)())
-      ).flatten: _*
-    )()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("StmShiftLeft:3D") {
-    val s0 = build3D(2, 4, 5, i => _ => _ => C(i)(U8))
-    val s1 = StmCst2D(4, 5, C(42)(U8))()
-    val actual = StmShiftLeft(s0, s1)().tchk()
-    val expected = StmLiteral.ints(
-      Seq(
-        Seq(
-          Seq(1, 1, 1, 1, 1),
-          Seq(1, 1, 1, 1, 1),
-          Seq(1, 1, 1, 1, 1),
-          Seq(1, 1, 1, 1, 1)
-        ),
-        Seq(
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42)
-        )
-      ).flatten.flatten: _*
-    )
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmShiftRight:1D") {
-    val s = StmShiftRight(StmCount(C(3)(U8))(), C(42)(U8))().tchk()
-    val expected = StmLiteral(42, 0, 1)()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("StmShiftRight:2D") {
-    val s0 = StmCount2D(C(3)(U8), C(4)(U8))()
-    val s1 = build1D(4, j => Tuple(C(99)(U8), C(j)(U8))())
-    val s = StmShiftRight(s0, s1)().tchk()
-
-    val expected = StmLiteral(
-      Seq(
-        Seq(Tuple(99, 0)(), Tuple(99, 1)(), Tuple(99, 2)(), Tuple(99, 3)()),
-        Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)()),
-        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)())
-      ).flatten: _*
-    )()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("StmShiftRight:3D") {
-    val s0 = build3D(2, 4, 5, i => _ => _ => C(i)(U8))
-    val s1 = StmCst2D(4, 5, C(42)(U8))()
-    val actual = StmShiftRight(s0, s1)().tchk()
-    val expected = StmLiteral.ints(
-      Seq(
-        Seq(
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42)
-        ),
-        Seq(
-          Seq(0, 0, 0, 0, 0),
-          Seq(0, 0, 0, 0, 0),
-          Seq(0, 0, 0, 0, 0),
-          Seq(0, 0, 0, 0, 0)
-        )
-      ).flatten.flatten: _*
-    )
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
   test("StmVecShiftRightGarbage:Stm[Vec[u8,3],4]") {
     def extractFlat(e: Expr): Seq[Expr] = {
       e.asInstanceOf[StmLiteral]
@@ -2310,28 +2073,6 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     )
   }
 
-  test("StmReverse:1D") {
-    val s = StmReverse(StmCount(C(5)(U8))())().tchk()
-    val expected = StmLiteral(4, 3, 2, 1, 0)()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("StmReverse:2D") {
-    val s = StmReverse(StmCount2D(C(3)(U8), C(3)(U8))())().tchk()
-    val expected = StmLiteral(
-      Tuple(2, 0)(),
-      Tuple(2, 1)(),
-      Tuple(2, 2)(),
-      Tuple(1, 0)(),
-      Tuple(1, 1)(),
-      Tuple(1, 2)(),
-      Tuple(0, 0)(),
-      Tuple(0, 1)(),
-      Tuple(0, 2)()
-    )()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
   test("StmSplit:1D-2D") {
     val s = StmCount(6)()
 
@@ -2511,24 +2252,6 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(actual1) == expected1)
   }
 
-  test("StmSlideS:1D:UnitWindow") {
-    val actual = StmSlideS(StmCount(3)(), 1)().tchk()
-    val expected = StmLiteral(0, 1, 2)()
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmSlideS:1D:SmallWindow") {
-    val actual = StmSlideS(StmCount(4)(), 2)().tchk()
-    val expected = StmLiteral(0, 1, 1, 2, 2, 3)()
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmSlideS:1D:SameSize") {
-    val actual = StmSlideS(StmCount(C(5)(U8))(), 5)().tchk()
-    val expected = StmLiteral(0, 1, 2, 3, 4)()
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
   test("StmSlide2D:3x3") {
     // [[ 0,  1,  2,  3,  4],
     //  [ 5,  6,  7,  8,  9],
@@ -2580,42 +2303,6 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val actual = StmSlide2D(s, 1, 1)().tchk().lower
     val expected =
       StmLiteral(Seq(0, 1, 2, 3).map(x => VecLiteral(VecLiteral(x)())()): _*)()
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmTranspose") {
-    val s = Param("s")()
-    val n = Param("n")()
-    val m = Param("m")()
-    val expected = StmLiteral(
-      Seq(
-        Seq(Tuple(0, 0)(), Tuple(1, 0)()),
-        Seq(Tuple(0, 1)(), Tuple(1, 1)())
-      ).flatten: _*
-    )()
-    val transposed = StmTranspose(s)()
-
-    val actual =
-      Let(
-        n,
-        2,
-        Let(m, 2, Let(s, StmCount2D(C(2)(U8), C(2)(U8))(), transposed)())()
-      )().tchk()
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmTransposeTranspose") {
-    val s = Param("s")()
-    val actual =
-      Let(s, StmCount2D(2, 2)(), StmTranspose(StmTranspose(s)())())()
-        .tchk()
-        .lower
-    val expected = StmLiteral(
-      Seq(
-        Seq(Tuple(0, 0)(), Tuple(0, 1)()),
-        Seq(Tuple(1, 0)(), Tuple(1, 1)())
-      ).flatten: _*
-    )()
     assert(mhir.eval.eval(actual) == expected)
   }
 }

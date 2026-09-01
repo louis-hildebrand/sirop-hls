@@ -472,58 +472,6 @@ private[sugar] case class StmReset(
   }
 }
 
-case class Iterate(
-    n: Expr /* Int */,
-    z: Expr /* A */,
-    f: Expr /* A -> A */
-)(typ: Type = Missing) /* Stm<A; 1> */
-    extends ResolvedSyntaxSugar(n, z, f)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Iterate = {
-    newChildren match {
-      case Seq(n, z, f) => Iterate(n, z, f)(typ)
-      case _            => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Iterate = {
-    val n = this.n.tchk(context, constValues).expectUInt()
-    val z = this.z.tchk(context, constValues)
-    val f = this.f
-      .tchk(context, constValues)
-      .expectType(z.typ ->: z.typ, constValues)
-    this.rebuild(TyStm(z.typ, 1), Seq(n, z, f))
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    requireType()
-    val n = this.n.lower
-    val z = this.z.lower
-    val f = this.f.lower
-    val i = Param("i")(n.typ)
-    val t = z.typ
-    val acc = Param("acc")(t)
-    StmBuild(
-      1,
-      Tuple()(),
-      Undefined(t),
-      acc,
-      i === n,
-      Map[Param, (Expr, Expr, Expr)](
-        i -> (C(0)(n.typ), i + 1, Tuple()()),
-        acc -> (z, FunCall(f, acc)(t), Tuple()())
-      ),
-      Map()
-    )()
-      .annotate(NoInputsAfterLastOut)
-      .annotateWithName(this.className)
-      .tchk()
-      .lower
-  }
-}
-
 case class StmCst(n: Expr, k: Expr)(typ: Type = Missing)
     extends ResolvedSyntaxSugar(n, k)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCst = {
@@ -703,50 +651,6 @@ case class StmVecRange(n: Expr, m: Expr, z: Expr, delta: Expr)(
   }
 }
 
-// TODO: What if c is a stream?
-case class StmCst2D(
-    n: Expr /* Int */,
-    m: Expr /* Int */,
-    k: Expr /* T */
-)(typ: Type = Missing) /* Stm<Stm<T; m>; n> */
-    extends ResolvedSyntaxSugar(n, m, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCst2D = {
-    newChildren match {
-      case Seq(n, m, c) => StmCst2D(n, m, c)(typ)
-      case _            => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): StmCst2D = {
-    val n = this.n.tchk(context, constValues).expectUInt()
-    val m = this.m.tchk(context, constValues).expectUInt()
-    val k = this.k.tchk(context, constValues)
-    this.rebuild(TyStm(TyStm(k.typ, m), n), Seq(n, m, k))
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    requireType()
-    val n = this.n.lower
-    val m = this.m.lower
-    val k = this.k.lower
-    StmBuild(
-      SafeProd(n, m)().tchk().lower,
-      C(1)(),
-      Undefined(k.typ),
-      k,
-      True,
-      Map(),
-      Map()
-    )()
-      .annotate(NoInputsAfterLastOut)
-      .annotateWithName(this.className)
-      .tchk()
-  }
-}
-
 case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
     extends ResolvedSyntaxSugar(n, m)(typ) /* Stm<Stm<(Int, Int); m>; n> */ {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCount2D = {
@@ -780,72 +684,6 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
       Map[Param, (Expr, Expr, Expr)](
         i -> (C(0)(n.typ), Mux(j === m - 1, i + 1, i)(), C(1)()),
         j -> (C(0)(m.typ), Mux(j === m - 1, C(0)(m.typ), j + 1)(), C(1)())
-      ),
-      Map()
-    )()
-      .annotate(NoInputsAfterLastOut)
-      .annotateWithName(this.className)
-      .tchk()
-      .lower
-  }
-}
-
-case class StmCount3D(n1: Expr, n2: Expr, n3: Expr)(typ: Type = Missing)
-    extends ResolvedSyntaxSugar(n1, n2, n3)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCount3D = {
-    newChildren match {
-      case Seq(n1, n2, n3) => StmCount3D(n1, n2, n3)(typ)
-      case _               => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): StmCount3D = {
-    val n1 = this.n1.tchk(context, constValues).expectUInt()
-    val n2 = this.n2.tchk(context, constValues).expectUInt()
-    val n3 = this.n3.tchk(context, constValues).expectUInt()
-    this.rebuild(
-      TyStm(TyStm(TyStm((n1.typ, n2.typ, n3.typ), n3), n2), n1),
-      Seq(n1, n2, n3)
-    )
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    requireType()
-    val n1 = this.n1.lower
-    val n2 = this.n2.lower
-    val n3 = this.n3.lower
-    val i = Param("i")(n1.typ)
-    val j = Param("j")(n2.typ)
-    val k = Param("k")(n3.typ)
-    StmBuild(
-      SafeProd(n1, n2, n3)(),
-      C(1)(),
-      Undefined(TyTuple(n1.typ, n2.typ, n3.typ)),
-      Tuple(i, j, k)(),
-      True,
-      Map[Param, (Expr, Expr, Expr)](
-        i -> (
-          C(0)(i.typ),
-          Mux((k === C(-1)() + n3) && (j === C(-1)() + n2), i + 1, i)(),
-          C(1)()
-        ),
-        j -> (
-          C(0)(j.typ),
-          Mux(
-            (k === C(-1)() + n3) && (j === C(-1)() + n2),
-            C(0)(j.typ),
-            Mux(k === C(-1)() + n3, j + 1, j)()
-          )(),
-          C(1)()
-        ),
-        k -> (
-          C(0)(k.typ),
-          Mux(k === C(-1)() + n3, C(0)(k.typ), k + 1)(),
-          C(1)()
-        )
       ),
       Map()
     )()
@@ -1773,8 +1611,7 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   * @param k
   *   The number of elements to extract.
   */
-// TODO: Rename this to StmTake?
-@deprecated
+@deprecated("TODO: rename this to StmTake")
 case class StmPrefix(
     stm: Expr /* Stm<A; n> */,
     k: Expr /* Int */
@@ -1832,8 +1669,7 @@ case class StmPrefix(
   * @param k
   *   The number of elements to extract.
   */
-// TODO: Replace this with StmDrop?
-@deprecated
+@deprecated("TODO: replace this with StmDrop")
 case class StmSuffix(
     stm: Expr /* Stm<A; n> */,
     k: Expr /* Int */
@@ -1894,84 +1730,6 @@ case class StmSuffix(
         s -> (stm, True, C(0)())
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
-  }
-}
-
-/** Discard the first element of the given stream and insert the given value at
-  * the end.
-  *
-  * @param stm
-  *   the stream to shift.
-  * @param e
-  *   the element to insert.
-  */
-case class StmShiftLeft(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
-    typ: Type = Missing
-) /* Stm<A; n> */
-    extends ResolvedSyntaxSugar(stm, e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmShiftLeft = {
-    newChildren match {
-      case Seq(s, e) => StmShiftLeft(s, e)(typ)
-      case _         => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): StmShiftLeft = {
-    val newS = stm.tchk(context, constValues)
-    val (t, n) = newS.typ match {
-      case TyStm(t, n) => (t, n)
-      case t => throw new TypeError(s"Stream in StmShiftLeft has type $t.")
-    }
-    val newE = e.tchk(context, constValues).expectType(t, constValues)
-    this.rebuild(TyStm(t, n), Seq(newS, newE))
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    requireType()
-    val n = this.typ.asInstanceOf[TyStm].n
-    StmAppend(StmSuffix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower
-  }
-}
-
-/** Discard the last element of the given stream and insert the given value at
-  * the beginning.
-  *
-  * @param stm
-  *   the stream to shift.
-  * @param e
-  *   the element to insert.
-  */
-case class StmShiftRight(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
-    typ: Type = Missing
-) /* Stm<A; n> */
-    extends ResolvedSyntaxSugar(stm, e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmShiftRight = {
-    newChildren match {
-      case Seq(s, e) => StmShiftRight(s, e)(typ)
-      case _         => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): StmShiftRight = {
-    val newS = stm.tchk(context, constValues)
-    val (t, n) = newS.typ match {
-      case TyStm(t, n) => (t, n)
-      case t => throw new TypeError(s"Stream in StmShiftRight has type $t.")
-    }
-    val newE = e.tchk(context, constValues).expectType(t, constValues)
-    this.rebuild(TyStm(t, n), Seq(newS, newE))
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    requireType()
-    val n = this.typ.asInstanceOf[TyStm].n
-    StmPrepend(StmPrefix(stm, ToUnsigned(n - 1)())(), e)().tchk().lower
   }
 }
 
@@ -2463,49 +2221,6 @@ case class StmRepeat(
   }
 }
 
-case class StmReverse(stm: Expr /* Stm<A; n> */ )(
-    typ: Type = Missing
-) /* Stm<A; n> */
-    extends ResolvedSyntaxSugar(stm)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmReverse = {
-    newChildren match {
-      case Seq(s) => StmReverse(s)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): StmReverse = {
-    val newS = stm.tchk(context, constValues)
-    newS.typ match {
-      case TyStm(t, n) =>
-        this.rebuild(TyStm(t, n), Seq(newS))
-      case t =>
-        throw new TypeError(
-          s"Stream in StmReverse has type $t. Expected a stream."
-        )
-    }
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    val stm = this.stm.lower // flat stream
-    val t = stm.typ.asInstanceOf[TyStm].t
-    val n = stm.typ.asInstanceOf[TyStm].n
-    val elemSize = this.stm.typ.asInstanceOf[TyStm].t.lower match {
-      case TyStm(_, n) => n
-      case _           => IntCst(1)()
-    }
-    StmMap(
-      Stm2Vec(stm)() /* flat vector */,
-      TyVec(t, n) ::+ (v =>
-        Vec2Stm(VecJoin(VecReverse(VecSplit(v, elemSize)()))())()
-      )
-    )().tchk().lower
-  }
-}
-
 case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
     typ: Type = Missing
 ) /* Stm<Stm<A; m>; n/m> */
@@ -2669,50 +2384,6 @@ case class StmSlide(
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className)
     lowered.tchk()
-  }
-}
-
-/** Similar to [[StmSlide]], but produces a nested stream rather than a stream
-  * of vectors.
-  */
-case class StmSlideS(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
-    typ: Type = Missing
-) /* Stm<Stm<A; m>; n-m+1> */
-    extends ResolvedSyntaxSugar(stm, m)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmSlideS = {
-    newChildren match {
-      case Seq(stm, m) => StmSlideS(stm, m)(typ)
-      case _           => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): StmSlideS = {
-    val newM = m.tchk(context, constValues).expectUInt()
-    val newS = stm.tchk(context, constValues)
-    newS.typ match {
-      case TyStm(t, n) if t.isData =>
-        this.rebuild(
-          TyStm(TyStm(t, newM), SafeSum(n, C(-1)() * newM, 1)()),
-          Seq(newS, newM)
-        )
-      case t =>
-        throw new TypeError(
-          s"Stream in StmSlideS has typ $t. Expected a stream."
-        )
-    }
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    // It may be possible to optimize this version specifically by producing
-    // elements while the shift register is still filling up
-    requireType()
-    val t = this.stm.typ.asInstanceOf[TyStm].t
-    StmMap(StmSlide(stm, m)(), TyVec(t, m) ::+ (v => Vec2Stm(v)()))()
-      .tchk()
-      .lower
   }
 }
 
@@ -2894,47 +2565,6 @@ case class StmSlide2D(stm: Expr, winHeight: Expr, winWidth: Expr)(
         input -> (stm, True, 0)
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className).tchk()
-  }
-}
-
-case class StmTranspose(stm: Expr /* Stm<Stm<A; m>; n> */ )(
-    typ: Type = Missing
-) /* Stm<Stm<A; n>; m> */
-    extends ResolvedSyntaxSugar(stm)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmTranspose = {
-    newChildren match {
-      case Seq(s) => StmTranspose(s)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): StmTranspose = {
-    val newS = stm.tchk(context, constValues)
-    newS.typ match {
-      case TyStm(TyStm(t, m), n) if t.isData =>
-        this.rebuild(TyStm(TyStm(t, n), m), Seq(newS))
-      case t =>
-        throw new TypeError(
-          s"Stream in StmTranspose has type $t. Expected a two-dimensional stream."
-        )
-    }
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    requireType()
-    val m = this.stm.typ.asInstanceOf[TyStm].t.asInstanceOf[TyStm].n
-    val stm = this.stm.lower // flat stream
-    val t = stm.typ.asInstanceOf[TyStm].t
-    val n = stm.typ.asInstanceOf[TyStm].n
-    StmMap(
-      Stm2Vec(stm)(), // flat vector
-      TyVec(t, n) ::+ (v =>
-        Vec2Stm(VecJoin(VecTranspose(VecSplit(v, m)())())())()
-      )
-    )().tchk().lower
   }
 }
 

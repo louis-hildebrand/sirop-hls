@@ -873,6 +873,7 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   }
 }
 
+@deprecated("TODO: rename this to VecTake")
 case class VecPrefix(
     vec: Expr /* Vec<A; n> */,
     k: Expr /* Int */
@@ -906,6 +907,7 @@ case class VecPrefix(
   }
 }
 
+@deprecated("TODO: replace this with VecDrop")
 case class VecSuffix(
     vec: Expr /* Vec<A; n> */,
     k: Expr /* Int */

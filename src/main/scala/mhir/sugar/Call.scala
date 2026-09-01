@@ -240,11 +240,6 @@ case class Call(
           case (Seq(), Seq(s1, s2)) => StmConcat(s1, s2)()
           case _                    => error(f)
         }
-      case f @ Param("StmShiftLeft", -1) =>
-        combinedArgs match {
-          case (Seq(), Seq(s, e)) => StmShiftLeft(s, e)()
-          case _                  => error(f)
-        }
       case f @ Param("StmCst", -1) =>
         combinedArgs match {
           case (Seq(), Seq(n, c)) => StmCst(n, c)()
