@@ -1,0 +1,16 @@
+const N: u32 = 12
+const K: u32 = 4
+
+accelerator[no_handshake]
+take = (s: Stm[u8, N]) =>
+    s.StmTake(K)
+
+assert {
+    s = StmRange(N, 1:u8, 1:u8)
+}
+yields StmRange(K, 1:u8, 1:u8)
+
+assert {
+    s = [42:u8, 43:u8, 44:u8, 45:u8, 46:u8, 47:u8, 48:u8, 49:u8, 50:u8, 51:u8, 52:u8, 53:u8]s
+}
+yields [42:u8, 43:u8, 44:u8, 45:u8]s

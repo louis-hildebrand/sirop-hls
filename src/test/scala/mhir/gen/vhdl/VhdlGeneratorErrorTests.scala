@@ -5,6 +5,7 @@ import mhir.gen.CodegenError
 import mhir.gen.vhdl.test.VhdlTestRunner
 import mhir.ir._
 import mhir.sugar._
+import mhir.sugar.handshake.StmDrop
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -20,7 +21,7 @@ class VhdlGeneratorErrorTests extends AnyFunSuite {
   test("s => StmConcat(s, s)") {
     val n = 5
     val s = Param("s", -1)(TyStm(U8, n))
-    val concat = StmConcat(s, s)().tchk().lower
+    val concat = StmConcat(s, s).tchk().lower
     val f = Function(s, concat)().tchk().asInstanceOf[Function]
     val exc = intercept[IllegalArgumentException](
       VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)
@@ -28,10 +29,10 @@ class VhdlGeneratorErrorTests extends AnyFunSuite {
     assert(exc.getMessage.contains("Top-level parameter s is used 2 times."))
   }
 
-  test("s => StmZip(StmPrefix(s, 2), StmSuffix(s, 2))") {
+  test("s => StmZip(StmTake(s, 2), StmDrop(s, n-2))") {
     val n = 5
     val s = Param("s", -1)(TyStm(U8, n))
-    val zip = StmZip(StmPrefix(s, 2)(), StmSuffix(s, 2)())().tchk().lower
+    val zip = StmZip(StmTake(s, 2)(), StmDrop(s, n - 2)())().tchk().lower
     val f = Function(s, zip)().tchk().asInstanceOf[Function]
     val exc = intercept[IllegalArgumentException](
       VhdlGenerator.emitVhdl(f, VhdlTestRunner.VHDL_TEST_DIR)

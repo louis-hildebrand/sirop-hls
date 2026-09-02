@@ -164,12 +164,12 @@ private[nohandshake] case class StmLiteralNode(
       s"${this.getClass.getName}.currentIndex should be non-negative"
     )
     if (this.currentIndex < this.physicalElems.length) {
-      PhysicalOutput(this.physicalElems(this.currentIndex))
+      PhysicalOutput(eval(this.physicalElems(this.currentIndex)))
     } else if (
       this.currentIndex < this.physicalElems.length + this.logicalElems.length
     ) {
       LogicalOutput(
-        this.logicalElems(this.currentIndex - this.physicalElems.length)
+        eval(this.logicalElems(this.currentIndex - this.physicalElems.length))
       )
     } else {
       NoOutput

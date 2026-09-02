@@ -528,7 +528,7 @@ class StreamifierTests extends AnyFunSuite {
   test("ProducerStreamLengthDependingOnInput") {
     val f =
       (U8 ::+ (n =>
-        StmFold1D(
+        StmFold(
           StmCount(n)(),
           C(0)(U8),
           (U8, U8) ::+ (x => Sum(x.__0, x.__1)())

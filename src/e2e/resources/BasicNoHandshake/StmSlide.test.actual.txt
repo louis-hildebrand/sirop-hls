@@ -1,6 +1,6 @@
 /* Test 0 */
 [
-  undefined:Vec[u8, 3],
+  undefined:Vec[u8, 3:u32],
   [undefined:u8, undefined:u8, 1:u8]v,
   [undefined:u8, 1:u8, 2:u8]v
 ]s ++ [
@@ -14,15 +14,15 @@
 
 /* Test 1 */
 [
-  undefined:Vec[u8, 3],
+  undefined:Vec[u8, 3:u32],
   [undefined:u8, undefined:u8, undefined:u8]v,
   [undefined:u8, undefined:u8, 9:u8]v,
   [undefined:u8, 9:u8, 8:u8]v
 ]s ++ [
-    [9:u8, 8:u8, 7:u8]v,
-    [8:u8, 7:u8, 6:u8]v,
-    [7:u8, 6:u8, 5:u8]v,
-    [6:u8, 5:u8, 4:u8]v,
-    [5:u8, 4:u8, 3:u8]v,
-    [4:u8, 3:u8, 2:u8]v
+  [9:u8, 8:u8, 7:u8]v,
+  [8:u8, 7:u8, 6:u8]v,
+  [7:u8, 6:u8, 5:u8]v,
+  [6:u8, 5:u8, 4:u8]v,
+  [5:u8, 4:u8, 3:u8]v,
+  [4:u8, 3:u8, 2:u8]v
 ]s

@@ -4,6 +4,7 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.sugar._
+import mhir.sugar.handshake.VecReduce
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -156,7 +157,7 @@ class StmFissionPassTests extends AnyFunSuite {
         n,
         Tuple()(),
         Undefined(Missing),
-        VecReduceComb(StmData(s)(), (uint, uint) ::+ (x => x.__0 * x.__1))(),
+        VecReduce(StmData(s)(), (uint, uint) ::+ (x => x.__0 * x.__1))(),
         True,
         Map(),
         Map[Param, (Expr, Expr, Expr)](

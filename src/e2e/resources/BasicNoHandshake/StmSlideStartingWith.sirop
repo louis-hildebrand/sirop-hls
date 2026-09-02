@@ -1,7 +1,7 @@
 const N: u32 = 8
 const W: u32 = 3
 
-accelerator[no_handshake]
+accelerator[no_handshake, head(s)=0:u8]
 slide = (s: Stm[u8, N]) =>
     s.StmSlideStartingWith(VecCst(W, 0:u8))
 

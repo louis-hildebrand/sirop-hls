@@ -8,6 +8,7 @@ import mhir.ir._
 import mhir.optimize.{PartialEvalPass, StmBuildSimplifier, StmSimplifier}
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar._
+import mhir.sugar.handshake.StmDrop
 import mhir.testing.HardwareTest
 import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
@@ -549,7 +550,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
   test("StmCount |> StmFold(0, +)") {
     val s = {
       val n = 20
-      val s = StmFold1D(
+      val s = StmFold(
         StmCount(C(n)(U8))(),
         C(0)(U8),
         (U8, U8) ::+ (x => Sum(x.__0, x.__1)())
@@ -874,7 +875,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val e = {
       val n = 16
       val x = Param("x")(TyStm(U8, n))
-      LetStm(n, x, StmCount(C(n)(U8))(), StmConcat(x, x)())().tchk().lower
+      LetStm(n, x, StmCount(C(n)(U8))(), StmConcat(x, x))().tchk().lower
     }
     assert(VhdlTestRunner.testExpr(e) == TestPassed)
   }
@@ -1215,7 +1216,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val n = 100
     val a = Param("a")(TyStm(U32, n))
     val b = Param("b")(TyStm(U16, n))
-    val s = StmFold1D(
+    val s = StmFold(
       StmMap(StmZip(a, b)(), (U32, U16) ::+ (x => x.__0 * x.__1))(),
       C(0)(U32),
       (U32, U32) ::+ (x => Sum(x.__0, x.__1)())
@@ -1240,7 +1241,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
       StmMap(
         s,
         TyStm(U16, m) ::+ (s =>
-          StmFold1D(s, C(0)(U16), (U16, U16) ::+ (x => Sum(x.__0, x.__1)()))()
+          StmFold(s, C(0)(U16), (U16, U16) ::+ (x => Sum(x.__0, x.__1)()))()
         )
       )().tchk().lower.asInstanceOf[StmBuild]
 
@@ -1270,14 +1271,14 @@ class VhdlGeneratorTests extends AnyFunSuite {
       val x = Param("x")(TyStm(U8, n))
       Function(
         s,
-        StmSuffix(
+        StmDrop(
           LetStm(
             1,
             x,
             s,
             SimpleZip(x, StmShiftRightGarbage(x, shiftAmount)().tchk())
           )(),
-          n - shiftAmount
+          shiftAmount
         )()
       )().tchk().lower
     }

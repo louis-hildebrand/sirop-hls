@@ -7,6 +7,7 @@ import mhir.main.shared.Version
 import mhir.optimize.{
   EnabledLatencyMatcher,
   LatencyAnalysis,
+  PartialEvalPass,
   StaticLetStmBufferShrinker
 }
 import mhir.parse.SyntaxError
@@ -141,7 +142,12 @@ object Repl {
     val isStream = lowered.typ.isInstanceOf[TyStm]
     val optimized = if (!state.handshake && isStream) {
       // Certain transformations are needed when the handshake protocol is
-      // disabled, namely latency matching and letstm buffer shrinking
+      // disabled, namely
+      //  * partial evaluation (to simplify the delay annotations),
+      //  * latency matching (otherwise the results will be wrong),
+      //  * and letstm buffer shrinking (otherwise the evaluator will complain
+      //    about nonzero buffer sizes).
+      val simplified = PartialEvalPass.partialEval(lowered)
       val latencyAnalysis = new LatencyAnalysis(handshake = state.handshake)
       val latencyMatcher =
         new EnabledLatencyMatcher(latencyAnalysis, handshake = state.handshake)
@@ -152,7 +158,7 @@ object Repl {
           case (x, _)                            => x -> Undefined(Missing)
         })
       val afterLatencyMatching =
-        latencyMatcher.matchLatencies(lowered, headByParam)
+        latencyMatcher.matchLatencies(simplified, headByParam)
       val letBufShrinker = new StaticLetStmBufferShrinker(
         latencyAnalysis,
         handshake = state.handshake,

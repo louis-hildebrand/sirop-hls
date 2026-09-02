@@ -224,7 +224,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val m = 4
     val original = {
       // let x = StmSplit(StmCount(n*m), m) in
-      // StmZip(StmPrefix(x, n), StmMap(x, row => StmReduce(row, +)))
+      // StmZip(StmTake(x, n), StmMap(x, row => StmReduce(row, +)))
       val x = Param("s")(TyStm(U8, n * m))
       val count = SimpleCount(C(n * m)(U8))
       val prefix = {

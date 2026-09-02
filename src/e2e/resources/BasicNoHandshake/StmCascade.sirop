@@ -1,0 +1,33 @@
+accelerator[no_handshake] cascade = (s: Stm[Vec[u8, 3], 5]) => s.StmCascade()
+
+const undef: u8 = undefined:u8
+const no: u8 = zeros:[u8]()
+const YES: u8 = ones:[u8]()
+
+assert {
+    s = [
+        [1:u8, 1:u8, 1:u8]v,
+        [2:u8, 2:u8, 2:u8]v,
+        [3:u8, 3:u8, 3:u8]v,
+        [4:u8, 4:u8, 4:u8]v,
+        [5:u8, 5:u8, 5:u8]v
+    ]s
+}
+yields [
+    [ 1:u8, undef, undef]v,
+    [ 2:u8,  1:u8, undef]v,
+    [ 3:u8,  2:u8,  1:u8]v,
+    [ 4:u8,  3:u8,  2:u8]v,
+    [ 5:u8,  4:u8,  3:u8]v,
+    [undef,  5:u8,  4:u8]v,
+    [undef, undef,  5:u8]v
+]s
+ignoring [
+    [ no, YES, YES]v,
+    [ no,  no, YES]v,
+    [ no,  no,  no]v,
+    [ no,  no,  no]v,
+    [ no,  no,  no]v,
+    [YES,  no,  no]v,
+    [YES, YES,  no]v
+]s

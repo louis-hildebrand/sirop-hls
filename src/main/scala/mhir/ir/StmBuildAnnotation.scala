@@ -19,8 +19,8 @@ case class NameAnnotation(name: String) extends StmBuildAnnotation
   *   `StmReduce` satisfies this condition, since it will not produce its output
   *   before reaching the end of the input stream.
   * @example
-  *   `StmPrefix` does <i>not</i> satisfy this condition, since it may produce
-  *   its last output before reaching the end of the input stream.
+  *   `StmTake` does <i>not</i> satisfy this condition, since it may produce its
+  *   last output before reaching the end of the input stream.
   */
 object NoInputsAfterLastOut extends StmBuildAnnotation
 
@@ -36,7 +36,7 @@ object NoOutputsAfterLastIn extends StmBuildAnnotation
   * outputs, even if you increase its length and give it a longer stream.
   *
   * @example
-  *   If you implement `StmPrefix` as
+  *   If you implement `StmTake` as
   *   {{{
   *   sbuild(5)(sdata(p), true) {} { (p: Stm[u8, 10]) = { stm: s, ready: true } }
   *   }}}

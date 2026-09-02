@@ -5,6 +5,7 @@ import mhir.ir._
 import mhir.parse.AetherlingParser
 import mhir.parse.sirop.Parser
 import mhir.sugar._
+import mhir.sugar.handshake.{StmMap2, StmReduce, VecReduce}
 import mhir.typecheck.TypeCheck
 
 import scala.annotation.tailrec
@@ -158,7 +159,7 @@ object StoredProgram {
             v,
             TyVec(uint, 3) ::+ (v =>
               VecAccess(
-                VecReduceComb(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
+                VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
                 0
               )()
             )
@@ -169,7 +170,7 @@ object StoredProgram {
         rowSums,
         TyVec(uint, 3) ::+ (v =>
           VecAccess(
-            VecReduceComb(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
+            VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
             0
           )()
         )
@@ -270,7 +271,7 @@ object StoredProgram {
             v,
             TyVec(uint, 2) ::+ (v =>
               VecAccess(
-                VecReduceComb(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
+                VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
                 0
               )()
             )
@@ -281,7 +282,7 @@ object StoredProgram {
         rowSums,
         TyVec(uint, 2) ::+ (v =>
           VecAccess(
-            VecReduceComb(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
+            VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
             0
           )()
         )
@@ -407,7 +408,7 @@ object StoredProgram {
         multiplied,
         TyVec(uint, par) ::+ (v =>
           VecAccess(
-            VecReduceComb(v, (uint, uint) ::+ (x => x.__0 + x.__1))(),
+            VecReduce(v, (uint, uint) ::+ (x => x.__0 + x.__1))(),
             0
           )()
         )

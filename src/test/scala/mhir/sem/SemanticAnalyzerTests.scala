@@ -73,7 +73,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     val n = C(10)(U8)
     val m = C(20)(U8)
     val e = SimpleMap(
-      StmConcat(StmCount(n)(), StmCount(m)())().tchk(),
+      StmConcat(StmCount(n)(), StmCount(m)()).tchk(),
       x => x * x
     ).tchk().lower
     val prog = Program(Seq(), AccelDecl("top", e, Map(), Map()), Seq())
@@ -84,7 +84,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     val n = C(10)(U8)
     val m = C(20)(U8)
     val e = SimpleMap(
-      StmConcat(StmCount(n)(), StmCount(m)())().tchk(),
+      StmConcat(StmCount(n)(), StmCount(m)()).tchk(),
       x => x * x
     ).tchk().lower
     val prog =
@@ -102,7 +102,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
   test("Handshake:StmSlide") {
     val n = C(20)(U8)
     val e = SimpleMap(
-      StmSlide(StmCount(n)(), 2)().tchk(),
+      mhir.sugar.handshake.StmSlide(StmCount(n)(), 2)().tchk(),
       v => VecAccess(v, 0)() + VecAccess(v, 1)()
     ).tchk().lower
     val prog = Program(Seq(), AccelDecl("top", e, Map(), Map()), Seq())
@@ -112,7 +112,8 @@ class SemanticAnalyzerTests extends AnyFunSuite {
   test("NoHandshake:StmSlide") {
     val n = C(20)(U8)
     val e = SimpleMap(
-      StmSlide(StmCount(n)(), 2)().tchk(),
+      // IMPORTANT: use the handshake-enabled version of StmSlide
+      mhir.sugar.handshake.StmSlide(StmCount(n)(), 2)().tchk(),
       v => VecAccess(v, 0)() + VecAccess(v, 1)()
     ).tchk().lower
     val prog = Program(
@@ -143,10 +144,13 @@ class SemanticAnalyzerTests extends AnyFunSuite {
 
   test("NoHandshake:StmReduce") {
     val n = C(20)(U8)
-    val e = StmReduce(
-      StmCount(n)(),
-      (U8, U8) ::+ (x => x.__0 + x.__1)
-    )().tchk().lower
+    val e = mhir.sugar.handshake
+      .StmReduce(
+        StmCount(n)(),
+        (U8, U8) ::+ (x => x.__0 + x.__1)
+      )()
+      .tchk()
+      .lower
     val prog = Program(
       Seq(),
       AccelDecl("top", e, Map("no_handshake" -> True), Map()),

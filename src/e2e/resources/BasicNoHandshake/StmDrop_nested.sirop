@@ -1,0 +1,15 @@
+accelerator[no_handshake] drop = (s: Stm[Stm[u8, 4], 3]) => s.StmDrop(2)
+
+assert {
+    s = StmRange(12, 1:u8, 1:u8).StmSplit(4)
+}
+yields StmRange(4, 9:u8, 1:u8).StmSplit(4)
+
+assert {
+    s = [
+        [42:u8, 43:u8, 44:u8, 45:u8]s,
+        [46:u8, 47:u8, 48:u8, 49:u8]s,
+        [50:u8, 51:u8, 52:u8, 53:u8]s
+    ]s
+}
+yields [[50:u8, 51:u8, 52:u8, 53:u8]s]s

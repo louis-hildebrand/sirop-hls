@@ -531,7 +531,7 @@ let module8: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] =
       StmMap(
         n560,
         (I : Vec[Stm[u32, 1:u1], 3:u2]) =>
-          VecReduceComb(
+          VecReduce(
             I,
             (I : Stm[(u32, u32), 1:u1]) =>
               StmMap(I, (I : (u32, u32)) => I.0 +%` I.1)
@@ -645,7 +645,7 @@ let module11: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] 
       StmMap(
         n738,
         (I : Vec[Stm[u32, 1:u1], 3:u2]) =>
-          VecReduceComb(
+          VecReduce(
             I,
             (I : Stm[(u32, u32), 1:u1]) =>
               StmMap(I, (I : (u32, u32)) => I.0 +%` I.1)
@@ -759,7 +759,7 @@ let module14: Stm[Vec[Stm[u32, 3:u2], 3:u2], 1:u1] -> Stm[Stm[u32, 1:u1], 1:u1] 
       StmMap(
         n916,
         (I : Vec[Stm[u32, 1:u1], 3:u2]) =>
-          VecReduceComb(
+          VecReduce(
             I,
             (I : Stm[(u32, u32), 1:u1]) =>
               StmMap(I, (I : (u32, u32)) => I.0 +%` I.1)

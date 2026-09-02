@@ -1,0 +1,51 @@
+accelerator[no_handshake, go=go]
+top = (s: Stm[bool, 3]) => (go: Stm[bool, 3]) =>
+    s.StmAll()
+
+assert {
+    s  = [undefined:bool]s ++ [false, false, false]s,
+    go = [false]s          ++ [true,  true,  true]s
+}
+yields [false]s
+
+assert {
+    s  = [undefined:bool]s ++ [false, false, true]s,
+    go = [false]s          ++ [true,  true,  true]s
+}
+yields [false]s
+
+assert {
+    s  = [undefined:bool]s ++ [false, true, false]s,
+    go = [false]s          ++ [true,  true, true]s
+}
+yields [false]s
+
+assert {
+    s  = [undefined:bool]s ++ [false, true, true]s,
+    go = [false]s          ++ [true,  true, true]s
+}
+yields [false]s
+
+assert {
+    s  = [undefined:bool]s ++ [true, false, false]s,
+    go = [false]s          ++ [true, true,  true]s
+}
+yields [false]s
+
+assert {
+    s  = [undefined:bool]s ++ [true, false, true]s,
+    go = [false]s          ++ [true, true,  true]s
+}
+yields [false]s
+
+assert {
+    s  = [undefined:bool]s ++ [true, true, false]s,
+    go = [false]s          ++ [true, true, true]s
+}
+yields [false]s
+
+assert {
+    s  = [undefined:bool]s ++ [true, true, true]s,
+    go = [false]s          ++ [true, true, true]s
+}
+yields [true]s

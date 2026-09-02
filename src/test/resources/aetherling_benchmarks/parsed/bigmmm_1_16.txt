@@ -11,8 +11,7 @@ let module2: Stm[Vec[u16, 16:u5], 16:u5] -> Stm[u16, 1:u1] = (
     let n28: Stm[Vec[u16, 1:u1], 16:u5] = (
       StmMap(
         I,
-        (I : Vec[u16, 16:u5]) =>
-          VecReduceComb(I, (I : (u16, u16)) => I.0 +%` I.1)
+        (I : Vec[u16, 16:u5]) => VecReduce(I, (I : (u16, u16)) => I.0 +%` I.1)
       )
     ) in
     let n31: Stm[Vec[u16, 1:u1], 1:u1] = (

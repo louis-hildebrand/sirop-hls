@@ -1,8 +1,30 @@
 Welcome to the Sirop REPL (v${COMPILER_VERSION})!
 Type 'exit' or press Ctrl+D to exit.
-> > >  [70:u8]s
+> > > [70:u8]s
 > NameError: unknown setting '__foo'. (Note that names starting with two underscores are reserved for REPL settings.)
 > > [70:u8]s
-> > [undefined:u8, undefined:u8, undefined:u8, undefined:u8, undefined:u8, undefined:u8]s ++ [70:u8]s
-> [undefined:u8, undefined:u8]s ++ [(1:u8, 5:u8), (4:u8, 6:u8), (9:u8, 7:u8), (16:u8, 8:u8)]s
+> > [0:u8, undefined:u8, undefined:u8, 5:u8, 17:u8, 38:u8]s ++ [70:u8]s
+> [WARN ] no physical prefix specified for stream literal [5:u8, 6:u8, 7:u8, 8:u8]s. The latency matcher will delay the stream by prepending undefined elements. To dismiss this warning, add a physical prefix (e.g., [undefined:u8]s ++ [5:u8, 6:u8, 7:u8, 8:u8]s).
+[
+  undefined:(u8, u8),
+  (undefined:u8, undefined:u8),
+  (undefined:u8, undefined:u8),
+  (undefined:u8, undefined:u8)
+]s ++ [
+  (1:u8, 5:u8),
+  (4:u8, 6:u8),
+  (9:u8, 7:u8),
+  (16:u8, 8:u8)
+]s
+> > [
+  undefined:(u8, u8),
+  (undefined:u8, undefined:u8),
+  (undefined:u8, undefined:u8),
+  (undefined:u8, undefined:u8)
+]s ++ [
+  (1:u8, 5:u8),
+  (4:u8, 6:u8),
+  (9:u8, 7:u8),
+  (16:u8, 8:u8)
+]s
 > Goodbye

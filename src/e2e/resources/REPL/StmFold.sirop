@@ -1,0 +1,12 @@
+__handshake = false
+__show_physical = true
+([]s:Stm[u8,0]).StmFold(42:u8, +)
+[1:u8, 2:u8]s.StmFold(42:u8, +)
+x = 3:i16
+[1:i16, -3:i16, 3:i16, 2:i16]s.StmFold(0:i16, @(acc, a) => a + x*acc) // x^3 - 3x^2 + 3x + 2
+
+([]s:Stm[bool,0]).StmFold(false, !=) // xor
+([true, true]s).StmFold(false, !=)
+([true, false]s).StmFold(false, !=)
+([true, false, true]s).StmFold(false, !=)
+([true, false, false]s).StmFold(false, !=)

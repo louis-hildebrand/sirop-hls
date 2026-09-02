@@ -2,6 +2,7 @@ package mhir.sugar
 
 import mhir.canonicalize._
 import mhir.ir._
+import mhir.sugar.handshake.{Stm2Vec, VecReduce}
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -446,7 +447,7 @@ class VectorTests extends AnyFunSuite {
   test("VecReduceComb:Vec[Int,3]:Sum") {
     val v = VecBuild(3, U32 ::+ (i => i + 1))()
     val sum =
-      VecReduceComb(v, Missing ::+ (x => x.__0 + x.__1))().tchk().lower
+      VecReduce(v, Missing ::+ (x => x.__0 + x.__1))().tchk().lower
     assert(mhir.eval.eval(sum) == VecLiteral(C(6)())())
   }
 
@@ -457,7 +458,7 @@ class VectorTests extends AnyFunSuite {
     val v = VecBuild(4, U32 ::+ (i => i + 2))()
     val x = C(10)(U32)
     val result =
-      VecReduceComb(v, (U32, U32) ::+ (a => a.__1 + x * a.__0))()
+      VecReduce(v, (U32, U32) ::+ (a => a.__1 + x * a.__0))()
         .tchk()
         .lower
     assert(mhir.eval.eval(result) == VecLiteral(C(2345)())())
@@ -465,7 +466,7 @@ class VectorTests extends AnyFunSuite {
 
   test("VecReduceComb:Vec[Vec[Int,1],4]:Sum") {
     val v = Param("v")(TyVec(TyVec(U8, 1), 4))
-    val sum = VecReduceComb(
+    val sum = VecReduce(
       v,
       Missing ::+ (v => VecMap(v, Missing ::+ (x => x.__0 + x.__1))())
     )().tchk().lower
@@ -483,7 +484,7 @@ class VectorTests extends AnyFunSuite {
 
   test("VecReduceComb:Vec[Stm[Int,1],5]:Sum") {
     val v = Param("v")(TyVec(TyStm(U8, 1), 5))
-    val sum = VecReduceComb(
+    val sum = VecReduce(
       v,
       Missing ::+ (v => StmMap(v, Missing ::+ (x => x.__0 + x.__1))())
     )().tchk().lower
@@ -499,7 +500,7 @@ class VectorTests extends AnyFunSuite {
 
   test("VecReduceComb:Vec[Vec[Stm[Stm[Vec[Int,1],1],1],1],4]:Sum") {
     val v = Param("v")(TyVec(TyVec(TyStm(TyStm(TyVec(U8, 1), 1), 1), 1), 5))
-    val sum = VecReduceComb(
+    val sum = VecReduce(
       v,
       Missing ::+ (v =>
         VecMap(

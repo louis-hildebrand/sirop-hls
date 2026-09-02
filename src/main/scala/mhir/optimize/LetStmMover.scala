@@ -18,7 +18,7 @@ object LetStmMover {
     *               let s0 = StmZip(input, StmCount(n)) in
     *               StmMap(s0, (x, y) => x + y)
     *           ) in
-    *           StmPrefix(s1, m),
+    *           StmTake(s1, m),
     *           x => x + 5
     *       )
     *   }}}
@@ -26,7 +26,7 @@ object LetStmMover {
     *   {{{
     *       let s0 = StmZip(input, StmCount(n)) in
     *       let s1 = StmMap(s0, (x, y) => x + y) in
-    *       StmMap(StmPrefix(s1, m), x => x + 5)
+    *       StmMap(StmTake(s1, m), x => x + 5)
     *   }}}
     *   (However, this would all be done in terms of [[mhir.ir.StmBuild]], since
     *   expressions must be lowered before this transformation can be applied.)

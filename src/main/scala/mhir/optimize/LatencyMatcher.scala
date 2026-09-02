@@ -165,17 +165,18 @@ class EnabledLatencyMatcher(
     if (delay <= 0) {
       s
     } else {
+      val initDataVal = initData // force evaluation of by-name parameter
       val TyStm(t, n) = s.typ
       val acc = Param("s")(TyStm(t, -1))
       StmBuild(
         n,
         C(1)(),
-        initData,
+        initDataVal,
         StmData(acc)(),
         True,
         accumulators = Map(),
         producers = Map[Param, (Expr, Expr, Expr)](
-          acc -> (increaseLatency(s, delay - 1, initData), True, C(0)())
+          acc -> (increaseLatency(s, delay - 1, initDataVal), True, C(0)())
         )
       )().tchk()
     }

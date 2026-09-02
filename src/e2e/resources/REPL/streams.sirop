@@ -6,5 +6,7 @@ __handshake = false
 StmZip(u, v).StmMap( @(x, y) => x * y ).StmSum()
 __show_physical = true
 StmZip(u, v).StmMap( @(x, y) => x * y ).StmSum()
-u.StmMap( x => x * x ).StmZip(v)
+u.StmMap( x => x * x ).StmMap( x => x ).StmMap( x => x ).StmZip(v)
+v = [undefined:u8]s ++ [5:u8, 6:u8, 7:u8, 8:u8]s
+u.StmMap( x => x * x ).StmMap( x => x ).StmMap( x => x ).StmZip(v)
 exit

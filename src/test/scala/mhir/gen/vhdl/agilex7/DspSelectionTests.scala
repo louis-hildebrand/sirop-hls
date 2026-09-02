@@ -6,7 +6,7 @@ import mhir.gen.vhdl.ir.FlattenPipeline
 import mhir.gen.vhdl.transform.ApplyTransformations
 import mhir.ir._
 import mhir.optimize.{Optimizer, OptimizerOptions}
-import mhir.sugar.{ExprLowering, MulAddCascaded, SimpleMap, StmCst}
+import mhir.sugar.{ExprLowering, SimpleMap, StmCst, StmMapDotCascaded}
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -48,7 +48,7 @@ class DspSelectionTests extends AnyFunSuite {
               }
               val p2 = Param("p2")(TyStm(TyVec(inTyp, depth), 8))
               val sbuild = SimpleMap(
-                MulAddCascaded(p1, p2, pipeline)().tchk(),
+                StmMapDotCascaded(p1, p2, pipeline)().tchk(),
                 x =>
                   Tuple(
                     Tuple(TruncateTo(ARShift(x, 2)(), 32)(), True)(),

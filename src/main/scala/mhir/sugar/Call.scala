@@ -90,8 +90,9 @@ case class Call(
         }
       case f @ Param("Vec2Stm", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(v)) => Vec2Stm(v)()
-          case _               => error(f)
+          case (Seq(), Seq(v)) if handshake => mhir.sugar.handshake.Vec2Stm(v)()
+          case (Seq(), Seq(v)) if !handshake => ???
+          case _                             => error(f)
         }
       case f @ Param("VecMap", -1) =>
         combinedArgs match {
@@ -110,8 +111,11 @@ case class Call(
         }
       case f @ Param("VecReduce", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(v, f)) => VecReduceComb(v, f)()
-          case _                  => error(f)
+          case (Seq(), Seq(v, f)) if handshake =>
+            mhir.sugar.handshake.VecReduce(v, f)()
+          case (Seq(), Seq(v, f)) if !handshake =>
+            ???
+          case _ => error(f)
         }
       case f @ Param("VecFold", -1) =>
         combinedArgs match {
@@ -176,13 +180,14 @@ case class Call(
       // Stream operators --------------------------------------------------
       case f @ Param("Stm2Vec", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s)) => Stm2Vec(s)()
-          case _               => error(f)
+          case (Seq(), Seq(s)) if handshake => mhir.sugar.handshake.Stm2Vec(s)()
+          case (Seq(), Seq(s)) if !handshake => ???
+          case _                             => error(f)
         }
       case f @ Param("StmMap", -1) =>
         combinedArgs match {
           case (Seq(), Seq(s, f)) if handshake =>
-            mhir.sugar.StmMap(s, f)()
+            mhir.sugar.handshake.StmMap(s, f)()
           case (Seq(), Seq(s, f)) if !handshake =>
             mhir.sugar.nohandshake.StmMap(s, f, Undefined(Missing))()
           case (Seq(), Seq(s, f, head)) if !handshake =>
@@ -191,8 +196,13 @@ case class Call(
         }
       case f @ Param("StmMap2", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s1, s2, f)) => StmMap2(s1, s2, f)()
-          case _                       => error(f)
+          case (Seq(), Seq(s1, s2, f)) if handshake =>
+            mhir.sugar.handshake.StmMap2(s1, s2, f)()
+          case (Seq(), Seq(s1, s2, f)) if !handshake =>
+            mhir.sugar.nohandshake.StmMap2(s1, s2, f, Undefined(Missing))()
+          case (Seq(), Seq(s1, s2, f, head)) if !handshake =>
+            mhir.sugar.nohandshake.StmMap2(s1, s2, f, head)()
+          case _ => error(f)
         }
       case f @ Param("StmZip", -1) =>
         combinedArgs match {
@@ -202,12 +212,15 @@ case class Call(
         }
       case f @ Param("StmReduce", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s, f)) => StmReduce(s, f)()
-          case _                  => error(f)
+          case (Seq(), Seq(s, f)) if handshake =>
+            mhir.sugar.handshake.StmReduce(s, f)()
+          case (Seq(), Seq(s, f)) if !handshake =>
+            mhir.sugar.nohandshake.StmReduce(s, f)()
+          case _ => error(f)
         }
-      case f @ Param("StmFold1D", -1) =>
+      case f @ Param("StmFold", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s, z, f)) => StmFold1D(s, z, f)()
+          case (Seq(), Seq(s, z, f)) => StmFold(s, z, f)()
           case _                     => error(f)
         }
       case f @ Param("StmAll", -1) =>
@@ -237,8 +250,13 @@ case class Call(
         }
       case f @ Param("StmConcat", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s1, s2)) => StmConcat(s1, s2)()
-          case _                    => error(f)
+          case (Seq(), Seq(s1, s2)) if handshake =>
+            mhir.sugar.handshake.StmConcat(s1, s2)()
+          case (Seq(), Seq(s1, s2)) if !handshake =>
+            mhir.sugar.nohandshake.StmConcat(s1, s2, Undefined(Missing))()
+          case (Seq(), Seq(s1, s2, head)) if !handshake =>
+            mhir.sugar.nohandshake.StmConcat(s1, s2, head)()
+          case _ => error(f)
         }
       case f @ Param("StmCst", -1) =>
         combinedArgs match {
@@ -257,8 +275,13 @@ case class Call(
         }
       case f @ Param("StmSlide", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s, w)) => StmSlide(s, w)()
-          case _                  => error(f)
+          case (Seq(), Seq(s, w)) if handshake =>
+            mhir.sugar.handshake.StmSlide(s, w)()
+          case (Seq(), Seq(s, w, stride)) if handshake =>
+            mhir.sugar.handshake.StmSlide(s, w, stride)()
+          case (Seq(), Seq(s, w)) if !handshake =>
+            mhir.sugar.nohandshake.StmSlide(s, w)()
+          case _ => error(f)
         }
       case f @ Param("StmSlideStartingWith", -1) =>
         combinedArgs match {
@@ -275,24 +298,37 @@ case class Call(
           case (Seq(), Seq(s, i)) => StmAccess(s, i)()
           case _                  => error(f)
         }
-      case f @ Param("StmPrefix", -1) =>
+      case f @ Param("StmTake", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s, k)) => StmPrefix(s, k)()
+          case (Seq(), Seq(s, k)) => StmTake(s, k)()
           case _                  => error(f)
         }
-      case f @ Param("StmSuffix", -1) =>
+      case f @ Param("StmDrop", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s, k)) => StmSuffix(s, k)()
-          case _                  => error(f)
+          case (Seq(), Seq(s, k)) if handshake =>
+            mhir.sugar.handshake.StmDrop(s, k)()
+          case (Seq(), Seq(s, k)) if !handshake =>
+            mhir.sugar.nohandshake.StmDrop(s, k, Undefined(Missing))()
+          case (Seq(), Seq(s, k, head)) if !handshake =>
+            mhir.sugar.nohandshake.StmDrop(s, k, head)()
+          case _ => error(f)
+        }
+      case f @ Param("StmExtendBy", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(s, k)) if handshake =>
+            mhir.sugar.handshake.StmExtendBy(s, k)()
+          case (Seq(), Seq(s, k)) if !handshake =>
+            mhir.sugar.nohandshake.StmExtendBy(s, k)()
+          case _ => error(f)
         }
       case f @ Param("StmCascade", -1) =>
         combinedArgs match {
           case (Seq(), Seq(s)) => StmCascade(s)()
           case _               => error(f)
         }
-      case f @ Param("MulAddCascaded", -1) =>
+      case f @ Param("StmMapDotCascaded", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s1, s2, delay)) => MulAddCascaded(s1, s2, delay)()
+          case (Seq(), Seq(s1, s2, delay)) => StmMapDotCascaded(s1, s2, delay)()
           case _                           => error(f)
         }
       case f @ Param("StmMapDot", -1) =>

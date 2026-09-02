@@ -4,7 +4,7 @@
   let n6: Stm[Vec[u32, 1:u1], 280:u9] = (
     StmMap(
       n1,
-      (I : Vec[u32, 3:u2]) => VecReduceComb(I, (I : (u32, u32)) => I.0 +%` I.1)
+      (I : Vec[u32, 3:u2]) => VecReduce(I, (I : (u32, u32)) => I.0 +%` I.1)
     )
   ) in
   let n9: Stm[Vec[u32, 1:u1], 1:u1] = (

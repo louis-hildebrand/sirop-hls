@@ -204,11 +204,11 @@ class SubstitutionTests extends AnyFunSuite {
     val n = 10
     val x = Param("x")(TyStm(U8, n))
     val y = Param("y")(TyStm(U8, n))
-    val e = LetStm(1, x, x, StmConcat(x, y)())()
+    val e = LetStm(1, x, x, StmConcat(x, y))()
     val subs = Map[Expr, Expr](y -> x)
     val expected = {
       val z = Param("z")(TyStm(U8, n))
-      LetStm(1, z, x, StmConcat(z, x)())()
+      LetStm(1, z, x, StmConcat(z, x))()
     }
 
     val actual0 = e.subPreserveType(subs)
@@ -223,9 +223,9 @@ class SubstitutionTests extends AnyFunSuite {
     val x = Param("x")(TyStm(U8, n))
     val y = Param("y")(TyStm(U8, n))
     val z = Param("z")(TyStm(U8, n))
-    val e = LetStm(1, x, x, StmConcat(x, y)())()
+    val e = LetStm(1, x, x, StmConcat(x, y))()
     val subs = Map[Expr, Expr](x -> z)
-    val expected = LetStm(1, x, z, StmConcat(x, y)())()
+    val expected = LetStm(1, x, z, StmConcat(x, y))()
 
     val actual0 = e.subPreserveType(subs)
     assert(actual0 == expected)

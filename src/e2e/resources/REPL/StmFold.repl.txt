@@ -1,0 +1,11 @@
+Welcome to the Sirop REPL (v${COMPILER_VERSION})!
+Type 'exit' or press Ctrl+D to exit.
+> > > [42:u8]s
+> [42:u8, 43:u8]s ++ [45:u8]s
+> > [0:i16, 1:i16, 0:i16, 3:i16]s ++ [11:i16]s
+> > [false]s
+> [false, true]s ++ [false]s
+> [false, true]s ++ [true]s
+> [false, true, true]s ++ [false]s
+> [false, true, true]s ++ [true]s
+> Goodbye

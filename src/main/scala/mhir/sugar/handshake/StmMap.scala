@@ -1,4 +1,5 @@
 package mhir.sugar
+package handshake
 
 import mhir.ir._
 import mhir.sugar.Streamifier.Streamify

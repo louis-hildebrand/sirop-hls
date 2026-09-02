@@ -1,0 +1,15 @@
+accelerator[no_handshake, go=go]
+sum = (s: Stm[i8, 4]) => (go: Stm[bool, 4]) =>
+    s.StmSum()
+
+assert {
+    s  = [undefined:i8]s ++ [1:i8, 2:i8, 3:i8, 4:i8]s,
+    go = [false]s        ++ [true, true, true, true]s
+}
+yields [10:i8]s
+
+assert {
+    s  = [undefined:i8]s ++ [1:i8, -2:i8, 3:i8, -4:i8]s,
+    go = [false]s        ++ [true, true,  true, true]s
+}
+yields [-2:i8]s
