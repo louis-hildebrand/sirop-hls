@@ -1393,12 +1393,25 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
-  test("StmReduce") {
+  test("StmReduce:SmartDiff") {
     val src = "StmReduce(s, (x) => x.0 - x.1)"
     val s = Param("s", -1)(Missing)
     val x = Param("x", -1)(Missing)
     val expected =
       call("StmReduce", s, Function(x, SmartDiff(x.__0, x.__1)())())
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("StmReduce:NotEquals") {
+    val src = "s.StmReduce(!=)"
+    val s = Param("s", -1)(Missing)
+    val x = Param("x", -1)(Missing)
+    val y = Param("y", -1)(Missing)
+    val f = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartNotEqual(x, y)()
+    )()
+    val expected = call("StmReduce", s, f)
     assert(Parser.parse(src).body == expected)
   }
 
