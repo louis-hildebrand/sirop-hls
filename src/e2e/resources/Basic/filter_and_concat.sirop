@@ -1,0 +1,14 @@
+const N: u32 = 5
+
+accelerator extend = (s: Stm[u8, 2*N]) =>
+    let every_second = sbuild(N)(sdata(p), v) {
+        (v: bool) = { init: false, next: !v }
+    } {
+        (p: Stm[u8, 2*N]) = { stm: s, ready: true }
+    } in
+    every_second.StmConcat(StmCst(3, 42:u8))
+
+assert {
+    s = StmRange(2*N, 0:u8, 1:u8)
+}
+yields [1:u8, 3:u8, 5:u8, 7:u8, 9:u8, 42:u8, 42:u8, 42:u8]s

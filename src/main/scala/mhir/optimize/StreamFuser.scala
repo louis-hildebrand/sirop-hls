@@ -65,11 +65,16 @@ object StreamFuser {
           val consumerCanStep = !consumerReady || producer.valid
           // IN PRODUCER
           // | consumer ready | producer valid | result                        |
-          // | false          | false          | step: current data is invalid |
+          // | false          | false          | no step: may get stuck*       |
           // | false          | true           | no step: need to wait         |
           // | true           | false          | step: current data is invalid |
           // | true           | true           | step: successful handshake    |
-          val producerCanStep = !producer.valid || consumerReady
+          //
+          // * Consider StmConcat where the first input is not always valid.
+          // Suppose we switch to reading the second input, but the valid expression of the first input evaluates to false.
+          // Then we'll try reading from the first input's producers.
+          // But these may be empty, so we may get stuck.
+          val producerCanStep = consumerReady
           val newData = {
             // CASE 1: Consumer is ready (i.e., reading from producer).
             //         It doesn't matter whether the producer yielded a valid value:
