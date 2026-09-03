@@ -131,11 +131,11 @@ object SemanticAnalyzer {
   private def checkDelays(e: Expr): Unit = {
     e match {
       case s: StmBuild =>
-        if (!s.delay.typ.isInstanceOf[TyUInt]) {
+        if (!s.delay.typ.isInstanceOf[TyAnyInt]) {
           assert(
-            s.delay.typ.isInstanceOf[TyUInt] ||
+            s.delay.typ.isInstanceOf[TyAnyInt] ||
               s.delay.typ.isInstanceOf[TyTuple],
-            s"delay should be an unsigned int or (), but found ${s.delay.typ}"
+            s"delay should be an int or (), but found ${s.delay.typ}"
           )
           val name = s.nameAnnotation.getOrElse("(unknown name)")
           throw SemanticError(
@@ -145,11 +145,11 @@ object SemanticAnalyzer {
         }
         for ((x, (_, _, delay)) <- s.producers) {
           assert(
-            delay.typ.isInstanceOf[TyUInt] ||
+            delay.typ.isInstanceOf[TyAnyInt] ||
               delay.typ.isInstanceOf[TyTuple],
             s"delay should be an unsigned int or (), but found ${delay.typ}"
           )
-          if (!delay.typ.isInstanceOf[TyUInt]) {
+          if (!delay.typ.isInstanceOf[TyAnyInt]) {
             val name = s.nameAnnotation.getOrElse("(unknown name)")
             throw SemanticError(
               s"missing delay for producer $x in stream operator $name"

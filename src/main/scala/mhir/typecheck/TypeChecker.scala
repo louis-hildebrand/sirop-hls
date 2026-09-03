@@ -541,7 +541,7 @@ trait TypeChecker {
                 )
               }
               val newDelay =
-                delay.tchk(context, constValues).expectUnsignedOrUnit()
+                delay.tchk(context, constValues).expectIntOrUnit()
               x -> (newZ, newNext, newDelay)
           })
           val newProducers = s.producers.map({ case (x, (s, ready, delay)) =>
@@ -575,11 +575,11 @@ trait TypeChecker {
               )
             }
             val newDelay =
-              delay.tchk(context, constValues).expectUnsignedOrUnit()
+              delay.tchk(context, constValues).expectIntOrUnit()
             x -> (newS, newReady, newDelay)
           })
           val newDelay =
-            s.delay.tchk(context, constValues).expectUnsignedOrUnit()
+            s.delay.tchk(context, constValues).expectIntOrUnit()
           val newNextData = s.nextData.tchk(newContext, constValues)
           val newInitData = s.initData match {
             case Undefined(Missing) =>
@@ -706,12 +706,12 @@ trait TypeChecker {
       }
     }
 
-    def expectUnsignedOrUnit(): Expr = {
+    def expectIntOrUnit(): Expr = {
       this.expr.typ match {
-        case _: TyUInt | TyTuple() => this.expr
+        case _: TyAnyInt | TyTuple() => this.expr
         case t =>
           throw new TypeError(
-            s"Expected an unsigned integer or empty tuple, but found $t."
+            s"Expected an integer or empty tuple, but found $t."
           )
       }
     }

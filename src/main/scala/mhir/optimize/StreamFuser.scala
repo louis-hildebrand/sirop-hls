@@ -2,7 +2,8 @@ package mhir.optimize
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.typecheck.TypeCheck
+import mhir.sugar.{ExprLowering, SafeProd, SafeSum}
+import mhir.typecheck._
 
 /** The stream fusion transformation.
   *
@@ -55,6 +56,54 @@ object StreamFuser {
             }
             s2
           }
+          // Update the delay annotations in the consumer so they're all
+          // relative to the producer's epoch.
+          // In absolute terms, each delay really represents an absolute time
+          //   epoch + delay
+          // and
+          //     consumerEpoch + delay
+          //   = producerEpoch + consumerEpoch - producerEpoch + delay
+          // so we need to add consumerEpoch - producerDelay to each delay
+          // annotation in the consumer.
+          // Remove producer output register, so subtract 1 from the producer
+          // delay.
+          // Then (by the latency matching equation):
+          //     producerEpoch + producerDelay - 1 = consumerEpoch + xDelay
+          // ==> consumerEpoch - producerEpoch = producerDelay - 1 - xDelay
+          // Example:
+          //   if   producerDelay = 1 and xDelay = 0 (common case)
+          //   then consumerEpoch - producerEpoch = 0
+          val deltaDelay = (producer.delay.typ, xDelay.typ) match {
+            case (_: TyAnyInt, _: TyAnyInt) =>
+              Some(
+                SafeSum(
+                  producer.delay,
+                  SafeProd(C(-1)(), xDelay)(),
+                  C(-1)()
+                )().tchk().lower
+              )
+            case (t1, t2) =>
+              assert(
+                t1.isInstanceOf[TyTuple] || t1.isInstanceOf[TyAnyInt],
+                s"wrong type for delay: $t1"
+              )
+              assert(
+                t2.isInstanceOf[TyTuple] || t2.isInstanceOf[TyAnyInt],
+                s"wrong type for delay: $t2"
+              )
+              None
+          }
+          val updateDelay = (e: Expr) =>
+            e.typ match {
+              case _: TyAnyInt =>
+                deltaDelay match {
+                  case None        => e
+                  case Some(delta) => SafeSum(e, delta)().tchk().lower
+                }
+              case TyTuple() => e
+              case typ =>
+                throw new AssertionError(s"wrong type for delay: $typ")
+            }
           val (_, consumerReady, _) = consumer.producers(x)
           // IN CONSUMER
           // | consumer ready | producer valid | result                     |
@@ -106,9 +155,7 @@ object StreamFuser {
                     next.subPreserveType(StmData(x)() -> producer.nextData),
                     y
                   )().tchk()
-                  // TODO: Calculate the new delay properly
-                  val newDelay = delay
-                  y -> (init, newNext, newDelay)
+                  y -> (init, newNext, updateDelay(delay))
                 })
           val newProducers =
             producer.producers
@@ -117,14 +164,12 @@ object StreamFuser {
               }) ++
               (consumer.producers - x)
                 .map({ case (y, (stm, ready, delay)) =>
-                  // TODO: Calculate the new delay properly
-                  val newDelay = delay
+                  val newDelay = updateDelay(delay)
                   y -> (stm, (consumerCanStep && ready).tchk(), newDelay)
                 })
           StmBuild(
             consumer.n,
-            // TODO: Calculate the new delay properly
-            consumer.delay,
+            updateDelay(consumer.delay),
             consumer.initData,
             newData,
             newValid,

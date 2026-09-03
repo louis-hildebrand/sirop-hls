@@ -540,14 +540,14 @@ class TypecheckerTests extends AnyFunSuite {
       val s2 = Param("s2")(TyStm(U8, -1))
       val zipped = StmBuild(
         n,
-        Tuple()(),
+        C(-1)(),
         Undefined(Missing),
         Tuple(StmData(s1)(), StmData(s2)())(),
         True,
         Map(),
         Map[Param, (Expr, Expr, Expr)](
-          s1 -> (x, True, Tuple()()),
-          s2 -> (x, True, Tuple()())
+          s1 -> (x, True, C(-2)()),
+          s2 -> (x, True, C(-2)())
         )
       )()
       LetStm(1, x, s, zipped)()
@@ -843,7 +843,7 @@ class TypecheckerTests extends AnyFunSuite {
       True,
       Map(),
       Map(
-        p -> (p, True, C(-1)(I8))
+        p -> (p, True, True)
       )
     )()
     assertThrows[TypeError](e.tchk())

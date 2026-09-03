@@ -505,4 +505,126 @@ class StreamFusionTests extends AnyFunSuite {
       assert(in2UsedDirectly)
     }
   }
+
+  test("NoHandshake") {
+    def foo(s1: Expr, s2: Expr): StmBuild = {
+      val TyStm(elemTyp, IntCst(n)) = s1.typ
+      require(n >= 3)
+      val p1 = Param("p1")(TyStm(elemTyp, -1))
+      val p2 = Param("p2")(TyStm(elemTyp, -1))
+      val i = Param("i")(U8)
+      StmBuild(
+        C(n - 3)(),
+        C(4)(),
+        Undefined(Missing),
+        Tuple(i, StmData(p1)(), StmData(p2)())(),
+        True,
+        Map(
+          i -> (C(0)(i.typ), Sum(C(1)(i.typ), i)(), C(3)())
+        ),
+        Map(
+          p1 -> (s1, True, C(0)()),
+          p2 -> (s2, True, C(2)())
+        )
+      )().tchk().asInstanceOf[StmBuild]
+    }
+    def delayBy(s: StmLiteral, k: Int): StmLiteral = {
+      val TyStm(elemTyp, _) = s.typ
+      StmLiteral(
+        (0 until k).map(_ => Undefined(elemTyp)) ++ s.physical,
+        s.logical
+      )(Missing).tchk().asInstanceOf[StmLiteral]
+    }
+    val n = 10
+    val s1 = Param("s1")(TyStm(U8, n))
+    val s2 = Param("s2")(TyStm(U8, n))
+    val s3 = Param("s3")(TyStm(U8, n))
+    val s4 = Param("s4")(TyStm(U8, n))
+    val original = foo(foo(s1, s2), foo(s3, s4))
+    val Seq(p1, p2) = original.producers.keys.toSeq.sortBy(_.name)
+    val inputs = Map(
+      s1 -> StmLiteral(
+        Seq(),
+        (0 until n).map(C(_)(U8))
+      )(Missing).tchk().asInstanceOf[StmLiteral],
+      s2 -> StmLiteral(
+        (0 until 2).map(_ => Undefined(U8)),
+        (0 until n).map(t => t * t).map(C(_)(U8))
+      )(Missing).tchk().asInstanceOf[StmLiteral],
+      s3 -> StmLiteral(
+        (0 until 2).map(_ => Undefined(U8)),
+        (0 until n).map(42 - _).map(C(_)(U8))
+      )(Missing).tchk().asInstanceOf[StmLiteral],
+      s4 -> StmLiteral(
+        (0 until 4).map(_ => Undefined(U8)),
+        (0 until n).map(t => t * (t + 1)).map(C(_)(U8))
+      )(Missing).tchk().asInstanceOf[StmLiteral]
+    )
+
+    // Check that it works as expected in the first place
+    val expected = StmLiteral(
+      Seq(),
+      //          s1: [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9]s
+      //          s2: [ 0,  1,  4,  9, 16, 25, 36, 49, 64, 81]s
+      // foo(s1, s2): [(1, 3, 1), (2, 4, 4), (3, 5, 9), (4, 6, 16), (5, 7, 25), (6, 8, 36), (7, 9, 49)]s
+      //          s3: [42, 41, 40, 39, 38, 37, 36, 35, 34, 33]s
+      //          s4: [ 0,  2,  6, 12, 20, 30, 42, 56, 72, 90]s
+      // foo(s3, s4): [(1, 39, 2), (2, 38, 6), (3, 37, 12), (4, 36, 20), (5, 35, 30), (6, 34, 42), (7, 33, 56)]s
+      //      output: [(1, (4, 6, 16), (2, 38, 6)), (2, (5, 7, 25), (3, 37, 12)), (3, (6, 8, 36), (4, 36, 20)), (4, (7, 9, 49), (5, 35, 30))]s
+      Seq(
+        (1, (4, 6, 16), (2, 38, 6)),
+        (2, (5, 7, 25), (3, 37, 12)),
+        (3, (6, 8, 36), (4, 36, 20)),
+        (4, (7, 9, 49), (5, 35, 30))
+      ).map({ case (a, (b1, b2, b3), (c1, c2, c3)) =>
+        Tuple(
+          C(a)(U8),
+          Tuple(C(b1)(U8), C(b2)(U8), C(b3)(U8))(),
+          Tuple(C(c1)(U8), C(c2)(U8), C(c3)(U8))()
+        )()
+      })
+    )(Missing).tchk()
+
+    {
+      val actual = mhir.eval.eval(original, handshake = false, inputs = inputs)
+      assert(actual.dropPhysicalPrefix == expected)
+    }
+
+    // Check that it works as expected after fusion with p1
+    {
+      val fused = original.fuseWith(p1)
+      // Need to increase delay in s1 and s2 to compensate for stage removed by fusion
+      val updatedInputs = Map(
+        s1 -> delayBy(inputs(s1), 1),
+        s2 -> delayBy(inputs(s2), 1),
+        s3 -> inputs(s3),
+        s4 -> inputs(s4)
+      )
+      val actual =
+        mhir.eval.eval(fused, handshake = false, inputs = updatedInputs)
+      assert(actual.dropPhysicalPrefix == expected)
+    }
+
+    // Check that it works as expected after fusion with p2
+    {
+      val fused = original.fuseWith(p2)
+      // Need to increase delay in s3 and s4 to compensate for stage removed by fusion
+      val updatedInputs = Map(
+        s1 -> inputs(s1),
+        s2 -> inputs(s2),
+        s3 -> delayBy(inputs(s3), 1),
+        s4 -> delayBy(inputs(s4), 1)
+      )
+      val actual =
+        mhir.eval.eval(fused, handshake = false, inputs = updatedInputs)
+      assert(actual.dropPhysicalPrefix == expected)
+    }
+
+    // Check that it works as expected after fusion with p1 and p2
+    {
+      val fused = original.fuseWith(p1).fuseWith(p2)
+      val actual = mhir.eval.eval(fused, handshake = false, inputs = inputs)
+      assert(actual.dropPhysicalPrefix == expected)
+    }
+  }
 }
