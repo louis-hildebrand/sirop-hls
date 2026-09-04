@@ -53,27 +53,27 @@ object PrefixAnalysis {
     }
   }
 
-  private def findStmBuildPrefixPattern(
+  def evalBeforeTime(
+      e: Expr,
       s: StmBuild,
-      producerPatterns: Map[Param, Expr]
+      producerPatterns: Map[Param, Expr],
+      timeLimit: Expr
   ): Expr = {
-    // TODO: speed this up by returning early if initData is undefined?
     val producerSubs = producerPatterns
       .map({
         case (x, u: Undefined) => x -> u
         case (x, e) =>
-          val outDelay = s.delay
           val (_, _, xDelay) = s.producers(x)
           // Can we assume sdata(x) will match the prefix pattern for x?
           // It depends on the output and producer delay annotations.
           // For example, in StmDrop, some of the elements in the physical
           // prefix will come from the logical part of the input sequence, so
           // we can't use the prefix pattern there.
-          val canUsePrefix = (outDelay.typ, xDelay.typ) match {
+          val canUsePrefix = (timeLimit.typ, xDelay.typ) match {
             case (_: TyAnyInt, _: TyAnyInt) =>
               PartialEvalPass
                 .isSmallerOrEqual(
-                  outDelay,
+                  timeLimit,
                   SafeSum(xDelay, C(1)())().tchk().lower
                 )()
                 .getOrElse(false)
@@ -88,16 +88,15 @@ object PrefixAnalysis {
       .map({ case (x, e) => StmData(x)().tchk() -> e })
     val accumulatorSubs = s.accumulators
       .map({ case (x, (init, _, xDelay)) =>
-        val outDelay = s.delay
         // Can we assume x will equal init when calculating nextData?
         // Only if the delay annotation for this accumulator is greater than
         // or equal to the output delay annotation.
         // Otherwise, the accumulator will be allowed to update itself, and
         // more work would be required to prove that its value remains stable.
-        val canUseInit = (outDelay.typ, xDelay.typ) match {
+        val canUseInit = (timeLimit.typ, xDelay.typ) match {
           case (_: TyAnyInt, _: TyAnyInt) =>
             PartialEvalPass
-              .isSmallerOrEqual(outDelay, xDelay)()
+              .isSmallerOrEqual(timeLimit, xDelay)()
               .getOrElse(false)
           case _ => false
         }
@@ -108,8 +107,17 @@ object PrefixAnalysis {
         }
       })
     val subs = accumulatorSubs ++ producerSubs
+    mhir.eval.eval(e.subPreserveType(subs))
+  }
+
+  private def findStmBuildPrefixPattern(
+      s: StmBuild,
+      producerPatterns: Map[Param, Expr]
+  ): Expr = {
+    // TODO: speed this up by returning early if initData is undefined?
     val initData = mhir.eval.eval(s.initData)
-    val nextData = mhir.eval.eval(s.nextData.subPreserveType(subs))
+    val nextData =
+      this.evalBeforeTime(s.nextData, s, producerPatterns, timeLimit = s.delay)
     intersectPatterns(initData, nextData)
   }
 
