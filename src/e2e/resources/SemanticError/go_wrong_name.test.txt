@@ -1,1 +1,0 @@
-SemanticError: invalid value for annotation 'go': 'my_go'. Expected the name of one of the accelerator inputs (e.g., 's').

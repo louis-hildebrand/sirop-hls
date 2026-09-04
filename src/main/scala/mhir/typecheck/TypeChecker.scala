@@ -824,6 +824,18 @@ trait TypeChecker {
       TypeCheckProgram(prog1).checkOthers()
     }
 
+    def typecheckAnnotations()(implicit c: Canonicalizer): Program = {
+      val (inputSeq, _) =
+        TypeChecker.unwrapTopLevelFunction(this.prog.accel.body)
+      val inputs = inputSeq.toSet
+      this.prog.copy(accel =
+        this.prog.accel.copy(
+          annotations = checkAccelAnnotations(inputs),
+          annotationsByParam = checkAccelAnnotationsByParam(inputs)
+        )
+      )
+    }
+
     private def checkAndEvalConstants()(implicit c: Canonicalizer): Program = {
       // Type checking and evaluating constants need to be interleaved because
       // type checking an expression may depend on the value of previous
@@ -893,6 +905,80 @@ trait TypeChecker {
               )
           })
       Program(this.prog.constants, newAccel, newTestSuite)
+    }
+
+    private def checkAccelAnnotations(inputs: Set[Param]): Map[String, Expr] = {
+      val newGo = prog.go.map({ go =>
+        inputs.find(_ == go) match {
+          case Some(goWithTyp) =>
+            // Ensure the type annotation is correct in prog.go
+            assert(
+              goWithTyp.hasType,
+              s"missing type annotation for input $goWithTyp"
+            )
+            goWithTyp.typ match {
+              case TyStm(TyBool, _) => ()
+              case typ =>
+                throw new TypeError(
+                  "invalid value for annotation 'go'."
+                    + s" Expected the name of a stream of booleans, but found $typ."
+                )
+            }
+            goWithTyp
+          case None =>
+            val availableInputs = if (inputs.isEmpty) {
+              ""
+            } else {
+              inputs.map(x => s"'$x'").mkString(" (e.g., ", ", ", ")")
+            }
+            throw NameError(
+              s"invalid value for annotation 'go': '$go'."
+                + s" Expected the name of one of the accelerator inputs$availableInputs."
+            )
+        }
+      })
+      newGo match {
+        case Some(newGo) => prog.accel.annotations + ("go" -> newGo)
+        case None        => prog.accel.annotations
+      }
+    }
+
+    private def checkAccelAnnotationsByParam(
+        inputs: Set[Param]
+    )(implicit c: Canonicalizer): Map[(String, Param), Expr] = {
+      prog.accel.annotationsByParam.map({
+        case ((key @ "head", x), v) =>
+          inputs.find(_ == x) match {
+            case Some(xWithType) =>
+              // Ensure the type annotation is correct
+              val elemTyp = xWithType.typ match {
+                case TyStm(TyData(t), _) => t
+                case typ =>
+                  throw new TypeError(
+                    s"invalid type for accelerator input: $typ"
+                  )
+              }
+              val vWithTyp = v match {
+                case Undefined(Missing) => Undefined(elemTyp)
+                case v =>
+                  val vWithTyp = v.tchk()
+                  val vTyp = vWithTyp.typ
+                  if (vTyp != elemTyp) {
+                    throw new TypeError(
+                      s"expected $elemTyp but found $vTyp in annotation '$key($x)'"
+                    )
+                  }
+                  vWithTyp
+              }
+              (key, xWithType) -> vWithTyp
+            case None =>
+              throw NameError(
+                s"unknown input '$x' (in annotation key '$key($x)')"
+              )
+          }
+        case ((key, _), _) =>
+          throw new NotImplementedError(s"unknown key '$key'")
+      })
     }
   }
 }

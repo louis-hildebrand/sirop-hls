@@ -157,15 +157,20 @@ private object VhdlExprGenerator {
 
   private def makeUndefined(typ: Type): String = {
     typ match {
-      case _: TyAnyInt => "(others => 'X')"
-      case _: TyFix    => "(others => 'X')"
-      case TyBool      => "false"
-      case TyTuple()   => "\"\""
+      case TyAnyInt(w) =>
+        (0 until w).map(_ => "X").mkString("\"", "", "\"")
+      case TyFix(uint, _) => makeUndefined(uint)
+      case TyBool         => "false"
+      case TyTuple()      => "\"\""
       case TyTuple(ts @ _*) =>
         ts.zipWithIndex
           .map({ case (t, i) => s"i_$i => ${makeUndefined(t)}" })
           .mkString("(", ", ", ")")
-      case TyVec(t, _) => s"(others => ${makeUndefined(t)})"
+      case TyVec(t, _) =>
+        // TODO: this might cause problems in certain cases (e.g., testbench
+        //       generator doing something like "..." & (others => "X") is not
+        //       allowed)
+        s"(others => ${makeUndefined(t)})"
       case Missing | _: TyStm | _: TyArrow =>
         throw new TypeError(
           s"Cannot generate undefined value for type $typ."

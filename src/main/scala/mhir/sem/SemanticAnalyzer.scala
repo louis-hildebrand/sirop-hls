@@ -2,7 +2,7 @@ package mhir.sem
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
-import mhir.typecheck.{NameError, TypeChecker}
+import mhir.typecheck.TypeChecker
 
 object SemanticAnalyzer {
 
@@ -13,7 +13,7 @@ object SemanticAnalyzer {
     *
     * This check can be run before lowering.
     */
-  def checkNames(prog: Program): Program = {
+  def checkNames(prog: Program): Unit = {
     val (inputs, _) = TypeChecker.unwrapTopLevelFunction(prog.body)
 
     val duplicateInputs =
@@ -31,46 +31,6 @@ object SemanticAnalyzer {
       case Some(name) if inputs.exists(x => x.name == name) =>
         throw SemanticError(s"output name '$name' is already used for an input")
       case _ => ()
-    }
-
-    for (((key, x), _) <- prog.accel.annotationsByParam) {
-      if (!inputs.contains(x)) {
-        throw NameError(
-          s"unknown input '$x' (in annotation key '$key($x)')"
-        )
-      }
-    }
-
-    prog.go match {
-      case Some(go) =>
-        inputs.find(_ == go) match {
-          case Some(go) =>
-            // Ensure the type annotation is correct in prog.go
-            go.typ match {
-              case TyStm(TyBool, _) =>
-                prog.copy(accel =
-                  prog.accel.copy(annotations =
-                    prog.accel.annotations + ("go" -> go)
-                  )
-                )
-              case typ =>
-                throw SemanticError(
-                  "invalid value for annotation 'go'."
-                    + s" Expected the name of a stream of booleans, but found $typ."
-                )
-            }
-          case None =>
-            val availableInputs = if (inputs.isEmpty) {
-              ""
-            } else {
-              inputs.map(x => s"'$x'").mkString(" (e.g., ", ", ", ")")
-            }
-            throw SemanticError(
-              s"invalid value for annotation 'go': '$go'."
-                + s" Expected the name of one of the accelerator inputs$availableInputs."
-            )
-        }
-      case None => prog
     }
   }
 

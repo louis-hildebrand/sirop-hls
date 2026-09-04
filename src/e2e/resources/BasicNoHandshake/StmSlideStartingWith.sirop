@@ -1,12 +1,16 @@
 const N: u32 = 8
 const W: u32 = 3
 
-accelerator[no_handshake, head(s)=0:u8]
-slide = (s: Stm[u8, N]) =>
-    s.StmSlideStartingWith(VecCst(W, 0:u8))
+accelerator[no_handshake, head(s)=(0:u8, undefined:u8)]
+slide = (s: Stm[(u8, u8), N]) =>
+    s
+    .StmMap( @(x, y) => x, 0:u8)
+    .StmSlideStartingWith(VecCst(W, 0:u8))
+
+const u: u8 = undefined:u8
 
 assert {
-    s = []s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8, 8:u8]s
+    s = []s ++ [(1:u8, u), (2:u8, u), (3:u8, u), (4:u8, u), (5:u8, u), (6:u8, u), (7:u8, u), (8:u8, u)]s
 }
 yields [
     [0:u8, 0:u8, 1:u8]v,
@@ -20,7 +24,7 @@ yields [
 ]s
 
 assert {
-    s = [0:u8]s ++ [9:u8, 8:u8, 7:u8, 6:u8, 5:u8, 4:u8, 3:u8, 2:u8]s
+    s = [(0:u8, u)]s ++ [(9:u8, u), (8:u8, u), (7:u8, u), (6:u8, u), (5:u8, u), (4:u8, u), (3:u8, u), (2:u8, u)]s
 }
 yields [
     [0:u8, 0:u8, 9:u8]v,

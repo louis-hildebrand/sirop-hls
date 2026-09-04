@@ -3,7 +3,11 @@ package mhir.main.shared
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.debug.{DotPrinter, Tracer}
-import mhir.delay.{DiscardAccumulatorDelays, ReplaceAccumulatorDelaysWithGo}
+import mhir.delay.{
+  DiscardAccumulatorDelays,
+  DiscardAccumulatorDelaysUsingPrefixAnalysis,
+  ReplaceAccumulatorDelaysWithGo
+}
 import mhir.eval.{Evaluator, TestError, TestRunner}
 import mhir.gen._
 import mhir.gen.vhdl.test._
@@ -83,9 +87,9 @@ object Compiler {
       vhdl3
     }
     val options = originalOptions.copy(vhdl = vhdlOptions)
-    val (typeChecked, tchkTime) = typecheck(prog)
-    val checked = time("semantic analysis (only names)", Level.DEBUG) {
-      SemanticAnalyzer.checkNames(typeChecked)
+    val (checked, tchkTime) = typecheck(prog)
+    time("semantic analysis (only names)", Level.DEBUG) {
+      SemanticAnalyzer.checkNames(checked)
     }
     val (lowered, lowerTime) = lower(checked)
     val (synthesizable, synthTime) = makeSynthesizable(lowered)
@@ -303,11 +307,22 @@ object Compiler {
     time2("making expression synthesizable", Level.DEBUG) {
       val e1 = inlineFunCalls(prog.body)
       val e2 = e1.streamify
-      val e3 = if (prog.handshake) {
+      val fullyCheckedProg = prog
+        .copy(accel = prog.accel.copy(body = e2))
+        // Run this after streamification because that may change the types of
+        // the accelerator inputs
+        .typecheckAnnotations()
+      val e3 = if (fullyCheckedProg.handshake) {
         // TODO: should I emit a warning that accumulator delays will be ignored?
         DiscardAccumulatorDelays.apply(e2)
       } else {
-        new ReplaceAccumulatorDelaysWithGo(prog.go).apply(e2)
+        val e2_1 = DiscardAccumulatorDelaysUsingPrefixAnalysis.apply(
+          e2,
+          fullyCheckedProg.headByParam
+        )
+        val go = fullyCheckedProg.go
+        val e2_2 = new ReplaceAccumulatorDelaysWithGo(go).apply(e2_1)
+        e2_2
       }
       val e4 = {
         // This needs to happen after accumulator delay removal, since that
@@ -315,7 +330,7 @@ object Compiler {
         insertLetForTopLevelInputs(e3)
       }
       val e5 = uncurryBody(e4)
-      prog.copy(accel = prog.accel.copy(body = e5))
+      fullyCheckedProg.copy(accel = fullyCheckedProg.accel.copy(body = e5))
     }
   }
 
