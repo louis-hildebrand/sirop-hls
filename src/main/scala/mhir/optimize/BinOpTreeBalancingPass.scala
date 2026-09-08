@@ -56,7 +56,7 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
   private def doBalance(e: Expr): Expr = {
     val typedE = e.tchk()
     val result = typedE match {
-      case s @ Sum(_, _) => s
+      case s @ Sum(_, _) => s.map(doBalance)
       case Sum(terms @ _*) =>
         val nLeft = this.nLeft(terms.length)
         val (negTermsWithMinus, posTerms) = terms.partition({
@@ -93,40 +93,39 @@ object EnabledBinOpTreeBalancingPass extends BinOpTreeBalancingPass {
           )
         }
         Sum(lhs, rhs)()
-      case p @ Prod(_, _) => p
+      case p @ Prod(_, _) => p.map(doBalance)
       case Prod(factors @ _*) =>
         val (lhsFactors, rhsFactors) =
           factors.splitAt(this.nLeft(factors.length))
         val lhs = doBalance(MaybeProd(lhsFactors: _*)())
         val rhs = doBalance(MaybeProd(rhsFactors: _*)())
         Prod(lhs, rhs)()
-      case s @ WrappingSum(_, _) => s
+      case s @ WrappingSum(_, _) => s.map(doBalance)
       case WrappingSum(terms @ _*) =>
         val (lhsTerms, rhsTerms) = terms.splitAt(this.nLeft(terms.length))
         val lhs = doBalance(MaybeWrappingSum(lhsTerms: _*)())
         val rhs = doBalance(MaybeWrappingSum(rhsTerms: _*)())
         WrappingSum(lhs, rhs)()
-      case p @ WrappingProd(_, _) => p
+      case p @ WrappingProd(_, _) => p.map(doBalance)
       case WrappingProd(factors @ _*) =>
         val (lhsFactors, rhsFactors) =
           factors.splitAt(this.nLeft(factors.length))
         val lhs = doBalance(MaybeWrappingProd(lhsFactors: _*)())
         val rhs = doBalance(MaybeWrappingProd(rhsFactors: _*)())
         WrappingProd(lhs, rhs)()
-      case a @ And(_, _) => a
+      case a @ And(_, _) => a.map(doBalance)
       case And(terms @ _*) =>
         val (lhsTerms, rhsTerms) = terms.splitAt(this.nLeft(terms.length))
         val lhs = doBalance(MaybeAnd(lhsTerms: _*)())
         val rhs = doBalance(MaybeAnd(rhsTerms: _*)())
         And(lhs, rhs)()
-      case o @ Or(_, _) => o
+      case o @ Or(_, _) => o.map(doBalance)
       case Or(terms @ _*) =>
         val (lhsTerms, rhsTerms) = terms.splitAt(this.nLeft(terms.length))
         val lhs = doBalance(MaybeOr(lhsTerms: _*)())
         val rhs = doBalance(MaybeOr(rhsTerms: _*)())
         Or(lhs, rhs)()
-      case _ =>
-        e.map(doBalance)
+      case _ => e.map(doBalance)
     }
     val typedResult = result.tchk()
     assert(typedResult.typ ~= typedE.typ)

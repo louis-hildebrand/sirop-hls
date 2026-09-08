@@ -68,7 +68,6 @@ class Optimizer(
       fix(s2, i = 0)
     }
 
-    // TODO: pass in the head provided by the programmer for each input stream
     val s4 = latencyMatcher.matchLatencies(s3, headByVar = headByParam)
 
     val s5 = unusedDataRemover.removeUnusedData(s4)
@@ -84,15 +83,15 @@ class Optimizer(
 
     val s8 = binOpBalancer.balance(s7)
 
-    val delayCost = delay.cost(s8)
+    val delayCost = delay.rawCost(s8)
+    val delayCostPercent =
+      100 * (delayCost / delay.FullCycleDelay.toDouble)
     logger.debug(
-      s"final combinational delay cost: $delayCost (max ${delay.FullCycleDelay})"
+      f"final combinational delay cost: $delayCostPercent%.0f%% of maximum"
     )
     if (delayCost > delay.FullCycleDelay) {
-      val percent =
-        100 * (delayCost / delay.FullCycleDelay.toDouble)
       logger.warn(
-        f"combinational delay cost is $percent%.0f%% of maximum."
+        f"combinational delay cost is $delayCostPercent%.0f%% of maximum."
           + " Design may not meet timing requirements."
       )
     }
