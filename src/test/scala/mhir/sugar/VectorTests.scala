@@ -666,20 +666,20 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("VecPrefix:Vec[Int]") {
+  test("VecTake:Vec[Int]") {
     val v = VecBuild(3, U32 ::+ (i => i))()
-    assert(mhir.eval.eval(VecPrefix(v, 0)()) == VecLiteral()())
-    assert(mhir.eval.eval(VecPrefix(v, 1)()) == VecLiteral(0)())
-    assert(mhir.eval.eval(VecPrefix(v, 2)()) == VecLiteral(0, 1)())
-    assert(mhir.eval.eval(VecPrefix(v, 3)()) == VecLiteral(0, 1, 2)())
+    assert(mhir.eval.eval(VecTake(v, 0)()) == VecLiteral()())
+    assert(mhir.eval.eval(VecTake(v, 1)()) == VecLiteral(0)())
+    assert(mhir.eval.eval(VecTake(v, 2)()) == VecLiteral(0, 1)())
+    assert(mhir.eval.eval(VecTake(v, 3)()) == VecLiteral(0, 1, 2)())
   }
 
-  test("VecPrefix:Vec[Stm[Int]]") {
+  test("VecTake:Vec[Stm[Int]]") {
     val n = 5
     val m = 3
     val k = Param("k")(U32)
     val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))()
-    val e = VecPrefix(vs, k)().tchk().lower
+    val e = VecTake(vs, k)().tchk().lower
     for (kVal <- 1 to n) {
       val expected = StmLiteral(
         (0 until m).map(t =>
@@ -691,24 +691,24 @@ class VectorTests extends AnyFunSuite {
     }
   }
 
-  test("VecSuffix:Vec[Int]") {
+  test("VecDrop:Vec[Int]") {
     val v = VecBuild(3, U32 ::+ (i => i))()
-    assert(mhir.eval.eval(VecSuffix(v, 0)().tchk()) == VecLiteral()())
-    assert(mhir.eval.eval(VecSuffix(v, 1)().tchk()) == VecLiteral(2)())
-    assert(mhir.eval.eval(VecSuffix(v, 2)().tchk()) == VecLiteral(1, 2)())
-    assert(mhir.eval.eval(VecSuffix(v, 3)().tchk()) == VecLiteral(0, 1, 2)())
+    assert(mhir.eval.eval(VecDrop(v, 3)().tchk()) == VecLiteral()())
+    assert(mhir.eval.eval(VecDrop(v, 2)().tchk()) == VecLiteral(2)())
+    assert(mhir.eval.eval(VecDrop(v, 1)().tchk()) == VecLiteral(1, 2)())
+    assert(mhir.eval.eval(VecDrop(v, 0)().tchk()) == VecLiteral(0, 1, 2)())
   }
 
-  test("VecSuffix:Vec[Stm[Int]]") {
+  test("VecDrop:Vec[Stm[Int]]") {
     val n = 5
     val m = 3
     val k = Param("k")(U32)
     val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))()
-    val e = VecSuffix(vs, k)().tchk().lower
+    val e = VecDrop(vs, k)().tchk().lower
     for (kVal <- 1 to n) {
       val expected = StmLiteral(
         (0 until m).map(t =>
-          VecLiteral((n - kVal until n).map(i => IntCst((1 + t) * i)()): _*)()
+          VecLiteral((kVal until n).map(i => IntCst((1 + t) * i)()): _*)()
         ): _*
       )()
       val actual = mhir.eval.eval(e.subPreserveType(k -> C(kVal)(U32)))

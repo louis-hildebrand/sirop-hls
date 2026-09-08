@@ -1564,19 +1564,18 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
         val s = Param("s")(TyStm(TyVec(t, C(m)()), -1))
         val data = if (shiftAmount.i >= m) {
           // All output data comes from the buffer
-          VecPrefix(buf, C(m)())().tchk()
+          VecTake(buf, C(m)())().tchk()
         } else {
           // Some output data comes directly from the input stream
-          VecConcat(buf, VecPrefix(StmData(s)(), C(m - shiftAmount.i)())())()
+          VecConcat(buf, VecTake(StmData(s)(), C(m - shiftAmount.i)())())()
             .tchk()
         }
         val bufNext = if (shiftAmount.i >= m) {
           // All input data goes into the buffer
-          VecConcat(VecSuffix(buf, C(shiftAmount.i - m)())(), StmData(s)())()
-            .tchk()
+          VecConcat(VecDrop(buf, C(m)())(), StmData(s)())().tchk()
         } else {
           // Some input data doesn't go into the buffer
-          VecSuffix(StmData(s)(), shiftAmount)().tchk()
+          VecDrop(StmData(s)(), C(m - shiftAmount.i)())().tchk()
         }
         StmBuild(
           n,

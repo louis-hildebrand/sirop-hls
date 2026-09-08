@@ -668,15 +668,14 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   }
 }
 
-@deprecated("TODO: rename this to VecTake")
-case class VecPrefix(
+case class VecTake(
     vec: Expr /* Vec<A; n> */,
     k: Expr /* Int */
 )(typ: Type = Missing)
     extends ResolvedSyntaxSugar(vec, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecPrefix = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecTake = {
     newChildren match {
-      case Seq(v, k) => VecPrefix(v, k)(typ)
+      case Seq(v, k) => VecTake(v, k)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -684,7 +683,7 @@ case class VecPrefix(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): VecPrefix = {
+  )(implicit c: Canonicalizer): VecTake = {
     val newK = k.tchk(context, constValues).expectUInt()
     val newV = vec.tchk(context, constValues)
     newV.typ match {
@@ -692,7 +691,7 @@ case class VecPrefix(
         this.rebuild(TyVec(t, newK), Seq(newV, newK))
       case t =>
         throw new TypeError(
-          s"Argument of ${VecPrefix.getClass.getSimpleName} has type $t. Expected a vector."
+          s"Argument of ${VecTake.getClass.getSimpleName} has type $t. Expected a vector."
         )
     }
   }
@@ -702,15 +701,14 @@ case class VecPrefix(
   }
 }
 
-@deprecated("TODO: replace this with VecDrop")
-case class VecSuffix(
+case class VecDrop(
     vec: Expr /* Vec<A; n> */,
     k: Expr /* Int */
 )(typ: Type = Missing) /* Vec<A; k> */
     extends ResolvedSyntaxSugar(vec, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecSuffix = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecDrop = {
     newChildren match {
-      case Seq(v, k) => VecSuffix(v, k)(typ)
+      case Seq(v, k) => VecDrop(v, k)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -718,25 +716,27 @@ case class VecSuffix(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): VecSuffix = {
+  )(implicit c: Canonicalizer): VecDrop = {
     val newK = k.tchk(context, constValues).expectUInt()
     val newV = vec.tchk(context, constValues)
     newV.typ match {
-      case TyVec(t, _) =>
-        this.rebuild(TyVec(t, k), Seq(newV, newK))
+      case TyVec(t, n) =>
+        val newLen = SmartDiff(n, newK)().tchk()
+        this.rebuild(TyVec(t, newLen), Seq(newV, newK))
       case t =>
         throw new TypeError(
-          s"Argument of ${VecSuffix.getClass.getSimpleName} has type $t. Expected a vector."
+          s"Argument of $className has type $t. Expected a vector."
         )
     }
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    val n = vec.typ.asInstanceOf[TyVec].n
-    val i0 = ToUnsigned(n - k)()
-    VecBuild(k, U32 ::+ (i => VecAccess(vec, i0 + i)()))()
-      .tchk()
-      .lower
+    requireType()
+    val v = this.vec.lower
+    val k = this.k.lower
+    val TyVec(_, n) = this.vec.typ
+    val newLen = SmartDiff(n, k)().tchk().lower
+    VecBuild(newLen, U32 ::+ (i => VecAccess(vec, k + i)()))().tchk().lower
   }
 }
 
@@ -835,7 +835,7 @@ case class VecShiftRight(
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val n = vec.typ.asInstanceOf[TyVec].n
-    VecPrepend(VecPrefix(vec, ToUnsigned(n - 1)())(), e)().tchk().lower
+    VecPrepend(VecTake(vec, ToUnsigned(n - 1)())(), e)().tchk().lower
   }
 }
 
@@ -889,7 +889,7 @@ case class VecShiftRightGarbage(vec: Expr, shiftAmount: IntCst)(
     val TyVec(t, n) = this.vec.typ
     VecConcat(
       Undefined(TyVec(t, this.shiftAmount)),
-      VecPrefix(
+      VecTake(
         this.vec,
         ToUnsigned(SafeSum(n, C(-this.shiftAmount.i)())())()
       )()

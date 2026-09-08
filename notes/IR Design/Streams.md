@@ -225,7 +225,7 @@ StmMap(a, (rowA: Stm[Int, 4]) => StmMap(b, (rowB: Stm[Int, 4]) => StmZip(rowA, r
                 - `VecFold`, `VecScan`: I don't think these make sense for vectors of streams, since in general it would
                   involve reading one stream before the other (i.e., not in lockstep).
                 - `Vec2Stm`: first lower input to `Stm[Vec[Int]]`, then defer to `StmMap(Vec2Stm)`
-                - `VecPrefix`, `VecSuffix`, `VecJoin`, `VecSplit`, `VecReverse`, `VecRepeat`: work out of the box due to
+                - `VecTake`, `VecSuffix`, `VecJoin`, `VecSplit`, `VecReverse`, `VecRepeat`: work out of the box due to
                   new semantics of `VecBuild`, `VecAccess`!
             - ==TODO:== Can we perhaps do similar things for a `Mux` or a `Tuple` containing streams?
             - Stream ops: unaffected, right?
@@ -288,22 +288,28 @@ StmMap(a, (rowA: Stm[Int, 4]) => StmMap(b, (rowB: Stm[Int, 4]) => StmZip(rowA, r
                        )
                        ```
         - *Example:* `StmMap(svs, vs -> VecMap(vs, s -> StmMap(s, +42)))`
-          - Types:
-          - `svs : Stm[Vec[Stm[Int; k]; m]; n]`
-          - `vs : Vec[Stm[Int; k]; m]`
-          - `s : Stm[Int; k]`
-          - Lowering steps:
-          1. Lower inner `StmMap`
-          - *Result:* `StmBuild(k, Some(StmData(s) + 42), s : (s, true))`
-          2. Lower `VecMap`
-          - `vs` will actually have type `Stm[Vec[Int; m]; k]` and the function will actually return
-          `Stm[Vec[Int; m]; k]`
-          - Usual conversion to `VecBuild`: `VecBuild(m, i -> StmBuild(k, Some(StmData(s) + 42), s : (vs[i], true)))`
-          - After applying `VecBuild` lowering rules:
-          `StmBuild(k, Some(VecBuild(m, i -> VecAccess(StmData(s), i) + 42)), s : (vs, true))`
-          3. Lower outer `StmMap` as usual
-          - Should get something like this (after removing counters):
-          `StmBuild(n * k, Some(VecBuild(m, i -> VecAccess(StmData(s), i) + 42)), s : (svs, true))`
+            - Types:
+            - `svs : Stm[Vec[Stm[Int; k]; m]; n]`
+            - `vs : Vec[Stm[Int; k]; m]`
+            - `s : Stm[Int; k]`
+            - Lowering steps:
+
+            1. Lower inner `StmMap`
+
+            - *Result:* `StmBuild(k, Some(StmData(s) + 42), s : (s, true))`
+
+            2. Lower `VecMap`
+
+            - `vs` will actually have type `Stm[Vec[Int; m]; k]` and the function will actually return
+              `Stm[Vec[Int; m]; k]`
+            - Usual conversion to `VecBuild`: `VecBuild(m, i -> StmBuild(k, Some(StmData(s) + 42), s : (vs[i], true)))`
+            - After applying `VecBuild` lowering rules:
+              `StmBuild(k, Some(VecBuild(m, i -> VecAccess(StmData(s), i) + 42)), s : (vs, true))`
+
+            3. Lower outer `StmMap` as usual
+
+            - Should get something like this (after removing counters):
+              `StmBuild(n * k, Some(VecBuild(m, i -> VecAccess(StmData(s), i) + 42)), s : (svs, true))`
         - *Example:* `StmMap(svvs, vvs -> VecMap(vvs, vs -> VecMap(vs, s -> StmMap(s, f))))`
             - Types:
                 - `svvs : Stm[Vec[Vec[Stm[Int; p]; k]; m]; n]`

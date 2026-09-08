@@ -177,6 +177,16 @@ case class Call(
           case (Seq(), Seq(v)) => VecTranspose(v)()
           case _               => error(f)
         }
+      case f @ Param("VecTake", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(v, k)) => VecTake(v, k)()
+          case _                  => error(f)
+        }
+      case f @ Param("VecDrop", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(v, k)) => VecDrop(v, k)()
+          case _                  => error(f)
+        }
       // Stream operators --------------------------------------------------
       case f @ Param("Stm2Vec", -1) =>
         combinedArgs match {
