@@ -70,7 +70,7 @@ class ParserTests extends AnyFunSuite {
   }
 
   test("undefined:(i16, bool, u8, Vec[u32, 5])") {
-    val src = "undefined[(i16, bool, u8, Vec[u32, 5])]"
+    val src = "undefined:(i16, bool, u8, Vec[u32, 5])"
     val expected = Undefined(TyTuple(I16, TyBool, U8, TyVec(U32, 5)))
     assert(Parser.parse(src).body == expected)
   }

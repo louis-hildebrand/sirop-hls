@@ -266,7 +266,7 @@ class StreamFusionTests extends AnyFunSuite {
           |  (p1: Stm[(u8, u8), 4]) = {
           |    stm: sbuild(4)(data, valid) {
           |      (data: (u8, u8)) = {
-          |        init: undefined[(u8, u8)],
+          |        init: undefined:(u8, u8),
           |        next: (sum, sdata(p))
           |      },
           |      (valid: bool) = {
@@ -293,7 +293,7 @@ class StreamFusionTests extends AnyFunSuite {
           |  (p2: Stm[(u8, u8), 4]) = {
           |    stm: sbuild(4)(data, valid) {
           |      (data: (u8, u8)) = {
-          |        init: undefined[(u8, u8)],
+          |        init: undefined:(u8, u8),
           |        next: (i, sdata(p))
           |      },
           |      (valid: bool) = {

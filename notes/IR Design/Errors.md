@@ -48,7 +48,7 @@
 		- Or maybe replace `VecAccess(v, i)` with `VecAccessOrElse(v, i, e)`; require programmer to provide default value on the spot. Less flexible but maybe simpler to compile and saves one wire
 		- For vector accesses, you should be able to implement this using `VecAccess`! `VecAccessOpt(v, i) = VecAccess(VecMap(v, x => Some(x)), i)` (assuming `Default(Option<T>) = None`)
 - Solution by error case:
-	- `undefined[T]` primitive:
+	- `undefined:T` primitive:
 		- In initial value of stream accumulator: convert it to zeros and log an "INFO" message
 			- This means the evaluator won't warn you if the undefined values are used improperly :(
 			- In Aetherling programs, even the final output has some undefined values! So it seems infeasible to automatically determine whether the undefined value was used correctly
