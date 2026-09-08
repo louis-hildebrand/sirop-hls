@@ -1,6 +1,7 @@
 package mhir.typecheck
 
 import mhir.ir._
+import mhir.sem.SemanticError
 
 import scala.annotation.tailrec
 
@@ -946,7 +947,17 @@ trait TypeChecker {
     private def checkAccelAnnotationsByParam(
         inputs: Set[Param]
     )(implicit c: Canonicalizer): Map[(String, Param), Expr] = {
-      prog.accel.annotationsByParam.map({
+      val annotationsByParam = this.prog.go match {
+        case Some(go) =>
+          prog.accel.annotationsByParam.get(("head", go)) match {
+            case None | Some(False) => ()
+            case Some(head) =>
+              throw SemanticError(s"head($go) must be false, but it is $head")
+          }
+          prog.accel.annotationsByParam + (("head", go) -> False)
+        case None => prog.accel.annotationsByParam
+      }
+      annotationsByParam.map({
         case ((key @ "head", x), v) =>
           inputs.find(_ == x) match {
             case Some(xWithType) =>

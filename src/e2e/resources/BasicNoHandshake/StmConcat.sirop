@@ -1,4 +1,4 @@
-accelerator[no_handshake, go=go, head(b)=undefined, head(go)=false]
+accelerator[no_handshake, go=go, head(b)=undefined]
 top = (a: Stm[i8, 3]) => (b: Stm[i8, 4]) => (go: Stm[bool, 7]) =>
     StmConcat(a, b, -1:i8)
 

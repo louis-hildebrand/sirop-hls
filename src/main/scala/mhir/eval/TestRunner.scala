@@ -48,6 +48,7 @@ object TestRunner {
           handshake = prog.handshake,
           expectedPath = expectedPath,
           actualPath = actualPath,
+          headByParam = prog.headByParam,
           showPhysical = showPhysical
         )
         if (!ok) {
@@ -86,6 +87,7 @@ object TestRunner {
       handshake: Boolean,
       expectedPath: Option[Path],
       actualPath: Option[Path],
+      headByParam: Map[Param, Expr],
       showPhysical: Boolean
   ): Boolean = {
     logger.debug(s"running test $testIdx ... ")
@@ -132,10 +134,39 @@ object TestRunner {
           logError(expectedPath, ex, testIdx, "expected output")
           None
       }
+    for (logicalSeq <- expectedLogical) {
+      if (logicalSeq.exists(_.isInstanceOf[Undefined])) {
+        logger.warn(
+          s"expected output for test $testIdx contains undefined elements that are not ignored"
+        )
+      }
+    }
+    val inputs = a.inputs.map({ case (input, rhs) =>
+      val TyStm(elemTyp, _) = rhs.typ
+      val result = mhir.eval.eval(rhs, handshake = handshake)
+      val head = headByParam
+        .get(input)
+        .map(mhir.eval.eval(_))
+        .getOrElse(Undefined(elemTyp))
+      result match {
+        case StmLiteral(physical, _) =>
+          checkInputPhysicalPrefix(input, physical, head, testIdx)
+        case _ => ()
+      }
+      input -> result
+    })
+    val inputLatencies = inputs.map({
+      case (_, StmLiteral(physical, _)) => physical.length
+      case _                            => 0
+    })
+    if (inputLatencies.toSet.size > 1) {
+      logger.warn(s"test $testIdx: INPUT LATENCY MISMATCH")
+      return false
+    }
     val rawActualOutput =
       try {
         val result =
-          mhir.eval.eval(body, inputs = a.inputs, handshake = handshake)
+          mhir.eval.eval(body, inputs = inputs, handshake = handshake)
         logger.debug(s"raw actual output is $result")
         Some(result)
       } catch {
@@ -224,6 +255,32 @@ object TestRunner {
         )
       case _ =>
         None
+    }
+  }
+
+  private def checkInputPhysicalPrefix(
+      input: Param,
+      physical: Seq[Expr],
+      head: Expr,
+      testIdx: Int
+  ): Unit = {
+    val ok = physical.forall(isConsistentWithHead(_, head))
+    if (!ok) {
+      logger.warn(
+        s"physical prefix of input $input in test case $testIdx is not consistent with annotation head($input)"
+      )
+    }
+  }
+
+  private def isConsistentWithHead(e: Expr, head: Expr): Boolean = {
+    (e, head) match {
+      case (a, b) if a == b  => true
+      case (_, _: Undefined) => true
+      case (Tuple(aElems @ _*), Tuple(bElems @ _*)) =>
+        aElems.zip(bElems).forall({ case (a, b) => isConsistentWithHead(a, b) })
+      case (VecLiteral(aElems @ _*), VecLiteral(bElems @ _*)) =>
+        aElems.zip(bElems).forall({ case (a, b) => isConsistentWithHead(a, b) })
+      case _ => false
     }
   }
 

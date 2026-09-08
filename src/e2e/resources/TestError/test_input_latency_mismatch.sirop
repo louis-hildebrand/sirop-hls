@@ -1,0 +1,15 @@
+accelerator[no_handshake]
+top = (a: Stm[u8, 3]) => (b: Stm[bool, 3]) =>
+    StmZip(a, b)
+
+assert {
+    a = []s ++ [1:u8, 2:u8, 3:u8]s,
+    b = []s ++ [true, false, true]s
+}
+yields [(1:u8, true), (2:u8, false), (3:u8, true)]s
+
+assert {
+    a = [0:u8]s ++ [1:u8, 2:u8, 3:u8]s,
+    b = []s ++ [true, false, true]s
+}
+yields [(1:u8, true), (2:u8, false), (3:u8, true)]s

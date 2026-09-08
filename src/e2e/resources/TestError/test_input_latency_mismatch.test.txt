@@ -1,0 +1,4 @@
+[INFO ] the design has a latency of 1 cycle
+[INFO ] test 0: PASSED
+[WARN ] test 1: INPUT LATENCY MISMATCH
+TestError: 1/2 tests failed.
