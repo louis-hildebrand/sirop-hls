@@ -168,7 +168,7 @@ object Compiler {
                 s" There $isOrAre ${allAssertions.length} $testOrTests in total."
             )
           }
-          val Assertion(inputs, _, _) = allAssertions(testIdx)
+          val Assertion(inputs, _, _, _) = allAssertions(testIdx)
           val trace =
             Tracer.traceAll(
               finalProgram.body,
@@ -270,11 +270,12 @@ object Compiler {
             throw new RuntimeException(
               "constants should have been lowered by now"
             )
-          case Assertion(inputs, expectedOutput, ignore) =>
+          case Assertion(inputs, expectedOutput, ignore, prefixCondition) =>
             Assertion(
               inputs.map({ case (x, e) => x.lowerParam -> e.lower }),
               expectedOutput.lower,
-              ignore.map(_.lower)
+              ignore.map(_.lower),
+              prefixCondition.map(_.lower)
             )
         })
       inlinedProg.copy(
@@ -294,11 +295,14 @@ object Compiler {
       prog.test.foldLeft(mainConstVals, Seq[Assertion]())({
         case ((subs, result), ConstDecl(x, e)) =>
           (subs + (x -> e), result)
-        case ((subs, result), Assertion(in, out, ignore)) =>
+        case ((subs, result), Assertion(in, out, ignore, prefixCondition)) =>
           val newIn = in.map({ case (x, e) => x -> e.subPreserveType(subs) })
           val newOut = out.subPreserveType(subs)
           val newIgnore = ignore.map(_.subPreserveType(subs))
-          (subs, result :+ Assertion(newIn, newOut, newIgnore))
+          val newPrefixCondition = prefixCondition.map(_.subPreserveType(subs))
+          val newAssertion =
+            Assertion(newIn, newOut, newIgnore, newPrefixCondition)
+          (subs, result :+ newAssertion)
       })
     Program(Seq(), newAccel, newTestSuite)
   }
@@ -368,11 +372,11 @@ object Compiler {
       }
       val newTests = prog.test.map({
         case cd: ConstDecl => cd
-        case Assertion(inputs, expectedOutput, ignore) =>
+        case Assertion(inputs, expectedOutput, ignore, prefixCondition) =>
           val newInputs = inputs.map({ case (x, e) =>
             x -> transform(e)
           })
-          Assertion(newInputs, expectedOutput, ignore)
+          Assertion(newInputs, expectedOutput, ignore, prefixCondition)
       })
       prog.copy(accel = prog.accel.copy(body = newBody), test = newTests)
     }
@@ -461,51 +465,53 @@ object Compiler {
     time("generating VHDL testbench", Level.DEBUG) {
       assert(os.isDir(outDir))
       val assertions = prog.test.collect({ case a: Assertion => a })
-      val io = TestSuiteIO(assertions.map({ case Assertion(in, out, ignore) =>
-        val inputValues = in.map({ case (x, e) =>
-          // TODO: enforce rule that inputs must be streams while type checking program
-          x -> mhir.eval
-            .eval(e, handshake = options.handshake)
-            .asInstanceOf[StmLiteral]
-        })
-        val inputLatencies = inputValues.map({ case (x, s) =>
-          x -> Some(s.physical.length)
-        })
-        val inputs = inputValues.map({ case (x, s) =>
-          // TODO: Enforce rule that inputs must be streams while type checking program
-          x -> DirectTestInput((s.physical ++ s.logical).map(Some(_)))
-        })
-        val TyStm(elemTyp, _) = out.typ
-        val expectedOutput = {
-          val StmLiteral(_, elems) =
-            mhir.eval.eval(out, handshake = options.handshake)
-          val ignoreElems = ignore match {
-            case Some(ignore) =>
-              val StmLiteral(_, ignoreLogical) =
-                mhir.eval.eval(ignore, handshake = options.handshake)
-              ignoreLogical
-            case None =>
-              elems.map(_ => AllZero(elemTyp))
+      val io = TestSuiteIO(assertions.map({
+        case Assertion(in, out, ignore, _) =>
+          // TODO: incorporate the prefix condition into the VHDL testbench somehow
+          val inputValues = in.map({ case (x, e) =>
+            // TODO: enforce rule that inputs must be streams while type checking program
+            x -> mhir.eval
+              .eval(e, handshake = options.handshake)
+              .asInstanceOf[StmLiteral]
+          })
+          val inputLatencies = inputValues.map({ case (x, s) =>
+            x -> Some(s.physical.length)
+          })
+          val inputs = inputValues.map({ case (x, s) =>
+            // TODO: Enforce rule that inputs must be streams while type checking program
+            x -> DirectTestInput((s.physical ++ s.logical).map(Some(_)))
+          })
+          val TyStm(elemTyp, _) = out.typ
+          val expectedOutput = {
+            val StmLiteral(_, elems) =
+              mhir.eval.eval(out, handshake = options.handshake)
+            val ignoreElems = ignore match {
+              case Some(ignore) =>
+                val StmLiteral(_, ignoreLogical) =
+                  mhir.eval.eval(ignore, handshake = options.handshake)
+                ignoreLogical
+              case None =>
+                elems.map(_ => AllZero(elemTyp))
+            }
+            val latency = {
+              val analysis = new LatencyAnalysis(handshake = options.handshake)
+              val (_, body) = TypeChecker.unwrapTopLevelFunction(prog.body)
+              analysis.actualLatency(body, inputLatencies).latency
+            }
+            latency match {
+              case Some(latency) if !options.handshake =>
+                logger.debug(
+                  s"adding $latency invalids at the beginning of the expected output to account for latency"
+                )
+                DirectTestOutput(
+                  (0 until latency).map(_ => Undefined(elemTyp)) ++ elems,
+                  (0 until latency).map(_ => AllOne(elemTyp)) ++ ignoreElems
+                )
+              case _ =>
+                DirectTestOutput(elems, ignoreElems)
+            }
           }
-          val latency = {
-            val analysis = new LatencyAnalysis(handshake = options.handshake)
-            val (_, body) = TypeChecker.unwrapTopLevelFunction(prog.body)
-            analysis.actualLatency(body, inputLatencies).latency
-          }
-          latency match {
-            case Some(latency) if !options.handshake =>
-              logger.debug(
-                s"adding $latency invalids at the beginning of the expected output to account for latency"
-              )
-              DirectTestOutput(
-                (0 until latency).map(_ => Undefined(elemTyp)) ++ elems,
-                (0 until latency).map(_ => AllOne(elemTyp)) ++ ignoreElems
-              )
-            case _ =>
-              DirectTestOutput(elems, ignoreElems)
-          }
-        }
-        KeywordTestIO(inputs, expectedOutput)
+          KeywordTestIO(inputs, expectedOutput)
       }))
       VhdlTestbenchGenerator.makeDirectTestbench(
         io = io,

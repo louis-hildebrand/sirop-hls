@@ -1,0 +1,11 @@
+/* Test 0 */
+[
+  undefined:i8  /* does not satisfy prefix condition */,
+  0:i8,
+  5:i8          /* does not satisfy prefix condition */
+]s ++ [
+  5:i8,
+  6:i8,
+  7:i8,
+  8:i8
+]s

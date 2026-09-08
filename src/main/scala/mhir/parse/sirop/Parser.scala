@@ -273,7 +273,16 @@ object Parser {
       case _ =>
         (None, rest4)
     }
-    (Assertion(inputs, expectedOutput, ignore), rest5)
+    val (prefixCondition, rest6) = rest5.headOption match {
+      case Some(_: WithToken) =>
+        val rest5_1 = rest5.tail
+        val (_, rest5_2) = expect(PrefixToken, rest5_1)
+        val (f, rest5_3) = parseExpr(rest5_2, constants)
+        (Some(f), rest5_3)
+      case _ =>
+        (None, rest5)
+    }
+    (Assertion(inputs, expectedOutput, ignore, prefixCondition), rest6)
   }
 
   private def parseInputSpecs(

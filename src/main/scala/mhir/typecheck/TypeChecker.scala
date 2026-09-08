@@ -1066,7 +1066,20 @@ object TypeChecker {
       }
       newE
     })
-    Assertion(newIn, newOut, newIgnore)
+    val newPrefixCondition = a.prefixCondition.map({ f =>
+      val TyStm(elemTyp, _) = newOut.typ
+      val newF = f.annotateFunc(elemTyp).tchk(constTypes, constVals)
+      val expectedTyp = elemTyp ->: TyBool
+      if (!newF.typ.equalsGivenConstants(expectedTyp, constVals)) {
+        throw new TypeError(
+          "invalid prefix condition in assertion:" +
+            s" expected $expectedTyp, but found ${newF.typ}",
+          TypeChecker.relevantBindings(constVals, newF.typ, expectedTyp)
+        )
+      }
+      newF
+    })
+    Assertion(newIn, newOut, newIgnore, newPrefixCondition)
   }
 
   private def checkInputNames(params: Set[Param], args: Set[Param]): Unit = {

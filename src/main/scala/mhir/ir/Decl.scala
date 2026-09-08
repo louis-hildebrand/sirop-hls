@@ -39,9 +39,12 @@ case class AccelDecl(
   *   the expected output from the accelerator.
   * @param ignore
   *   the parts of the output to ignore.
+  * @param prefixCondition
+  *   condition that all elements of the physical prefix must satisfy.
   */
 case class Assertion(
     inputs: Map[Param, Expr],
     expectedOutput: Expr,
-    ignore: Option[Expr]
+    ignore: Option[Expr],
+    prefixCondition: Option[Expr]
 ) extends TestDecl

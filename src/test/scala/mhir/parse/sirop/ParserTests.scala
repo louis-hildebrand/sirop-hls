@@ -1606,6 +1606,7 @@ class ParserTests extends AnyFunSuite {
         |}
         |yields StmRange(N, Z2 + 5, DELTA2)
         |ignoring StmConcat([ones:[u8]()]s, StmCst(9, zeros:[u8]()))
+        |with prefix x => true
         |""".stripMargin
     val actual = Parser.parse(src)
     val expected = {
@@ -1650,6 +1651,7 @@ class ParserTests extends AnyFunSuite {
           Assertion(
             Map(s -> call("StmRange", n, z, C(1)(U8))),
             call("StmRange", n, SmartSum(z, C(5)())(), C(1)(U8)),
+            None,
             None
           ),
           ConstDecl(z2, ReshapeData(C(9)(), U8)()),
@@ -1663,7 +1665,8 @@ class ParserTests extends AnyFunSuite {
                 StmLiteral(Call(param("ones"), Seq(U8), Seq())())(),
                 call("StmCst", 9, Call(param("zeros"), Seq(U8), Seq())())
               )
-            )
+            ),
+            Some(Function(Param("x", -1)(Missing), True)())
           )
         )
       )
@@ -1706,6 +1709,7 @@ class ParserTests extends AnyFunSuite {
               Tuple(C(2)(), True)(),
               Tuple(C(3)(), False)()
             )(),
+            None,
             None
           )
         )
@@ -1729,7 +1733,9 @@ class ParserTests extends AnyFunSuite {
         Map(),
         Map()
       ),
-      Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None))
+      Seq(
+        Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None, None)
+      )
     )
     assert(actual == expected)
   }
@@ -1749,7 +1755,9 @@ class ParserTests extends AnyFunSuite {
         Map(),
         Map()
       ),
-      Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None))
+      Seq(
+        Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None, None)
+      )
     )
     assert(actual == expected)
   }

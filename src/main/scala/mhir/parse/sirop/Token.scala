@@ -359,6 +359,28 @@ case class IgnoringToken(loc: SourcePoint) extends Token {
   */
 object IgnoringToken extends KeywordCategory("ignoring")
 
+/** The keyword "with".
+  */
+case class WithToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = WithToken
+  override def original: String = "with"
+}
+
+/** Category of [[WithToken]].
+  */
+object WithToken extends KeywordCategory("with")
+
+/** The keyword "prefix".
+  */
+case class PrefixToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = PrefixToken
+  override def original: String = "prefix"
+}
+
+/** Category of [[PrefixToken]].
+  */
+object PrefixToken extends KeywordCategory("prefix")
+
 // Keywords with natural number suffixes ---------------------------------------
 
 /** The letter "u" followed by a natural number.

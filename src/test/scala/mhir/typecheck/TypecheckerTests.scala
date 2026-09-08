@@ -876,6 +876,7 @@ class TypecheckerTests extends AnyFunSuite {
         |}
         |yields StmRange(N, Z2 + 5:u8, DELTA2)
         |ignoring StmConcat([ones:[u8]()]s, StmCst(9, zeros:[u8]()))
+        |with prefix x => true
         |""".stripMargin
     val prog = Parser.parse(src)
     val checked = prog.tchk()
@@ -884,15 +885,11 @@ class TypecheckerTests extends AnyFunSuite {
       td match {
         case ConstDecl(_, e) =>
           assert(e.hasType)
-        case Assertion(inputs, expectedOutput, ignoring) =>
-          for ((_, e) <- inputs) {
-            assert(e.hasType)
-          }
+        case Assertion(inputs, expectedOutput, ignoring, prefixCondition) =>
+          inputs.foreach({ case (_, e) => assert(e.hasType) })
           assert(expectedOutput.hasType)
-          ignoring match {
-            case None    => ()
-            case Some(e) => assert(e.hasType)
-          }
+          ignoring.foreach(e => assert(e.hasType))
+          prefixCondition.foreach(e => assert(e.hasType))
       }
     }
   }
@@ -1058,6 +1055,40 @@ class TypecheckerTests extends AnyFunSuite {
           "invalid 'ignoring' stream in assertion:" +
             " accelerator produces Stm[u8, 4:u3] but 'ignoring' stream has type Stm[u8, 3:u2]"
         )
+    )
+  }
+
+  test("TestSuite:Error:WrongPrefixConditionInput") {
+    val src =
+      """accelerator top = StmRange(3, 0:u8, 1:u8)
+        |
+        |assert yields [0:u8, 1:u8, 2:u8]s
+        |with prefix (x: bool) => x
+        |""".stripMargin.stripTrailing
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage.contains(
+        "invalid prefix condition in assertion:" +
+          " expected u8 -> bool, but found bool -> bool"
+      )
+    )
+  }
+
+  test("TestSuite:Error:WrongPrefixConditionOutput") {
+    val src =
+      """accelerator top = StmRange(3, 0:u8, 1:u8)
+        |
+        |assert yields [0:u8, 1:u8, 2:u8]s
+        |with prefix x => x
+        |""".stripMargin.stripTrailing
+    val prog = Parser.parse(src)
+    val ex = intercept[TypeError](prog.tchk())
+    assert(
+      ex.getMessage.contains(
+        "invalid prefix condition in assertion:" +
+          " expected u8 -> bool, but found u8 -> u8"
+      )
     )
   }
 
