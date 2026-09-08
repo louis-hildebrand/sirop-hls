@@ -69,6 +69,6 @@ case class StmFold(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
       Map[Param, (Expr, Expr, Expr)](
         p -> (s, True, C(0)())
       )
-    )().tchk()
+    )().annotateWithName("StmFold").tchk()
   }
 }

@@ -1,0 +1,15 @@
+// Normally the compiler would want to fission this into
+//     s.StmMap(x => x * x, ???).StmMap(y => y + 1, 0:u8)
+// but that doesn't really work here because it's not clear what ??? should be
+// replaced by (in the head of the first StmMap step).
+// There is no value y of type u8 such that y + 1 == 0.
+// Maybe you could use 255 as the head and change the second step to x +% 1 so
+// it wraps around on overflow, but the current fission pass won't make a
+// change like that.
+accelerator[no_handshake] top = (s: Stm[u8, 4]) => s.StmMap(x => x * x + 1, 0:u8)
+
+assert {
+    s = []s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
+}
+yields [2:u8, 5:u8, 10:u8, 17:u8]s
+with prefix x => x == 0

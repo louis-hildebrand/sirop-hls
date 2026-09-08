@@ -48,6 +48,6 @@ case class StmExtendBy(s: Expr, k: Expr)(typ: Type = Missing)
         // handshake protocol is disabled; we'll just get back undefined.
         p -> (s, True, C(0)())
       )
-    )().tchk()
+    )().annotateWithName("StmExtendBy").tchk()
   }
 }

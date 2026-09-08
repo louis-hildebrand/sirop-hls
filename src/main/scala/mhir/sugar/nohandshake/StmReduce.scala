@@ -61,6 +61,6 @@ case class StmReduce(s: Expr, f: Expr)(typ: Type = Missing)
       Map[Param, (Expr, Expr, Expr)](
         p -> (s, True, C(0)())
       )
-    )().tchk()
+    )().annotate(NoInputsAfterLastOut).annotateWithName("StmReduce").tchk()
   }
 }

@@ -39,7 +39,7 @@ sealed trait StmBuildSimplifier {
         val newDelay = PE.partialEval(delay)
         x -> (s, newReady, newDelay)
       })
-    )().tchk().asInstanceOf[StmBuild]
+    )(annotations = s.annotations).tchk().asInstanceOf[StmBuild]
   }
 }
 
@@ -178,7 +178,7 @@ object EnabledStmBuildSimplifier extends StmBuildSimplifier {
               s1.producers.map({ case (y, (stm, ready, delay)) =>
                 y -> (stm, ready.subPreserveType(subs), delay)
               })
-            )().tchk().asInstanceOf[StmBuild]
+            )(annotations = s1.annotations).tchk().asInstanceOf[StmBuild]
           }
         case (acc, _) => acc
       })

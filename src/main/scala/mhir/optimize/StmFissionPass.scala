@@ -39,6 +39,9 @@ object DisabledStmFissionPass extends StmFissionPass {
 
 case class EnabledStmFissionPass(scheduler: StmOutputScheduler)
     extends StmFissionPass {
+
+  private def logger: Logger = Logger(getClass.getName)
+
   override def enabled: Boolean = true
 
   override def fission(e: Expr): Expr = {
@@ -65,36 +68,50 @@ case class EnabledStmFissionPass(scheduler: StmOutputScheduler)
     this.scheduler.schedule(stm.nextData) match {
       case InProducer(data) =>
         stm
-          .copy(nextData = data)(typ = stm.typ, annotations = stm.annotations)
+          .copy(nextData = data)(
+            typ = stm.typ,
+            annotations = stm.annotations
+          )
           .tchk()
       case ic: InConsumer =>
-        val FunCall(Function(x, cData), pData) = ic.asFunCall().tchk()
-        val producer = StmBuild(
-          stm.n,
-          Tuple()(),
-          Undefined(pData.typ),
-          pData,
-          stm.valid,
-          stm.accumulators,
-          stm.producers
-        )().tchk()
-        val TyStm(typ, n) = producer.typ
-        val s = Param("s")(TyStm(typ, -1))
-        val consumer = {
-          val nextData = cData.subPreserveType(x -> StmData(s)().tchk())
-          StmBuild(
-            n,
-            Tuple()(),
-            Undefined(nextData.typ),
-            nextData,
-            True,
-            Map(),
-            Map[Param, (Expr, Expr, Expr)](
-              s -> (producer, True, Tuple()())
+        stm.initData match {
+          case _: Undefined =>
+            val FunCall(Function(x, cData), pData) = ic.asFunCall().tchk()
+            val producer: Expr = StmBuild(
+              stm.n,
+              stm.delay,
+              Undefined(pData.typ),
+              pData,
+              stm.valid,
+              stm.accumulators,
+              stm.producers
+            )(typ = Missing, annotations = stm.annotations).tchk()
+            val TyStm(typ, n) = producer.typ
+            val s = Param("s")(TyStm(typ, -1))
+            val consumer = {
+              val nextData = cData.subPreserveType(x -> StmData(s)().tchk())
+              StmBuild(
+                n,
+                C(1)(),
+                Undefined(nextData.typ),
+                nextData,
+                True,
+                Map(),
+                Map[Param, (Expr, Expr, Expr)](
+                  s -> (producer, True, C(0)())
+                )
+              )().annotateWithName("Fission").tchk().asInstanceOf[StmBuild]
+            }
+            fissionStmBuild(consumer)
+          case e =>
+            val where =
+              stm.nameAnnotation.map(name => s" (in $name)").getOrElse("")
+            logger.warn(
+              s"automatic fission is not supported when the head of the stream is $e$where." +
+                s" Consider replacing the head with undefined or manually splitting this expression into multiple stages."
             )
-          )().tchk().asInstanceOf[StmBuild]
+            stm
         }
-        fissionStmBuild(consumer)
     }
   }
 }

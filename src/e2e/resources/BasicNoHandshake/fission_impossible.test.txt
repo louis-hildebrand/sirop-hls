@@ -1,0 +1,5 @@
+[WARN ] automatic fission is not supported when the head of the stream is 0:u8 (in StmMap). Consider replacing the head with undefined or manually splitting this expression into multiple stages.
+[WARN ] combinational delay cost is 133% of maximum. Design may not meet timing requirements.
+[INFO ] the design has a latency of 1 cycle
+[INFO ] test 0: PASSED
+[INFO ] 1/1 test passed!

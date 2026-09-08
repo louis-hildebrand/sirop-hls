@@ -331,7 +331,7 @@ object PartialEvalPass {
                   doPartialEval(delay)(facts)
                 )
               })
-            )()
+            )(annotations = s.annotations)
           case LetStm(bufSize, x, in, out) =>
             LetStm(
               doPartialEval(bufSize),

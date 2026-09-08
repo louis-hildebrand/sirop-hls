@@ -58,6 +58,10 @@ case class StmMap(s: Expr, f: Expr, head: Expr)(typ: Type = Missing)
       valid = True,
       accumulators = Map(),
       producers = Map(p -> (s, True, C(0)()))
-    )().tchk()
+    )()
+      .annotate(NoInputsAfterLastOut)
+      .annotate(NoOutputsAfterLastIn)
+      .annotateWithName("StmMap")
+      .tchk()
   }
 }
