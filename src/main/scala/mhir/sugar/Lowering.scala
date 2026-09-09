@@ -85,7 +85,7 @@ trait Lowering {
           v.typ match {
             case _: TyVec => VecAccess(v, i)().tchk()
             case TyStm(tv: TyVec, _) =>
-              StmMap(v, tv ::+ (v => VecAccess(v, i)()))().tchk().lower
+              StmMap(v, tv ::+ (v => VecAccess(v, i)())).tchk().lower
             case t =>
               throw new TypeError(
                 s"Cannot lower ${VecAccess.getClass.getSimpleName} whose first argument has type $t."

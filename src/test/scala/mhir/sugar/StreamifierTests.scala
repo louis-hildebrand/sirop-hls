@@ -532,7 +532,7 @@ class StreamifierTests extends AnyFunSuite {
           StmCount(n)(),
           C(0)(U8),
           (U8, U8) ::+ (x => Sum(x.__0, x.__1)())
-        )()
+        )
       )).tchk().lower
     val exc = intercept[IllegalArgumentException](f.streamify)
     assert(exc.getMessage.startsWith("Types cannot depend on any inputs."))

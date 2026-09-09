@@ -784,7 +784,7 @@ case class VecShiftLeft(
     v.typ match {
       case TyStm(tv: TyVec, _) =>
         val tt = TyTuple(tv, tv.t)
-        StmMap(StmZip(v, e)(), tt ::+ (vv => VecShiftLeft(vv.__0, vv.__1)()))()
+        StmMap(StmZip(v, e)(), tt ::+ (vv => VecShiftLeft(vv.__0, vv.__1)()))
           .tchk()
           .lower
       case _ =>
@@ -950,7 +950,7 @@ case class VecConcat(
         StmMap(
           StmZip(v1, v2)(),
           TyTuple(tv1, tv2) ::+ (vv => VecConcat(vv.__0, vv.__1)())
-        )().tchk().lower
+        ).tchk().lower
       case _ =>
         VecBuild(
           SafeSum(n1, n2)(),

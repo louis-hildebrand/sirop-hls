@@ -341,10 +341,10 @@ class VectorTests extends AnyFunSuite {
       TyVec(TyStm(i33, C(k)(U8)), C(m)(U8)) ::+ (vs =>
         VecMap(
           vs,
-          TyStm(i33, C(k)(U8)) ::+ (s => StmMap(s, i33 ::+ (x => x + 42))())
+          TyStm(i33, C(k)(U8)) ::+ (s => StmMap(s, i33 ::+ (x => x + 42)))
         )()
       )
-    )().tchk().lower
+    ).tchk().lower
     val expected =
       StmLiteral(
         (0 until n).flatMap(_ =>
@@ -379,12 +379,12 @@ class VectorTests extends AnyFunSuite {
           TyVec(TyStm(U32, p), k) ::+ (vs =>
             VecMap(
               vs,
-              TyStm(U32, p) ::+ (s => StmMap(s, U32 ::+ (x => x * x + 9))())
+              TyStm(U32, p) ::+ (s => StmMap(s, U32 ::+ (x => x * x + 9)))
             )()
           )
         )()
       )
-    )().tchk().lower
+    ).tchk().lower
     val expected =
       StmLiteral(
         (0 until n).flatMap(_ =>
@@ -486,7 +486,7 @@ class VectorTests extends AnyFunSuite {
     val v = Param("v")(TyVec(TyStm(U8, 1), 5))
     val sum = VecReduce(
       v,
-      Missing ::+ (v => StmMap(v, Missing ::+ (x => x.__0 + x.__1))())
+      Missing ::+ (v => StmMap(v, Missing ::+ (x => x.__0 + x.__1)))
     )().tchk().lower
 
     val vVal =
@@ -514,9 +514,9 @@ class VectorTests extends AnyFunSuite {
                   Missing ::+ (v =>
                     VecMap(v, Missing ::+ (x => x.__0 + x.__1))()
                   )
-                )()
+                )
               )
-            )()
+            )
           )
         )()
       )

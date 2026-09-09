@@ -15,7 +15,7 @@ class ParserTests extends AnyFunSuite {
   private def param(name: String): Param = Param(name, -1)(Missing)
 
   private def call(name: String, args: Expr*): Call = {
-    Call(param(name), Seq(), args)()
+    Call(param(name), Seq(), args)
   }
 
   test("ParenthesizedExpr") {
@@ -614,13 +614,13 @@ class ParserTests extends AnyFunSuite {
     val src = "f(42)(x, y)()"
     val expected = Call(
       Call(
-        Call(param("f"), Seq(), Seq(42))(),
+        Call(param("f"), Seq(), Seq(42)),
         Seq(),
         Seq(x, y)
-      )(),
+      ),
       Seq(),
       Seq()
-    )()
+    )
     assert(Parser.parse(src).body == expected)
   }
 
@@ -982,26 +982,26 @@ class ParserTests extends AnyFunSuite {
 
   test("interpret_as:[bool](y)") {
     val src = "interpret_as:[bool](y)"
-    val expected = Call(param("interpret_as"), Seq(TyBool), Seq(y))()
+    val expected = Call(param("interpret_as"), Seq(TyBool), Seq(y))
     assert(Parser.parse(src).body == expected)
   }
 
   test("x.interpret_as:[(i16, bool)]()") {
     val src = "x.interpret_as:[(i16, bool)]()"
     val expected =
-      Call(param("interpret_as"), Seq(TyTuple(I16, TyBool)), Seq(x))()
+      Call(param("interpret_as"), Seq(TyTuple(I16, TyBool)), Seq(x))
     assert(Parser.parse(src).body == expected)
   }
 
   test("zeros:[i16]()") {
     val src = "zeros:[i16]()"
-    val expected = Call(param("zeros"), Seq(I16), Seq())()
+    val expected = Call(param("zeros"), Seq(I16), Seq())
     assert(Parser.parse(src).body == expected)
   }
 
   test("ones:[i16]()") {
     val src = "ones:[i16]()"
-    val expected = Call(param("ones"), Seq(I16), Seq())()
+    val expected = Call(param("ones"), Seq(I16), Seq())
     assert(Parser.parse(src).body == expected)
   }
 
@@ -1662,8 +1662,8 @@ class ParserTests extends AnyFunSuite {
             Some(
               call(
                 "StmConcat",
-                StmLiteral(Call(param("ones"), Seq(U8), Seq())())(),
-                call("StmCst", 9, Call(param("zeros"), Seq(U8), Seq())())
+                StmLiteral(Call(param("ones"), Seq(U8), Seq()))(),
+                call("StmCst", 9, Call(param("zeros"), Seq(U8), Seq()))
               )
             ),
             Some(Function(Param("x", -1)(Missing), True)())

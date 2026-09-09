@@ -1426,7 +1426,7 @@ object StmLiteral {
   *
   * This can be used to define syntax sugar (e.g., `StmMap`, `VecReduce`).
   */
-abstract class SyntaxSugar(children: Expr*)(typ: Type)
+sealed abstract class SyntaxSugar(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ) {
 
   /** The precedence of this expression. See [[Precedence]].
@@ -1496,3 +1496,16 @@ abstract class ResolvedSyntaxSugar(children: Expr*)(typ: Type)
     */
   def lowerSyntaxSugar(implicit c: Canonicalizer): Expr
 }
+
+/** Syntax sugar that has not yet undergone name resolution.
+  *
+  * @note
+  *   it is important that the [[typ]] of this node be [[Missing]]. Otherwise,
+  *   we might (in principle) end up in a situation where the type checker skips
+  *   this node (because it has a type already) but it has not yet undergone
+  *   name resolution. This would be problematic because later steps (i.e.,
+  *   lowering) rely on the fact that name resolution is done once type checking
+  *   is done.
+  */
+abstract class UnresolvedSyntaxSugar(children: Expr*)
+    extends SyntaxSugar(children: _*)(Missing)

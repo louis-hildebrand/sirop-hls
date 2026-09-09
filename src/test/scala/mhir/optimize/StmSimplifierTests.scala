@@ -23,7 +23,7 @@ class StmSimplifierTests extends AnyFunSuite {
   test("LetStm:OneUse") {
     val count = StmCount(C(10)(U8))().tchk().lower
     val s = Param("s")(TyStm(U8, 10))
-    val map = StmMap(s, U8 ::+ (x => x + 5))().tchk().lower
+    val map = StmMap(s, U8 ::+ (x => x + 5)).tchk().lower
     val e = LetStm(1, s, count, map)().tchk().lower
     val expected = simplifier.simplify(map.subPreserveType(s -> count))
     val actual = simplifier.simplify(e)
@@ -34,7 +34,7 @@ class StmSimplifierTests extends AnyFunSuite {
     val s0 = Param("s0")(TyStm(U8, 10))
     val s1 = Param("s1")(TyStm(U8, 10))
     val zipped =
-      simplifier.simplify(StmZip(s1, StmMap(s1, U8 ::+ (x => x + 5))())())
+      simplifier.simplify(StmZip(s1, StmMap(s1, U8 ::+ (x => x + 5)))())
     val e = LetStm(1, s1, s0, zipped)()
     val expected = e
     val actual = simplifier.simplify(e)

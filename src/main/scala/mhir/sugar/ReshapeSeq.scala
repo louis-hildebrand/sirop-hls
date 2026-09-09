@@ -32,7 +32,7 @@ case class ReshapeSeq(e: Expr, targetTyp: Type)(typ: Type = Missing)
       case (t1, TyVec(t2, IntCst(1))) if t1 ~= t2 =>
         VecBuild(1, U8 ::+ (_ => e))().tchk().lower
       case (TyStm(_, n1), TyStm(t2, n2)) if c.sameLen(n1, n2) =>
-        StmMap(e, Missing ::+ (x => ReshapeSeq(x, t2)()))().tchk().lower
+        StmMap(e, Missing ::+ (x => ReshapeSeq(x, t2)())).tchk().lower
       case (TyVec(_, n1), TyVec(t2, n2)) if c.sameLen(n1, n2) =>
         VecMap(e, Missing ::+ (x => ReshapeSeq(x, t2)()))().tchk().lower
       case (t1, t2) =>

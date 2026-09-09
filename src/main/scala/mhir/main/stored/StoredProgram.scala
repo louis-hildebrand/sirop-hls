@@ -109,25 +109,25 @@ object StoredProgram {
         TyTuple(uint, TyTuple(uint, uint)) ::+ (x =>
           VecLiteral(x.__0, x.__1.__0, x.__1.__1)()
         )
-      )(),
+      ),
       row1 -> StmMap(
         StmZip(row1Elem0, StmZip(row1Elem1, row1Elem2)())(),
         TyTuple(uint, TyTuple(uint, uint)) ::+ (x =>
           VecLiteral(x.__0, x.__1.__0, x.__1.__1)()
         )
-      )(),
+      ),
       row2 -> StmMap(
         StmZip(row2Elem0, StmZip(row2Elem1, row2Elem2)())(),
         TyTuple(uint, TyTuple(uint, uint)) ::+ (x =>
           VecLiteral(x.__0, x.__1.__0, x.__1.__1)()
         )
-      )(),
+      ),
       window -> StmMap(
         StmZip(row0, StmZip(row1, row2)())(),
         TyTuple(TyVec(uint, 3), TyTuple(TyVec(uint, 3), TyVec(uint, 3))) ::+ (
           x => VecLiteral(x.__0, x.__1.__0, x.__1.__1)()
         )
-      )(),
+      ),
       // Multiply with kernel
       windowAndKernelZipped -> StmMap(
         StmZip(window, kernelStm)(),
@@ -140,7 +140,7 @@ object StoredProgram {
             )
           )()
         )
-      )(),
+      ),
       windowAndKernelMultiplied -> StmMap(
         windowAndKernelZipped,
         TyVec(TyVec((uint, uint), 3), 3) ::+ (v =>
@@ -151,7 +151,7 @@ object StoredProgram {
             )
           )()
         )
-      )(),
+      ),
       rowSums -> StmMap(
         windowAndKernelMultiplied,
         TyVec(TyVec(uint, 3), 3) ::+ (v =>
@@ -165,7 +165,7 @@ object StoredProgram {
             )
           )()
         )
-      )(),
+      ),
       colSums -> StmMap(
         rowSums,
         TyVec(uint, 3) ::+ (v =>
@@ -174,7 +174,7 @@ object StoredProgram {
             0
           )()
         )
-      )(),
+      ),
       result -> StmMap(
         colSums,
         uint ::+ (x =>
@@ -184,7 +184,7 @@ object StoredProgram {
             case _           => ???
           }
         )
-      )()
+      )
     )(
       result
     )
@@ -229,17 +229,17 @@ object StoredProgram {
       row0 -> StmMap(
         StmZip(row0Elem0, row0Elem1)(),
         TyTuple(uint, uint) ::+ (x => VecLiteral(x.__0, x.__1)())
-      )(),
+      ),
       row1 -> StmMap(
         StmZip(row1Elem0, row1Elem1)(),
         TyTuple(uint, uint) ::+ (x => VecLiteral(x.__0, x.__1)())
-      )(),
+      ),
       window -> StmMap(
         StmZip(row0, row1)(),
         TyTuple(TyVec(uint, 2), TyVec(uint, 2)) ::+ (x =>
           VecLiteral(x.__0, x.__1)()
         )
-      )(),
+      ),
       // Multiply with kernel
       windowAndKernelZipped -> StmMap(
         StmZip(window, kernelStm)(),
@@ -252,7 +252,7 @@ object StoredProgram {
             )
           )()
         )
-      )(),
+      ),
       windowAndKernelMultiplied -> StmMap(
         windowAndKernelZipped,
         TyVec(TyVec((uint, uint), 2), 2) ::+ (v =>
@@ -263,7 +263,7 @@ object StoredProgram {
             )
           )()
         )
-      )(),
+      ),
       rowSums -> StmMap(
         windowAndKernelMultiplied,
         TyVec(TyVec(uint, 2), 2) ::+ (v =>
@@ -277,7 +277,7 @@ object StoredProgram {
             )
           )()
         )
-      )(),
+      ),
       colSums -> StmMap(
         rowSums,
         TyVec(uint, 2) ::+ (v =>
@@ -286,8 +286,8 @@ object StoredProgram {
             0
           )()
         )
-      )(),
-      result -> StmMap(colSums, uint ::+ (x => IntFixProd(x, kernelCoeff)()))()
+      ),
+      result -> StmMap(colSums, uint ::+ (x => IntFixProd(x, kernelCoeff)()))
     )(
       result
     )
@@ -397,13 +397,13 @@ object StoredProgram {
       val zipVec = StmMap( // Stm[Vec[(uint, uint), p], w/p]
         zipStm,
         (TyVec(uint, par), TyVec(uint, par)) ::+ (x => VecZip(x.__0, x.__1)())
-      )()
+      )
       val multiplied = StmMap( // Stm[Vec[uint, p], w/p]
         zipVec,
         TyVec((uint, uint), par) ::+ (v =>
           VecMap(v, (uint, uint) ::+ (x => x.__0 * x.__1))()
         )
-      )()
+      )
       val sumVec = StmMap( // Stm[uint, w/p]
         multiplied,
         TyVec(uint, par) ::+ (v =>
@@ -412,12 +412,12 @@ object StoredProgram {
             0
           )()
         )
-      )()
+      )
       val sumStm = // Stm[uint, 1]
         StmReduce(sumVec, (uint, uint) ::+ (x => x.__0 + x.__1))()
       sumStm
     }
-    val prod = StmMap(mat, Function(row, dot)())()
+    val prod = StmMap(mat, Function(row, dot)())
     Function(mat, Function(vec, prod)())()
   }
 
@@ -438,11 +438,11 @@ object StoredProgram {
         Tuple(n, lo, mid -% C(1)(int))()
       )()
     })
-    val binarySearchStart = StmMap(input, init)()
+    val binarySearchStart = StmMap(input, init)
     val binarySearchEnd = (0 until stages).foldLeft(binarySearchStart)({
-      case (acc, _) => StmMap(acc, step)()
+      case (acc, _) => StmMap(acc, step)
     })
-    StmMap(binarySearchEnd, (int, int, int) ::+ (x => x.__1))()
+    StmMap(binarySearchEnd, (int, int, int) ::+ (x => x.__1))
   }
 
   private def Sqrt: Expr = {
@@ -481,7 +481,7 @@ object StoredProgram {
     val normSquared = StmMap(
       StmZip(gx, gy)(),
       (int, int) ::+ (x => x.__0 *% x.__0 +% x.__1 *% x.__1)
-    )()
+    )
     val norm = makeSqrt(int, stages = 16, normSquared)
     Function(input, Let(input, input, norm)())()
   }

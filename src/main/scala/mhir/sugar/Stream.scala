@@ -693,12 +693,12 @@ case class StmCount2D(n: Expr, m: Expr)(typ: Type = Missing)
   }
 }
 
-case class StmMap(s: Expr, f: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(s, f)(typ) {
+case class StmMap(s: Expr, f: Expr) extends UnresolvedSyntaxSugar(s, f) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    require(typ == Missing)
     newChildren match {
-      case Seq(s, f) => StmMap(s, f)(typ)
+      case Seq(s, f) => StmMap(s, f)
       case _         => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -837,7 +837,7 @@ case class StmCascade(s: Expr)(typ: Type = Missing)
           Param("StmExtendBy", -1)(Missing),
           Seq(),
           Seq(s, C(m - 1)())
-        )().tchk().lower
+        ).tchk().lower
         val p = Param("p")(TyStm(TyVec(elemTyp, m), -1))
         val pipeVars = (0 until m - 1).map(i =>
           Param(s"pipe${i + 1}")(TyVec(elemTyp, C(i + 1)()))
@@ -1014,12 +1014,12 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
           Param("StmExtendBy", -1)(Missing),
           Seq(),
           Seq(s1, delay)
-        )().tchk()
+        ).tchk()
         val s2Extended = Call(
           Param("StmExtendBy", -1)(Missing),
           Seq(),
           Seq(s2, delay)
-        )().tchk()
+        ).tchk()
         Call(
           Param("StmDrop", -1)(Missing),
           Seq(),
@@ -1038,7 +1038,7 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
             )(),
             totDelay
           )
-        )().tchk().lower
+        ).tchk().lower
       case IntCst(0) =>
         val TyStm(int, n) = this.typ
         StmBuild(n, C(1)(), Undefined(int), C(0)(int), True, Map(), Map())()
@@ -1131,12 +1131,13 @@ case class StmMapDot(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
   }
 }
 
-case class StmFold(s: Expr, z: Expr, f: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(s, z, f)(typ) {
+case class StmFold(s: Expr, z: Expr, f: Expr)
+    extends UnresolvedSyntaxSugar(s, z, f) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): StmFold = {
+    require(typ == Missing)
     newChildren match {
-      case Seq(s, z, f) => StmFold(s, z, f)(typ)
+      case Seq(s, z, f) => StmFold(s, z, f)
       case _            => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -1189,7 +1190,7 @@ case class StmAll(s: Expr)(typ: Type = Missing)
       s,
       True,
       (TyBool, TyBool) ::+ (x => And(x.__0, x.__1)())
-    )().tchk().lower
+    ).tchk().lower
   }
 }
 
@@ -1225,7 +1226,7 @@ case class StmAny(s: Expr)(typ: Type = Missing)
       s,
       False,
       (TyBool, TyBool) ::+ (x => Or(x.__0, x.__1)())
-    )().tchk().lower
+    ).tchk().lower
   }
 }
 
@@ -1262,12 +1263,12 @@ case class StmSum(s: Expr)(typ: Type = Missing)
       s,
       C(0)(typ),
       (typ, typ) ::+ (x => WrappingSum(x.__0, x.__1)())
-    )().tchk().lower
+    ).tchk().lower
   }
 }
 
 case class StmConcat(stm1: Expr, stm2: Expr)
-    extends SyntaxSugar(stm1, stm2)(Missing) {
+    extends UnresolvedSyntaxSugar(stm1, stm2) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     require(typ == Missing, s"cannot rebuild $className with type $typ")

@@ -7,12 +7,12 @@ case class Call(
     callee: Expr,
     typArgs: Seq[Type],
     args: Seq[Expr]
-)(typ: Type = Missing)
-    extends SyntaxSugar(callee +: args: _*)(typ) {
+) extends UnresolvedSyntaxSugar(callee +: args: _*) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    require(typ == Missing)
     newChildren match {
-      case Seq(callee, args @ _*) => Call(callee, this.typArgs, args)(typ)
+      case Seq(callee, args @ _*) => Call(callee, this.typArgs, args)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -230,7 +230,7 @@ case class Call(
         }
       case f @ Param("StmFold", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s, z, f)) => StmFold(s, z, f)()
+          case (Seq(), Seq(s, z, f)) => StmFold(s, z, f)
           case _                     => error(f)
         }
       case f @ Param("StmAll", -1) =>

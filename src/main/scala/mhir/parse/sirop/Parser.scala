@@ -1131,13 +1131,13 @@ object Parser {
         val (_, rest4) = expect(LeftParToken, rest3)
         val (args, rest5) = parseExprList(rest4, constants)
         val (_, rest6) = expect(RightParToken, rest5)
-        val call = Call(e, Seq(typArg), args)()
+        val call = Call(e, Seq(typArg), args)
         parseExpr100Prime(call, rest6, constants)
       case Some(_: LeftParToken) =>
         val rest1 = tokens.tail
         val (args, rest2) = parseExprList(rest1, constants)
         val (_, rest3) = expect(RightParToken, rest2)
-        val call = Call(e, Seq(), args)()
+        val call = Call(e, Seq(), args)
         parseExpr100Prime(call, rest3, constants)
       case Some(_: DotToken) =>
         val rest1 = tokens.tail
@@ -1160,7 +1160,7 @@ object Parser {
             val (args, rest5) = parseExprList(rest4, constants)
             val (_, rest6) = expect(RightParToken, rest5)
             val loc = lsq.map(_.loc).getOrElse(lpar.loc)
-            val call = Call(Param(op, -1)(Missing), typArgs, e +: args)()
+            val call = Call(Param(op, -1)(Missing), typArgs, e +: args)
             parseExpr100Prime(call, rest6, constants)
           case Some(tok) =>
             throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)

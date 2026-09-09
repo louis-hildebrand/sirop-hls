@@ -13,7 +13,7 @@ class CallTests extends AnyFunSuite {
   private val x = ParamStore("x")
 
   private def call(name: String, args: Expr*): Call = {
-    Call(Param(name, -1)(Missing), Seq(), args)()
+    Call(Param(name, -1)(Missing), Seq(), args)
   }
 
   test("pad7") {
@@ -40,13 +40,13 @@ class CallTests extends AnyFunSuite {
     val fTyp = U8 ->: (U8, U8) ->: TyTuple() ->: U8
     val original = Call(
       Call(
-        Call(f, Seq(), Seq(C(42)(U8)))(),
+        Call(f, Seq(), Seq(C(42)(U8))),
         Seq(),
         Seq(x, y)
-      )(),
+      ),
       Seq(),
       Seq()
-    )()
+    )
     val expected = FunCall(
       FunCall(
         FunCall(f.rebuild(fTyp), C(42)(U8))(),
@@ -68,21 +68,21 @@ class CallTests extends AnyFunSuite {
       Param("interpret_as", -1)(Missing),
       Seq(U8),
       Seq(x(TyVec(TyBool, 8)))
-    )().tchk()
+    ).tchk()
     val expected = InterpretAs(x(TyVec(TyBool, 8)), U8)()
     assert(actual == expected)
     assert(actual.typ == expected.targetTyp)
   }
 
   test("zeros") {
-    val actual = Call(Param("zeros", -1)(Missing), Seq(U8), Seq())().tchk()
+    val actual = Call(Param("zeros", -1)(Missing), Seq(U8), Seq()).tchk()
     val expected = AllZero(U8)
     assert(actual == expected)
     assert(actual.typ == expected.typ)
   }
 
   test("ones") {
-    val actual = Call(Param("ones", -1)(Missing), Seq(U8), Seq())().tchk()
+    val actual = Call(Param("ones", -1)(Missing), Seq(U8), Seq()).tchk()
     val expected = AllOne(U8)
     assert(actual == expected)
     assert(actual.typ == expected.typ)

@@ -554,7 +554,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
         StmCount(C(n)(U8))(),
         C(0)(U8),
         (U8, U8) ::+ (x => Sum(x.__0, x.__1)())
-      )()
+      )
       s.tchk().lower.asInstanceOf[StmBuild]
     }
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
@@ -819,7 +819,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val f =
       Function(
         s,
-        LetStm(1, x, StmMap(s, I16 ::+ (y => Sum(C(5)(I16), y)()))(), x)()
+        LetStm(1, x, StmMap(s, I16 ::+ (y => Sum(C(5)(I16), y)())), x)()
       )().tchk().lower
     val inputs = Seq(
       Seq(
@@ -913,7 +913,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
           1,
           x,
           StmCount(C(10)(U8))(),
-          StmMap(x, U8 ::+ (y => y % 2 === 0))()
+          StmMap(x, U8 ::+ (y => y % 2 === 0))
         )()
       )().tchk().lower
     val inputs = Seq(
@@ -1217,10 +1217,10 @@ class VhdlGeneratorTests extends AnyFunSuite {
     val a = Param("a")(TyStm(U32, n))
     val b = Param("b")(TyStm(U16, n))
     val s = StmFold(
-      StmMap(StmZip(a, b)(), (U32, U16) ::+ (x => x.__0 * x.__1))(),
+      StmMap(StmZip(a, b)(), (U32, U16) ::+ (x => x.__0 * x.__1)),
       C(0)(U32),
       (U32, U32) ::+ (x => Sum(x.__0, x.__1)())
-    )().tchk().lower.asInstanceOf[StmBuild]
+    ).tchk().lower.asInstanceOf[StmBuild]
     val f0 = Function(a, Function(b, s)())().tchk()
     val inputs = Seq(
       Seq(
@@ -1241,9 +1241,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
       StmMap(
         s,
         TyStm(U16, m) ::+ (s =>
-          StmFold(s, C(0)(U16), (U16, U16) ::+ (x => Sum(x.__0, x.__1)()))()
+          StmFold(s, C(0)(U16), (U16, U16) ::+ (x => Sum(x.__0, x.__1)()))
         )
-      )().tchk().lower.asInstanceOf[StmBuild]
+      ).tchk().lower.asInstanceOf[StmBuild]
 
     val inputs = Seq(
       Seq(
