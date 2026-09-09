@@ -68,7 +68,7 @@ class Optimizer(
       fix(s2, i = 0)
     }
 
-    val s4 = latencyMatcher.matchLatencies(s3, headByVar = headByParam)
+    val s4 = latencyMatcher.matchLatencies(s3, headByParam = headByParam)
 
     val s5 = unusedDataRemover.removeUnusedData(s4)
 

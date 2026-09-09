@@ -150,7 +150,7 @@ object Repl {
       val simplified = PartialEvalPass.partialEval(lowered)
       val latencyAnalysis = new LatencyAnalysis(handshake = state.handshake)
       val latencyMatcher =
-        new EnabledLatencyMatcher(latencyAnalysis, handshake = state.handshake)
+        EnabledLatencyMatcher(latencyAnalysis, handshake = state.handshake)
       val headByParam = state.env
         .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
         .map({

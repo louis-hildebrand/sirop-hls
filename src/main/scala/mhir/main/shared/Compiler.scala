@@ -355,7 +355,7 @@ object Compiler {
       } else {
         val latencyAnalysis = new LatencyAnalysis(handshake = prog.handshake)
         val latencyMatcher =
-          new EnabledLatencyMatcher(latencyAnalysis, handshake = prog.handshake)
+          EnabledLatencyMatcher(latencyAnalysis, handshake = prog.handshake)
         val letBufShrinker = new StaticLetStmBufferShrinker(
           latencyAnalysis,
           handshake = prog.handshake,

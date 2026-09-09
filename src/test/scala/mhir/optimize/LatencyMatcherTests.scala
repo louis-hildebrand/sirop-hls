@@ -1,22 +1,27 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.eval.{CycleCounter, DelayMismatch}
 import mhir.ir._
+import mhir.logging.{LogEntry, LoggerStub}
 import mhir.sugar._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
+import org.slf4j.event.Level
 
 class LatencyMatcherTests extends AnyFunSuite {
 
-  private val passWithHandshake = {
-    LatencyMatcher(new LatencyAnalysis(handshake = true), handshake = true)
-  }
-  private val passWithoutHandshake = {
-    LatencyMatcher(new LatencyAnalysis(handshake = false), handshake = false)
+  private class Env(handshake: Boolean) {
+    private val analysis = new LatencyAnalysis(handshake = handshake)
+    val loggerStub = new LoggerStub(getClass.getName)
+    private val logger = Logger(loggerStub)
+    val pass =
+      new EnabledLatencyMatcher(analysis, logger, handshake = handshake)
   }
 
   test("let s = ... in Dynamic(StmZip(s, s |> StmMap(+5) |> StmMap(*2)))") {
+    val env = new Env(handshake = true)
     val n = 16
     val original = {
       val count = SimpleCount(C(n)(U8))
@@ -65,8 +70,7 @@ class LatencyMatcherTests extends AnyFunSuite {
       }
       LetStm(1, s, count, delay)().tchk().lower
     }
-    val optimized =
-      passWithHandshake.matchLatencies(original, headByVar = Map())
+    val optimized = env.pass.matchLatencies(original, headByParam = Map())
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -78,9 +82,13 @@ class LatencyMatcherTests extends AnyFunSuite {
     val originalCount = CycleCounter.count(original, handshake = true).get
     val optimizedCount = CycleCounter.count(optimized, handshake = true).get
     assert(optimizedCount < originalCount)
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
   }
 
   test("ForkTwice") {
+    val env = new Env(handshake = true)
     val n = 10
     val original = {
       val sA = Param("s_a")(TyStm(U8, n))
@@ -91,8 +99,7 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(sA, sB, timesTwo)
       LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower
     }
-    val optimized =
-      passWithHandshake.matchLatencies(original, headByVar = Map())
+    val optimized = env.pass.matchLatencies(original, headByParam = Map())
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -106,6 +113,9 @@ class LatencyMatcherTests extends AnyFunSuite {
       CycleCounter.count(optimized, handshake = true).get
     assert(optimizedCycleCount < originalCycleCount)
     assert(optimizedCycleCount == 17)
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
   }
 
   /** Suppose that one branch has a sequence of three [[mhir.ir.StmBuild]]s,
@@ -116,6 +126,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     * and it will needlessly increase the resource usage.
     */
   test("AlreadyMatchingLatency") {
+    val env = new Env(handshake = true)
     val n = 7
     val original = {
       val count = SimpleCount(C(n)(U8))
@@ -149,8 +160,7 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(delay, plusOne)
       LetStm(1, s, count, zip)().tchk().lower
     }
-    val optimized =
-      passWithHandshake.matchLatencies(original, headByVar = Map())
+    val optimized = env.pass.matchLatencies(original, headByParam = Map())
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -163,9 +173,13 @@ class LatencyMatcherTests extends AnyFunSuite {
       CycleCounter.count(optimized, handshake = true)
         == CycleCounter.count(original, handshake = true)
     )
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
   }
 
   test("Reduction") {
+    val env = new Env(handshake = true)
     val n = 4
     val m = 3
     val count = {
@@ -238,8 +252,7 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zipped = SimpleZip(sumPlusFive, stm2Vec)
       LetStm(1, x, count, zipped)().tchk().lower
     }
-    val optimized =
-      passWithHandshake.matchLatencies(original, headByVar = Map())
+    val optimized = env.pass.matchLatencies(original, headByParam = Map())
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -251,9 +264,13 @@ class LatencyMatcherTests extends AnyFunSuite {
     val originalCount = CycleCounter.count(original, handshake = true).get
     val optimizedCount = CycleCounter.count(optimized, handshake = true).get
     assert(optimizedCount < originalCount)
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
   }
 
   test("NestedLetStm") {
+    val env = new Env(handshake = true)
     val n = 5
     val original = {
       val s0 = Param("s0")(TyStm(U8, n))
@@ -263,8 +280,7 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(s0, plusFive)
       LetStm(1, s1, LetStm(1, s0, count, zip)(), s1)().tchk().lower
     }
-    val optimized =
-      passWithHandshake.matchLatencies(original, headByVar = Map())
+    val optimized = env.pass.matchLatencies(original, headByParam = Map())
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -276,9 +292,13 @@ class LatencyMatcherTests extends AnyFunSuite {
     val originalCount = CycleCounter.count(original, handshake = true).get
     val optimizedCount = CycleCounter.count(optimized, handshake = true).get
     assert(optimizedCount < originalCount)
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
   }
 
   test("StmConcat") {
+    val env = new Env(handshake = true)
     val n = 5
     val original = {
       val s0 = Param("s0")(TyStm(U8, n))
@@ -287,8 +307,7 @@ class LatencyMatcherTests extends AnyFunSuite {
         SimpleConcatHandshake(s0, SimpleMap(s0, x => Sum(C(5)(U8), x)()))
       LetStm(n, s0, count, concat)().tchk().lower
     }
-    val optimized =
-      passWithHandshake.matchLatencies(original, headByVar = Map())
+    val optimized = env.pass.matchLatencies(original, headByParam = Map())
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -300,9 +319,13 @@ class LatencyMatcherTests extends AnyFunSuite {
     val originalCount = CycleCounter.count(original, handshake = true).get
     val optimizedCount = CycleCounter.count(optimized, handshake = true).get
     assert(optimizedCount <= originalCount)
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
   }
 
   test("NoHandshake:ForkTwice") {
+    val env = new Env(handshake = false)
     val n = 10
     val sA = Param("s_a")(TyStm(U8, n))
     val sB = Param("s_b")(TyStm(U8, n))
@@ -313,9 +336,9 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(sA, sB, timesTwo)
       LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower
     }
-    val optimized = passWithoutHandshake.matchLatencies(
+    val optimized = env.pass.matchLatencies(
       original,
-      headByVar = Map(sA -> Undefined(Missing), sB -> Undefined(Missing))
+      headByParam = Map(sA -> Undefined(Missing), sB -> Undefined(Missing))
     )
 
     // Correct behaviour
@@ -332,9 +355,13 @@ class LatencyMatcherTests extends AnyFunSuite {
     val optimizedCycleCount =
       CycleCounter.count(optimized, handshake = false).get
     assert(optimizedCycleCount == 13)
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
   }
 
   test("NoHandshake:TakeAndDrop") {
+    val env = new Env(handshake = false)
     val n = 8
     val k = 3
     // EXAMPLE: [u]s ++ [42, 43, 44, 45, 46, 47, 48, 49]s
@@ -388,8 +415,7 @@ class LatencyMatcherTests extends AnyFunSuite {
       }
       Function(input, zip)().tchk()
     }
-    val actual =
-      passWithoutHandshake.matchLatencies(original, headByVar = Map())
+    val actual = env.pass.matchLatencies(original, headByParam = Map())
 
     val inputs = Map(
       input -> StmRange(n, C(42)(U8), C(1)(U8))().tchk().lower
@@ -428,9 +454,13 @@ class LatencyMatcherTests extends AnyFunSuite {
       inputs = inputs
     )
     assert(actualVal == expectedVal)
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
   }
 
-  test("PreserveInitData:FromStmBuild") {
+  test("NoHandshake:PreserveInitData:FromStmBuild") {
+    val env = new Env(handshake = false)
     val n = 5
     val original @ Function(input1, Function(input2, originalBody)) = {
       val input1 = Param("input1")(TyStm(U16, n))
@@ -470,7 +500,7 @@ class LatencyMatcherTests extends AnyFunSuite {
       Function(input1, Function(input2, zip)())().tchk()
     }
     val Function(_, Function(_, actualBody)) =
-      passWithoutHandshake.matchLatencies(original, headByVar = Map())
+      env.pass.matchLatencies(original, headByParam = Map())
 
     val inputs = Map(
       input1 -> StmRange(n, C(1)(U16), C(1)(U16))().tchk().lower,
@@ -504,9 +534,13 @@ class LatencyMatcherTests extends AnyFunSuite {
     val actualVal =
       mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
     assert(actualVal == expectedVal)
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
   }
 
-  test("PreserveInitData:FromInput") {
+  test("NoHandshake:PreserveInitData:FromInput") {
+    val env = new Env(handshake = false)
     val n = 5
     val original @ Function(input1, Function(input2, originalBody)) = {
       val input1 = Param("input1")(TyStm(U16, n))
@@ -534,9 +568,9 @@ class LatencyMatcherTests extends AnyFunSuite {
       Function(input1, Function(input2, zip)())().tchk()
     }
     val Function(_, Function(_, actualBody)) =
-      passWithoutHandshake.matchLatencies(
+      env.pass.matchLatencies(
         original,
-        headByVar = Map(input2 -> False)
+        headByParam = Map(input2 -> False)
       )
 
     val inputs = Map(
@@ -571,5 +605,72 @@ class LatencyMatcherTests extends AnyFunSuite {
     val actualVal =
       mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
     assert(actualVal == expectedVal)
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
+  }
+
+  test("NoHandshake:MissingHead:Input") {
+    val env = new Env(handshake = false)
+    val n = 8
+    val original @ Function(input, originalBody) = {
+      val input = Param("input", -1)(TyStm(U16, n))
+      val x = Param("x")(TyStm(U16, n))
+      val y = Param("y")(TyStm(U16, n))
+      val zip = SimpleZip(x, x, SimpleMap(y, x => Sum(x, C(5)(U16))()))
+      val body = LetStm(
+        C(0)(),
+        x,
+        input,
+        LetStm(
+          C(0)(),
+          y,
+          input,
+          zip
+        )()
+      )()
+      Function(input, body)().tchk()
+    }
+    val Function(_, actualBody) = env.pass.matchLatencies(
+      original,
+      // IMPORTANT: no head is specified for input
+      headByParam = Map()
+    )
+
+    val inputs = Map(
+      input -> StmRange(n, C(42)(U16), C(1)(U16))().tchk().lower
+    )
+
+    // There should be a latency mismatch at first
+    assertThrows[DelayMismatch](
+      mhir.eval.eval(originalBody, handshake = false, inputs = inputs)
+    )
+
+    // There should NOT be a latency mismatch afterwards
+    val expectedVal = StmLiteral(
+      Seq(
+        Undefined(TyTuple(U16, U16, U16)),
+        Tuple(Undefined(U16), Undefined(U16), Undefined(U16))(),
+        Tuple(Undefined(U16), Undefined(U16), Undefined(U16))()
+      ),
+      (0 until n)
+        .map(_ + 42)
+        .map(t => Tuple(C(t)(U16), C(t)(U16), C(t + 5)(U16))())
+    )(Missing).tchk()
+    val actualVal =
+      mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
+    assert(actualVal == expectedVal)
+
+    // There should be one warning due to the missing head(input)
+    assert(env.loggerStub.getEntries(Level.WARN).size() == 1)
+    assert(env.loggerStub.getEntries(Level.ERROR).isEmpty)
+    val warning = env.loggerStub.getEntries(Level.WARN).get(0)
+    val expectedMsg = (
+      s"no head specified for input stream 'input'."
+        + " The latency matcher will delay the stream by prepending undefined elements."
+        + s" To dismiss this warning, add 'head(input)=undefined' to the top-level annotations."
+        + " To choose a different value, add the same annotation but using your value instead of undefined."
+    )
+    assert(warning == LogEntry(Level.WARN, expectedMsg, null, null))
   }
 }
