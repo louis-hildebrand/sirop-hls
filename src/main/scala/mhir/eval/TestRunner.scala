@@ -6,6 +6,8 @@ import mhir.sugar.{AllOne, AllZero, BitwiseAnd, BitwiseNot, StmCst}
 import mhir.typecheck._
 import os.Path
 
+private case class TestCaseFailed(msg: String) extends Exception(msg)
+
 object TestRunner {
 
   private implicit val logger: Logger = Logger(getClass.getName)
@@ -18,7 +20,6 @@ object TestRunner {
     *   the path to the file in which to save the expected outputs.
     * @param actualPath
     *   the path to the file in which to save the actual outputs.
-    *
     * @throws TestError
     *   if the tests were unsuccessful.
     */
@@ -41,18 +42,24 @@ object TestRunner {
       logger.debug(s"running $numTests $testOrTests...")
       var errors = 0
       for ((a, i) <- assertions.zipWithIndex) {
-        val ok = run(
-          i,
-          a,
-          body,
-          handshake = prog.handshake,
-          expectedPath = expectedPath,
-          actualPath = actualPath,
-          headByParam = prog.headByParam,
-          showPhysical = showPhysical
-        )
-        if (!ok) {
-          errors += 1
+        try {
+          val runner = new TestRunner(
+            testIdx = i,
+            handshake = prog.handshake,
+            showPhysical = showPhysical
+          )
+          runner.run(
+            a,
+            body,
+            expectedPath = expectedPath,
+            actualPath = actualPath,
+            headByParam = prog.headByParam
+          )
+          logger.info(s"test $i: PASSED")
+        } catch {
+          case TestCaseFailed(msg) =>
+            errors += 1
+            logger.warn(s"test $i: $msg")
         }
       }
       if (errors == 0) {
@@ -79,42 +86,29 @@ object TestRunner {
       )
     }
   }
+}
+
+class TestRunner(testIdx: Int, handshake: Boolean, showPhysical: Boolean) {
+
+  private implicit val logger: Logger = Logger(getClass.getName)
 
   private def run(
-      testIdx: Int,
       a: Assertion,
       body: Expr,
-      handshake: Boolean,
       expectedPath: Option[Path],
       actualPath: Option[Path],
-      headByParam: Map[Param, Expr],
-      showPhysical: Boolean
-  ): Boolean = {
+      headByParam: Map[Param, Expr]
+  ): Unit = {
     logger.debug(s"running test $testIdx ... ")
-    val rawExpectedOutput =
-      try {
-        val result = mhir.eval.eval(a.expectedOutput, handshake = handshake)
-        logger.debug(s"raw expected output is $result")
-        Some(result)
-      } catch {
-        case ex: EvalException =>
-          logError(expectedPath, ex, testIdx, "raw expected output")
-          None
-      }
-    val ignore = a.ignore match {
-      case Some(ignore) =>
-        try {
-          val result = mhir.eval.eval(ignore, handshake = handshake)
-          logger.debug(s"'ignoring' stream is $result")
-          Some(result)
-        } catch {
-          case ex: EvalException =>
-            logError(expectedPath, ex, testIdx, "'ignoring' stream")
-            None
-        }
-      case None =>
+    val rawExpectedOutput = eval("expected output", expectedPath) {
+      a.expectedOutput
+    }
+    val ignore = eval("'ignoring' stream", expectedPath) {
+      a.ignore.getOrElse({
         val TyStm(t, n) = a.expectedOutput.typ
-        Some(mhir.eval.eval(StmCst(n, AllZero(t))(), handshake = handshake))
+        // TODO: bypass evaluation in this case and just make a stream literal directly?
+        StmCst(n, AllZero(t))()
+      })
     }
     val expectedLogical =
       try {
@@ -124,22 +118,20 @@ object TestRunner {
           expectedPath,
           // The physical prefix is never logged for the expected output sequence
           None,
-          result,
-          testIdx,
-          showPhysical = showPhysical
+          result
         )
         result
       } catch {
         case ex: EvalException =>
-          logError(expectedPath, ex, testIdx, "expected output")
-          None
+          logError(expectedPath, ex, "expected output")
+          throw TestCaseFailed(
+            "ERROR (when combining expected output and 'ignoring' stream)"
+          )
       }
-    for (logicalSeq <- expectedLogical) {
-      if (logicalSeq.exists(_.isInstanceOf[Undefined])) {
-        logger.warn(
-          s"expected output for test $testIdx contains undefined elements that are not ignored"
-        )
-      }
+    if (expectedLogical.exists(_.isInstanceOf[Undefined])) {
+      logger.warn(
+        s"expected output for test $testIdx contains undefined elements that are not ignored"
+      )
     }
     val inputs = a.inputs.map({ case (input, rhs) =>
       val TyStm(elemTyp, _) = rhs.typ
@@ -150,7 +142,7 @@ object TestRunner {
         .getOrElse(Undefined(elemTyp))
       result match {
         case StmLiteral(physical, _) =>
-          checkInputPhysicalPrefix(input, physical, head, testIdx)
+          checkInputPhysicalPrefix(input, physical, head)
         case _ => ()
       }
       input -> result
@@ -160,22 +152,13 @@ object TestRunner {
       case _                            => 0
     })
     if (inputLatencies.toSet.size > 1) {
-      logger.warn(s"test $testIdx: INPUT LATENCY MISMATCH")
-      return false
+      throw TestCaseFailed("INPUT LATENCY MISMATCH")
     }
-    val rawActualOutput =
-      try {
-        val result =
-          mhir.eval.eval(body, inputs = inputs, handshake = handshake)
-        logger.debug(s"raw actual output is $result")
-        Some(result)
-      } catch {
-        case ex: EvalException =>
-          logError(actualPath, ex, testIdx, "raw actual output")
-          None
-      }
+    val rawActualOutput = eval("actual output", actualPath, inputs = inputs) {
+      body
+    }
     val actualPhysical = rawActualOutput match {
-      case Some(StmLiteral(physical, _)) =>
+      case StmLiteral(physical, _) =>
         physical.map({ e =>
           val ok = a.prefixCondition match {
             case Some(f) => mhir.eval.eval(FunCall(f, e)())
@@ -193,76 +176,74 @@ object TestRunner {
           "actual output",
           actualPath,
           Some(actualPhysical),
-          actualLogical,
-          testIdx,
-          showPhysical = showPhysical
+          actualLogical
         )
         actualLogical
       } catch {
         case ex: EvalException =>
-          logError(actualPath, ex, testIdx, "actual output")
-          None
+          logError(actualPath, ex, "actual output")
+          throw TestCaseFailed(
+            "ERROR (when combining actual output and 'ignoring' stream)"
+          )
       }
-    (expectedLogical, actualLogical) match {
-      case (Some(expected), Some(actual)) =>
-        val physicalOk = actualPhysical
-          .forall({ case (_, ok) => ok == True })
-        val logicalOk = actual == expected
-        val pass = physicalOk && logicalOk
-        if (pass) {
-          logger.info(s"test $testIdx: PASSED")
-          true
-        } else {
-          logger.warn(s"test $testIdx: FAILED")
-          false
-        }
-      case (None, Some(_)) =>
-        logger.warn(s"test $testIdx: ERROR (when evaluating expected output)")
-        false
-      case (Some(_), None) =>
-        logger.warn(s"test $testIdx: ERROR (when evaluating actual output)")
-        false
-      case (None, None) =>
-        logger.warn(
-          s"test $testIdx: ERROR (when evaluating expected and actual outputs)"
-        )
-        false
+    val logicalOk = actualLogical == expectedLogical
+    if (!logicalOk) {
+      throw TestCaseFailed("WRONG OUTPUT")
+    }
+    val physicalOk = actualPhysical
+      .forall({ case (_, ok) => ok == True })
+    if (!physicalOk) {
+      throw TestCaseFailed("WRONG PHYSICAL PREFIX")
     }
   }
 
-  private def applyMask(
-      output: Option[Expr],
-      ignore: Option[Expr]
-  ): Option[Seq[Expr]] = {
+  private def eval(
+      name: String,
+      dest: Option[Path],
+      inputs: Map[Param, Expr] = Map()
+  )(body: => Expr): Expr = {
+    try {
+      val result =
+        mhir.eval.eval(body, handshake = this.handshake, inputs = inputs)
+      logger.debug(s"$name is $result")
+      result
+    } catch {
+      case ex: EvalException =>
+        logError(dest, ex, name)
+        throw TestCaseFailed(s"ERROR (when evaluating $name)")
+    }
+  }
+
+  private def applyMask(output: Expr, ignore: Expr): Seq[Expr] = {
     (output, ignore) match {
-      case (
-            Some(StmLiteral(_, outLogical)),
-            Some(ignore @ StmLiteral(_, ignoreElems))
-          ) =>
+      case (StmLiteral(_, outLogical), ignore @ StmLiteral(_, ignoreElems)) =>
         val TyStm(elemTyp, _) = ignore.typ
         val ones = mhir.eval.eval(AllOne(elemTyp))
         val zeros = mhir.eval.eval(AllZero(elemTyp))
         assert(outLogical.length == ignoreElems.length)
-        Some(
-          outLogical
-            .zip(ignoreElems)
-            .map({
-              case (out, ignore) if ignore == zeros => out
-              case (_, ignore) if ignore == ones    => zeros
-              case (out, ignore) =>
-                mhir.eval.eval(BitwiseAnd(out, BitwiseNot(ignore)())())
-            })
+        outLogical
+          .zip(ignoreElems)
+          .map({
+            case (out, ignore) if ignore == zeros => out
+            case (_, ignore) if ignore == ones    => zeros
+            case (out, ignore) =>
+              mhir.eval.eval(BitwiseAnd(out, BitwiseNot(ignore)())())
+          })
+      case (out, _: StmLiteral) =>
+        throw new AssertionError(
+          s"output should evaluate to a stream, but found $out"
         )
-      case _ =>
-        None
+      case (_, ignore) =>
+        throw new AssertionError(
+          s"'ignore' should evaluate to a stream, but found $ignore"
+        )
     }
   }
 
   private def checkInputPhysicalPrefix(
       input: Param,
       physical: Seq[Expr],
-      head: Expr,
-      testIdx: Int
+      head: Expr
   ): Unit = {
     val ok = physical.forall(isConsistentWithHead(_, head))
     if (!ok) {
@@ -287,7 +268,6 @@ object TestRunner {
   private def logError(
       destination: Option[Path],
       ex: EvalException,
-      testIdx: Int,
       goal: String
   ): Unit = {
     destination match {
@@ -303,71 +283,49 @@ object TestRunner {
       goal: String,
       destination: Option[Path],
       physical: Option[Seq[(Expr, Expr)]],
-      logical: Option[Seq[Expr]],
-      testIdx: Int,
-      showPhysical: Boolean
+      logical: Seq[Expr]
   ): Unit = {
-    logical match {
-      case None => logMissingResult(destination, testIdx, goal)
-      case Some(logical) =>
-        destination match {
-          case None =>
-            val logicalStr = logical.map(_.toString).mkString("[", ", ", "]s")
-            val fullStr = physical match {
-              case Some(physical) =>
-                val physicalStr = physical
-                  .map({
-                    case (e, True) => e.toString
-                    case (e, _) => s"$e /* does not satisfy prefix condition */"
-                  })
-                  .mkString("[", ", ", "]s")
-                s"$physicalStr ++ $logicalStr"
-              case None => logicalStr
-            }
-            logger.debug(s"$goal is $fullStr")
-          case Some(dest) =>
-            val indent = "  "
-            val logicalStr = logical
-              .map(_.toString)
-              .mkString(s"[\n$indent", s",\n$indent", "\n]s")
-            val fullStr = physical match {
-              case Some(Seq()) if showPhysical =>
-                s"[]s ++ $logicalStr"
-              case Some(physical) if showPhysical =>
-                val elemStrings = physical.map({ case (e, _) => e.toString })
-                val elemWidth = elemStrings.map(_.length).max
-                val ok = physical.map({ case (_, ok) => ok == True })
-                val physicalStr = elemStrings
-                  .zip(ok)
-                  .map({
-                    case (e, true) => e
-                    case (e, false) =>
-                      s"${e.padTo(elemWidth, ' ')}  /* does not satisfy prefix condition */"
-                  })
-                  .mkString(s"[\n$indent", s",\n$indent", "\n]s")
-                s"$physicalStr ++ $logicalStr"
-              case _ => logicalStr
-            }
-            val msg = formatOutput(testIdx, fullStr)
-            os.write.append(dest, msg)
-            logger.debug(s"appended $goal to $dest")
-        }
-    }
-  }
-
-  private def logMissingResult(
-      destination: Option[Path],
-      testIdx: Int,
-      goal: String
-  ): Unit = {
-    val baseMsg = s"$goal could not be calculated due to previous errors"
     destination match {
       case None =>
-        logger.debug(baseMsg)
-      case Some(p) =>
-        val msg = formatOutput(testIdx, baseMsg)
-        os.write.append(p, msg)
-        logger.debug(s"$baseMsg; appended note to $p")
+        val logicalStr = logical.map(_.toString).mkString("[", ", ", "]s")
+        val fullStr = physical match {
+          case Some(physical) =>
+            val physicalStr = physical
+              .map({
+                case (e, True) => e.toString
+                case (e, _)    => s"$e /* does not satisfy prefix condition */"
+              })
+              .mkString("[", ", ", "]s")
+            s"$physicalStr ++ $logicalStr"
+          case None => logicalStr
+        }
+        logger.debug(s"$goal is $fullStr")
+      case Some(dest) =>
+        val indent = "  "
+        val logicalStr = logical
+          .map(_.toString)
+          .mkString(s"[\n$indent", s",\n$indent", "\n]s")
+        val fullStr = physical match {
+          case Some(Seq()) if this.showPhysical =>
+            s"[]s ++ $logicalStr"
+          case Some(physical) if this.showPhysical =>
+            val elemStrings = physical.map({ case (e, _) => e.toString })
+            val elemWidth = elemStrings.map(_.length).max
+            val ok = physical.map({ case (_, ok) => ok == True })
+            val physicalStr = elemStrings
+              .zip(ok)
+              .map({
+                case (e, true) => e
+                case (e, false) =>
+                  s"${e.padTo(elemWidth, ' ')}  /* does not satisfy prefix condition */"
+              })
+              .mkString(s"[\n$indent", s",\n$indent", "\n]s")
+            s"$physicalStr ++ $logicalStr"
+          case _ => logicalStr
+        }
+        val msg = formatOutput(testIdx, fullStr)
+        os.write.append(dest, msg)
+        logger.debug(s"appended $goal to $dest")
     }
   }
 

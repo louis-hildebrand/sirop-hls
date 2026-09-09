@@ -1,3 +1,3 @@
 [INFO ] the design has a latency of 1 cycle
-[WARN ] test 0: FAILED
+[WARN ] test 0: WRONG PHYSICAL PREFIX
 TestError: 1/1 test failed.
