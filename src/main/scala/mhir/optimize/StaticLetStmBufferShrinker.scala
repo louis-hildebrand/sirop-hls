@@ -66,14 +66,15 @@ class StaticLetStmBufferShrinker(
                 assert(bufSize.typ.asInstanceOf[TyUInt].w >= 1)
                 C(1)(bufSize.typ)
               case Some(_) =>
-                logger.warn(
+                logger.debug(
                   s"could not shrink buffer for letstm $x = ... because the" +
                     s" handshake protocol is enabled and assumeThroughputsMatch=false"
                 )
                 bufSize
               case None =>
-                logger.warn(
-                  s"could not show that latencies are matched for letstm $x = ..."
+                logger.debug(
+                  s"could not shrink buffer for letstm $x = ... because" +
+                    s" there appears to be a latency mismatch"
                 )
                 bufSize
             }

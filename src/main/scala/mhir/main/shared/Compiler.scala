@@ -15,7 +15,7 @@ import mhir.gen.vhdl.{VhdlGenerator, VhdlGeneratorOptions}
 import mhir.ir._
 import mhir.logging.{time, time2}
 import mhir.optimize._
-import mhir.sem.SemanticAnalyzer
+import mhir.sem.{SemanticAnalyzer, SemanticError}
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar.{
@@ -113,9 +113,8 @@ object Compiler {
         if (finalProgram.handshake) {
           logger.debug(s"the latency of the design is unknown")
         } else {
-          logger.warn(
-            s"latency matching failed or was disabled, and the handshake protocol is disabled." +
-              s" The VHDL design may not behave correctly."
+          throw SemanticError(
+            "there is a latency mismatch and automatic latency matching is disabled"
           )
         }
       case Some(n) =>

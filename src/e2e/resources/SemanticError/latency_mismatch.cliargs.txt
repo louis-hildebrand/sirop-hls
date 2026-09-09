@@ -1,0 +1,3 @@
+--opt:no-latmatch
+--opt:no-fuse
+--opt:no-fission

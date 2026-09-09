@@ -157,6 +157,11 @@ class TestRunner(testIdx: Int, handshake: Boolean, showPhysical: Boolean) {
     val rawActualOutput = eval("actual output", actualPath, inputs = inputs) {
       body
     }
+    if (this.handshake) {
+      a.prefixCondition.foreach(_ =>
+        logger.warn(s"prefix condition for test case $testIdx will be ignored")
+      )
+    }
     val actualPhysical = rawActualOutput match {
       case StmLiteral(physical, _) =>
         physical.map({ e =>
