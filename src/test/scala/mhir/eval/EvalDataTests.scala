@@ -616,4 +616,20 @@ class EvalDataTests extends AnyFunSuite {
     val e = f(Undefined(TyVec(I16, 2)))
     assertUndefined(mhir.eval.eval(e))
   }
+
+  test("(undefined, undefined)") {
+    val e = Tuple(Undefined(U8), Undefined(TyBool))().tchk()
+    val actual = mhir.eval.eval(e)
+    val expected = Undefined(TyTuple(U8, TyBool))
+    assert(actual == expected)
+    assert(actual.typ == expected.typ)
+  }
+
+  test("[undefined, undefined, undefined]v") {
+    val e = VecBuild(3, U8 ::+ (_ => Undefined(I16)))().tchk()
+    val actual = mhir.eval.eval(e)
+    val expected = Undefined(TyVec(I16, 3))
+    assert(actual == expected)
+    assert(actual.typ == expected.typ)
+  }
 }

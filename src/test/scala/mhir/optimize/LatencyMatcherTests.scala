@@ -434,8 +434,8 @@ class LatencyMatcherTests extends AnyFunSuite {
     val expectedVal = StmLiteral(
       Seq(
         Undefined(TyTuple(U8, U8)),
-        Tuple(Undefined(U8), Undefined(U8))(),
-        Tuple(Undefined(U8), Undefined(U8))(),
+        Undefined(TyTuple(U8, U8)),
+        Undefined(TyTuple(U8, U8)),
         Tuple(Undefined(U8), C(42)(U8))(),
         Tuple(Undefined(U8), C(43)(U8))(),
         Tuple(Undefined(U8), C(44)(U8))()
@@ -650,8 +650,8 @@ class LatencyMatcherTests extends AnyFunSuite {
     val expectedVal = StmLiteral(
       Seq(
         Undefined(TyTuple(U16, U16, U16)),
-        Tuple(Undefined(U16), Undefined(U16), Undefined(U16))(),
-        Tuple(Undefined(U16), Undefined(U16), Undefined(U16))()
+        Undefined(TyTuple(U16, U16, U16)),
+        Undefined(TyTuple(U16, U16, U16))
       ),
       (0 until n)
         .map(_ + 42)

@@ -1871,7 +1871,12 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     def extractFlat(e: Expr): Seq[Expr] = {
       e.asInstanceOf[StmLiteral]
         .logical
-        .flatMap(_.asInstanceOf[VecLiteral].elems)
+        .flatMap({
+          case VecLiteral(elems @ _*) => elems
+          case Undefined(TyVec(elemTyp, IntCst(n))) =>
+            (0 until n.toInt).map(_ => Undefined(elemTyp))
+          case _ => ???
+        })
     }
 
     val input = StmLiteral(

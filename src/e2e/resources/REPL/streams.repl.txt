@@ -7,9 +7,9 @@ Type 'exit' or press Ctrl+D to exit.
 > [WARN ] no physical prefix specified for stream literal [5:u8, 6:u8, 7:u8, 8:u8]s. The latency matcher will delay the stream by prepending undefined elements. To dismiss this warning, add a physical prefix (e.g., [undefined:u8]s ++ [5:u8, 6:u8, 7:u8, 8:u8]s).
 [
   undefined:(u8, u8),
-  (undefined:u8, undefined:u8),
-  (undefined:u8, undefined:u8),
-  (undefined:u8, undefined:u8)
+  undefined:(u8, u8),
+  undefined:(u8, u8),
+  undefined:(u8, u8)
 ]s ++ [
   (1:u8, 5:u8),
   (4:u8, 6:u8),
@@ -18,9 +18,9 @@ Type 'exit' or press Ctrl+D to exit.
 ]s
 > > [
   undefined:(u8, u8),
-  (undefined:u8, undefined:u8),
-  (undefined:u8, undefined:u8),
-  (undefined:u8, undefined:u8)
+  undefined:(u8, u8),
+  undefined:(u8, u8),
+  undefined:(u8, u8)
 ]s ++ [
   (1:u8, 5:u8),
   (4:u8, 6:u8),
