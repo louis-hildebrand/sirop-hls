@@ -114,7 +114,7 @@ case class Call(
           case (Seq(), Seq(v, f)) if handshake =>
             mhir.sugar.handshake.VecReduce(v, f)()
           case (Seq(), Seq(v, f)) if !handshake =>
-            ???
+            mhir.sugar.nohandshake.VecReduce(v, f)()
           case _ => error(f)
         }
       case f @ Param("VecFold", -1) =>

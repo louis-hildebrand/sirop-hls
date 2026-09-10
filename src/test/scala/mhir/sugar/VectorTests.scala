@@ -444,14 +444,23 @@ class VectorTests extends AnyFunSuite {
     assert(mhir.eval.eval(result) == C(2345)())
   }
 
-  test("VecReduceComb:Vec[Int,3]:Sum") {
+  test("VecReduceHandshake:Vec[Int,3]:Sum") {
     val v = VecBuild(3, U32 ::+ (i => i + 1))()
     val sum =
       VecReduce(v, Missing ::+ (x => x.__0 + x.__1))().tchk().lower
     assert(mhir.eval.eval(sum) == VecLiteral(C(6)())())
   }
 
-  test("VecReduceComb:Vec[Int,4]:HornersMethod") {
+  test("VecReduceNoHandshake:Vec[Int,3]:Sum") {
+    val v = VecLiteral(C(1)(U16), C(2)(U16), C(3)(U16))().tchk()
+    val result = mhir.sugar.nohandshake
+      .VecReduce(v, Missing ::+ (x => x.__0 * 3 + x.__1))()
+      .tchk()
+      .lower
+    assert(mhir.eval.eval(result) == VecLiteral(C(18)())())
+  }
+
+  test("VecReduce:Vec[Int,4]:HornersMethod") {
     // [2, 3, 4, 5]
     // i.e., 2x^3 + 3x^2 + 4x + 5
     // i.e., 5 + x*(4 + x*(3 + x*2))
