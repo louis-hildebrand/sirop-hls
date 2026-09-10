@@ -94,7 +94,10 @@ def copy_files_that_shouldnt_be_overwritten() -> None:
         if dest.is_dir():
             shutil.rmtree(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        src.copy(dest)
+        if src.is_dir():
+            shutil.copytree(src=src, dst=dest)
+        else:
+            shutil.copy(src=src, dst=dest)
 
 
 def check_files_that_shouldnt_be_overwritten() -> int:
@@ -103,13 +106,19 @@ def check_files_that_shouldnt_be_overwritten() -> int:
     earlier, and exit with an error if their contents have changed.
     """
 
-    def same_dir(dircmp: filecmp.dircmp) -> bool:
+    def same_file(src: Path, dest: Path) -> bool:
+        return filecmp.cmp(src, dest, shallow=False)
+
+    def same_dir(src: Path, dest: Path) -> bool:
+        dircmp = filecmp.dircmp(src, dest)
         return (
             not dircmp.left_only
             and not dircmp.right_only
             and not dircmp.diff_files
             and not dircmp.funny_files
-            and all(same_dir(subdircmp) for subdircmp in dircmp.subdirs.values())
+            and not dircmp.common_funny
+            and all(same_file(src / f, dest / f) for f in dircmp.common_files)
+            and all(same_dir(src / f, dest / f) for f in dircmp.common_dirs)
         )
 
     print()
@@ -120,10 +129,9 @@ def check_files_that_shouldnt_be_overwritten() -> int:
         print(f"{src.relative_to(c.RESOURCES)} ... ", end="")
         dest = c.ACTUAL_OUTPUTS / src.relative_to(c.RESOURCES)
         if src.is_dir():
-            cmp = filecmp.dircmp(src, dest, shallow=False)
-            ok = same_dir(cmp)
+            ok = same_dir(src, dest)
         elif src.is_file():
-            ok = filecmp.cmp(src, dest, shallow=False)
+            ok = same_file(src, dest)
         else:
             print(
                 f"{src} is neither a file nor a directory."
