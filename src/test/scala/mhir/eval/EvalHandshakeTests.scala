@@ -94,6 +94,28 @@ class EvalHandshakeTests extends AnyFunSuite {
     assert(exc.reasons == Seq(EmptyStreamRead))
   }
 
+  test("UndefinedReady") {
+    val original = {
+      val input = StmCount(C(4)(U8))().tchk().lower
+      val p = Param("p", -1)(TyStm(U8, -1))
+      StmBuild(
+        4,
+        Tuple()(),
+        Undefined(Missing),
+        StmData(p)(),
+        True,
+        Map(),
+        Map(
+          p -> (input, Undefined(TyBool), Tuple()())
+        )
+      )().tchk()
+    }
+    val ex = intercept[MissingRequiredValue](mhir.eval.eval(original))
+    assert(
+      ex.getMessage.contains("'ready' for producer 'p' evaluated to undefined")
+    )
+  }
+
   test("LetStm:ZipWithSelf") {
     // StmCount(5)
     val count = {
@@ -406,6 +428,50 @@ class EvalHandshakeTests extends AnyFunSuite {
     )().tchk()
     val actual = mhir.eval.eval(original)
     assert(actual == expected)
+  }
+
+  test("LetStm:MissingBufSize") {
+    val x = Param("x")(TyStm(U8, 8))
+    val expr =
+      LetStm(Undefined(U8), x, StmRange(8, C(0)(U8), C(1)(U8))(), x)().tchk()
+    val ex = intercept[MissingRequiredValue](mhir.eval.eval(expr))
+    assert(
+      ex.getMessage.contains("letstm buffer size evaluated to undefined:u8")
+    )
+  }
+
+  test("StmBuild:MissingLength:WithName") {
+    val original = {
+      StmBuild(
+        Undefined(U8),
+        Tuple()(),
+        Undefined(Missing),
+        C(42)(U8),
+        True,
+        Map(),
+        Map()
+      )().annotateWithName("StmFoo").tchk()
+    }
+    val ex = intercept[MissingRequiredValue](mhir.eval.eval(original))
+    assert(ex.getMessage.contains("length in StmFoo evaluated to undefined:u8"))
+  }
+
+  test("StmBuild:MissingLength:WithoutName") {
+    val original = {
+      StmBuild(
+        Undefined(U16),
+        Tuple()(),
+        Undefined(Missing),
+        C(42)(U8),
+        True,
+        Map(),
+        Map()
+      )().tchk()
+    }
+    val ex = intercept[MissingRequiredValue](mhir.eval.eval(original))
+    assert(
+      ex.getMessage.contains("length in sbuild evaluated to undefined:u16")
+    )
   }
 
   test("StmBuild:StmDataWithoutReady") {

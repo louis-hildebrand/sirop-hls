@@ -23,10 +23,11 @@ import mhir.typecheck.TypeCheck
 private[eval] class StmPipeline(
     var connections: DiGraph[StmNodeId],
     var sinkId: StmNodeId,
-    var nodes: Map[StmNodeId, StmNode with HandshakeStmNode] = Map()
+    var nodes: Map[StmNodeId, StmNode with HandshakeStmNode] = Map(),
+    var reachedFixpoint: Boolean
 ) extends mhir.eval.StmPipeline {
 
-  def reachedFixpoint(that: mhir.eval.StmPipeline): Boolean = {
+  private def sameState(that: mhir.eval.StmPipeline): Boolean = {
     that match {
       case that: StmPipeline =>
         (this.connections == that.connections
@@ -40,11 +41,16 @@ private[eval] class StmPipeline(
   }
 
   def step(): StmPipeline = {
-    val newPipe =
-      new StmPipeline(connections = this.connections, sinkId = this.sinkId)
+    val newPipe = new StmPipeline(
+      connections = this.connections,
+      sinkId = this.sinkId,
+      // Set this variable once the new state of each node is computed
+      reachedFixpoint = false
+    )
     newPipe.nodes = this.nodes.map({ case (id, node) =>
       id -> node.step(newPipe)
     })
+    newPipe.reachedFixpoint = newPipe.sameState(this)
     newPipe
   }
 
@@ -86,7 +92,8 @@ private[eval] object StmPipeline {
     val pipe = new StmPipeline(
       connections = DiGraph(),
       sinkId = StmNodeId(""),
-      nodes = Map()
+      nodes = Map(),
+      reachedFixpoint = false
     )
     val fWithInputs = f.subPreserveType(
       inputs
@@ -146,8 +153,9 @@ private[eval] object StmPipeline {
         )
         pipe.sinkId = newSink.id
       case LetStm(bufSize, x, in, out) =>
-        // TODO: what if it turns out to be undefined?
-        val IntCst(bufSizeVal) = eval(bufSize)
+        val bufSizeVal = eval(bufSize).getIntCstOrElse({ case u =>
+          throw MissingRequiredValue(s"letstm buffer size evaluated to $u")
+        })
         init(pipe, in, idByVar, loc)
         val newNode = LetStmNode(
           pipe = pipe,
@@ -176,8 +184,10 @@ private[eval] object StmPipeline {
       idByVar: Map[Param, StmNodeId],
       loc: StmNodeLocation
   ): StmBuildNode = {
-    // TODO: what if it turns out to be undefined?
-    val IntCst(n) = eval(s.n)
+    val name = s.nameAnnotation.getOrElse("sbuild")
+    val n = eval(s.n).getIntCstOrElse({ case u =>
+      throw MissingRequiredValue(s"length in $name evaluated to $u")
+    })
     val readyByInput = s.producers
       .map({ case (x, (_, ready, _)) => x -> ready })
     val inputs = s.producers.map({ case (x, (z, _, _)) =>

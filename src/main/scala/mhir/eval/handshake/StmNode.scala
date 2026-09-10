@@ -9,21 +9,21 @@ private[handshake] sealed trait HandshakeStmNode {
 
   /** Computes the next state of this node.
     */
-  private[handshake] def step(
+  def step(
       newPipe: StmPipeline
   ): StmNode with HandshakeStmNode
 
   /** Changes the pipeline that this node is part of, but does not update this
     * node's internal state.
     */
-  private[handshake] def inPipe(
+  def inPipe(
       newPipe: StmPipeline
   ): StmNode with HandshakeStmNode
 
   /** Check whether this node has the same state as `that`, ignoring the
     * [[StmPipeline]] reference.
     */
-  private[handshake] def sameState(that: StmNode): Boolean
+  def sameState(that: StmNode): Boolean
 }
 
 /** A custom stream producer, from [[StmBuild]].
@@ -189,10 +189,13 @@ private[handshake] case class StmBuildNode(
         )
       }
       val ready = eval(readyExpr.subPreserveType(this.accSubs)) match {
-        case False        => false
-        case True         => true
-        case _: Undefined => throw UndefinedReady
-        case v            => throw new AssertionError(s"ready evaluated to $v")
+        case False => false
+        case True  => true
+        case _: Undefined =>
+          throw MissingRequiredValue(
+            s"'ready' for producer '$x' evaluated to undefined"
+          )
+        case v => throw new AssertionError(s"ready evaluated to $v")
       }
       x -> ready
     })

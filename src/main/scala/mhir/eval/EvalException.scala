@@ -30,8 +30,6 @@ object EmptyStreamRead extends DeadlockReason {
   override def name: String = "attempt to read from an empty stream"
 }
 
-object UndefinedReady extends EvalException("ready evaluated to undefined")
-
 /** The stream <i>appears</i> to be deadlocked because it took too many steps
   * without producing any valid outputs.
   */
@@ -45,4 +43,11 @@ object PipelineFixpoint extends DeadlockReason {
   override def name: String = "pipeline reached fixpoint"
 }
 
+/** There is a delay mismatch and the handshake protocol is disabled.
+  */
 case class DelayMismatch(msg: String) extends EvalException(msg)
+
+/** A required value (e.g., the length of a stream) is missing somehow (e.g., it
+  * evaluated to [[mhir.ir.Undefined]]).
+  */
+case class MissingRequiredValue(msg: String) extends EvalException(msg)

@@ -866,12 +866,10 @@ case class StmCascade(s: Expr)(typ: Type = Missing)
             p -> (sExtended, True, C(0)())
           )
         )().tchk()
-      case IntCst(0) =>
-        ???
       case e =>
         throw new TypeError(
           s"$className is not applicable when the vectors have length $e."
-            + s" Only non-negative, constant lengths are supported."
+            + s" Only positive, constant lengths are supported."
         )
     }
   }

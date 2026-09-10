@@ -69,7 +69,7 @@ object StmBuildTraceNode {
     StmBuildTraceNode(
       n = s.n,
       out = if (s.consumerIds.isEmpty) {
-        Map(StmNodeId("sink") -> s.out(StmNodeId("sink")))
+        Map(StmNodeId.Sink -> s.out(StmNodeId.Sink))
       } else {
         s.consumerIds.map(cid => cid -> s.out(cid)).toMap
       },

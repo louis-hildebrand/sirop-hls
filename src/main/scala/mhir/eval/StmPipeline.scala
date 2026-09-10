@@ -8,9 +8,6 @@ trait StmPipeline {
     */
   def step(): StmPipeline
 
-  // TODO: Should this be combined with the `isStuck` method?
-  def reachedFixpoint(that: StmPipeline): Boolean
-
   def connections: DiGraph[StmNodeId]
 
   def nodes: Map[StmNodeId, StmNode]
@@ -29,12 +26,20 @@ trait StmPipeline {
 
   /** The reasons for which this pipeline is stuck, if any (see [[isStuck]]).
     */
-  def deadlockReasons: Set[DeadlockReason] = this.sink.deadlockReasons
+  def deadlockReasons: Set[DeadlockReason] = {
+    if (this.reachedFixpoint) {
+      this.sink.deadlockReasons + PipelineFixpoint
+    } else {
+      this.sink.deadlockReasons
+    }
+  }
 
   /** Whether this pipeline is stuck and will no longer produce any output
     * despite (supposedly) being non-empty.
     */
   def isStuck: Boolean = this.deadlockReasons.nonEmpty
+
+  protected def reachedFixpoint: Boolean
 
   /** The type of the stream produced by this pipeline.
     */

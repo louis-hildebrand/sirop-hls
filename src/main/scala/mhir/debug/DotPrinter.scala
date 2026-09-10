@@ -108,7 +108,7 @@ case class DotPrinter(
         }
       })
       .toSeq
-      .:+(terminalNodeToDot(StmNodeId("sink")))
+      .:+(terminalNodeToDot(StmNodeId.Sink))
       .mkString("\n")
     s"""subgraph cluster_main {
        |    label = "$topName";

@@ -886,7 +886,6 @@ object VhdlTestbenchGenerator {
           + s" Expected ${params.length}, got ${inputs.length}."
       )
     }
-    // TODO: don't do this; instead, provide the inputs to the evaluator separately
     val (body, inputExprs) = inputs.foldLeft((e, Map[Param, Expr]()))({
       case ((Function(x, body), inputExprs), in) =>
         val inExpr = StmLiteral(in.elements.flatten.toSeq: _*)()
@@ -902,7 +901,7 @@ object VhdlTestbenchGenerator {
         mhir.eval.eval(body, inputs = inputExprs)
       assert(
         physical.isEmpty,
-        "TODO: implement VhdlTestbenchGenerator.getExpectedOutput properly"
+        "TODO: update VhdlTestbenchGenerator.getExpectedOutput to support physical prefix"
       )
       DirectTestOutput(logical, logical.map(e => AllZero(e.typ)))
     }

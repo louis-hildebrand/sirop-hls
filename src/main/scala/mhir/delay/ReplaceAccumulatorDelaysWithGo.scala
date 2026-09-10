@@ -35,7 +35,7 @@ class ReplaceAccumulatorDelaysWithGo(go: Option[Param]) {
               val example = s0.nameAnnotation
                 .map(name => s" (e.g., in $name)")
                 .getOrElse("")
-              // TODO: make this a warning instead of an error?
+              // TODO: make this a warning instead of an error? Would then need to be careful not to spam the programmer with many duplicate messages
               throw SemanticError(
                 s"the program seems to be latency-sensitive$example, but no 'go' stream is specified."
                   + " Consider adding a stream of booleans as input and adding the 'go' annotation (as in 'accelerator[go=my_go] top = (my_go: Stm[bool, ...]) => ...')."

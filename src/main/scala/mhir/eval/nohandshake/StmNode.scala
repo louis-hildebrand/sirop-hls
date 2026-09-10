@@ -4,13 +4,11 @@ package nohandshake
 import mhir.canonicalize._
 import mhir.ir._
 
-// TODO: Make these methods package-private where possible
-
-sealed trait NoHandshakeStmNode {
+private[nohandshake] sealed trait NoHandshakeStmNode {
 
   /** Computes the next state of this node.
     */
-  private[nohandshake] def step(
+  def step(
       newPipe: StmPipeline
   ): StmNode with NoHandshakeStmNode
 
@@ -53,7 +51,7 @@ private[nohandshake] case class StmBuildNode(
 
   override def id: StmNodeId = this.hw.id
 
-  override private[nohandshake] def step(
+  override def step(
       newPipe: StmPipeline
   ): StmNode with NoHandshakeStmNode = {
     if (newPipe.time > this.absoluteDelayToLast) {
@@ -128,7 +126,7 @@ private[nohandshake] case class StmLiteralNode(
 
   override def acc: Map[Param, Expr] = Map()
 
-  override private[nohandshake] def step(
+  override def step(
       newPipe: StmPipeline
   ): StmNode with NoHandshakeStmNode = {
     StmLiteralNode(
@@ -149,7 +147,7 @@ private[nohandshake] case class StmLiteralNode(
   }
 
   override def data: Expr = {
-    this.out(StmNodeId("sink")) match {
+    this.out(StmNodeId.Sink) match {
       case NoOutput =>
         val TyStm(elemTyp, _) = this.typ
         Undefined(elemTyp)

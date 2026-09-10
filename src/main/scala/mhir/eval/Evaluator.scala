@@ -1,5 +1,6 @@
 package mhir.eval
 
+import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.sugar.ExprLowering
@@ -15,6 +16,8 @@ import scala.language.{existentials, implicitConversions}
   *   node. If this is less than or equal to zero, then there is no limit.
   */
 class Evaluator(val handshake: Boolean, val maxInvalidSteps: Int) {
+
+  private val logger: Logger = Logger(getClass.getName)
 
   /** Evaluates an expression.
     *
@@ -40,8 +43,10 @@ class Evaluator(val handshake: Boolean, val maxInvalidSteps: Int) {
           StmPipeline(expr, inputs = inputs, handshake = this.handshake)
         evalPipeline(pipe, Seq(), Seq(), invalidSteps = 0)
       case _ =>
-        // TODO: decide what to do in this case
-        ???
+        logger.warn(
+          s"the interpreter will skip expressions of type ${expr.typ}"
+        )
+        expr
     }
   }
 
@@ -62,9 +67,6 @@ class Evaluator(val handshake: Boolean, val maxInvalidSteps: Int) {
       throw new DeadlockError(Seq(TooManySteps))
     } else {
       val nextPipe = pipe.step()
-      if (nextPipe.reachedFixpoint(pipe)) {
-        throw new DeadlockError(Seq(PipelineFixpoint))
-      }
       pipe.sink.out(StmNodeId("")) match {
         case LogicalOutput(v) =>
           evalPipeline(

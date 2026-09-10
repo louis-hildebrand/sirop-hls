@@ -273,5 +273,12 @@ trait ExprUtils {
         case _ => false
       }
     }
+
+    def getIntCstOrElse(default: PartialFunction[Expr, Long]): Long = {
+      this.expr match {
+        case IntCst(n) => n
+        case e         => default(e)
+      }
+    }
   }
 }

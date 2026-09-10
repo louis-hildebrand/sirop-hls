@@ -2,8 +2,6 @@ package mhir.eval
 
 import mhir.ir._
 
-// TODO: Document all these traits and methods
-
 sealed trait StmNode {
 
   /** The ID of this node.
@@ -17,6 +15,8 @@ sealed trait StmNode {
     */
   def out(consumerId: StmNodeId): StmOutput
 
+  /** The output for each consumer of this node.
+    */
   def outMap: Map[StmNodeId, StmOutput] = {
     this.consumerIds
       .map(id => id -> this.out(id))

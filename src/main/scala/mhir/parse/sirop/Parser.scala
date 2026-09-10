@@ -1570,55 +1570,10 @@ object Parser {
           }
         }
         (StmLiteral(physical, logical)(typ), rest5)
-      case _ =>
-        // Non-empty vector or stream
-        rest2.headOption match {
-          case Some(_: RightSquareVToken) =>
-            val rest3 = rest2.tail
-            rest3.headOption match {
-              case Some(_: ColonToken) =>
-                throw SyntaxError(
-                  "type annotations are forbidden for non-empty Vec literals",
-                  lsq.loc
-                )
-              case _ => ()
-            }
-            (VecLiteral(elems: _*)(), rest3)
-          case Some(_: RightSquareSToken) =>
-            val rest3 = rest2.tail
-            val (physical, logical, rest4) = rest3.headOption match {
-              case Some(_: PlusPlusToken) =>
-                val rest3_1 = rest3.tail
-                val (logical, rest3_2) =
-                  parseLogicalStreamLiteral(rest3_1, constants)
-                (elems, logical, rest3_2)
-              case _ =>
-                (Seq(), elems, rest3)
-            }
-            val (typ, rest5) = rest4.headOption match {
-              case Some(_: ColonToken) =>
-                val rest4_1 = rest4.tail
-                parseStmTyp(rest4_1, constants)
-              case _ =>
-                (Missing, rest4)
-            }
-            // TODO: check typ != Missing iff logical.isEmpty && physical.isEmpty
-            (StmLiteral(physical, logical)(typ), rest5)
-          case Some(tok) =>
-            throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
-          case None => throw SyntaxError("unexpected end of file", None)
-        }
+      case Some(tok) =>
+        throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
+      case None => throw SyntaxError("unexpected end of file", None)
     }
-  }
-
-  private def parseLogicalStreamLiteral(
-      tokens: Seq[Token],
-      constants: Map[Param, Type]
-  ): (Seq[Expr], Seq[Token]) = {
-    val (_, rest1) = expect(LeftSquareToken, tokens)
-    val (elems, rest2) = parseExprList(rest1, constants)
-    val (_, rest3) = expect(RightSquareSToken, rest2)
-    (elems, rest3)
   }
 
   private def parseExprList(

@@ -173,8 +173,7 @@ class EnabledLatencyMatcher(
               + s" To dismiss this warning, add a physical prefix (e.g., [$undefined]s ++ $s)."
           )
           Head(undefined, Some(warning))
-        case _ =>
-          ???
+        case _ => ???
       }
     }
   }

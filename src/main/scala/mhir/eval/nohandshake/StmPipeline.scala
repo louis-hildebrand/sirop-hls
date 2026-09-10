@@ -43,7 +43,7 @@ private[eval] class StmPipeline(
 
   override def sink: StmNode with NoHandshakeStmNode = this.nodes(this.sinkId)
 
-  override def reachedFixpoint(that: mhir.eval.StmPipeline): Boolean = {
+  override def reachedFixpoint: Boolean = {
     // When the handshake protocol is disabled, we can statically calculate
     // the number of time steps it will take to compute the full result.
     // Therefore, there's no need to worry about reaching a fixpoint and
@@ -72,7 +72,7 @@ private[eval] class StmPipeline(
   }
 }
 
-object StmPipeline {
+private[eval] object StmPipeline {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
@@ -131,9 +131,8 @@ object StmPipeline {
         )
         pipe.sinkId = newSink.id
       case LetStm(bufSize, x, in, out) =>
-        // TODO: what if it turns out to be undefined?
-        val IntCst(bufSizeVal) = eval(bufSize)
-        if (bufSizeVal != 0) {
+        val bufSizeVal = eval(bufSize)
+        if (bufSizeVal != C(0)()) {
           logger.warn(
             s"cannot implement letstm with nonzero buffer size ($bufSizeVal) when the handshake protocol is disabled." +
               " The buffer size will be ignored, which may lead to the program producing incorrect results."
@@ -159,16 +158,31 @@ object StmPipeline {
       idByVar: Map[Param, StmNodeId],
       loc: StmNodeLocation
   ): StmBuildNode = {
-    // TODO: what if it turns out to be undefined?
-    val IntCst(n) = eval(s.n)
-    val IntCst(outDelay) = eval(s.delay)
+    val name = s.nameAnnotation.getOrElse("sbuild")
+    val n = eval(s.n).getIntCstOrElse({ case u =>
+      throw MissingRequiredValue(s"length in $name evaluated to $u")
+    })
+    val outDelay = eval(s.delay).getIntCstOrElse({
+      case Tuple() =>
+        throw MissingRequiredValue(s"missing output delay in $name")
+      case u =>
+        throw MissingRequiredValue(s"output delay in $name evaluated to $u")
+    })
     val inputs = s.producers.map({ case (x, (z, _, _)) =>
       x -> init(pipe, z, idByVar, loc)
     })
     val myEpochByProducer = s.producers
       .map({ case (x, (_, _, delayExpr)) =>
-        // TODO: what if it turns out to be undefined?
-        val IntCst(relativeDelay) = eval(delayExpr)
+        val relativeDelay = eval(delayExpr).getIntCstOrElse({
+          case Tuple() =>
+            throw MissingRequiredValue(
+              s"missing delay for producer $x in $name"
+            )
+          case u =>
+            throw MissingRequiredValue(
+              s"delay for producer $x in $name evaluated to $u"
+            )
+        })
         // This producer requires the input stream to have delay
         //     T + relativeDelay
         // for some T.
@@ -194,7 +208,10 @@ object StmPipeline {
           case Tuple() => None
           case IntCst(relativeDelay) =>
             Some(x -> (myEpoch + relativeDelay.toInt))
-          case _ => ???
+          case u =>
+            throw MissingRequiredValue(
+              s"delay for accumulator $x in $name evaluated to $u"
+            )
         }
       })
     StmBuildNode(
