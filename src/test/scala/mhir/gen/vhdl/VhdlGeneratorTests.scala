@@ -2,6 +2,7 @@ package mhir.gen
 package vhdl
 
 import mhir.canonicalize._
+import mhir.delay.ReplaceAccumulatorDelaysWithGo
 import mhir.gen.TestPassed
 import mhir.gen.vhdl.test._
 import mhir.ir._
@@ -742,45 +743,80 @@ class VhdlGeneratorTests extends AnyFunSuite {
 
   test("NoHandshake3") {
     val n = 10
-    val w = 3
+    val w = 4
     val latency = 2
     val s = Param("I0", -1)(TyStm(U16, n))
+    val go = Param("go", -1)(TyStm(TyBool, n))
     val f = Function(
       s,
-      StmSlideStartingWith(SimpleMap(s, x => x * x), AllZero(TyVec(U16, w)))()
-    )().tchk().lower
+      Function(
+        go,
+        PartialEvalPass.partialEval(
+          new ReplaceAccumulatorDelaysWithGo(Some(go)).apply(
+            StmSlideStartingWith(
+              mhir.sugar.nohandshake.StmMap(
+                s,
+                U16 ::+ (x => Prod(x, x)()),
+                C(0)(U16)
+              )(),
+              AllZero(TyVec(U16, w))
+            )().tchk().lower
+          )
+        )
+      )()
+    )().tchk()
     val io = TestSuiteIO(
       Seq(
         KeywordTestIO(
           Map(
-            s -> DirectTestInput((0 until n).map(C(_)(I16)).map(Some(_)))
+            s -> DirectTestInput((0 until n).map(C(_)(I16)).map(Some(_))),
+            go -> DirectTestInput((0 until n).map(_ => True).map(Some(_)))
           ),
           DirectTestOutput(
-            (0 until latency).map(_ => Undefined(TyVec(U16, w + 1))) ++ {
-              ((0 until w).map(_ => 0).map(C(_)(U16))
-                ++ (0 until n).map(x => x * x).map(C(_)(U16)))
-                .sliding(w + 1)
-                .map(xs => VecLiteral(xs: _*)())
-                .toSeq
+            (0 until latency).map(_ => Undefined(TyVec(U16, w))) ++ {
+              Seq(
+                Seq(0, 0, 0, 0),
+                Seq(0, 0, 0, 1),
+                Seq(0, 0, 1, 4),
+                Seq(0, 1, 4, 9),
+                Seq(1, 4, 9, 16),
+                Seq(4, 9, 16, 25),
+                Seq(9, 16, 25, 36),
+                Seq(16, 25, 36, 49),
+                Seq(25, 36, 49, 64),
+                Seq(36, 49, 64, 81)
+              )
+                .map(_.map(C(_)(U16)))
+                .map(VecLiteral(_: _*)())
             },
-            (0 until latency).map(_ => AllOne(TyVec(U16, w + 1))) ++
-              (0 until (w + n)).map(_ => AllZero(TyVec(U16, w + 1)))
+            (0 until latency).map(_ => AllOne(TyVec(U16, w))) ++
+              (0 until (w + n)).map(_ => AllZero(TyVec(U16, w)))
           )
         ),
         KeywordTestIO(
           Map(
-            s -> DirectTestInput((n to 1 by -1).map(C(_)(I16)).map(Some(_)))
+            s -> DirectTestInput((n to 1 by -1).map(C(_)(I16)).map(Some(_))),
+            go -> DirectTestInput((n to 1 by -1).map(_ => True).map(Some(_)))
           ),
           DirectTestOutput(
-            (0 until latency).map(_ => Undefined(TyVec(U16, w + 1))) ++ {
-              ((0 until w).map(_ => 0).map(C(_)(U16))
-                ++ (n to 1 by -1).map(x => x * x).map(C(_)(U16)))
-                .sliding(w + 1)
-                .map(xs => VecLiteral(xs: _*)())
-                .toSeq
+            (0 until latency).map(_ => Undefined(TyVec(U16, w))) ++ {
+              Seq(
+                Seq(0, 0, 0, 100),
+                Seq(0, 0, 100, 81),
+                Seq(0, 100, 81, 64),
+                Seq(100, 81, 64, 49),
+                Seq(81, 64, 49, 36),
+                Seq(64, 49, 36, 25),
+                Seq(49, 36, 25, 16),
+                Seq(36, 25, 16, 9),
+                Seq(25, 16, 9, 4),
+                Seq(16, 9, 4, 1)
+              )
+                .map(_.map(C(_)(U16)))
+                .map(VecLiteral(_: _*)())
             },
-            (0 until latency).map(_ => AllOne(TyVec(U16, w + 1))) ++
-              (0 until (w + n)).map(_ => AllZero(TyVec(U16, w + 1)))
+            (0 until latency).map(_ => AllOne(TyVec(U16, w))) ++
+              (0 until (w + n)).map(_ => AllZero(TyVec(U16, w)))
           )
         )
       )
