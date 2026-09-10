@@ -1,0 +1,1 @@
+SemanticError: the program seems to be latency-sensitive (e.g., in StmRange), but no 'go' stream is specified. Consider adding a stream of booleans as input and adding the 'go' annotation (as in 'accelerator[go=my_go] top = (my_go: Stm[bool, ...]) => ...'). The value of this stream must be `[false, false, ...]s ++ [true, true, ...]s`.

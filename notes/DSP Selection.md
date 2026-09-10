@@ -17,23 +17,23 @@ Consider the following FIR filter
     truncate18(pad44(stage5_x_pipe[0]) *` pad44(stage5_y_pipe[0]) +` stage4_out >> 15),
     true
   ) {
-    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
-    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
-    (stage0_out    : i44)         = { init: undefined[i44], next: pad44(stage0_x_pipe[0]) *` pad44(stage0_y_pipe[0]) },
-    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
-    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
-    (stage1_out    : i44)         = { init: undefined[i44], next: pad44(stage1_x_pipe[0]) *` pad44(stage1_y_pipe[0]) +` stage0_out },
-    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
-    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
-    (stage2_out    : i44)         = { init: undefined[i44], next: pad44(stage2_x_pipe[0]) *` pad44(stage2_y_pipe[0]) +` stage1_out },
-    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
-    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
-    (stage3_out    : i44)         = { init: undefined[i44], next: pad44(stage3_x_pipe[0]) *` pad44(stage3_y_pipe[0]) +` stage2_out },
-    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
-    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
-    (stage4_out    : i44)         = { init: undefined[i44], next: pad44(stage4_x_pipe[0]) *` pad44(stage4_y_pipe[0]) +` stage3_out },
-    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
-    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } }
+    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
+    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
+    (stage0_out    : i44)         = { init: undefined:i44, next: pad44(stage0_x_pipe[0]) *` pad44(stage0_y_pipe[0]) },
+    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
+    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
+    (stage1_out    : i44)         = { init: undefined:i44, next: pad44(stage1_x_pipe[0]) *` pad44(stage1_y_pipe[0]) +` stage0_out },
+    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
+    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
+    (stage2_out    : i44)         = { init: undefined:i44, next: pad44(stage2_x_pipe[0]) *` pad44(stage2_y_pipe[0]) +` stage1_out },
+    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
+    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
+    (stage3_out    : i44)         = { init: undefined:i44, next: pad44(stage3_x_pipe[0]) *` pad44(stage3_y_pipe[0]) +` stage2_out },
+    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
+    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
+    (stage4_out    : i44)         = { init: undefined:i44, next: pad44(stage4_x_pipe[0]) *` pad44(stage4_y_pipe[0]) +` stage3_out },
+    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
+    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } }
   } {
     (p1 : Stm[Vec[i18, 6:u3], -1:i1]) = {
       stm: s,
@@ -62,24 +62,24 @@ That should be doable using the existing "scheduling" pass I use for fission.
     truncate18(stage5_out >> 15), // NOTE: no implicit output register (so that output register can be folded into an IP block)
     true
   ) {
-    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
-    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
-    (stage0_out    : i44)         = { init: undefined[i44], next: pad44(stage0_x_pipe[0]) *` pad44(stage0_y_pipe[0]) },
-    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
-    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
-    (stage1_out    : i44)         = { init: undefined[i44], next: pad44(stage1_x_pipe[0]) *` pad44(stage1_y_pipe[0]) +` stage0_out },
-    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
-    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
-    (stage2_out    : i44)         = { init: undefined[i44], next: pad44(stage2_x_pipe[0]) *` pad44(stage2_y_pipe[0]) +` stage1_out },
-    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
-    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
-    (stage3_out    : i44)         = { init: undefined[i44], next: pad44(stage3_x_pipe[0]) *` pad44(stage3_y_pipe[0]) +` stage2_out },
-    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
-    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
-    (stage4_out    : i44)         = { init: undefined[i44], next: pad44(stage4_x_pipe[0]) *` pad44(stage4_y_pipe[0]) +` stage3_out },
-    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
-    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } },
-    (stage5_out    : i44)         = { init: undefined[i44], next: pad44(stage5_x_pipe[0]) *` pad44(stage5_y_pipe[0]) +` stage4_out }
+    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
+    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
+    (stage0_out    : i44)         = { init: undefined:i44, next: pad44(stage0_x_pipe[0]) *` pad44(stage0_y_pipe[0]) },
+    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
+    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
+    (stage1_out    : i44)         = { init: undefined:i44, next: pad44(stage1_x_pipe[0]) *` pad44(stage1_y_pipe[0]) +` stage0_out },
+    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
+    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
+    (stage2_out    : i44)         = { init: undefined:i44, next: pad44(stage2_x_pipe[0]) *` pad44(stage2_y_pipe[0]) +` stage1_out },
+    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
+    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
+    (stage3_out    : i44)         = { init: undefined:i44, next: pad44(stage3_x_pipe[0]) *` pad44(stage3_y_pipe[0]) +` stage2_out },
+    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
+    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
+    (stage4_out    : i44)         = { init: undefined:i44, next: pad44(stage4_x_pipe[0]) *` pad44(stage4_y_pipe[0]) +` stage3_out },
+    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
+    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } },
+    (stage5_out    : i44)         = { init: undefined:i44, next: pad44(stage5_x_pipe[0]) *` pad44(stage5_y_pipe[0]) +` stage4_out }
   } {
     (p1 : Stm[Vec[i18, 6:u3], -1:i1]) = {
       stm: s,
@@ -109,18 +109,18 @@ Then recognize individual multiplications followed by a register
 ```
 (s : Stm[Vec[i18, 6:u3], 8:u4]) =>
   sbuild(8:u4)(truncate18(stage5_out >> 15), true) {
-    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
-    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
-    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
-    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
-    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
-    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
-    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
-    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
-    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
-    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
-    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
-    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } },
+    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
+    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
+    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
+    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
+    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
+    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
+    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
+    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
+    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
+    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
+    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
+    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } },
   } {
     (p1 : Stm[Vec[i18, 6:u3], -1:i1]) = {
       stm: s,
@@ -157,18 +157,18 @@ Questions:
 ```
 (s : Stm[Vec[i18, 6:u3], 8:u4]) =>
   sbuild(8:u4)(truncate18(stage5_out >> 15), true) {
-    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
-    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
-    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
-    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
-    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
-    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
-    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
-    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
-    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
-    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
-    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
-    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } }
+    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
+    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
+    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
+    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
+    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
+    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
+    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
+    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
+    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
+    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
+    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
+    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } }
   } {
     (p1 : Stm[Vec[i18, 6:u3], -1:i1]) = {
       stm: s,
@@ -195,18 +195,18 @@ Then delete unused intermediate values
 ```
 (s : Stm[Vec[i18, 6:u3], 8:u4]) =>
   sbuild(8:u4)(truncate18(stage5_out >> 15), true) {
-    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
-    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
-    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
-    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
-    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
-    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
-    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
-    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
-    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
-    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
-    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
-    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } }
+    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
+    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
+    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
+    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
+    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
+    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
+    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
+    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
+    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
+    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
+    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
+    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } }
   } {
     (p1 : Stm[Vec[i18, 6:u3], -1:i1]) = {
       stm: s,
@@ -231,18 +231,18 @@ Here we can see that we're reading from the end of 2-stage shift registers, so w
 ```
 (s : Stm[Vec[i18, 6:u3], 8:u4]) =>
   sbuild(8:u4)(truncate18(stage5_out >> 15), true) {
-    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
-    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
-    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
-    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
-    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
-    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
-    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
-    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
-    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
-    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
-    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
-    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined[i18], next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } }
+    (stage0_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[0] else stage0_x_pipe[i + 1] } },
+    (stage0_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[0] else stage0_y_pipe[i + 1] } },
+    (stage1_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[1] else stage1_x_pipe[i + 1] } },
+    (stage1_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[1] else stage1_y_pipe[i + 1] } },
+    (stage2_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[2] else stage2_x_pipe[i + 1] } },
+    (stage2_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[2] else stage2_y_pipe[i + 1] } },
+    (stage3_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[3] else stage3_x_pipe[i + 1] } },
+    (stage3_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[3] else stage3_y_pipe[i + 1] } },
+    (stage4_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[4] else stage4_x_pipe[i + 1] } },
+    (stage4_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[4] else stage4_y_pipe[i + 1] } },
+    (stage5_x_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p1)[5] else stage5_x_pipe[i + 1] } },
+    (stage5_y_pipe : Vec[i18, 2]) = { init: undefined:i18, next: vbuild(2) { (i: u32) => if (i == 1) then sdata(p2)[5] else stage5_y_pipe[i + 1] } }
   } {
     (p1 : Stm[Vec[i18, 6:u3], -1:i1]) = {
       stm: s,

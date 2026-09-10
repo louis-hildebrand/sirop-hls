@@ -1,0 +1,8 @@
+accelerator[no_handshake]
+top = (s: Stm[u8, 4]) =>
+    s.StmMap(x => x + 5).StmZip(s)
+
+assert {
+    s = [1:u8, 2:u8, 3:u8, 4:u8]s
+}
+yields [(6:u8, 1:u8), (7:u8, 2:u8), (8:u8, 3:u8), (9:u8, 4:u8)]s

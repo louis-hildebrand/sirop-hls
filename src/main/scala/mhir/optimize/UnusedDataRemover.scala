@@ -64,7 +64,7 @@ object EnabledUnusedDataRemover extends UnusedDataRemover {
       case s1: StmBuild =>
         val s2 = s1.producers
           .foldLeft(s1)({
-            case (consumer, (x, (producer: StmBuild, ready))) =>
+            case (consumer, (x, (producer: StmBuild, ready, delay))) =>
               val uses = UnusedDataAnalysis(x).findUnused(consumer)
               if (uses == AllUsed) {
                 consumer
@@ -72,27 +72,33 @@ object EnabledUnusedDataRemover extends UnusedDataRemover {
                 val TyStm(oldDataTyp, _) = x.typ
                 val newDataTyp = transformTyp(oldDataTyp, uses)
                 val newX = Param(x.prefix)(TyStm(newDataTyp, -1))
-                val newProducerData = transformExpr(producer.data, uses)
-                assert(newProducerData.typ == newDataTyp)
+                val newProducerInitData = transformExpr(producer.initData, uses)
+                assert(newProducerInitData.typ == newDataTyp)
+                val newProducerNextData = transformExpr(producer.nextData, uses)
+                assert(newProducerNextData.typ == newDataTyp)
                 val newProducer = StmBuild(
                   producer.n,
-                  newProducerData,
+                  producer.delay,
+                  newProducerInitData,
+                  newProducerNextData,
                   producer.valid,
                   producer.accumulators,
                   producer.producers
                 )().tchk()
                 StmBuild(
                   consumer.n,
-                  consumer.data.subAndEraseType(x -> newX).tchk(),
+                  consumer.delay,
+                  consumer.initData,
+                  consumer.nextData.subAndEraseType(x -> newX).tchk(),
                   consumer.valid.subAndEraseType(x -> newX).tchk(),
-                  consumer.accumulators.map({ case (y, (init, next)) =>
-                    y -> (init, next.subAndEraseType(x -> newX).tchk())
+                  consumer.accumulators.map({ case (y, (init, next, delay)) =>
+                    y -> (init, next.subAndEraseType(x -> newX).tchk(), delay)
                   }),
                   (consumer.producers - x)
-                    .map({ case (y, (stm, ready)) =>
-                      y -> (stm, ready.subAndEraseType(x -> newX).tchk())
+                    .map({ case (y, (stm, ready, delay)) =>
+                      y -> (stm, ready.subAndEraseType(x -> newX).tchk(), delay)
                     })
-                    .+(newX -> (newProducer, ready))
+                    .+(newX -> (newProducer, ready, delay))
                 )().tchk().asInstanceOf[StmBuild]
               }
             case (acc, _) => acc
@@ -101,8 +107,8 @@ object EnabledUnusedDataRemover extends UnusedDataRemover {
         // information about unused data propagates from sink back to source
         s2
           .mapProducers({
-            case (x, (s, ready)) if x.typ.isInstanceOf[TyStm] =>
-              x -> (doRemoveUnusedData(s), ready)
+            case (x, (s, ready, delay)) if x.typ.isInstanceOf[TyStm] =>
+              x -> (doRemoveUnusedData(s), ready, delay)
             case eqn => eqn
           })
           .tchk()

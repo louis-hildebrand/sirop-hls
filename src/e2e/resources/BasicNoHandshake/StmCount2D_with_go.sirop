@@ -1,0 +1,50 @@
+accelerator[no_handshake, go=go]
+count = (go: Stm[bool, 12]) => StmCount2D(3:u8, 4:u8)
+
+assert {
+    go = []s ++ [true, true, true, true, true, true, true, true, true, true, true, true]s
+}
+yields [
+    [
+        (0:u8, 0:u8),
+        (0:u8, 1:u8),
+        (0:u8, 2:u8),
+        (0:u8, 3:u8)
+    ]s,
+    [
+        (1:u8, 0:u8),
+        (1:u8, 1:u8),
+        (1:u8, 2:u8),
+        (1:u8, 3:u8)
+    ]s,
+    [
+        (2:u8, 0:u8),
+        (2:u8, 1:u8),
+        (2:u8, 2:u8),
+        (2:u8, 3:u8)
+    ]s
+]s
+
+assert {
+    go = [false]s ++ [true, true, true, true, true, true, true, true, true, true, true, true]s
+}
+yields [
+    [
+        (0:u8, 0:u8),
+        (0:u8, 1:u8),
+        (0:u8, 2:u8),
+        (0:u8, 3:u8)
+    ]s,
+    [
+        (1:u8, 0:u8),
+        (1:u8, 1:u8),
+        (1:u8, 2:u8),
+        (1:u8, 3:u8)
+    ]s,
+    [
+        (2:u8, 0:u8),
+        (2:u8, 1:u8),
+        (2:u8, 2:u8),
+        (2:u8, 3:u8)
+    ]s
+]s

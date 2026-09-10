@@ -13,6 +13,9 @@ class ParserPrinterConsistencyTests extends AnyFunSuite {
     }
   }
 
+  testSource("undefined:u8")
+  testSource("undefined:(u8, bool)")
+
   def testUnary(op: String): Unit = testSource(s"${op}x")
 
   testUnary("!")

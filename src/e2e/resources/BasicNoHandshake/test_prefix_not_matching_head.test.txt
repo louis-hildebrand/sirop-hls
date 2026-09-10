@@ -1,0 +1,5 @@
+[INFO ] the design has a latency of 1 cycle
+[INFO ] test 0: PASSED
+[WARN ] physical prefix of input s in test case 1 is not consistent with annotation head(s)
+[INFO ] test 1: PASSED
+[INFO ] 2/2 tests passed!

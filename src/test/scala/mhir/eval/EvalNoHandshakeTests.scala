@@ -1,0 +1,211 @@
+package mhir.eval
+
+import mhir.canonicalize._
+import mhir.ir._
+import mhir.sugar._
+import mhir.typecheck._
+import org.scalatest.funsuite.AnyFunSuite
+
+class EvalNoHandshakeTests extends AnyFunSuite {
+
+  test("DelayMismatch") {
+    val n = 5
+    val a = StmRange(n, C(0)(U8), C(1)(U8))().tchk().lower
+    val b = StmRange(n, C(-2)(I8), C(1)(I8))().tchk().lower
+    val original =
+      SimpleZip(a, SimpleMap(b, x => Sum(x, C(-5)(I8))()))
+        .tchk()
+        .lower
+
+    assertThrows[DelayMismatch](
+      mhir.eval.eval(original, handshake = false)
+    )
+  }
+
+  test("StmCount") {
+    val n = 8
+    val original = StmCount(C(n)(U8))()
+    val actual = mhir.eval.eval(original, handshake = false)
+    val expected = StmLiteral(
+      Seq(Undefined(U8)),
+      (0 until n).map(t => C(t)(U8))
+    )(Missing).tchk()
+    assert(actual == expected)
+  }
+
+  test("StmMap") {
+    val n = 8
+    val s = Param("s")(TyStm(U16, n))
+    val original = {
+      val p = Param("p")(TyStm(U16, -1))
+      StmBuild(
+        n = n,
+        delay = C(1)(),
+        initData = Prod(C(2)(U16), C(3)(U16))(),
+        nextData = Prod(StmData(p)(), StmData(p)())(),
+        valid = True,
+        accumulators = Map(),
+        producers = Map(
+          p -> (s, True, C(0)())
+        )
+      )().tchk()
+    }
+    val inputs = Map(s -> StmRange(n, C(2)(U16), C(3)(U16))())
+    val actual = mhir.eval.eval(original, handshake = false, inputs = inputs)
+    val expected = StmLiteral(
+      Seq(C(6)(U16), Undefined(U16)),
+      (0 until n).map(t => 2 + 3 * t).map(t => t * t).map(C(_)(U16))
+    )(Missing).tchk()
+    assert(actual == expected)
+  }
+
+  for (delay <- 0 to 3) {
+    test(s"ZipWithIndex:$delay") {
+      val n = 5
+      val input = Param("input")(TyStm(I32, n))
+      val original = SimpleZip(
+        SimpleNop(SimpleCount(C(n)(U8)), delay = math.max(1, delay) - 1),
+        SimpleNop(input, delay = math.max(1, delay) - delay)
+      ).tchk().lower
+      val logical = (-3 until n - 3).map(t => t * t * t).map(C(_)(I32))
+      val inputs = Map(
+        input -> StmLiteral(
+          (0 until delay).map(_ => Undefined(I32)),
+          logical
+        )(Missing).tchk()
+      )
+      val actual = mhir.eval
+        .eval(original, handshake = false, inputs = inputs)
+        .asInstanceOf[StmLiteral]
+      val expectedLatency = 1 + math.max(1, delay)
+      assert(actual.physical.length == expectedLatency)
+      val expected =
+        (0 until n).map(t => Tuple(C(t)(U8), logical(t))().tchk())
+      assert(actual.logical == expected)
+    }
+  }
+
+  test("StmBuild:MissingLength:WithName") {
+    val original = {
+      StmBuild(
+        Undefined(U8),
+        C(1)(),
+        Undefined(Missing),
+        C(42)(U8),
+        True,
+        Map(),
+        Map()
+      )().annotateWithName("StmFoo").tchk()
+    }
+    val ex = intercept[MissingRequiredValue](
+      mhir.eval.eval(original, handshake = false)
+    )
+    assert(ex.getMessage.contains("length in StmFoo evaluated to undefined"))
+  }
+
+  test("StmBuild:MissingLength:WithoutName") {
+    val original = {
+      StmBuild(
+        Undefined(U32),
+        C(1)(),
+        Undefined(Missing),
+        C(42)(U8),
+        True,
+        Map(),
+        Map()
+      )().tchk()
+    }
+    val ex = intercept[MissingRequiredValue](
+      mhir.eval.eval(original, handshake = false)
+    )
+    assert(
+      ex.getMessage.contains("length in sbuild evaluated to undefined:u32")
+    )
+  }
+
+  test("StmBuild:MissingOutDelay") {
+    val original = {
+      StmBuild(
+        C(4)(),
+        Tuple()(),
+        Undefined(Missing),
+        C(42)(U8),
+        True,
+        Map(),
+        Map()
+      )().annotateWithName("StmFoo").tchk()
+    }
+    val ex = intercept[MissingRequiredValue](
+      mhir.eval.eval(original, handshake = false)
+    )
+    assert(ex.getMessage.contains("missing output delay in StmFoo"))
+  }
+
+  test("StmBuild:UndefinedOutDelay") {
+    val original = {
+      StmBuild(
+        C(4)(),
+        Undefined(U32),
+        Undefined(Missing),
+        C(42)(U8),
+        True,
+        Map(),
+        Map()
+      )().annotateWithName("StmBar").tchk()
+    }
+    val ex = intercept[MissingRequiredValue](
+      mhir.eval.eval(original, handshake = false)
+    )
+    assert(
+      ex.getMessage.contains(
+        "output delay in StmBar evaluated to undefined:u32"
+      )
+    )
+  }
+
+  test("StmBuild:MissingProducerDelay") {
+    val original = {
+      val p = Param("p", -1)(TyStm(U8, 4))
+      StmBuild(
+        C(4)(),
+        C(1)(),
+        Undefined(Missing),
+        StmData(p)(),
+        True,
+        Map(),
+        Map(
+          p -> (StmRange(4, C(0)(U8), C(1)(U8))(), True, Tuple()())
+        )
+      )().annotateWithName("StmBar").tchk()
+    }
+    val ex = intercept[MissingRequiredValue](
+      mhir.eval.eval(original, handshake = false)
+    )
+    assert(ex.getMessage.contains("missing delay for producer p in StmBar"))
+  }
+
+  test("StmBuild:UndefinedProducerDelay") {
+    val original = {
+      val p = Param("p", -1)(TyStm(U8, 4))
+      StmBuild(
+        C(4)(),
+        C(1)(),
+        Undefined(Missing),
+        StmData(p)(),
+        True,
+        Map(),
+        Map(
+          p -> (StmRange(4, C(0)(U8), C(1)(U8))(), True, Undefined(U8))
+        )
+      )().annotateWithName("StmFoo").tchk()
+    }
+    val ex = intercept[MissingRequiredValue](
+      mhir.eval.eval(original, handshake = false)
+    )
+    assert(
+      ex.getMessage.contains(
+        "delay for producer p in StmFoo evaluated to undefined:u8"
+      )
+    )
+  }
+}

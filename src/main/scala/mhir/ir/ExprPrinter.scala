@@ -57,14 +57,26 @@ object ExprPrinter {
       case v @ VecLiteral() => displayOneLine(v)
       case VecLiteral(elems @ _*) =>
         displayMultiLineSeq(elems, start = "[", end = "]v", maxWidth = maxWidth)
-      case s @ StmLiteral() => displayOneLine(s)
-      case StmLiteral(elems @ _*) =>
+      case s @ StmLiteral(Seq(), Seq()) =>
+        displayOneLine(s)
+      case StmLiteral(Seq(), logical) =>
         displayMultiLineSeq(
-          elems,
+          logical,
           start = "[",
           end = "]s",
           maxWidth = maxWidth
         )
+      case StmLiteral(physical, logical) =>
+        Seq(physical, logical)
+          .map(elems =>
+            displayMultiLineSeq(
+              elems,
+              start = "[",
+              end = "]s",
+              maxWidth = maxWidth
+            )
+          )
+          .mkString(" ++ ")
 
       case FunCall(f, arg) =>
         // We can either split the function or the argument
@@ -338,26 +350,36 @@ object ExprPrinter {
         // Example:
         //   c1 && c2
         //     || c3 && c4
-        val w1 = maxWidth - "sbuild()".length
-        val (nStr, w2) = {
-          val s =
-            display(stm.n, maxWidth = w1, parentPrecedence = Precedence.Max)
-          if (s.contains("\n")) {
-            (s"(\n${indent(s)}\n)", maxWidth - 1)
-          } else {
-            (s"($s)", w1 - s.length)
-          }
+        val lenAndDelayStr = {
+          displayOneLine(stm.n, Precedence.Max) +
+            makeDelayAnnotation(stm.delay)
         }
         val outStr = {
-          val dataStr =
-            displayOneLine(stm.data, parentPrecedence = Precedence.Max)
+          val initDataStr =
+            displayOneLine(stm.initData, parentPrecedence = Precedence.Max)
+          val nextDataStr =
+            displayOneLine(stm.nextData, parentPrecedence = Precedence.Max)
           val validStr =
             displayOneLine(stm.valid, parentPrecedence = Precedence.Max)
-          if ("(, )".length + dataStr.length + validStr.length <= w2) {
-            s"($dataStr, $validStr)"
+          val width =
+            "(, , )".length + initDataStr.length + nextDataStr.length + validStr.length
+          val maxWidthSameLine =
+            maxWidth - "sbuild".length - lenAndDelayStr.length
+          if (width <= maxWidthSameLine) {
+            stm.initData match {
+              case _: Undefined =>
+                s"$nextDataStr, $validStr"
+              case _ =>
+                s"$initDataStr, $nextDataStr, $validStr"
+            }
           } else {
-            val dataStr = display(
-              stm.data,
+            val initDataStr = display(
+              stm.initData,
+              maxWidth = maxWidth - Indent.length - ",".length,
+              parentPrecedence = Precedence.Max
+            )
+            val nextDataStr = display(
+              stm.nextData,
               maxWidth = maxWidth - Indent.length - ",".length,
               parentPrecedence = Precedence.Max
             )
@@ -366,32 +388,36 @@ object ExprPrinter {
               maxWidth = maxWidth - Indent.length,
               parentPrecedence = Precedence.Max
             )
-            s"(\n${indent(dataStr)},\n${indent(validStr)}\n)"
+            stm.initData match {
+              case _: Undefined =>
+                s"\n${indent(nextDataStr)},\n${indent(validStr)}\n"
+              case _ =>
+                s"\n${indent(initDataStr)},\n${indent(nextDataStr)},\n${indent(validStr)}\n"
+            }
           }
         }
-        val accumulatorsStr = {
-          if (stm.accumulators.isEmpty) {
-            "{}"
-          } else {
-            stm.accumulators.toSeq
-              .sortBy({ case (x, _) => x.name })
-              .map({ case (x, (z, next)) =>
-                val xStr = s"(${x.name} : ${x.typ})"
-                val zStr = display(
-                  z,
-                  maxWidth = maxWidth - 2 * Indent.length - ",".length,
-                  parentPrecedence = Precedence.Max
-                )
-                val nextStr = display(
-                  next,
-                  maxWidth = maxWidth - 2 * Indent.length,
-                  parentPrecedence = Precedence.Max
-                )
-                s"$xStr = {\n${indent("init: " + zStr)},\n${indent("next: " + nextStr)}\n}"
-              })
-              .map(indent)
-              .mkString("{\n", ",\n", "\n}")
-          }
+        val accumulatorsStr = if (stm.accumulators.isEmpty) {
+          "{}"
+        } else {
+          stm.accumulators.toSeq
+            .sortBy({ case (x, _) => x.name })
+            .map({ case (x, (z, next, delay)) =>
+              val delayAnnotation = makeDelayAnnotation(delay)
+              val xStr = s"(${x.name}: ${x.typ}$delayAnnotation)"
+              val zStr = display(
+                z,
+                maxWidth = maxWidth - 2 * Indent.length - ",".length,
+                parentPrecedence = Precedence.Max
+              )
+              val nextStr = display(
+                next,
+                maxWidth = maxWidth - 2 * Indent.length,
+                parentPrecedence = Precedence.Max
+              )
+              s"$xStr = {\n${indent("init: " + zStr)},\n${indent("next: " + nextStr)}\n}"
+            })
+            .map(indent)
+            .mkString("{\n", ",\n", "\n}")
         }
         val producersStr = {
           if (stm.producers.isEmpty) {
@@ -399,8 +425,9 @@ object ExprPrinter {
           } else {
             stm.producers.toSeq
               .sortBy({ case (x, _) => x.name })
-              .map({ case (x, (stm, ready)) =>
-                val xStr = s"(${x.name} : ${x.typ})"
+              .map({ case (x, (stm, ready, delay)) =>
+                val delayAnnotation = makeDelayAnnotation(delay)
+                val xStr = s"(${x.name}: ${x.typ}$delayAnnotation)"
                 val stmStr = display(
                   stm,
                   maxWidth = maxWidth - 2 * Indent.length - ",".length,
@@ -417,7 +444,7 @@ object ExprPrinter {
               .mkString("{\n", ",\n", "\n}")
           }
         }
-        s"sbuild$nStr$outStr $accumulatorsStr $producersStr"
+        s"sbuild($lenAndDelayStr)($outStr) $accumulatorsStr $producersStr"
       case LetStm(bufSize, x, in, out) =>
         val bufSizeStr = display(
           bufSize,
@@ -539,8 +566,10 @@ object ExprPrinter {
   ): String = {
     val myPrecedence = Precedence(e)
     val str = e match {
+      case Undefined(Missing) =>
+        "undefined"
       case Undefined(typ) =>
-        s"undefined[$typ]"
+        s"undefined:$typ"
       case Tuple(e) =>
         s"(${displayOneLine(e)},)"
       case Tuple(elems @ _*) =>
@@ -661,28 +690,48 @@ object ExprPrinter {
             s"iff ($cStr) then { $tStr } else { $fStr }"
         }
       case stm: StmBuild =>
-        val nStr = displayOneLine(stm.n, Precedence.Max)
-        val dataStr = displayOneLine(stm.data, Precedence.Max)
-        val validStr = displayOneLine(stm.valid, Precedence.Max)
-        val accumulatorsStr = {
-          val s = stm.accumulators.toSeq
+        val lenAndDelayStr = {
+          displayOneLine(stm.n, Precedence.Max) +
+            makeDelayAnnotation(stm.delay)
+        }
+        val outStr = {
+          val nextDataStr = displayOneLine(stm.nextData, Precedence.Max)
+          val validStr = displayOneLine(stm.valid, Precedence.Max)
+          stm.initData match {
+            case _: Undefined =>
+              s"$nextDataStr, $validStr"
+            case _ =>
+              val initDataStr = displayOneLine(stm.initData, Precedence.Max)
+              s"$initDataStr, $nextDataStr, $validStr"
+          }
+        }
+        val accumulatorsStr = if (stm.accumulators.nonEmpty) {
+          stm.accumulators.toSeq
             .sortBy({ case (x, _) => x.name })
-            .map({ case (x, (z, next)) =>
-              s"(${x.name} : ${x.typ}) = { init: ${displayOneLine(z, Precedence.Max)}, next: ${displayOneLine(next, Precedence.Max)} }"
+            .map({ case (x, (init, next, delay)) =>
+              val initStr = displayOneLine(init, Precedence.Max)
+              val nextStr = displayOneLine(next, Precedence.Max)
+              val delayAnnotation = makeDelayAnnotation(delay)
+              s"(${x.name}: ${x.typ}$delayAnnotation) = { init: $initStr, next: $nextStr }"
             })
             .mkString("{ ", ", ", " }")
-          if (s == "{  }") "{}" else s
+        } else {
+          "{}"
         }
-        val producersStr = {
-          val s = stm.producers.toSeq
+        val producersStr = if (stm.producers.nonEmpty) {
+          stm.producers.toSeq
             .sortBy({ case (x, _) => x.name })
-            .map({ case (x, (z, next)) =>
-              s"(${x.name} : ${x.typ}) = { stm: ${displayOneLine(z, Precedence.Max)}, ready: ${displayOneLine(next, Precedence.Max)} }"
+            .map({ case (x, (stm, ready, delay)) =>
+              val stmStr = displayOneLine(stm, Precedence.Max)
+              val readyStr = displayOneLine(ready, Precedence.Max)
+              val delayAnnotation = makeDelayAnnotation(delay)
+              s"(${x.name}: ${x.typ}$delayAnnotation) = { stm: $stmStr, ready: $readyStr }"
             })
             .mkString("{ ", ", ", " }")
-          if (s == "{  }") "{}" else s
+        } else {
+          "{}"
         }
-        s"sbuild($nStr)($dataStr, $validStr) $accumulatorsStr $producersStr"
+        s"sbuild($lenAndDelayStr)($outStr) $accumulatorsStr $producersStr"
       case StmData(s) =>
         displayFunCallOneLine("sdata", Seq(s))
       case LetStm(bufSize, x, in, out) =>
@@ -710,11 +759,18 @@ object ExprPrinter {
         elems
           .map(e => displayOneLine(e, Precedence.Max))
           .mkString("[", ", ", "]v")
-      case s @ StmLiteral() if s.hasType => s"[]s:${s.typ}"
-      case StmLiteral(elems @ _*) =>
-        elems
-          .map(e => displayOneLine(e, Precedence.Max))
-          .mkString("[", ", ", "]s")
+      case s @ StmLiteral(Seq(), Seq()) if s.hasType =>
+        s"[]s:${s.typ}"
+      case StmLiteral(Seq(), logical) =>
+        logical.map(displayOneLine(_, Precedence.Max)).mkString("[", ", ", "]s")
+      case StmLiteral(physical, logical) =>
+        Seq(physical, logical)
+          .map(elems =>
+            elems
+              .map(displayOneLine(_, Precedence.Max))
+              .mkString("[", ", ", "]s")
+          )
+          .mkString(" ++ ")
       case e: SyntaxSugar =>
         e.displayOneLine()
     }
@@ -796,6 +852,15 @@ object ExprPrinter {
       childPrecedence: Int
   ): Boolean = {
     parentPrecedence < Precedence.Max && parentPrecedence <= childPrecedence
+  }
+
+  private def makeDelayAnnotation(delay: Expr): String = {
+    delay match {
+      case Tuple() => ""
+      case delay =>
+        val delayStr = displayOneLine(delay, Precedence.Max)
+        s" @ $delayStr"
+    }
   }
 
   def showScalaWithFreeVars(e: Expr): String = {
@@ -889,9 +954,10 @@ object ExprPrinter {
         val xTypStr = showScala(x.typ)
         val typStr = showScala(let.typ)
         s"""{ val ${x.name} = Param(\"${x.prefix}\", ${x.id})($xTypStr); LetStm($bufSizeStr,$xStr,$inStr,$outStr)($typStr) }"""
-      case s @ StmLiteral(elems @ _*) =>
-        val children = elems.map(e => showScala(e))
-        s"StmLiteral(${children.mkString(",")})(${showScala(s.typ)})"
+      case s @ StmLiteral(physical, logical) =>
+        val physicalStr = physical.map(showScala).mkString("Seq(", ",", ")")
+        val logicalStr = logical.map(showScala).mkString("Seq(", ",", ")")
+        s"StmLiteral($physicalStr,$logicalStr)(${showScala(s.typ)})"
       case sd @ StmData(s) =>
         s"StmData(${showScala(s)})(${showScala(sd.typ)})"
       case vb @ VecBuild(n, f) =>

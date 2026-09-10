@@ -1,0 +1,10 @@
+const N: u32 = 5
+
+accelerator[no_handshake, head(s)=false]
+top = (s: Stm[i16, N]) =>
+    s.StmMap( x => x + 5, -1:i16)
+
+assert {
+    s = [undefined:i16]s ++ [-1:i16, 2:i16, -3:i16, 4:i16, -5:i16]s
+}
+yields [4:i16, 7:i16, 2:i16, 9:i16, 0:i16]s

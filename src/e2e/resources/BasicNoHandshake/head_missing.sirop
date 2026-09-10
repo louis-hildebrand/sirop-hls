@@ -1,0 +1,15 @@
+const N: u32 = 8
+
+accelerator[no_handshake]
+top = (data_i: Stm[u8, N]) => (valid_i: Stm[bool, N]) =>
+    let valid = valid_i in
+    data_i
+    .StmMap( x => x * x )
+    .StmZip(valid)
+    .StmZip(valid)
+
+assert {
+    data_i = StmRange(N, 1:u8, 1:u8),
+    valid_i = [false]s ++ [true, true, true, true, true, true, true, true]s
+}
+yields [((1:u8, true), true), ((4:u8, true), true), ((9:u8, true), true), ((16:u8, true), true), ((25:u8, true), true), ((36:u8, true), true), ((49:u8, true), true), ((64:u8, true), true)]s

@@ -28,8 +28,24 @@ case class Program(
     this.accel.annotations.get("reset").collect({ case x: Param => x.name })
   }
 
+  def go: Option[Param] = {
+    this.accel.annotations
+      .get("go")
+      .map({
+        case x: Param => x
+        case e =>
+          throw new AssertionError(
+            s"value for annotation 'go' is not a variable: $e"
+          )
+      })
+  }
+
   def handshake: Boolean = {
     !this.accel.annotations.contains("no_handshake")
+  }
+
+  def headByParam: Map[Param, Expr] = {
+    this.accel.annotationsByParam.collect({ case (("head", x), e) => x -> e })
   }
 }
 
@@ -40,38 +56,62 @@ object Program {
   /** Creates a [[Program]] with a default name and no other declarations.
     */
   def apply(e: Expr): Program = {
-    Program(Seq(), AccelDecl("top", e, Map()), Seq())
+    Program(Seq(), AccelDecl("top", e, Map(), Map()), Seq())
   }
 
   def checkAnnotation(
       key: String,
+      param: Option[Param],
       value: Option[Expr],
       err: String => Nothing
   ): Unit = {
     key match {
-      case "clock" => expectIdent(key, value, err)
+      case "clock" => expectIdentWithoutParam(key, param, value, err)
       case "no_handshake" =>
         value match {
           case None    => ()
           case Some(_) => err(s"unexpected value for annotation '$key'")
         }
-      case "out_name" => expectIdent(key, value, err)
-      case "reset"    => expectIdent(key, value, err)
+      case "out_name" => expectIdentWithoutParam(key, param, value, err)
+      case "reset"    => expectIdentWithoutParam(key, param, value, err)
+      case "go"       => expectIdentWithoutParam(key, param, value, err)
+      case "head"     => expectAnyWithParam(key, param, value, err)
       case _          => err(s"unknown annotation key: '$key'")
     }
   }
 
-  private def expectIdent(
+  private def expectIdentWithoutParam(
       key: String,
+      param: Option[Param],
       value: Option[Expr],
       err: String => Nothing
   ): Unit = {
+    param match {
+      case None    => ()
+      case Some(x) => err(s"unexpected parameter '$x' for annotation '$key'")
+    }
     value match {
       case Some(_: Param) => ()
       case None =>
         err(s"missing value for annotation '$key'. Expected an identifier.")
       case _ =>
         err(s"invalid value for annotation '$key'. Expected an identifier.")
+    }
+  }
+
+  private def expectAnyWithParam(
+      key: String,
+      maybeParam: Option[Param],
+      value: Option[Expr],
+      err: String => Nothing
+  ): Unit = {
+    val param = maybeParam match {
+      case Some(x) => x
+      case None    => err(s"missing parameter for annotation '$key'")
+    }
+    value match {
+      case Some(_) => ()
+      case None    => err(s"missing value for annotation '$key($param)'")
     }
   }
 }

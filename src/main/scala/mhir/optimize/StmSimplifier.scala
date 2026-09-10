@@ -61,8 +61,8 @@ case class EnabledStmSimplifier(
   private def simplifyStmBuild(e: Expr)(implicit facts: FactSet): Expr = {
     val result = e match {
       case s: StmBuild =>
-        val newS = s.mapProducers({ case (x, (producer, next)) =>
-          x -> (simplifyStmBuild(producer), next)
+        val newS = s.mapProducers({ case (x, (producer, next, delay)) =>
+          x -> (simplifyStmBuild(producer), next, delay)
         })
         stmBuildSimplifier.simplify(newS)(facts)
       case e =>

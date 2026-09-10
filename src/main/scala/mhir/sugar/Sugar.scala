@@ -6,9 +6,9 @@ import mhir.logging.time
 import mhir.typecheck.{TProd, TSum, TypeCheck, TypeChecker, TypeError}
 
 case class PatternFunction(p: Pattern, body: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(p, body)(typ) {
+    extends ResolvedSyntaxSugar(p, body)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): PatternFunction = {
     newChildren match {
       case Seq(p: Pattern, body) => PatternFunction(p, body)(typ)
       case _                     => throw new BadRebuildError(this, newChildren)
@@ -18,7 +18,7 @@ case class PatternFunction(p: Pattern, body: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): PatternFunction = {
     val p = this.p.tchk(context, constValues)
     val body = this.body.tchk(context ++ makeContext(this.p), constValues)
     val typ = p.typ ->: body.typ
@@ -225,8 +225,8 @@ object PatternFunction {
   *   an expression that may use the variable.
   */
 case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(x, v, in)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(x, v, in)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Let = {
     newChildren match {
       case Seq(x: Param, v, in) => Let(x, v, in)(typ)
       case _                    => throw new BadRebuildError(this, newChildren)
@@ -236,7 +236,7 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): Let = {
     val v = this.v.tchk(context, constValues)
     val x = this.x.typ match {
       case Missing => this.x.rebuild(v.typ).asInstanceOf[Param]
@@ -371,9 +371,9 @@ object Lets {
 }
 
 case class SmartIf(cond: Expr, t: Expr, f: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(cond, t, f)(typ) {
+    extends ResolvedSyntaxSugar(cond, t, f)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): SmartIf = {
     newChildren match {
       case Seq(c, t, f) => SmartIf(c, t, f)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
@@ -383,7 +383,7 @@ case class SmartIf(cond: Expr, t: Expr, f: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): SmartIf = {
     val cond = this.cond.tchk(context, constValues).expectBool()
     val t = this.t.tchk(context, constValues).expectData()
     val f = this.f.tchk(context, constValues).expectData()
@@ -470,8 +470,8 @@ case class SmartIf(cond: Expr, t: Expr, f: Expr)(typ: Type = Missing)
   * This only makes sense for "data types" as defined by [[Type.isData]]. In
   * particular, there is no zero function and no zero stream.
   */
-case class AllZero(override val typ: Type) extends SyntaxSugar()(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+case class AllZero(override val typ: Type) extends ResolvedSyntaxSugar()(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): AllZero = {
     require(newChildren.isEmpty)
     this
   }
@@ -479,8 +479,8 @@ case class AllZero(override val typ: Type) extends SyntaxSugar()(typ) {
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
-    this.expectData()
+  )(implicit c: Canonicalizer): AllZero = {
+    this
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -523,8 +523,8 @@ case class AllZero(override val typ: Type) extends SyntaxSugar()(typ) {
   * This only makes sense for "data types" as defined by [[Type.isData]]. In
   * particular, there is no "all ones" function and no "all ones" stream.
   */
-case class AllOne(override val typ: Type) extends SyntaxSugar()(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+case class AllOne(override val typ: Type) extends ResolvedSyntaxSugar()(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): AllOne = {
     require(newChildren.isEmpty)
     this
   }
@@ -532,8 +532,8 @@ case class AllOne(override val typ: Type) extends SyntaxSugar()(typ) {
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
-    this.expectData()
+  )(implicit c: Canonicalizer): AllOne = {
+    this
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -587,8 +587,8 @@ case class AllOne(override val typ: Type) extends SyntaxSugar()(typ) {
   *   the desired type.
   */
 case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
-    extends SyntaxSugar(e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): ReshapeData = {
     newChildren match {
       case Seq(e) => ReshapeData(e, targetType)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -598,7 +598,7 @@ case class ReshapeData(e: Expr, targetType: Type)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): ReshapeData = {
     val newE = e.tchk(context, constValues)
     if (ReshapeData.canReshape(newE.typ, targetType, constValues)) {
       this.rebuild(targetType, Seq(newE))
@@ -763,16 +763,16 @@ object ReshapeData {
   *   the terms to add up.
   */
 case class SmartSum(terms: Expr*)(typ: Type = Missing)
-    extends SyntaxSugar(terms: _*)(typ) {
+    extends ResolvedSyntaxSugar(terms: _*)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): SmartSum = {
     SmartSum(newChildren: _*)(typ)
   }
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): SmartSum = {
     val newTerms = terms.zipWithIndex.map({ case (e, i) =>
       val newE = e.tchk(context, constValues)
       newE.typ match {
@@ -825,14 +825,14 @@ case class SmartSum(terms: Expr*)(typ: Type = Missing)
 case class SmartWrappingSum(e1: Expr, e2: Expr)(typ: Type = Missing)
     extends BinOpSyntaxSugar(e1, e2)(typ) {
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), SmartWrappingSum] = {
     case (typ, Seq(e1, e2)) => SmartWrappingSum(e1, e2)(typ)
   }
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): BinOpSyntaxSugar = {
     val e1 = this.e1.tchk(context, constValues).expectAnyInt()
     val e2 = this.e2.tchk(context, constValues).expectAnyInt()
     val typ =
@@ -861,15 +861,15 @@ case class SmartWrappingSum(e1: Expr, e2: Expr)(typ: Type = Missing)
   *   the values to add up.
   */
 case class SafeSum(terms: Expr*)(typ: Type = Missing)
-    extends SyntaxSugar(terms: _*)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(terms: _*)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): SafeSum = {
     SafeSum(newChildren: _*)(typ)
   }
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): SafeSum = {
     val terms = this.terms.map(e => e.tchk(context, constValues).expectAnyInt())
     this.rebuild(
       TSum(terms.map(e => e.typ.asInstanceOf[TyAnyInt]): _*),
@@ -913,14 +913,14 @@ case class SafeDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
 
   override def precedence: Int = Precedence.Sum
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), SafeDiff] = {
     case (typ, Seq(e1, e2)) => SafeDiff(e1, e2)(typ)
   }
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): BinOpSyntaxSugar = {
     val e1 = this.e1.tchk(context, constValues).expectAnyInt()
     val e2 = this.e2.tchk(context, constValues).expectAnyInt()
     val typ = SafeSum(this.e1, SafeProd(C(-1)(), this.e2)())().tchk().typ
@@ -947,14 +947,14 @@ case class SmartDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
 
   override def precedence: Int = Precedence.Sum
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild: PartialFunction[(Type, Seq[Expr]), SmartDiff] = {
     case (typ, Seq(e1, e2)) => SmartDiff(e1, e2)(typ)
   }
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): BinOpSyntaxSugar = {
     val e1 = this.e1.tchk(context, constValues).expectAnyInt()
     val e2 = this.e2.tchk(context, constValues).expectAnyInt()
     val typ =
@@ -984,14 +984,15 @@ case class SmartWrappingDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
 
   override def precedence: Int = Precedence.Sum
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild
+      : PartialFunction[(Type, Seq[Expr]), SmartWrappingDiff] = {
     case (typ, Seq(e1, e2)) => SmartWrappingDiff(e1, e2)(typ)
   }
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): BinOpSyntaxSugar = {
     val e1 = this.e1.tchk(context, constValues).expectAnyInt()
     val e2 = this.e2.tchk(context, constValues).expectAnyInt()
     val typ =
@@ -1018,16 +1019,16 @@ case class SmartWrappingDiff(e1: Expr, e2: Expr)(typ: Type = Missing)
   *   the values to multiply.
   */
 case class SmartProd(factors: Expr*)(typ: Type = Missing)
-    extends SyntaxSugar(factors: _*)(typ) {
+    extends ResolvedSyntaxSugar(factors: _*)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): SmartProd = {
     SmartProd(newChildren: _*)(typ)
   }
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): SmartProd = {
     val newFactors = factors.zipWithIndex.map({ case (e, i) =>
       val newE = e.tchk(context, constValues)
       newE.typ match {
@@ -1084,14 +1085,15 @@ case class SmartWrappingProd(e1: Expr, e2: Expr)(typ: Type = Missing)
 
   override def precedence: Int = Precedence.Prod
 
-  override def rebuild: PartialFunction[(Type, Seq[Expr]), Expr] = {
+  override def rebuild
+      : PartialFunction[(Type, Seq[Expr]), SmartWrappingProd] = {
     case (typ, Seq(e1, e2)) => SmartWrappingProd(e1, e2)(typ)
   }
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): BinOpSyntaxSugar = {
     val e1 = this.e1.tchk(context, constValues).expectAnyInt()
     val e2 = this.e2.tchk(context, constValues).expectAnyInt()
     val typ =
@@ -1116,15 +1118,15 @@ case class SmartWrappingProd(e1: Expr, e2: Expr)(typ: Type = Missing)
   *   the values to multiply.
   */
 case class SafeProd(factors: Expr*)(typ: Type = Missing)
-    extends SyntaxSugar(factors: _*)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(factors: _*)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): SafeProd = {
     SafeProd(newChildren: _*)(typ)
   }
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): SafeProd = {
     val factors =
       this.factors.map(e => e.tchk(context, constValues).expectAnyInt())
     val factorTypes = factors.map(_.typ.asInstanceOf[TyAnyInt])
@@ -1172,8 +1174,8 @@ case class SafeProd(factors: Expr*)(typ: Type = Missing)
   *   the denominator.
   */
 case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(e1, e2)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): SmartDiv = {
     newChildren match {
       case Seq(e1, e2) => SmartDiv(e1, e2)(typ)
       case _           => throw new BadRebuildError(this, newChildren)
@@ -1183,7 +1185,7 @@ case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): SmartDiv = {
     val newLhs = e1.tchk(context, constValues)
     val t1 = newLhs.typ match {
       case t: TyAnyInt => t
@@ -1238,8 +1240,8 @@ case class SmartDiv(e1: Expr, e2: Expr)(typ: Type = Missing)
   *   the denominator.
   */
 case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(e1, e2)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(e1, e2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): SmartMod = {
     newChildren match {
       case Seq(e1, e2) => SmartMod(e1, e2)(typ)
       case _           => throw new BadRebuildError(this, newChildren)
@@ -1249,7 +1251,7 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): SmartMod = {
     val newLhs = e1.tchk(context, constValues)
     val t1 = newLhs.typ match {
       case t: TyAnyInt => t
@@ -1297,9 +1299,9 @@ case class SmartMod(e1: Expr, e2: Expr)(typ: Type = Missing)
 }
 
 case class EnsureUnsigned(e: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(e)(typ) {
+    extends ResolvedSyntaxSugar(e)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): EnsureUnsigned = {
     newChildren match {
       case Seq(e) => EnsureUnsigned(e)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -1309,7 +1311,7 @@ case class EnsureUnsigned(e: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): EnsureUnsigned = {
     val e = this.e.tchk().expectAnyInt()
     val outTyp = e.typ.asInstanceOf[TyAnyInt] match {
       case typ: TyUInt => typ

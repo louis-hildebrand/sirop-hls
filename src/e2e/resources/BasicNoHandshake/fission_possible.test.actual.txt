@@ -1,0 +1,10 @@
+/* Test 0 */
+[
+  undefined:u8,
+  undefined:u8
+]s ++ [
+  2:u8,
+  9:u8,
+  28:u8,
+  65:u8
+]s

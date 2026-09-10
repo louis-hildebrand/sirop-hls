@@ -79,10 +79,29 @@ object VhdlGenerator {
           + " To describe a stream with multiple consumers, consider using LetStm."
       )
     }
+    checkNoAccumulatorDelays(stm)
+  }
+
+  private def checkNoAccumulatorDelays(e: Expr): Unit = {
+    e match {
+      case s: StmBuild =>
+        for ((x, (_, _, delay)) <- s.accumulators) {
+          if (delay != Tuple()()) {
+            throw new IllegalArgumentException(
+              s"delay for accumulator $x is $delay."
+                + s" The delay should have been removed at an earlier compilation stage."
+            )
+          }
+        }
+      case e => e.children.foreach(checkNoAccumulatorDelays)
+    }
   }
 
   def valueToStdLogicVector(v: Expr): String = {
     mhir.eval.eval(v).tchk() match {
+      case Undefined(typ) =>
+        val IntCst(w) = typ.bitwidth
+        (0 until w.toInt).map(_ => "X").mkString("\"", "", "\"")
       case False => "\"0\""
       case True  => "\"1\""
       case c: IntCst =>

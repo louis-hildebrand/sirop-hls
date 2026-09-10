@@ -133,10 +133,10 @@ case class SimpleDelayCostModel(madd: Boolean) {
       case s: StmBuild =>
         val expressionsToCheck = {
           s.accumulators
-            .map({ case (_, (_, next)) => next })
-            .++(s.producers.map({ case (_, (stm, _)) => stm }))
+            .map({ case (_, (_, next, _)) => next })
+            .++(s.producers.map({ case (_, (stm, _, _)) => stm }))
             .toSet
-            .+(s.data)
+            .+(s.nextData)
             .+(s.valid)
         }
         expressionsToCheck.map(cost(staticVars, varCosts)).max
@@ -155,7 +155,8 @@ case class SimpleDelayCostModel(madd: Boolean) {
           cost(staticVars, varCosts)(i)
         ) + 1
       case VecLiteral(elems @ _*) => elems.map(cost(staticVars, varCosts)).max
-      case StmLiteral(elems @ _*) => elems.map(cost(staticVars, varCosts)).max
+      case StmLiteral(physical, logical) =>
+        (physical ++ logical).map(cost(staticVars, varCosts)).max
       case e: SyntaxSugar =>
         throw new IllegalArgumentException(
           s"Cannot compute cost for syntax sugar $e"

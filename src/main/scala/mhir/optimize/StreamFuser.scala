@@ -2,7 +2,8 @@ package mhir.optimize
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.typecheck.TypeCheck
+import mhir.sugar.{ExprLowering, SafeProd, SafeSum}
+import mhir.typecheck._
 
 /** The stream fusion transformation.
   *
@@ -40,7 +41,7 @@ object StreamFuser {
           + s" (Found expression $consumer)"
       )
       val fused = consumer.producers.get(x) match {
-        case Some((e: StmBuild, _)) =>
+        case Some((e: StmBuild, _, xDelay)) =>
           val producer = {
             val namesClash =
               e.namesDefinedHere.intersect(consumer.namesDefinedHere).nonEmpty
@@ -55,7 +56,55 @@ object StreamFuser {
             }
             s2
           }
-          val (_, consumerReady) = consumer.producers(x)
+          // Update the delay annotations in the consumer so they're all
+          // relative to the producer's epoch.
+          // In absolute terms, each delay really represents an absolute time
+          //   epoch + delay
+          // and
+          //     consumerEpoch + delay
+          //   = producerEpoch + consumerEpoch - producerEpoch + delay
+          // so we need to add consumerEpoch - producerDelay to each delay
+          // annotation in the consumer.
+          // Remove producer output register, so subtract 1 from the producer
+          // delay.
+          // Then (by the latency matching equation):
+          //     producerEpoch + producerDelay - 1 = consumerEpoch + xDelay
+          // ==> consumerEpoch - producerEpoch = producerDelay - 1 - xDelay
+          // Example:
+          //   if   producerDelay = 1 and xDelay = 0 (common case)
+          //   then consumerEpoch - producerEpoch = 0
+          val deltaDelay = (producer.delay.typ, xDelay.typ) match {
+            case (_: TyAnyInt, _: TyAnyInt) =>
+              Some(
+                SafeSum(
+                  producer.delay,
+                  SafeProd(C(-1)(), xDelay)(),
+                  C(-1)()
+                )().tchk().lower
+              )
+            case (t1, t2) =>
+              assert(
+                t1.isInstanceOf[TyTuple] || t1.isInstanceOf[TyAnyInt],
+                s"wrong type for delay: $t1"
+              )
+              assert(
+                t2.isInstanceOf[TyTuple] || t2.isInstanceOf[TyAnyInt],
+                s"wrong type for delay: $t2"
+              )
+              None
+          }
+          val updateDelay = (e: Expr) =>
+            e.typ match {
+              case _: TyAnyInt =>
+                deltaDelay match {
+                  case None        => e
+                  case Some(delta) => SafeSum(e, delta)().tchk().lower
+                }
+              case TyTuple() => e
+              case typ =>
+                throw new AssertionError(s"wrong type for delay: $typ")
+            }
+          val (_, consumerReady, _) = consumer.producers(x)
           // IN CONSUMER
           // | consumer ready | producer valid | result                     |
           // | false          | false          | step: data is not needed   |
@@ -83,48 +132,51 @@ object StreamFuser {
             // CASE 2: Consumer is not ready (i.e., not reading from producer).
             //         The value of StmData(x) is undefined in this case, so might
             //         as well substitute the same expression.
-            consumer.data
-              .subPreserveType(StmData(x)() -> producer.data)
+            consumer.nextData
+              .subPreserveType(StmData(x)() -> producer.nextData)
               .tchk()
           }
           val newValid = {
             val cvalid =
               consumer.valid.subPreserveType(
-                StmData(x)() -> producer.data
+                StmData(x)() -> producer.nextData
               )
             (cvalid && consumerCanStep).tchk()
           }
           val newAccumulators =
             producer.accumulators
-              .map({ case (y, (init, next)) =>
-                y -> (init, Mux(producerCanStep, next, y)().tchk())
+              .map({ case (y, (init, next, delay)) =>
+                y -> (init, Mux(producerCanStep, next, y)().tchk(), delay)
               }) ++
               consumer.accumulators
-                .map({ case (y, (init, next)) =>
+                .map({ case (y, (init, next, delay)) =>
                   val newNext = Mux(
                     consumerCanStep,
-                    next.subPreserveType(StmData(x)() -> producer.data),
+                    next.subPreserveType(StmData(x)() -> producer.nextData),
                     y
                   )().tchk()
-                  y -> (init, newNext)
+                  y -> (init, newNext, updateDelay(delay))
                 })
           val newProducers =
             producer.producers
-              .map({ case (y, (stm, ready)) =>
-                y -> (stm, (producerCanStep && ready).tchk())
+              .map({ case (y, (stm, ready, delay)) =>
+                y -> (stm, (producerCanStep && ready).tchk(), delay)
               }) ++
               (consumer.producers - x)
-                .map({ case (y, (stm, ready)) =>
-                  y -> (stm, (consumerCanStep && ready).tchk())
+                .map({ case (y, (stm, ready, delay)) =>
+                  val newDelay = updateDelay(delay)
+                  y -> (stm, (consumerCanStep && ready).tchk(), newDelay)
                 })
           StmBuild(
             consumer.n,
+            updateDelay(consumer.delay),
+            consumer.initData,
             newData,
             newValid,
             newAccumulators,
             newProducers
           )().tchk().asInstanceOf[StmBuild]
-        case Some((e, _)) =>
+        case Some((e, _, _)) =>
           throw new IllegalArgumentException(
             s"Expected the initial value of $x to be a StmBuild, but found $e"
           )
@@ -155,7 +207,7 @@ object StreamFuser {
   }
 
   private def addOutputRegisters(s: StmBuild): StmBuild = {
-    val data = Param("data")(s.data.typ)
+    val data = Param("data")(s.nextData.typ)
     val valid = Param("valid")(TyBool)
     // Adding these output registers leads to a problem at the last time step:
     // we're reading one more element from the input streams than we used to.
@@ -167,18 +219,20 @@ object StreamFuser {
     // producers once we reach the last time step.
     val i = Param("i")(s.n.typ)
     val freeze = i equ s.n
-    val newProducers = s.producers.map({ case (x, (stm, ready)) =>
-      x -> (stm, And(!freeze, ready)().tchk())
+    val newProducers = s.producers.map({ case (x, (stm, ready, delay)) =>
+      x -> (stm, And(!freeze, ready)().tchk(), delay)
     })
-    val newAccumulators = (s.accumulators ++ Map[Param, (Expr, Expr)](
-      data -> (Undefined(data.typ), s.data),
-      valid -> (False, s.valid),
-      i -> (C(0)(i.typ), Mux(s.valid, Sum(i, C(1)(i.typ))(), i)())
-    )).map({ case (x, (z, next)) =>
-      x -> (z, Mux(freeze, x, next)().tchk())
+    val newAccumulators = (s.accumulators ++ Map[Param, (Expr, Expr, Expr)](
+      data -> (Undefined(data.typ), s.nextData, Tuple()()),
+      valid -> (False, s.valid, Tuple()()),
+      i -> (C(0)(i.typ), Mux(s.valid, Sum(i, C(1)(i.typ))(), i)(), Tuple()())
+    )).map({ case (x, (init, next, delay)) =>
+      x -> (init, Mux(freeze, x, next)().tchk(), delay)
     })
     StmBuild(
       s.n,
+      Tuple()(),
+      Undefined(data.typ),
       data,
       valid,
       newAccumulators,

@@ -1,0 +1,10 @@
+accelerator[no_handshake, go=my_go, head(my_go)=true]
+top = (s: Stm[u8, 4]) => (my_go: Stm[bool, 4]) =>
+    StmRange(4, 0:u8, 1:u8)
+    .StmZip(s)
+
+assert {
+    s = []s ++ [42:u8, 43:u8, 44:u8, 45:u8]s,
+    my_go = []s ++ [true, true, true, true]s
+}
+yields [(0:u8, 42:u8), (1:u8, 43:u8), (2:u8, 44:u8), (3:u8, 45:u8)]s

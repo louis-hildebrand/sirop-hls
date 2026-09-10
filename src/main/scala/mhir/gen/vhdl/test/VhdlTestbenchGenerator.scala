@@ -820,6 +820,9 @@ object VhdlTestbenchGenerator {
 
   def valueToStdLogicVector(v: Expr): String = {
     mhir.eval.eval(v).tchk() match {
+      case Undefined(typ) =>
+        val IntCst(w) = typ.bitwidth
+        (0 until w.toInt).map(_ => "X").mkString("\"", "", "\"")
       case False => "\"0\""
       case True  => "\"1\""
       case c: IntCst =>
@@ -883,17 +886,25 @@ object VhdlTestbenchGenerator {
           + s" Expected ${params.length}, got ${inputs.length}."
       )
     }
-    val substituted = inputs
-      .foldLeft(e)({ case (acc, in) =>
-        val arg = StmLiteral(in.elements.flatten.toSeq: _*)()
-        FunCall(acc, arg)()
-      })
-    val evaluated = mhir.eval.eval(substituted).asInstanceOf[StmLiteral]
+    val (body, inputExprs) = inputs.foldLeft((e, Map[Param, Expr]()))({
+      case ((Function(x, body), inputExprs), in) =>
+        val inExpr = StmLiteral(in.elements.flatten.toSeq: _*)()
+        (body, inputExprs + (x -> inExpr))
+      case _ =>
+        throw new IllegalArgumentException(
+          "argument has no corresponding param"
+        )
+    })
     val inputByParam = params.zip(inputs).toMap
-    val outputs = DirectTestOutput(
-      evaluated.elems,
-      evaluated.elems.map(e => AllZero(e.typ))
-    )
+    val outputs = {
+      val StmLiteral(physical, logical) =
+        mhir.eval.eval(body, inputs = inputExprs)
+      assert(
+        physical.isEmpty,
+        "TODO: update VhdlTestbenchGenerator.getExpectedOutput to support physical prefix"
+      )
+      DirectTestOutput(logical, logical.map(e => AllZero(e.typ)))
+    }
     (outputs, inputByParam)
   }
 }

@@ -21,19 +21,23 @@ class StreamFusionTests extends AnyFunSuite {
     val counter =
       StmBuild(
         IntCst(3)(u2),
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0)(u2), i + 1)),
+        Map[Param, (Expr, Expr, Expr)](i -> (IntCst(0)(u2), i + 1, Tuple()())),
         Map()
       )()
     val s = Param("s")(TyStm(u2, -1))
     val original = StmBuild(
       3,
+      Tuple()(),
+      Undefined(Missing),
       PadTo(StmData(s)(), 4)() + 5,
       True,
       Map(),
-      Map[Param, (Expr, Expr)](
-        s -> (counter, True)
+      Map[Param, (Expr, Expr, Expr)](
+        s -> (counter, True, Tuple()())
       )
     )().tchk().lower.asInstanceOf[StmBuild]
     val fused = original.fuseWith(s)
@@ -45,10 +49,12 @@ class StreamFusionTests extends AnyFunSuite {
     // Successful fusion
     val ideal = StmBuild(
       3,
+      Tuple()(),
+      Undefined(Missing),
       PadTo(i, 4)() + 5,
       True,
-      Map[Param, (Expr, Expr)](
-        i -> (IntCst(0)(u2), i + 1)
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (IntCst(0)(u2), i + 1, Tuple()())
       ),
       Map()
     )()
@@ -68,28 +74,34 @@ class StreamFusionTests extends AnyFunSuite {
     val c1 =
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         ReshapeData(i + 11, I16)(),
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1)),
+        Map[Param, (Expr, Expr, Expr)](i -> (IntCst(0)(U8), i + 1, Tuple()())),
         Map()
       )().tchk().lower
     // Valid every 2nd cycle
     val c2 =
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         i % 3 === 0,
         i % 2 === 0,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1)),
+        Map[Param, (Expr, Expr, Expr)](i -> (IntCst(0)(U8), i + 1, Tuple()())),
         Map()
       )().tchk().lower
     val s = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       Tuple(StmData(x1)(), StmData(x2)())(),
       True,
       Map(),
-      Map[Param, (Expr, Expr)](
-        x1 -> (c1, True),
-        x2 -> (c2, True)
+      Map[Param, (Expr, Expr, Expr)](
+        x1 -> (c1, True, Tuple()()),
+        x2 -> (c2, True, Tuple()())
       )
     )().tchk().lower.asInstanceOf[StmBuild]
 
@@ -104,13 +116,15 @@ class StreamFusionTests extends AnyFunSuite {
     val ideal1 = lpe(
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(ReshapeData(i1 + 11, I16)(), StmData(x2)())(),
         True,
-        Map[Param, (Expr, Expr)](
-          i1 -> (IntCst(0)(U8), i1 + 1)
+        Map[Param, (Expr, Expr, Expr)](
+          i1 -> (IntCst(0)(U8), i1 + 1, Tuple()())
         ),
-        Map[Param, (Expr, Expr)](
-          x2 -> (c2, True)
+        Map[Param, (Expr, Expr, Expr)](
+          x2 -> (c2, True, Tuple()())
         )
       )().tchk()
     )
@@ -124,13 +138,15 @@ class StreamFusionTests extends AnyFunSuite {
     val ideal2 = lpe(
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(StmData(x1)(), i2 % 3 === 0)(),
         i2 % 2 === 0,
-        Map[Param, (Expr, Expr)](
-          i2 -> (IntCst(0)(U8), i2 + 1)
+        Map[Param, (Expr, Expr, Expr)](
+          i2 -> (IntCst(0)(U8), i2 + 1, Tuple()())
         ),
-        Map[Param, (Expr, Expr)](
-          x1 -> (c1, i2 % 2 === 0)
+        Map[Param, (Expr, Expr, Expr)](
+          x1 -> (c1, i2 % 2 === 0, Tuple()())
         )
       )().tchk()
     )
@@ -144,11 +160,17 @@ class StreamFusionTests extends AnyFunSuite {
     val ideal3 = lpe(
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(ReshapeData(i1 + 11, I16)(), i2 % 3 === 0)(),
         i2 % 2 === 0,
-        Map[Param, (Expr, Expr)](
-          i1 -> (IntCst(0)(U8), Mux(i2 % 2 === 0, i1 + 1, i1)()),
-          i2 -> (IntCst(0)(U8), i2 + 1)
+        Map[Param, (Expr, Expr, Expr)](
+          i1 -> (
+            IntCst(0)(U8),
+            Mux(i2 % 2 === 0, i1 + 1, i1)(),
+            Tuple()()
+          ),
+          i2 -> (IntCst(0)(U8), i2 + 1, Tuple()())
         ),
         Map()
       )().tchk()
@@ -168,30 +190,36 @@ class StreamFusionTests extends AnyFunSuite {
     val c1 =
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         i + 3,
         i % 3 === 0,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1)),
+        Map[Param, (Expr, Expr, Expr)](i -> (IntCst(0)(U8), i + 1, Tuple()())),
         Map()
       )().tchk().lower
     // Valid every 5th cycle
     val c2 =
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         i * 5 + 1,
         i % 5 === 0,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1)),
+        Map[Param, (Expr, Expr, Expr)](i -> (IntCst(0)(U8), i + 1, Tuple()())),
         Map()
       )().tchk().lower
     val s = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       Mux(i % 2 === 0, StmData(x1)(), StmData(x2)())(),
       True,
-      Map[Param, (Expr, Expr)](
-        i -> (IntCst(0)(U8), i + 1)
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (IntCst(0)(U8), i + 1, Tuple()())
       ),
-      Map[Param, (Expr, Expr)](
-        x1 -> (c1, i % 2 === 0),
-        x2 -> (c2, i % 2 !== 0)
+      Map[Param, (Expr, Expr, Expr)](
+        x1 -> (c1, i % 2 === 0, Tuple()()),
+        x2 -> (c2, i % 2 !== 0, Tuple()())
       )
     )().tchk().lower.asInstanceOf[StmBuild]
 
@@ -201,7 +229,7 @@ class StreamFusionTests extends AnyFunSuite {
     assert(mhir.eval.eval(actual1) == mhir.eval.eval(s))
     // 1b) Successful fusion
     assert(!actual1.namesDefinedHere.contains(x1))
-    assert(!actual1.producers.exists({ case (_, (z, _)) => z == c1 }))
+    assert(!actual1.producers.exists({ case (_, (z, _, _)) => z == c1 }))
 
     // 2) After fusion with x2
     val actual2 = lpe(s.fuseWith(x2)).asInstanceOf[StmBuild]
@@ -209,7 +237,7 @@ class StreamFusionTests extends AnyFunSuite {
     assert(mhir.eval.eval(actual2) == mhir.eval.eval(s))
     // 2b) Successful fusion
     assert(!actual2.namesDefinedHere.contains(x2))
-    assert(!actual2.producers.exists({ case (_, (z, _)) => z == c2 }))
+    assert(!actual2.producers.exists({ case (_, (z, _, _)) => z == c2 }))
 
     // 3) After two fusions
     val actual3 = lpe(s.fuseWith(x1).fuseWith(x2)).asInstanceOf[StmBuild]
@@ -218,8 +246,8 @@ class StreamFusionTests extends AnyFunSuite {
     // 3b) Successful fusion
     assert(!actual3.namesDefinedHere.contains(x1))
     assert(!actual3.namesDefinedHere.contains(x2))
-    assert(!actual3.producers.exists({ case (_, (z, _)) => z == c1 }))
-    assert(!actual3.producers.exists({ case (_, (z, _)) => z == c2 }))
+    assert(!actual3.producers.exists({ case (_, (z, _, _)) => z == c1 }))
+    assert(!actual3.producers.exists({ case (_, (z, _, _)) => z == c2 }))
   }
 
   test("FilterWithOutputRegisters") {
@@ -238,20 +266,20 @@ class StreamFusionTests extends AnyFunSuite {
           |  (p1: Stm[(u8, u8), 4]) = {
           |    stm: sbuild(4)(data, valid) {
           |      (data: (u8, u8)) = {
-          |        init: undefined[(u8, u8)],
+          |        init: undefined:(u8, u8),
           |        next: (sum, sdata(p))
           |      },
           |      (valid: bool) = {
           |        init: false,
-          |        next: sdata(p) % 2 == 0:u8
+          |        next: j < 4 && sdata(p) % 2 == 0:u8
           |      },
           |      (j: u8) = {
           |        init: 0:u8,
-          |        next: if sdata(p) % 2 == 0:u8 then j + 1 else j
+          |        next: if j < 4 && sdata(p) % 2 == 0:u8 then j + 1 else j
           |      },
           |      (sum: u8) = {
           |        init: 0:u8,
-          |        next: sum + sdata(p)
+          |        next: sum + (if j < 4 then sdata(p) else 0:u8)
           |      }
           |    } {
           |      (p: Stm[u8, 8]) = {
@@ -265,16 +293,16 @@ class StreamFusionTests extends AnyFunSuite {
           |  (p2: Stm[(u8, u8), 4]) = {
           |    stm: sbuild(4)(data, valid) {
           |      (data: (u8, u8)) = {
-          |        init: undefined[(u8, u8)],
+          |        init: undefined:(u8, u8),
           |        next: (i, sdata(p))
           |      },
           |      (valid: bool) = {
           |        init: false,
-          |        next: sdata(p) % 2 != 0:u8
+          |        next: j < 4 && sdata(p) % 2 != 0:u8
           |      },
           |      (j: u8) = {
           |        init: 0:u8,
-          |        next: if sdata(p) %2 != 0:u8 then j + 1 else j
+          |        next: if j < 4 && sdata(p) % 2 != 0:u8 then j + 1 else j
           |      },
           |      (i: u8) = {
           |        init: 0:u8,
@@ -328,11 +356,7 @@ class StreamFusionTests extends AnyFunSuite {
       Tuple(C(6)(U8), C(7)(U8))()
     )().tchk()
     val actual0 =
-      mhir.eval.eval(
-        original,
-        inputs = Map(in1 -> in1Val, in2 -> in2Val),
-        suppressWarnings = true
-      )
+      mhir.eval.eval(original, inputs = Map(in1 -> in1Val, in2 -> in2Val))
     assert(actual0 == expected)
 
     // Fuse with p1
@@ -346,7 +370,7 @@ class StreamFusionTests extends AnyFunSuite {
       // (Successful fusion)
       assert(fused.producers.size == 2)
       val in1UsedDirectly = fused.producers
-        .exists({ case (_, (z, _)) => z == in1 })
+        .exists({ case (_, (z, _, _)) => z == in1 })
       assert(in1UsedDirectly)
     }
 
@@ -361,7 +385,7 @@ class StreamFusionTests extends AnyFunSuite {
       // (Successful fusion)
       assert(fused.producers.size == 2)
       val in2UsedDirectly = fused.producers
-        .exists({ case (_, (z, _)) => z == in2 })
+        .exists({ case (_, (z, _, _)) => z == in2 })
       assert(in2UsedDirectly)
     }
   }
@@ -462,7 +486,7 @@ class StreamFusionTests extends AnyFunSuite {
       // (Successful fusion)
       assert(fused.producers.size == 2)
       val in1UsedDirectly = fused.producers
-        .exists({ case (_, (z, _)) => z == in1 })
+        .exists({ case (_, (z, _, _)) => z == in1 })
       assert(in1UsedDirectly)
     }
 
@@ -477,8 +501,130 @@ class StreamFusionTests extends AnyFunSuite {
       // (Successful fusion)
       assert(fused.producers.size == 2)
       val in2UsedDirectly = fused.producers
-        .exists({ case (_, (z, _)) => z == in2 })
+        .exists({ case (_, (z, _, _)) => z == in2 })
       assert(in2UsedDirectly)
+    }
+  }
+
+  test("NoHandshake") {
+    def foo(s1: Expr, s2: Expr): StmBuild = {
+      val TyStm(elemTyp, IntCst(n)) = s1.typ
+      require(n >= 3)
+      val p1 = Param("p1")(TyStm(elemTyp, -1))
+      val p2 = Param("p2")(TyStm(elemTyp, -1))
+      val i = Param("i")(U8)
+      StmBuild(
+        C(n - 3)(),
+        C(4)(),
+        Undefined(Missing),
+        Tuple(i, StmData(p1)(), StmData(p2)())(),
+        True,
+        Map(
+          i -> (C(0)(i.typ), Sum(C(1)(i.typ), i)(), C(3)())
+        ),
+        Map(
+          p1 -> (s1, True, C(0)()),
+          p2 -> (s2, True, C(2)())
+        )
+      )().tchk().asInstanceOf[StmBuild]
+    }
+    def delayBy(s: StmLiteral, k: Int): StmLiteral = {
+      val TyStm(elemTyp, _) = s.typ
+      StmLiteral(
+        (0 until k).map(_ => Undefined(elemTyp)) ++ s.physical,
+        s.logical
+      )(Missing).tchk().asInstanceOf[StmLiteral]
+    }
+    val n = 10
+    val s1 = Param("s1")(TyStm(U8, n))
+    val s2 = Param("s2")(TyStm(U8, n))
+    val s3 = Param("s3")(TyStm(U8, n))
+    val s4 = Param("s4")(TyStm(U8, n))
+    val original = foo(foo(s1, s2), foo(s3, s4))
+    val Seq(p1, p2) = original.producers.keys.toSeq.sortBy(_.name)
+    val inputs = Map(
+      s1 -> StmLiteral(
+        Seq(),
+        (0 until n).map(C(_)(U8))
+      )(Missing).tchk().asInstanceOf[StmLiteral],
+      s2 -> StmLiteral(
+        (0 until 2).map(_ => Undefined(U8)),
+        (0 until n).map(t => t * t).map(C(_)(U8))
+      )(Missing).tchk().asInstanceOf[StmLiteral],
+      s3 -> StmLiteral(
+        (0 until 2).map(_ => Undefined(U8)),
+        (0 until n).map(42 - _).map(C(_)(U8))
+      )(Missing).tchk().asInstanceOf[StmLiteral],
+      s4 -> StmLiteral(
+        (0 until 4).map(_ => Undefined(U8)),
+        (0 until n).map(t => t * (t + 1)).map(C(_)(U8))
+      )(Missing).tchk().asInstanceOf[StmLiteral]
+    )
+
+    // Check that it works as expected in the first place
+    val expected = StmLiteral(
+      Seq(),
+      //          s1: [ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9]s
+      //          s2: [ 0,  1,  4,  9, 16, 25, 36, 49, 64, 81]s
+      // foo(s1, s2): [(1, 3, 1), (2, 4, 4), (3, 5, 9), (4, 6, 16), (5, 7, 25), (6, 8, 36), (7, 9, 49)]s
+      //          s3: [42, 41, 40, 39, 38, 37, 36, 35, 34, 33]s
+      //          s4: [ 0,  2,  6, 12, 20, 30, 42, 56, 72, 90]s
+      // foo(s3, s4): [(1, 39, 2), (2, 38, 6), (3, 37, 12), (4, 36, 20), (5, 35, 30), (6, 34, 42), (7, 33, 56)]s
+      //      output: [(1, (4, 6, 16), (2, 38, 6)), (2, (5, 7, 25), (3, 37, 12)), (3, (6, 8, 36), (4, 36, 20)), (4, (7, 9, 49), (5, 35, 30))]s
+      Seq(
+        (1, (4, 6, 16), (2, 38, 6)),
+        (2, (5, 7, 25), (3, 37, 12)),
+        (3, (6, 8, 36), (4, 36, 20)),
+        (4, (7, 9, 49), (5, 35, 30))
+      ).map({ case (a, (b1, b2, b3), (c1, c2, c3)) =>
+        Tuple(
+          C(a)(U8),
+          Tuple(C(b1)(U8), C(b2)(U8), C(b3)(U8))(),
+          Tuple(C(c1)(U8), C(c2)(U8), C(c3)(U8))()
+        )()
+      })
+    )(Missing).tchk()
+
+    {
+      val actual = mhir.eval.eval(original, handshake = false, inputs = inputs)
+      assert(actual.dropPhysicalPrefix == expected)
+    }
+
+    // Check that it works as expected after fusion with p1
+    {
+      val fused = original.fuseWith(p1)
+      // Need to increase delay in s1 and s2 to compensate for stage removed by fusion
+      val updatedInputs = Map(
+        s1 -> delayBy(inputs(s1), 1),
+        s2 -> delayBy(inputs(s2), 1),
+        s3 -> inputs(s3),
+        s4 -> inputs(s4)
+      )
+      val actual =
+        mhir.eval.eval(fused, handshake = false, inputs = updatedInputs)
+      assert(actual.dropPhysicalPrefix == expected)
+    }
+
+    // Check that it works as expected after fusion with p2
+    {
+      val fused = original.fuseWith(p2)
+      // Need to increase delay in s3 and s4 to compensate for stage removed by fusion
+      val updatedInputs = Map(
+        s1 -> inputs(s1),
+        s2 -> inputs(s2),
+        s3 -> delayBy(inputs(s3), 1),
+        s4 -> delayBy(inputs(s4), 1)
+      )
+      val actual =
+        mhir.eval.eval(fused, handshake = false, inputs = updatedInputs)
+      assert(actual.dropPhysicalPrefix == expected)
+    }
+
+    // Check that it works as expected after fusion with p1 and p2
+    {
+      val fused = original.fuseWith(p1).fuseWith(p2)
+      val actual = mhir.eval.eval(fused, handshake = false, inputs = inputs)
+      assert(actual.dropPhysicalPrefix == expected)
     }
   }
 }

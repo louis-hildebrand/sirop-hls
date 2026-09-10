@@ -182,13 +182,14 @@ object Parser {
   ): (AccelDecl, Seq[Token]) = {
     logger.trace(s"(${loc(tokens)}) parsing accel_decl")
     val (_, rest1) = expect(AcceleratorToken, tokens)
-    val (annotations, rest2) = rest1.headOption match {
+    val (annotations, annotationsByParam, rest2) = rest1.headOption match {
       case Some(_: LeftSquareToken) =>
         val rest2 = rest1.tail
-        val (annotations, rest3) = parseAcceleratorAnnotations(rest2)
+        val (annotations, annotationsByParam, rest3) =
+          parseAcceleratorAnnotations(rest2)
         val (_, rest4) = expect(RightSquareToken, rest3)
-        (annotations, rest4)
-      case _ => (Map[String, Expr](), rest1)
+        (annotations, annotationsByParam, rest4)
+      case _ => (Map[String, Expr](), Map[(String, Param), Expr](), rest1)
     }
     val (IdentToken(name), rest3) = expect(IdentToken, rest2)
     val (_, rest4) = expect(AssignToken, rest3)
@@ -197,44 +198,63 @@ object Parser {
         rest4,
         constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
       )
-    (AccelDecl(name, body, annotations), rest5)
+    (AccelDecl(name, body, annotations, annotationsByParam), rest5)
   }
 
   private def parseAcceleratorAnnotations(
       tokens: Seq[Token]
-  ): (Map[String, Expr], Seq[Token]) = {
+  ): (Map[String, Expr], Map[(String, Param), Expr], Seq[Token]) = {
     tokens.headOption match {
       case Some(_: IdentToken) =>
-        val (acc, rest1) = parseAcceleratorAnnotation(tokens)
-        var annotations = Map(acc)
-        var rest2 = rest1
-        while (rest2.headOption.exists(_.category == CommaToken)) {
-          val (acc, rest3) = parseAcceleratorAnnotation(rest2.tail)
-          annotations = annotations + acc
-          rest2 = rest3
+        var annotations = Map[String, Expr]()
+        var annotationsByParam = Map[(String, Param), Expr]()
+        var rest = tokens
+        def parseOneAndStore(): Unit = {
+          parseAcceleratorAnnotation(rest) match {
+            case ((key, None, value), rest1) =>
+              annotations += (key -> value)
+              rest = rest1
+            case ((key, Some(param), value), rest1) =>
+              annotationsByParam += ((key, param) -> value)
+              rest = rest1
+          }
         }
-        (annotations, rest2)
-      case _ => (Map(), tokens)
+        parseOneAndStore()
+        while (rest.headOption.exists(_.category == CommaToken)) {
+          rest = rest.tail // drop the comma
+          parseOneAndStore()
+        }
+        (annotations, annotationsByParam, rest)
+      case _ => (Map(), Map(), tokens)
     }
   }
 
   private def parseAcceleratorAnnotation(
       tokens: Seq[Token]
-  ): ((String, Expr), Seq[Token]) = {
+  ): ((String, Option[Param], Expr), Seq[Token]) = {
     val (keyTok @ IdentToken(key), rest1) = expect(IdentToken, tokens)
-    val (value, rest2) = rest1.headOption match {
-      case Some(_: AssignToken) =>
-        val rest2 = rest1.tail
-        val (e, rest3) = parseExpr(rest2, Map())
-        (Some(e), rest3)
+    val (param, rest2) = rest1.headOption match {
+      case Some(_: LeftParToken) =>
+        val rest1_1 = rest1.tail
+        val (IdentToken(x), rest1_2) = expect(IdentToken, rest1_1)
+        val (_, rest1_3) = expect(RightParToken, rest1_2)
+        (Some(Param(x, -1)(Missing)), rest1_3)
       case _ => (None, rest1)
+    }
+    val (value, rest3) = rest2.headOption match {
+      case Some(_: AssignToken) =>
+        val rest2_1 = rest2.tail
+        val (e, rest2_2) = parseExpr(rest2_1, Map())
+        (Some(e), rest2_2)
+      case _ => (None, rest2)
     }
     Program.checkAnnotation(
       key,
+      param,
       value,
       msg => throw SyntaxError(msg, keyTok.loc)
     )
-    ((key, value.getOrElse(True)), rest2)
+    ((key, param, value.getOrElse(True)), rest3)
   }
 
   private def parseAssertion(
@@ -253,7 +273,16 @@ object Parser {
       case _ =>
         (None, rest4)
     }
-    (Assertion(inputs, expectedOutput, ignore), rest5)
+    val (prefixCondition, rest6) = rest5.headOption match {
+      case Some(_: WithToken) =>
+        val rest5_1 = rest5.tail
+        val (_, rest5_2) = expect(PrefixToken, rest5_1)
+        val (f, rest5_3) = parseExpr(rest5_2, constants)
+        (Some(f), rest5_3)
+      case _ =>
+        (None, rest5)
+    }
+    (Assertion(inputs, expectedOutput, ignore, prefixCondition), rest6)
   }
 
   private def parseInputSpecs(
@@ -331,7 +360,40 @@ object Parser {
     PlusToken,
     MinusToken,
     NatToken,
-    LeftSquareToken
+    LeftSquareToken,
+    LogOrToken,
+    LogAndToken,
+    BitOrToken,
+    BitAndToken,
+    EqToken,
+    EqTickToken,
+    NeqToken,
+    LtToken,
+    LtTickToken,
+    GtToken,
+    LeqToken,
+    GeqToken,
+    LShiftToken,
+    ARShiftToken,
+    LRShiftToken,
+    PlusToken,
+    PlusTickToken,
+    PlusPercentToken,
+    PlusPercentTickToken,
+    PlusCaretToken,
+    MinusToken,
+    MinusPercentToken,
+    MinusPercentTickToken,
+    MinusCaretToken,
+    TimesToken,
+    TimesTickToken,
+    TimesPercentToken,
+    TimesPercentTickToken,
+    TimesCaretToken,
+    SlashToken,
+    SlashTickToken,
+    PercentToken,
+    PercentTickToken
   )
   private val FirstExpr100: Set[TokenCategory] =
     Set(VbuildToken, SbuildToken, SdataToken) ++ FirstExpr0
@@ -905,33 +967,54 @@ object Parser {
   ): (StmBuild, Seq[Token]) = {
     val (_, rest1) = expect(SbuildToken, tokens)
     val (_, rest2) = expect(LeftParToken, rest1)
-    val (n, rest3) = parseExpr(rest2, constants)
+    val ((n, delay), rest3) = {
+      val (n, rest2_1) = parseExpr(rest2, constants)
+      rest2_1.headOption match {
+        case Some(_: AtToken) =>
+          val (_, rest2_2) = expect(AtToken, rest2_1)
+          val (delay, rest2_3) = parseExpr(rest2_2, constants)
+          ((n, delay), rest2_3)
+        case _ =>
+          ((n, Tuple()()), rest2_1)
+      }
+    }
     val (_, rest4) = expect(RightParToken, rest3)
     val (_, rest5) = expect(LeftParToken, rest4)
-    val (data, rest6) = parseExpr(rest5, constants)
-    val (_, rest7) = expect(CommaToken, rest6)
-    val (valid, rest8) = parseExpr(rest7, constants)
-    val (_, rest9) = expect(RightParToken, rest8)
-    val (_, rest10) = expect(LeftCurlyToken, rest9)
-    val (accumulators, rest11) = parseAccumulators(rest10, constants)
-    val (_, rest12) = expect(RightCurlyToken, rest11)
-    val (_, rest13) = expect(LeftCurlyToken, rest12)
-    val (producers, rest14) = parseProducers(rest13, constants)
-    for (x <- producers.keySet) {
-      assert(
-        x.typ.isInstanceOf[TyStm],
-        "all producers should have a Stm type annotation"
-      )
+    val ((initData, nextData, valid), rest6) = {
+      val (out0, rest5_1) = parseExpr(rest5, constants)
+      val (_, rest5_2) = expect(CommaToken, rest5_1)
+      val (out1, rest5_3) = parseExpr(rest5_2, constants)
+      rest5_3.headOption match {
+        case Some(_: CommaToken) =>
+          val (_, rest5_4) = expect(CommaToken, rest5_3)
+          val (out2, rest5_5) = parseExpr(rest5_4, constants)
+          val initData = out0
+          val nextData = out1
+          val valid = out2
+          ((initData, nextData, valid), rest5_5)
+        case _ =>
+          val initData = Undefined(Missing)
+          val nextData = out0
+          val valid = out1
+          ((initData, nextData, valid), rest5_3)
+      }
     }
-    val (_, rest15) = expect(RightCurlyToken, rest14)
-    val sbuild = StmBuild(n, data, valid, accumulators, producers)()
-    (sbuild, rest15)
+    val (_, rest7) = expect(RightParToken, rest6)
+    val (_, rest8) = expect(LeftCurlyToken, rest7)
+    val (accumulators, rest9) = parseAccumulators(rest8, constants)
+    val (_, rest10) = expect(RightCurlyToken, rest9)
+    val (_, rest11) = expect(LeftCurlyToken, rest10)
+    val (producers, rest12) = parseProducers(rest11, constants)
+    val (_, rest13) = expect(RightCurlyToken, rest12)
+    val sbuild =
+      StmBuild(n, delay, initData, nextData, valid, accumulators, producers)()
+    (sbuild, rest13)
   }
 
   private def parseAccumulators(
       tokens: Seq[Token],
       constants: Map[Param, Type]
-  ): (Map[Param, (Expr, Expr)], Seq[Token]) = {
+  ): (Map[Param, (Expr, Expr, Expr)], Seq[Token]) = {
     tokens.headOption match {
       case Some(_: LeftParToken) =>
         val (acc, rest1) = parseAccumulator(tokens, constants)
@@ -950,31 +1033,41 @@ object Parser {
   private def parseAccumulator(
       tokens: Seq[Token],
       constants: Map[Param, Type]
-  ): ((Param, (Expr, Expr)), Seq[Token]) = {
+  ): ((Param, (Expr, Expr, Expr)), Seq[Token]) = {
     val (_, rest1) = expect(LeftParToken, tokens)
-    val (IdentToken(x), rest2) = expect(IdentToken, rest1)
-    val (_, rest3) = expect(ColonToken, rest2)
-    val (typ, rest4) = parseTyp(rest3, constants)
-    val rest5 = expectMany(
-      rest4,
+    val ((x, typ, delay), rest2) = {
+      val (IdentToken(x), rest1_1) = expect(IdentToken, rest1)
+      val (_, rest1_2) = expect(ColonToken, rest1_1)
+      val (typ, rest1_3) = parseTyp(rest1_2, constants)
+      rest1_3.headOption match {
+        case Some(_: AtToken) =>
+          val (_, rest1_4) = expect(AtToken, rest1_3)
+          val (delay, rest1_5) = parseExpr(rest1_4, constants)
+          ((x, typ, delay), rest1_5)
+        case _ =>
+          ((x, typ, Tuple()()), rest1_3)
+      }
+    }
+    val rest3 = expectMany(
+      rest2,
       RightParToken,
       AssignToken,
       LeftCurlyToken,
       InitToken,
       ColonToken
     )
-    val (z, rest6) = parseExpr(rest5, constants)
-    val rest7 = expectMany(rest6, CommaToken, NextToken, ColonToken)
-    val (next, rest8) = parseExpr(rest7, constants)
-    val (_, rest9) = expect(RightCurlyToken, rest8)
-    val acc = Param(x, -1)(typ) -> (z, next)
-    (acc, rest9)
+    val (init, rest4) = parseExpr(rest3, constants)
+    val rest5 = expectMany(rest4, CommaToken, NextToken, ColonToken)
+    val (next, rest6) = parseExpr(rest5, constants)
+    val (_, rest7) = expect(RightCurlyToken, rest6)
+    val acc = Param(x, -1)(typ) -> (init, next, delay)
+    (acc, rest7)
   }
 
   private def parseProducers(
       tokens: Seq[Token],
       constants: Map[Param, Type]
-  ): (Map[Param, (Expr, Expr)], Seq[Token]) = {
+  ): (Map[Param, (Expr, Expr, Expr)], Seq[Token]) = {
     tokens.headOption match {
       case Some(_: LeftParToken) =>
         val (prod, rest1) = parseProducer(tokens, constants)
@@ -993,25 +1086,35 @@ object Parser {
   private def parseProducer(
       tokens: Seq[Token],
       constants: Map[Param, Type]
-  ): ((Param, (Expr, Expr)), Seq[Token]) = {
+  ): ((Param, (Expr, Expr, Expr)), Seq[Token]) = {
     val (_, rest1) = expect(LeftParToken, tokens)
-    val (IdentToken(x), rest2) = expect(IdentToken, rest1)
-    val (_, rest3) = expect(ColonToken, rest2)
-    val (typ, rest4) = parseStmTyp(rest3, constants)
-    val rest5 = expectMany(
-      rest4,
+    val ((x, typ, delay), rest2) = {
+      val (IdentToken(x), rest1_1) = expect(IdentToken, rest1)
+      val (_, rest1_2) = expect(ColonToken, rest1_1)
+      val (typ, rest1_3) = parseStmTyp(rest1_2, constants)
+      rest1_3.headOption match {
+        case Some(_: AtToken) =>
+          val (_, rest1_4) = expect(AtToken, rest1_3)
+          val (delay, rest1_5) = parseExpr(rest1_4, constants)
+          ((x, typ, delay), rest1_5)
+        case _ =>
+          ((x, typ, Tuple()()), rest1_3)
+      }
+    }
+    val rest3 = expectMany(
+      rest2,
       RightParToken,
       AssignToken,
       LeftCurlyToken,
       LittleStmToken,
       ColonToken
     )
-    val (stm, rest6) = parseExpr(rest5, constants)
-    val rest7 = expectMany(rest6, CommaToken, ReadyToken, ColonToken)
-    val (ready, rest8) = parseExpr(rest7, constants)
-    val (_, rest9) = expect(RightCurlyToken, rest8)
-    val prod = Param(x, -1)(typ) -> (stm, ready)
-    (prod, rest9)
+    val (stm, rest4) = parseExpr(rest3, constants)
+    val rest5 = expectMany(rest4, CommaToken, ReadyToken, ColonToken)
+    val (ready, rest6) = parseExpr(rest5, constants)
+    val (_, rest7) = expect(RightCurlyToken, rest6)
+    val prod = Param(x, -1)(typ) -> (stm, ready, delay)
+    (prod, rest7)
   }
 
   @tailrec
@@ -1021,27 +1124,21 @@ object Parser {
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     tokens.headOption match {
-      case Some(lsq: ColonLeftSquareToken) =>
+      case Some(_: ColonLeftSquareToken) =>
         val rest1 = tokens.tail
         val (typArg, rest2) = parseTyp(rest1, constants)
         val (_, rest3) = expect(RightSquareToken, rest2)
         val (_, rest4) = expect(LeftParToken, rest3)
         val (args, rest5) = parseExprList(rest4, constants)
         val (_, rest6) = expect(RightParToken, rest5)
-        parseExpr100Prime(
-          BuiltinFunctions.parseFunCall(e, Seq(typArg), args, lsq.loc),
-          rest6,
-          constants
-        )
-      case Some(lpar: LeftParToken) =>
+        val call = Call(e, Seq(typArg), args)
+        parseExpr100Prime(call, rest6, constants)
+      case Some(_: LeftParToken) =>
         val rest1 = tokens.tail
         val (args, rest2) = parseExprList(rest1, constants)
         val (_, rest3) = expect(RightParToken, rest2)
-        parseExpr100Prime(
-          BuiltinFunctions.parseFunCall(e, Seq(), args, lpar.loc),
-          rest3,
-          constants
-        )
+        val call = Call(e, Seq(), args)
+        parseExpr100Prime(call, rest3, constants)
       case Some(_: DotToken) =>
         val rest1 = tokens.tail
         rest1.headOption match {
@@ -1063,12 +1160,8 @@ object Parser {
             val (args, rest5) = parseExprList(rest4, constants)
             val (_, rest6) = expect(RightParToken, rest5)
             val loc = lsq.map(_.loc).getOrElse(lpar.loc)
-            parseExpr100Prime(
-              BuiltinFunctions
-                .parseFunCall(Param(op, -1)(Missing), typArgs, e +: args, loc),
-              rest6,
-              constants
-            )
+            val call = Call(Param(op, -1)(Missing), typArgs, e +: args)
+            parseExpr100Prime(call, rest6, constants)
           case Some(tok) =>
             throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
           case None => throw SyntaxError("unexpected end of file", None)
@@ -1216,16 +1309,33 @@ object Parser {
         (Param(ident, -1)(Missing), rest)
       case Some(_: UndefinedToken) =>
         val rest1 = tokens.tail
-        val (_, rest2) = expect(LeftSquareToken, rest1)
-        val (typ, rest3) = parseTyp(rest2, constants)
-        val (_, rest4) = expect(RightSquareToken, rest3)
-        (Undefined(typ), rest4)
+        val (typ, rest2) = rest1.headOption match {
+          case Some(_: LeftSquareToken) =>
+            val rest1_1 = rest1.tail
+            val (typ, rest1_2) = parseTyp(rest1_1, constants)
+            val typStr = reconstructSource(
+              rest1_1.take(rest1_1.length - rest1_2.length)
+            )
+            logger.warn(
+              s"the syntax undefined[$typStr] is deprecated." +
+                s" Please use undefined:$typStr instead."
+            )
+            val (_, rest1_3) = expect(RightSquareToken, rest1_2)
+            (typ, rest1_3)
+          case Some(_: ColonToken) =>
+            val rest1_1 = rest1.tail
+            val (typ, rest1_2) = parseTyp(rest1_1, constants)
+            (typ, rest1_2)
+          case _ =>
+            (Missing, rest1)
+        }
+        (Undefined(typ), rest2)
       case Some(_: DefaultToken) =>
         val rest1 = tokens.tail
         val (_, rest2) = expect(LeftSquareToken, rest1)
         val (typ, rest3) = parseTyp(rest2, constants)
         val (_, rest4) = expect(RightSquareToken, rest3)
-        val typStr = reconstructSource(rest1.take(rest1.length - rest3.length))
+        val typStr = reconstructSource(rest2.take(rest2.length - rest3.length))
         logger.warn(
           s"the syntax default[$typStr] is deprecated."
             + s" Please use zeros:[$typStr]() instead."
@@ -1372,75 +1482,97 @@ object Parser {
       constants: Map[Param, Type]
   ): (Expr, Seq[Token]) = {
     val (lsq, rest1) = expect(LeftSquareToken, tokens)
-    rest1.headOption match {
+    val (elems, rest2) = parseExprList(rest1, constants)
+    rest2.headOption match {
       case Some(_: RightSquareVToken) =>
-        // Empty vector
-        val rest2 = rest1.tail
-        val rest3 = rest2.headOption match {
-          case Some(_: ColonToken) => rest2.tail
-          case _ =>
-            throw SyntaxError(
-              "missing type annotation for empty Vec literal",
-              lsq.loc
-            )
+        // Vector
+        val rest3 = rest2.tail
+        val (typ, rest4) = rest3.headOption match {
+          case Some(_: ColonToken) => parseVecTyp(rest3.tail, constants)
+          case _                   => (Missing, rest3)
         }
-        val (vecTyp, rest4) = parseVecTyp(rest3, constants)
-        if (vecTyp.n != C(0)()) {
-          throw SyntaxError(
-            s"wrong length in Vec type annotation: ${vecTyp.n} (expected 0)",
-            lsq.loc
-          )
+        if (elems.isEmpty) {
+          // Type annotation is required and must have length 0
+          typ match {
+            case TyVec(_, IntCst(0)) => ()
+            case TyVec(_, n) =>
+              throw SyntaxError(
+                s"wrong length in Vec type annotation: $n (expected 0)",
+                lsq.loc
+              )
+            case typ =>
+              assert(
+                typ == Missing,
+                s"at this point, the type should be either $Missing or a Vec type"
+              )
+              throw SyntaxError(
+                "missing type annotation for empty Vec literal",
+                lsq.loc
+              )
+          }
+        } else {
+          // Type annotation is forbidden
+          typ match {
+            case Missing => ()
+            case _ =>
+              throw SyntaxError(
+                "type annotations are forbidden for non-empty Vec literals",
+                lsq.loc
+              )
+          }
         }
-        (VecLiteral()(vecTyp), rest4)
+        (VecLiteral(elems: _*)(typ), rest4)
       case Some(_: RightSquareSToken) =>
-        // Empty stream
-        val rest2 = rest1.tail
-        val rest3 = rest2.headOption match {
-          case Some(_: ColonToken) => rest2.tail
+        // Stream
+        val rest3 = rest2.tail
+        val (physical, logical, rest4) = rest3.headOption match {
+          case Some(_: PlusPlusToken) =>
+            val rest3_1 = rest3.tail
+            val (_, rest3_2) = expect(LeftSquareToken, rest3_1)
+            val (logical, rest3_3) = parseExprList(rest3_2, constants)
+            val (_, rest3_4) = expect(RightSquareSToken, rest3_3)
+            (elems, logical, rest3_4)
           case _ =>
-            throw SyntaxError(
-              "missing type annotation for empty Stm literal",
-              lsq.loc
-            )
+            (Seq(), elems, rest3)
         }
-        val (stmTyp, rest4) = parseStmTyp(rest3, constants)
-        if (stmTyp.n != C(0)()) {
-          throw SyntaxError(
-            s"wrong length in Stm type annotation: ${stmTyp.n} (expected 0)",
-            lsq.loc
-          )
+        val (typ, rest5) = rest4.headOption match {
+          case Some(_: ColonToken) => parseStmTyp(rest4.tail, constants)
+          case _                   => (Missing, rest4)
         }
-        (StmLiteral()(stmTyp), rest4)
-      case _ =>
-        // Non-empty vector or stream
-        val (elems, rest2) = parseExprList(rest1, constants)
-        rest2.headOption match {
-          case Some(_: RightSquareVToken) =>
-            val rest3 = rest2.tail
-            rest3.headOption match {
-              case Some(_: ColonToken) =>
-                throw SyntaxError(
-                  "type annotations are forbidden for non-empty Vec literals",
-                  lsq.loc
-                )
-              case _ => ()
-            }
-            (VecLiteral(elems: _*)(), rest3)
-          case Some(_: RightSquareSToken) =>
-            val rest3 = rest2.tail
-            rest3.headOption match {
-              case Some(_: ColonToken) =>
-                throw SyntaxError(
-                  "type annotations are forbidden for non-empty Stm literals",
-                  lsq.loc
-                )
-              case _ => ()
-            }
-            (StmLiteral(elems: _*)(), rest3)
-          case Some(tok) =>
-            throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
-          case None => throw SyntaxError("unexpected end of file", None)
+        if (physical.isEmpty && logical.isEmpty) {
+          // Type annotation is required and must have length 0
+          typ match {
+            case TyStm(_, IntCst(0)) => ()
+            case TyStm(_, n) =>
+              throw SyntaxError(
+                s"wrong length in Stm type annotation: $n (expected 0)",
+                lsq.loc
+              )
+            case typ =>
+              assert(
+                typ == Missing,
+                s"at this point, the type should be either $Missing or a Stm type"
+              )
+              throw SyntaxError(
+                "missing type annotation for empty Stm literal",
+                lsq.loc
+              )
+          }
+        } else {
+          // Type annotation is forbidden
+          typ match {
+            case Missing => ()
+            case _ =>
+              throw SyntaxError(
+                "type annotations are forbidden for non-empty Stm literals",
+                lsq.loc
+              )
+          }
         }
+        (StmLiteral(physical, logical)(typ), rest5)
+      case Some(tok) =>
+        throw SyntaxError(s"unexpected token: ${tok.quot}", tok.loc)
+      case None => throw SyntaxError("unexpected end of file", None)
     }
   }
 

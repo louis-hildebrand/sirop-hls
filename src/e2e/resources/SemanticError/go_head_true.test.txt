@@ -1,0 +1,1 @@
+SemanticError: head(my_go) must be false, but it is true

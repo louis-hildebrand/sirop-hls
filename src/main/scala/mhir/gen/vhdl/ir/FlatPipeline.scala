@@ -6,15 +6,9 @@ private[vhdl] sealed trait PipelineNode
 
 /** @param out
   *   the name for the output stream.
-  * @param inputLatency
-  *   the latency of the inputs to this node. 0 means the inputs are valid
-  *   immediately, 1 means the inputs are valid after 1 clock cycle, etc.
   */
-private[vhdl] case class StmBuildNode(
-    out: Param,
-    s: GenStmBuild,
-    inputLatency: Option[Int]
-) extends PipelineNode
+private[vhdl] case class StmBuildNode(out: Param, s: GenStmBuild)
+    extends PipelineNode
 
 /** @param in
   *   the stream feeding into this node.
@@ -42,7 +36,7 @@ private[vhdl] case class FlatPipeline(
   }
 
   def usesIpBlocks: Boolean = {
-    this.sbuilds.exists({ case StmBuildNode(_, s, _) =>
+    this.sbuilds.exists({ case StmBuildNode(_, s) =>
       s.intermediates.exists({
         case (_, _: IpBlockInst) => true
         case _                   => false

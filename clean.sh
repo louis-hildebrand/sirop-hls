@@ -2,7 +2,7 @@
 set -ue
 
 echo "Cleaning main repo..."
-git clean -xdi -e .idea/
+git clean -xdi -e .idea/ -e .obsidian/
 
 echo ""
 echo "Removing submodules..."

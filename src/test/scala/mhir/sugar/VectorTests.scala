@@ -1,8 +1,8 @@
 package mhir.sugar
 
 import mhir.canonicalize._
-import mhir.eval.EvalException
 import mhir.ir._
+import mhir.sugar.handshake.{Stm2Vec, VecReduce}
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -83,11 +83,13 @@ class VectorTests extends AnyFunSuite {
       U32 ::+ (i =>
         StmBuild(
           m,
+          Tuple()(),
+          Undefined(Missing),
           Tuple(a1, a2)(),
           True,
-          Map[Param, (Expr, Expr)](
-            a1 -> (C(0)(U32), a1 + 1),
-            a2 -> (i, a2 + i)
+          Map[Param, (Expr, Expr, Expr)](
+            a1 -> (C(0)(U32), a1 + 1, Tuple()()),
+            a2 -> (i, a2 + i, Tuple()())
           ),
           Map()
         )()
@@ -235,8 +237,8 @@ class VectorTests extends AnyFunSuite {
 
   test("VecSlice:[::0]") {
     val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
-    val e = VecSlice(input, Tuple()(), Tuple()(), C(0)())()
-    assertThrows[EvalException](mhir.eval.eval(e))
+    val e = VecSlice(input, Tuple()(), Tuple()(), C(0)())().tchk()
+    assert(mhir.eval.eval(e) == Undefined(e.typ))
   }
 
   test("VecSlice:[2::]") {
@@ -339,10 +341,10 @@ class VectorTests extends AnyFunSuite {
       TyVec(TyStm(i33, C(k)(U8)), C(m)(U8)) ::+ (vs =>
         VecMap(
           vs,
-          TyStm(i33, C(k)(U8)) ::+ (s => StmMap(s, i33 ::+ (x => x + 42))())
+          TyStm(i33, C(k)(U8)) ::+ (s => StmMap(s, i33 ::+ (x => x + 42)))
         )()
       )
-    )().tchk().lower
+    ).tchk().lower
     val expected =
       StmLiteral(
         (0 until n).flatMap(_ =>
@@ -377,12 +379,12 @@ class VectorTests extends AnyFunSuite {
           TyVec(TyStm(U32, p), k) ::+ (vs =>
             VecMap(
               vs,
-              TyStm(U32, p) ::+ (s => StmMap(s, U32 ::+ (x => x * x + 9))())
+              TyStm(U32, p) ::+ (s => StmMap(s, U32 ::+ (x => x * x + 9)))
             )()
           )
         )()
       )
-    )().tchk().lower
+    ).tchk().lower
     val expected =
       StmLiteral(
         (0 until n).flatMap(_ =>
@@ -442,21 +444,30 @@ class VectorTests extends AnyFunSuite {
     assert(mhir.eval.eval(result) == C(2345)())
   }
 
-  test("VecReduceComb:Vec[Int,3]:Sum") {
+  test("VecReduceHandshake:Vec[Int,3]:Sum") {
     val v = VecBuild(3, U32 ::+ (i => i + 1))()
     val sum =
-      VecReduceComb(v, Missing ::+ (x => x.__0 + x.__1))().tchk().lower
+      VecReduce(v, Missing ::+ (x => x.__0 + x.__1))().tchk().lower
     assert(mhir.eval.eval(sum) == VecLiteral(C(6)())())
   }
 
-  test("VecReduceComb:Vec[Int,4]:HornersMethod") {
+  test("VecReduceNoHandshake:Vec[Int,3]:Sum") {
+    val v = VecLiteral(C(1)(U16), C(2)(U16), C(3)(U16))().tchk()
+    val result = mhir.sugar.nohandshake
+      .VecReduce(v, Missing ::+ (x => x.__0 * 3 + x.__1))()
+      .tchk()
+      .lower
+    assert(mhir.eval.eval(result) == VecLiteral(C(18)())())
+  }
+
+  test("VecReduce:Vec[Int,4]:HornersMethod") {
     // [2, 3, 4, 5]
     // i.e., 2x^3 + 3x^2 + 4x + 5
     // i.e., 5 + x*(4 + x*(3 + x*2))
     val v = VecBuild(4, U32 ::+ (i => i + 2))()
     val x = C(10)(U32)
     val result =
-      VecReduceComb(v, (U32, U32) ::+ (a => a.__1 + x * a.__0))()
+      VecReduce(v, (U32, U32) ::+ (a => a.__1 + x * a.__0))()
         .tchk()
         .lower
     assert(mhir.eval.eval(result) == VecLiteral(C(2345)())())
@@ -464,7 +475,7 @@ class VectorTests extends AnyFunSuite {
 
   test("VecReduceComb:Vec[Vec[Int,1],4]:Sum") {
     val v = Param("v")(TyVec(TyVec(U8, 1), 4))
-    val sum = VecReduceComb(
+    val sum = VecReduce(
       v,
       Missing ::+ (v => VecMap(v, Missing ::+ (x => x.__0 + x.__1))())
     )().tchk().lower
@@ -482,9 +493,9 @@ class VectorTests extends AnyFunSuite {
 
   test("VecReduceComb:Vec[Stm[Int,1],5]:Sum") {
     val v = Param("v")(TyVec(TyStm(U8, 1), 5))
-    val sum = VecReduceComb(
+    val sum = VecReduce(
       v,
-      Missing ::+ (v => StmMap(v, Missing ::+ (x => x.__0 + x.__1))())
+      Missing ::+ (v => StmMap(v, Missing ::+ (x => x.__0 + x.__1)))
     )().tchk().lower
 
     val vVal =
@@ -498,7 +509,7 @@ class VectorTests extends AnyFunSuite {
 
   test("VecReduceComb:Vec[Vec[Stm[Stm[Vec[Int,1],1],1],1],4]:Sum") {
     val v = Param("v")(TyVec(TyVec(TyStm(TyStm(TyVec(U8, 1), 1), 1), 1), 5))
-    val sum = VecReduceComb(
+    val sum = VecReduce(
       v,
       Missing ::+ (v =>
         VecMap(
@@ -512,9 +523,9 @@ class VectorTests extends AnyFunSuite {
                   Missing ::+ (v =>
                     VecMap(v, Missing ::+ (x => x.__0 + x.__1))()
                   )
-                )()
+                )
               )
-            )()
+            )
           )
         )()
       )
@@ -664,20 +675,20 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("VecPrefix:Vec[Int]") {
+  test("VecTake:Vec[Int]") {
     val v = VecBuild(3, U32 ::+ (i => i))()
-    assert(mhir.eval.eval(VecPrefix(v, 0)()) == VecLiteral()())
-    assert(mhir.eval.eval(VecPrefix(v, 1)()) == VecLiteral(0)())
-    assert(mhir.eval.eval(VecPrefix(v, 2)()) == VecLiteral(0, 1)())
-    assert(mhir.eval.eval(VecPrefix(v, 3)()) == VecLiteral(0, 1, 2)())
+    assert(mhir.eval.eval(VecTake(v, 0)()) == VecLiteral()())
+    assert(mhir.eval.eval(VecTake(v, 1)()) == VecLiteral(0)())
+    assert(mhir.eval.eval(VecTake(v, 2)()) == VecLiteral(0, 1)())
+    assert(mhir.eval.eval(VecTake(v, 3)()) == VecLiteral(0, 1, 2)())
   }
 
-  test("VecPrefix:Vec[Stm[Int]]") {
+  test("VecTake:Vec[Stm[Int]]") {
     val n = 5
     val m = 3
     val k = Param("k")(U32)
     val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))()
-    val e = VecPrefix(vs, k)().tchk().lower
+    val e = VecTake(vs, k)().tchk().lower
     for (kVal <- 1 to n) {
       val expected = StmLiteral(
         (0 until m).map(t =>
@@ -689,24 +700,24 @@ class VectorTests extends AnyFunSuite {
     }
   }
 
-  test("VecSuffix:Vec[Int]") {
+  test("VecDrop:Vec[Int]") {
     val v = VecBuild(3, U32 ::+ (i => i))()
-    assert(mhir.eval.eval(VecSuffix(v, 0)().tchk()) == VecLiteral()())
-    assert(mhir.eval.eval(VecSuffix(v, 1)().tchk()) == VecLiteral(2)())
-    assert(mhir.eval.eval(VecSuffix(v, 2)().tchk()) == VecLiteral(1, 2)())
-    assert(mhir.eval.eval(VecSuffix(v, 3)().tchk()) == VecLiteral(0, 1, 2)())
+    assert(mhir.eval.eval(VecDrop(v, 3)().tchk()) == VecLiteral()())
+    assert(mhir.eval.eval(VecDrop(v, 2)().tchk()) == VecLiteral(2)())
+    assert(mhir.eval.eval(VecDrop(v, 1)().tchk()) == VecLiteral(1, 2)())
+    assert(mhir.eval.eval(VecDrop(v, 0)().tchk()) == VecLiteral(0, 1, 2)())
   }
 
-  test("VecSuffix:Vec[Stm[Int]]") {
+  test("VecDrop:Vec[Stm[Int]]") {
     val n = 5
     val m = 3
     val k = Param("k")(U32)
     val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))()
-    val e = VecSuffix(vs, k)().tchk().lower
+    val e = VecDrop(vs, k)().tchk().lower
     for (kVal <- 1 to n) {
       val expected = StmLiteral(
         (0 until m).map(t =>
-          VecLiteral((n - kVal until n).map(i => IntCst((1 + t) * i)()): _*)()
+          VecLiteral((kVal until n).map(i => IntCst((1 + t) * i)()): _*)()
         ): _*
       )()
       val actual = mhir.eval.eval(e.subPreserveType(k -> C(kVal)(U32)))
@@ -791,7 +802,7 @@ class VectorTests extends AnyFunSuite {
     def extract(e: Expr): Seq[Expr] = {
       e.asInstanceOf[VecLiteral].elems
     }
-    def eval(e: Expr): Expr = mhir.eval.eval(e, suppressWarnings = true)
+    def eval(e: Expr): Expr = mhir.eval.eval(e)
 
     val input = VecBuild(6, U8 ::+ (i => i))()
     val expected = (0 until 6).map(C(_)(U8))

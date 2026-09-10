@@ -1,0 +1,11 @@
+__handshake = false
+([]s:Stm[u8,0]).StmReduce(+)
+[1:u8, 2:u8]s.StmReduce(+)
+x = 3:i16
+[1:i16, -3:i16, 3:i16, 2:i16]s.StmReduce( @(acc, a) => a + x*acc ) // x^3 - 3x^2 + 3x + 2
+
+([]s:Stm[bool,0]).StmReduce(!=) // xor
+[true, true]s.StmReduce(!=)
+[true, false]s.StmReduce(!=)
+[true, false, true]s.StmReduce(!=)
+[true, false, false]s.StmReduce(!=)

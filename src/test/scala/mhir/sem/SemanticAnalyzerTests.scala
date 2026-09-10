@@ -63,7 +63,8 @@ class SemanticAnalyzerTests extends AnyFunSuite {
   test("CheckNames:OutNameMatchesInName") {
     val x = Param("x", -1)(TyStm(U16, 100))
     val f = Function(x, SimpleMap(x, x => x + C(5)(U16)))().tchk().lower
-    val prog = Program(Seq(), AccelDecl("top", f, Map("out_name" -> x)), Seq())
+    val prog =
+      Program(Seq(), AccelDecl("top", f, Map("out_name" -> x), Map()), Seq())
     val ex = intercept[SemanticError](SemanticAnalyzer.checkNames(prog))
     assert(ex.msg == "output name 'x' is already used for an input")
   }
@@ -72,10 +73,10 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     val n = C(10)(U8)
     val m = C(20)(U8)
     val e = SimpleMap(
-      StmConcat(StmCount(n)(), StmCount(m)())().tchk(),
+      StmConcat(StmCount(n)(), StmCount(m)()).tchk(),
       x => x * x
     ).tchk().lower
-    val prog = Program(Seq(), AccelDecl("top", e, Map()), Seq())
+    val prog = Program(Seq(), AccelDecl("top", e, Map(), Map()), Seq())
     SemanticAnalyzer.check(prog)
   }
 
@@ -83,11 +84,15 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     val n = C(10)(U8)
     val m = C(20)(U8)
     val e = SimpleMap(
-      StmConcat(StmCount(n)(), StmCount(m)())().tchk(),
+      StmConcat(StmCount(n)(), StmCount(m)()).tchk(),
       x => x * x
     ).tchk().lower
     val prog =
-      Program(Seq(), AccelDecl("top", e, Map("no_handshake" -> True)), Seq())
+      Program(
+        Seq(),
+        AccelDecl("top", e, Map("no_handshake" -> True), Map()),
+        Seq()
+      )
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
     assert(
       ex.msg == "stream operator StmConcat cannot be used without the handshake protocol: it is not always ready to receive input"
@@ -97,21 +102,25 @@ class SemanticAnalyzerTests extends AnyFunSuite {
   test("Handshake:StmSlide") {
     val n = C(20)(U8)
     val e = SimpleMap(
-      StmSlide(StmCount(n)(), 2)().tchk(),
+      mhir.sugar.handshake.StmSlide(StmCount(n)(), 2)().tchk(),
       v => VecAccess(v, 0)() + VecAccess(v, 1)()
     ).tchk().lower
-    val prog = Program(Seq(), AccelDecl("top", e, Map()), Seq())
+    val prog = Program(Seq(), AccelDecl("top", e, Map(), Map()), Seq())
     SemanticAnalyzer.check(prog)
   }
 
   test("NoHandshake:StmSlide") {
     val n = C(20)(U8)
     val e = SimpleMap(
-      StmSlide(StmCount(n)(), 2)().tchk(),
+      // IMPORTANT: use the handshake-enabled version of StmSlide
+      mhir.sugar.handshake.StmSlide(StmCount(n)(), 2)().tchk(),
       v => VecAccess(v, 0)() + VecAccess(v, 1)()
     ).tchk().lower
-    val prog =
-      Program(Seq(), AccelDecl("top", e, Map("no_handshake" -> True)), Seq())
+    val prog = Program(
+      Seq(),
+      AccelDecl("top", e, Map("no_handshake" -> True), Map()),
+      Seq()
+    )
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
     assert(
       ex.msg == "stream operator StmSlide cannot be used without the handshake protocol: its output is not always valid"
@@ -122,8 +131,11 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     val n = C(16)(U8)
     val m = C(16)(U8)
     val e = StmSlide2D(StmCount2D(n, m)(), 3, 3)().tchk().lower
-    val prog =
-      Program(Seq(), AccelDecl("top", e, Map("no_handshake" -> True)), Seq())
+    val prog = Program(
+      Seq(),
+      AccelDecl("top", e, Map("no_handshake" -> True), Map()),
+      Seq()
+    )
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
     assert(
       ex.msg == "stream operator StmSlide2D cannot be used without the handshake protocol: its output is not always valid"
@@ -132,15 +144,64 @@ class SemanticAnalyzerTests extends AnyFunSuite {
 
   test("NoHandshake:StmReduce") {
     val n = C(20)(U8)
-    val e = StmReduce(
-      StmCount(n)(),
-      (U8, U8) ::+ (x => x.__0 + x.__1)
-    )().tchk().lower
-    val prog =
-      Program(Seq(), AccelDecl("top", e, Map("no_handshake" -> True)), Seq())
+    val e = mhir.sugar.handshake
+      .StmReduce(
+        StmCount(n)(),
+        (U8, U8) ::+ (x => x.__0 + x.__1)
+      )()
+      .tchk()
+      .lower
+    val prog = Program(
+      Seq(),
+      AccelDecl("top", e, Map("no_handshake" -> True), Map()),
+      Seq()
+    )
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
     assert(
       ex.msg == "stream operator StmReduce cannot be used without the handshake protocol: its output is not always valid"
+    )
+  }
+
+  test("NoHandshake:MissingOutDelay") {
+    val s = StmBuild(
+      10,
+      Tuple()(),
+      Undefined(Missing),
+      C(42)(),
+      True,
+      Map(),
+      Map()
+    )().tchk().asInstanceOf[StmBuild].annotateWithName("bar")
+    val prog = Program(
+      Seq(),
+      AccelDecl("top", s, Map("no_handshake" -> True), Map()),
+      Seq()
+    )
+    val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
+    assert(ex.msg.contains("missing output delay for stream operator bar"))
+  }
+
+  test("NoHandshake:MissingProducerDelay") {
+    val p = Param("p")(TyStm(U8, 10))
+    val s = StmBuild(
+      10,
+      1,
+      Undefined(Missing),
+      Sum(C(5)(U8), StmData(p)())(),
+      True,
+      Map(),
+      Map(
+        p -> (p, True, Tuple()())
+      )
+    )().tchk().asInstanceOf[StmBuild].annotateWithName("foo")
+    val prog = Program(
+      Seq(),
+      AccelDecl("top", s, Map("no_handshake" -> True), Map()),
+      Seq()
+    )
+    val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
+    assert(
+      ex.msg.contains(s"missing delay for producer $p in stream operator foo")
     )
   }
 
@@ -160,12 +221,14 @@ class SemanticAnalyzerTests extends AnyFunSuite {
       val p2 = Param("p2", -1)(TyStm(U8, 16))
       val output = StmBuild(
         16,
+        Tuple()(),
+        Undefined(Missing),
         StmData(p1)(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          p1 -> (input1, True),
-          p2 -> (input2, C(0)(U8) lt StmData(p1)())
+        Map[Param, (Expr, Expr, Expr)](
+          p1 -> (input1, True, Tuple()()),
+          p2 -> (input2, C(0)(U8) lt StmData(p1)(), Tuple()())
         )
       )().annotateWithName("StmFoo")
       Function(input1, Function(input2, output)())().tchk().lower

@@ -18,12 +18,12 @@ object TimesFunction {
 /** The minimum of two values.
   */
 case class Min(x: Expr, y: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(x, y)(typ) {
+    extends ResolvedSyntaxSugar(x, y)(typ) {
   def apply(x: Expr /* Int */, y: Expr /* Int */ ): Expr /* Int */ = {
     Mux(x < y, x, y)()
   }
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Min = {
     newChildren match {
       case Seq(x, y) => Min(x, y)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -33,7 +33,7 @@ case class Min(x: Expr, y: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): Min = {
     val x = this.x.tchk(context, constValues).expectAnyInt()
     val y = this.y.tchk(context, constValues).expectAnyInt()
     ReshapeData.narrowestCommonAncestor(x.typ, y.typ, constValues) match {
@@ -64,12 +64,12 @@ case class Min(x: Expr, y: Expr)(typ: Type = Missing)
 /** The maximum of two values.
   */
 case class Max(x: Expr, y: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(x, y)(typ) {
+    extends ResolvedSyntaxSugar(x, y)(typ) {
   def apply(x: Expr /* Int */, y: Expr /* Int */ ): Expr /* Int */ = {
     Mux(x > y, x, y)()
   }
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Max = {
     newChildren match {
       case Seq(x, y) => Max(x, y)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -79,7 +79,7 @@ case class Max(x: Expr, y: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): Max = {
     val x = this.x.tchk(context, constValues).expectAnyInt()
     val y = this.y.tchk(context, constValues).expectAnyInt()
     ReshapeData.narrowestCommonAncestor(x.typ, y.typ, constValues) match {
@@ -110,7 +110,7 @@ case class Max(x: Expr, y: Expr)(typ: Type = Missing)
 /** The ceiling of the quotient of two values.
   */
 case class CeilDiv(x: Expr, y: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(x, y)(typ) {
+    extends ResolvedSyntaxSugar(x, y)(typ) {
   def apply(x: Expr, y: Expr): Expr = {
     val q = Param("q")()
     Let(
@@ -120,7 +120,7 @@ case class CeilDiv(x: Expr, y: Expr)(typ: Type = Missing)
     )()
   }
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): CeilDiv = {
     newChildren match {
       case Seq(x, y) => CeilDiv(x, y)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -130,7 +130,7 @@ case class CeilDiv(x: Expr, y: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): CeilDiv = {
     val x = this.x.tchk(context, constValues).expectAnyInt()
     val y = this.y.tchk(context, constValues).expectAnyInt()
     ReshapeData.narrowestCommonAncestor(x.typ, y.typ, constValues) match {
@@ -165,8 +165,8 @@ case class CeilDiv(x: Expr, y: Expr)(typ: Type = Missing)
   *   the target type.
   */
 case class Cast(e: Expr, target: Type)(typ: Type = Missing)
-    extends SyntaxSugar(e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Cast = {
     newChildren match {
       case Seq(e) => Cast(e, this.target)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -176,7 +176,7 @@ case class Cast(e: Expr, target: Type)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): Cast = {
     val e = this.e.tchk(context, constValues)
     if (!Cast.canCast(e.typ, this.target, constValues)) {
       throw new TypeError(s"Cannot cast from ${e.typ} to ${this.target}.")

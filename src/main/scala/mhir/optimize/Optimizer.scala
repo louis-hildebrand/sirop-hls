@@ -20,8 +20,10 @@ class Optimizer(
     latencyMatcher: LatencyMatcher,
     letStmBufShrinker: LetStmBufferShrinker,
     binOpBalancer: BinOpTreeBalancingPass,
-    unusedDataRemover: UnusedDataRemover
+    unusedDataRemover: UnusedDataRemover,
+    headByParam: Map[Param, Expr]
 ) {
+
   private implicit val logger: Logger = Logger(getClass.getName)
 
   def optimize(s: Expr): Expr = {
@@ -43,17 +45,11 @@ class Optimizer(
 
     val s2 = fissionPass.fission(s1)
 
-    if (fusionPass.disabled) {
-      logger.debug("stream fusion is disabled")
-    }
-    val s3 = time(
-      "greedy stream fusion",
-      mute = fusionPass.disabled,
-      level = Level.DEBUG
-    ) {
+    logger.debug(s"stream fusion: ${fusionPass.strategy}")
+    val s3 = time("stream fusion", level = Level.DEBUG) {
       @tailrec
       def fix(s: Expr, i: Int): Expr = {
-        logger.debug(s"greedy stream fusion: iteration $i")
+        logger.debug(s"stream fusion + letstm simplification: iteration $i")
         val fused = fusionPass.fuse(s)
         // Simplify in case there are some instances of LetStm which now have
         // at most one consumer
@@ -72,7 +68,7 @@ class Optimizer(
       fix(s2, i = 0)
     }
 
-    val s4 = latencyMatcher.matchLatencies(s3)
+    val s4 = latencyMatcher.matchLatencies(s3, headByParam = headByParam)
 
     val s5 = unusedDataRemover.removeUnusedData(s4)
 
@@ -87,15 +83,15 @@ class Optimizer(
 
     val s8 = binOpBalancer.balance(s7)
 
-    val delayCost = delay.cost(s8)
+    val delayCost = delay.rawCost(s8)
+    val delayCostPercent =
+      100 * (delayCost / delay.FullCycleDelay.toDouble)
     logger.debug(
-      s"final delay cost: $delayCost (max ${delay.FullCycleDelay})"
+      f"final combinational delay cost: $delayCostPercent%.0f%% of maximum"
     )
     if (delayCost > delay.FullCycleDelay) {
-      val percent =
-        100 * (delayCost / delay.FullCycleDelay.toDouble)
       logger.warn(
-        f"delay cost of $delayCost is $percent%.0f%% of maximum."
+        f"combinational delay cost is $delayCostPercent%.0f%% of maximum."
           + " Design may not meet timing requirements."
       )
     }
@@ -105,7 +101,11 @@ class Optimizer(
 }
 
 object Optimizer {
-  def apply(options: OptimizerOptions, handshake: Boolean): Optimizer = {
+  def apply(
+      options: OptimizerOptions,
+      handshake: Boolean,
+      headByParam: Map[Param, Expr]
+  ): Optimizer = {
     val stmBuildSimplifier =
       StmBuildSimplifier(enabled = options.simplifyStmBuild)
     val letStmSimplifier = LetStmSimplifier(enabled = options.inlineLetStm)
@@ -119,6 +119,7 @@ object Optimizer {
     val fusionPass = StmFusionPass(
       simplifier = stmBuildSimplifier,
       delayCostModel = delayCostModel,
+      handshake = handshake,
       enabled = options.fuse
     )
     val fissionPass = StmFissionPassWithLogging(
@@ -128,8 +129,11 @@ object Optimizer {
       )
     )
     val latencyAnalysis = new LatencyAnalysis(handshake = handshake)
-    val latencyMatcher =
-      LatencyMatcher(latencyAnalysis, enabled = options.matchLatency)
+    val latencyMatcher = LatencyMatcher(
+      latencyAnalysis,
+      handshake = handshake,
+      enabled = options.matchLatency
+    )
     val letStmBufShrinker = {
       val staticPass = if (options.staticallyShrinkLetStmBuffers) {
         Some(
@@ -157,7 +161,8 @@ object Optimizer {
       latencyMatcher,
       letStmBufShrinker,
       binOpBalancerWithLogging,
-      unusedDataRemover
+      unusedDataRemover,
+      headByParam = headByParam
     )
   }
 }

@@ -3,6 +3,7 @@ package vhdl
 package test
 
 import com.typesafe.scalalogging.Logger
+import mhir.delay.DiscardAccumulatorDelays
 import mhir.gen.{
   DesignCompileFailed,
   SimulationFailed,
@@ -63,7 +64,11 @@ object VhdlTestRunner {
     os.remove.all(VHDL_TEST_DIR)
     os.makeDir.all(VHDL_TEST_DIR)
     time("generating VHDL design", Level.DEBUG) {
-      VhdlGenerator.emitVhdl(e, VHDL_TEST_DIR, options)
+      VhdlGenerator.emitVhdl(
+        DiscardAccumulatorDelays.apply(e),
+        VHDL_TEST_DIR,
+        options
+      )
     }
     time("generating VHDL testbench", Level.DEBUG) {
       VhdlTestbenchGenerator.makeTestbench(

@@ -382,12 +382,14 @@ class SugarTests extends AnyFunSuite {
       val s2 = Param("s2")(TyStm(U8, -1))
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(StmData(s1)(), StmData(s2)())(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s1 -> (x, True),
-          s2 -> (x, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s1 -> (x, True, Tuple()()),
+          s2 -> (x, True, Tuple()())
         )
       )()
     }

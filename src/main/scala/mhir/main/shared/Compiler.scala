@@ -3,14 +3,19 @@ package mhir.main.shared
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.debug.{DotPrinter, Tracer}
+import mhir.delay.{
+  DiscardAccumulatorDelays,
+  DiscardAccumulatorDelaysUsingPrefixAnalysis,
+  ReplaceAccumulatorDelaysWithGo
+}
 import mhir.eval.{Evaluator, TestError, TestRunner}
 import mhir.gen._
 import mhir.gen.vhdl.test._
 import mhir.gen.vhdl.{VhdlGenerator, VhdlGeneratorOptions}
 import mhir.ir._
 import mhir.logging.{time, time2}
-import mhir.optimize.{LatencyAnalysis, Optimizer, OptimizerOptions}
-import mhir.sem.SemanticAnalyzer
+import mhir.optimize._
+import mhir.sem.{SemanticAnalyzer, SemanticError}
 import mhir.sugar.Streamifier.Streamify
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar.{
@@ -61,6 +66,9 @@ object Compiler {
       argparseTime: Duration,
       parseTime: Duration
   ): Expr = {
+    // HACK: set global options so the lowering pass can read them easily (see
+    // comment on the mhir.ir.globalOptions field)
+    mhir.ir.globalOptions = GlobalOptions(handshake = prog.handshake)
     val topName = prog.name
     val vhdlOptions = {
       val vhdl0 = originalOptions.vhdl.copy(
@@ -84,27 +92,29 @@ object Compiler {
       SemanticAnalyzer.checkNames(checked)
     }
     val (lowered, lowerTime) = lower(checked)
-    val (synthesizable, synthTime) = makeSynthesizable(lowered.body)
+    val (synthesizable, synthTime) = makeSynthesizable(lowered)
     time("semantic analysis", Level.DEBUG) {
-      SemanticAnalyzer.check(
-        lowered.copy(accel = lowered.accel.copy(body = synthesizable))
-      )
+      SemanticAnalyzer.check(synthesizable)
+      SemanticAnalyzer.checkForWarnings(synthesizable)
     }
-    val (finalExpr, optimTime) =
-      optimize(synthesizable, options.optFlags, handshake = lowered.handshake)
-    val finalProgram =
-      lowered.copy(accel = lowered.accel.copy(body = finalExpr))
-    val latency = new LatencyAnalysis(handshake = lowered.handshake)
-      .actualLatency(finalProgram.body)
-      .latency
+    val (finalProgram, optimTime) =
+      optimize(
+        synthesizable,
+        options.optFlags,
+        handshake = lowered.handshake
+      )
+    val latency = {
+      val (inputs, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
+      val analysis = new LatencyAnalysis(handshake = finalProgram.handshake)
+      analysis.actualLatency(body, inputs.map(_ -> Some(0)).toMap).latency
+    }
     latency match {
       case None =>
         if (finalProgram.handshake) {
           logger.debug(s"the latency of the design is unknown")
         } else {
-          logger.warn(
-            s"latency matching failed or was disabled, and the handshake protocol is disabled." +
-              s" The VHDL design may not behave correctly."
+          throw SemanticError(
+            "there is a latency mismatch and automatic latency matching is disabled"
           )
         }
       case Some(n) =>
@@ -117,12 +127,9 @@ object Compiler {
         }
     }
     time("post-optimization semantic analysis", Level.DEBUG) {
-      SemanticAnalyzer.check(
-        lowered.copy(accel = lowered.accel.copy(body = finalExpr))
-      )
+      SemanticAnalyzer.check(finalProgram)
     }
-    val genTime =
-      generateCode(options.vhdl, finalProgram, options.targets, latency)
+    val genTime = generateCode(options.vhdl, finalProgram, options.targets)
     options.targets.toSeq
       .sortBy({
         case NullTarget                        => 0
@@ -145,7 +152,7 @@ object Compiler {
             maxInvalidSteps = maxInvalidSteps
           )
           val result = time("evaluation", Level.DEBUG) {
-            evaluator.eval(finalExpr)
+            evaluator.eval(finalProgram.body)
           }
           println(ExprPrinter.display(result))
         case TraceTarget(outDir, testIdx, overwrite) =>
@@ -160,24 +167,24 @@ object Compiler {
                 s" There $isOrAre ${allAssertions.length} $testOrTests in total."
             )
           }
-          val Assertion(inputs, _, _) = allAssertions(testIdx)
+          val Assertion(inputs, _, _, _) = allAssertions(testIdx)
           val trace =
             Tracer.traceAll(
               finalProgram.body,
               handshake = finalProgram.handshake,
               inputs = inputs
             )
-          DotPrinter.dumpDot(
-            trace,
-            outDir,
-            overwrite = overwrite,
-            topName = finalProgram.accel.name
+          DotPrinter(
+            topName = finalProgram.accel.name,
+            showReadyValidArrows = finalProgram.handshake
           )
-        case TestTarget(expectedPath, actualPath, overwrite) =>
+            .dumpDot(trace, outDir, overwrite = overwrite)
+        case TestTarget(expectedPath, actualPath, showPhysical, overwrite) =>
           TestRunner.run(
             finalProgram,
             expectedPath = expectedPath,
             actualPath = actualPath,
+            showPhysical = showPhysical,
             overwrite = overwrite
           )
         case VhdlTarget(outDir, _, runSim) =>
@@ -223,7 +230,11 @@ object Compiler {
             }
           }
         case PrettyPrintTarget(dest, overwrite) =>
-          emitPrettyPrinted(finalExpr, dest = dest, overwrite = overwrite)
+          emitPrettyPrinted(
+            finalProgram.body,
+            dest = dest,
+            overwrite = overwrite
+          )
         case PrettyPrintAfterLoweringTarget(dest, overwrite) =>
           emitPrettyPrinted(lowered.body, dest = dest, overwrite = overwrite)
         case CompileTimeTarget(f, overwrite) =>
@@ -239,7 +250,7 @@ object Compiler {
             codegen = genTime
           )
       })
-    finalExpr
+    finalProgram.body
   }
 
   private def typecheck(prog: Program): (Program, Duration) = {
@@ -258,11 +269,12 @@ object Compiler {
             throw new RuntimeException(
               "constants should have been lowered by now"
             )
-          case Assertion(inputs, expectedOutput, ignore) =>
+          case Assertion(inputs, expectedOutput, ignore, prefixCondition) =>
             Assertion(
               inputs.map({ case (x, e) => x.lowerParam -> e.lower }),
               expectedOutput.lower,
-              ignore.map(_.lower)
+              ignore.map(_.lower),
+              prefixCondition.map(_.lower)
             )
         })
       inlinedProg.copy(
@@ -282,51 +294,102 @@ object Compiler {
       prog.test.foldLeft(mainConstVals, Seq[Assertion]())({
         case ((subs, result), ConstDecl(x, e)) =>
           (subs + (x -> e), result)
-        case ((subs, result), Assertion(in, out, ignore)) =>
+        case ((subs, result), Assertion(in, out, ignore, prefixCondition)) =>
           val newIn = in.map({ case (x, e) => x -> e.subPreserveType(subs) })
           val newOut = out.subPreserveType(subs)
           val newIgnore = ignore.map(_.subPreserveType(subs))
-          (subs, result :+ Assertion(newIn, newOut, newIgnore))
+          val newPrefixCondition = prefixCondition.map(_.subPreserveType(subs))
+          val newAssertion =
+            Assertion(newIn, newOut, newIgnore, newPrefixCondition)
+          (subs, result :+ newAssertion)
       })
     Program(Seq(), newAccel, newTestSuite)
   }
 
-  private def makeSynthesizable(e: Expr): (Expr, Duration) = {
+  private def makeSynthesizable(prog: Program): (Program, Duration) = {
     time2("making expression synthesizable", Level.DEBUG) {
-      val e1 = inlineFunCalls(e)
+      val e1 = inlineFunCalls(prog.body)
       val e2 = e1.streamify
-      val e3 = insertLetForTopLevelInputs(e2)
-      val e4 = uncurryBody(e3)
-      e4
+      val fullyCheckedProg = prog
+        .copy(accel = prog.accel.copy(body = e2))
+        // Run this after streamification because that may change the types of
+        // the accelerator inputs
+        .typecheckAnnotations()
+      val e3 = if (fullyCheckedProg.handshake) {
+        // TODO: should I emit a warning that accumulator delays will be ignored?
+        DiscardAccumulatorDelays.apply(e2)
+      } else {
+        val e2_1 = DiscardAccumulatorDelaysUsingPrefixAnalysis.apply(
+          e2,
+          fullyCheckedProg.headByParam
+        )
+        val go = fullyCheckedProg.go
+        val e2_2 = new ReplaceAccumulatorDelaysWithGo(go).apply(e2_1)
+        e2_2
+      }
+      val e4 = {
+        // This needs to happen after accumulator delay removal, since that
+        // tends to increase the fanout of the "go" input
+        insertLetForTopLevelInputs(e3)
+      }
+      val e5 = uncurryBody(e4)
+      fullyCheckedProg.copy(accel = fullyCheckedProg.accel.copy(body = e5))
     }
   }
 
   private def optimize(
-      e: Expr,
+      prog: Program,
       optFlags: OptimizerOptions,
       handshake: Boolean
-  ): (Expr, Duration) = {
+  ): (Program, Duration) = {
     time2("optimization", Level.DEBUG) {
-      Optimizer(optFlags, handshake = handshake).optimize(e)
+      val optimizer = Optimizer(
+        optFlags,
+        handshake = handshake,
+        headByParam = prog.headByParam
+      )
+      val newBody = optimizer.optimize(prog.body)
+      val transform = if (prog.handshake) { (e: Expr) =>
+        PartialEvalPass.partialEval(e)()
+      } else {
+        val latencyAnalysis = new LatencyAnalysis(handshake = prog.handshake)
+        val latencyMatcher =
+          EnabledLatencyMatcher(latencyAnalysis, handshake = prog.handshake)
+        val letBufShrinker = new StaticLetStmBufferShrinker(
+          latencyAnalysis,
+          handshake = prog.handshake,
+          assumeThroughputsMatch = optFlags.assumeThroughputsMatch
+        )
+        (e: Expr) => {
+          val e0 = PartialEvalPass.partialEval(e)()
+          // Need to run latency matching and shrink all the letstm buffers
+          // to avoid errors and warnings during evaluation
+          val e1 = latencyMatcher.matchLatencies(e0, headByParam = Map())
+          val e2 = letBufShrinker.shrinkBuffers(e1)
+          e2
+        }
+      }
+      val newTests = prog.test.map({
+        case cd: ConstDecl => cd
+        case Assertion(inputs, expectedOutput, ignore, prefixCondition) =>
+          val newInputs = inputs.map({ case (x, e) =>
+            x -> transform(e)
+          })
+          Assertion(newInputs, expectedOutput, ignore, prefixCondition)
+      })
+      prog.copy(accel = prog.accel.copy(body = newBody), test = newTests)
     }
   }
 
   private def generateCode(
       options: VhdlGeneratorOptions,
       prog: Program,
-      targets: Set[CompilerTarget],
-      latency: Option[Int]
+      targets: Set[CompilerTarget]
   ): Duration = {
     val (_, codegenTime) = time2("codegen", Level.DEBUG) {
       targets.foreach({
         case VhdlTarget(outDir, overwrite, _) =>
-          emitVhdl(
-            options,
-            prog,
-            outDir,
-            latency = latency,
-            overwrite = overwrite
-          )
+          emitVhdl(options, prog, outDir, overwrite = overwrite)
         case _: EvalTarget                     => ()
         case _: TraceTarget                    => ()
         case _: TestTarget                     => ()
@@ -363,8 +426,7 @@ object Compiler {
       options: VhdlGeneratorOptions,
       finalProgram: Program,
       outDir: Path,
-      overwrite: Boolean,
-      latency: Option[Int]
+      overwrite: Boolean
   ): Unit = {
     val pipe = time("generating VHDL design", Level.DEBUG) {
       if (os.exists(outDir)) {
@@ -378,13 +440,12 @@ object Compiler {
       }
       VhdlGenerator.emitVhdl(finalProgram.body, outDir, options)
     }
-    val assertions = finalProgram.test.collect({ case a: Assertion => a })
-    if (assertions.nonEmpty) {
+    val hasAssertions = finalProgram.test.exists(_.isInstanceOf[Assertion])
+    if (hasAssertions) {
       emitVhdlTestbench(
-        assertions,
+        finalProgram,
         options,
         outDir,
-        latency,
         designUsesIpBlocks = pipe.usesIpBlocks
       )
     } else {
@@ -395,83 +456,61 @@ object Compiler {
   }
 
   private def emitVhdlTestbench(
-      assertions: Seq[Assertion],
+      prog: Program,
       options: VhdlGeneratorOptions,
       outDir: Path,
-      latency: Option[Int],
       designUsesIpBlocks: Boolean
   ): Unit = {
     time("generating VHDL testbench", Level.DEBUG) {
       assert(os.isDir(outDir))
-      val io = TestSuiteIO(assertions.map({ case Assertion(in, out, ignore) =>
-        val inputs = in.map({ case (x, e) =>
-          x -> (mhir.eval.eval(e) match {
-            case StmLiteral(elems @ _*) =>
-              DirectTestInput(elems.map(Some(_)))
-            case e =>
-              assert(
-                e.typ.isData,
-                "if the result of evaluation is not a stream, it should be one piece of data"
-              )
-              logger.warn(
-                s"input for '$x' does not seem to be a stream." +
-                  s" Accelerator inputs should normally be streams."
-              )
-              DirectTestInput(Seq(Some(e)))
+      val assertions = prog.test.collect({ case a: Assertion => a })
+      val io = TestSuiteIO(assertions.map({
+        case Assertion(in, out, ignore, _) =>
+          // TODO: incorporate the prefix condition into the VHDL testbench somehow
+          val inputValues = in.map({ case (x, e) =>
+            // TODO: enforce rule that inputs must be streams while type checking program
+            x -> mhir.eval
+              .eval(e, handshake = options.handshake)
+              .asInstanceOf[StmLiteral]
           })
-        })
-        val expectedOutput = {
-          val elems = mhir.eval.eval(out) match {
-            case StmLiteral(elems @ _*) =>
-              elems
-            case e =>
-              assert(
-                e.typ.isData,
-                "if the result of evaluation is not a stream, it should be one piece of data"
-              )
-              logger.warn(
-                "expected output does not seem to be a stream." +
-                  s" The accelerator output should normally be a stream."
-              )
-              Seq(e)
+          val inputLatencies = inputValues.map({ case (x, s) =>
+            x -> Some(s.physical.length)
+          })
+          val inputs = inputValues.map({ case (x, s) =>
+            // TODO: Enforce rule that inputs must be streams while type checking program
+            x -> DirectTestInput((s.physical ++ s.logical).map(Some(_)))
+          })
+          val TyStm(elemTyp, _) = out.typ
+          val expectedOutput = {
+            val StmLiteral(_, elems) =
+              mhir.eval.eval(out, handshake = options.handshake)
+            val ignoreElems = ignore match {
+              case Some(ignore) =>
+                val StmLiteral(_, ignoreLogical) =
+                  mhir.eval.eval(ignore, handshake = options.handshake)
+                ignoreLogical
+              case None =>
+                elems.map(_ => AllZero(elemTyp))
+            }
+            val latency = {
+              val analysis = new LatencyAnalysis(handshake = options.handshake)
+              val (_, body) = TypeChecker.unwrapTopLevelFunction(prog.body)
+              analysis.actualLatency(body, inputLatencies).latency
+            }
+            latency match {
+              case Some(latency) if !options.handshake =>
+                logger.debug(
+                  s"adding $latency invalids at the beginning of the expected output to account for latency"
+                )
+                DirectTestOutput(
+                  (0 until latency).map(_ => Undefined(elemTyp)) ++ elems,
+                  (0 until latency).map(_ => AllOne(elemTyp)) ++ ignoreElems
+                )
+              case _ =>
+                DirectTestOutput(elems, ignoreElems)
+            }
           }
-          val elemTyp = out.typ match {
-            case TyStm(t, _) => t
-            case t           => t
-          }
-          val ignoreElems = ignore match {
-            case Some(ignore) =>
-              mhir.eval.eval(ignore) match {
-                case StmLiteral(elems @ _*) =>
-                  elems
-                case e =>
-                  assert(
-                    e.typ.isData,
-                    "if the result of evaluation is not a stream, it should be one piece of data"
-                  )
-                  logger.warn(
-                    "ignore pattern does not seem to be a stream." +
-                      s" The accelerator output should normally be a stream."
-                  )
-                  Seq(e)
-              }
-            case None =>
-              elems.map(_ => AllZero(elemTyp))
-          }
-          latency match {
-            case Some(latency) if !options.handshake =>
-              logger.debug(
-                s"adding $latency invalids at the beginning of the expected output to account for latency"
-              )
-              DirectTestOutput(
-                (0 until latency).map(_ => Undefined(elemTyp)) ++ elems,
-                (0 until latency).map(_ => AllOne(elemTyp)) ++ ignoreElems
-              )
-            case _ =>
-              DirectTestOutput(elems, ignoreElems)
-          }
-        }
-        KeywordTestIO(inputs, expectedOutput)
+          KeywordTestIO(inputs, expectedOutput)
       }))
       VhdlTestbenchGenerator.makeDirectTestbench(
         io = io,

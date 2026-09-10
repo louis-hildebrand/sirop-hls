@@ -100,7 +100,7 @@ trait ExprUtils {
       */
     def rebuildAndEraseType(newChildren: Seq[Expr]): Expr = {
       this.expr match {
-        case _: IntCst | _: Param | StmLiteral() | VecLiteral() |
+        case _: IntCst | _: Param | StmLiteral(Seq(), Seq()) | VecLiteral() |
             _: Undefined =>
           // These expressions may carry type information that cannot be derived
           // from the syntax alone, so be careful not to discard it.
@@ -178,21 +178,28 @@ trait ExprUtils {
             case stm: StmBuild =>
               val n0 =
                 (count(stm.n, x)
+                  + count(stm.delay, x)
                   + stm.accumulators
-                    .map({ case (_, (z, _)) => count(z, x) })
+                    .map({ case (_, (init, _, delay)) =>
+                      count(init, x) + count(delay, x)
+                    })
                     .sum
-                  + stm.producers.map({ case (_, (z, _)) => count(z, x) }).sum)
+                  + stm.producers
+                    .map({ case (_, (stm, _, delay)) =>
+                      count(stm, x) + count(delay, x)
+                    })
+                    .sum)
               if (stm.namesDefinedHere.contains(x)) {
                 n0
               } else {
                 (n0
-                  + count(stm.data, x)
+                  + count(stm.nextData, x)
                   + count(stm.valid, x)
                   + stm.accumulators
-                    .map({ case (_, (_, next)) => count(next, x) })
+                    .map({ case (_, (_, next, _)) => count(next, x) })
                     .sum
                   + stm.producers
-                    .map({ case (_, (_, ready)) => count(ready, x) })
+                    .map({ case (_, (_, ready, _)) => count(ready, x) })
                     .sum)
               }
             case e =>
@@ -219,6 +226,15 @@ trait ExprUtils {
           throw new IllegalArgumentException(
             s"Expected a boolean constant but found $e."
           )
+      }
+    }
+
+    /** If this expression is a stream literal, discard its physical prefix.
+      */
+    def dropPhysicalPrefix: Expr = {
+      this.expr match {
+        case s: StmLiteral => s.copy(physical = Seq())(s.typ)
+        case _             => this.expr
       }
     }
 
@@ -255,6 +271,13 @@ trait ExprUtils {
         case LetStm(_, x, in, out) =>
           in.fullyConsumesInputs(inputs) && out.fullyConsumesInputs(inputs + x)
         case _ => false
+      }
+    }
+
+    def getIntCstOrElse(default: PartialFunction[Expr, Long]): Long = {
+      this.expr match {
+        case IntCst(n) => n
+        case e         => default(e)
       }
     }
   }

@@ -9,3 +9,11 @@ package mhir.eval
 case class StmNodeId(id: String) extends AnyVal {
   override def toString: String = this.id
 }
+
+object StmNodeId {
+
+  /** The special [[StmNodeId]] used to refer to the output of the stream
+    * pipeline.
+    */
+  val Sink: StmNodeId = StmNodeId("sink")
+}

@@ -2,6 +2,7 @@ package mhir.sugar
 
 import mhir.canonicalize._
 import mhir.ir._
+import mhir.sugar.handshake._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -113,16 +114,6 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(actual == expected)
   }
 
-  test("StmCst2D") {
-    val s = StmCst2D(3, 4, 42)().tchk()
-    val expected = StmLiteral(
-      StmLiteral.ints(42, 42, 42, 42),
-      StmLiteral.ints(42, 42, 42, 42),
-      StmLiteral.ints(42, 42, 42, 42)
-    )()
-    assert(mhir.eval.eval(s) == expected.flatten)
-  }
-
   test("StmCount2D") {
     val s = StmCount2D(2, 3)().tchk()
     val expected = StmLiteral(
@@ -140,64 +131,30 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(s) == expected.flatten)
   }
 
-  test("StmCount3D") {
-    val s = StmCount3D(2, 3, 4)().tchk().lower
-    val expected = StmLiteral(
-      (0 until 2).flatMap(i =>
-        (0 until 3).flatMap(j => (0 until 4).map(k => Tuple(i, j, k)()))
-      ): _*
-    )()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("Iterate:Square") {
-    val x = Param("x")(U32)
-    val n = Param("n")()
-    val iter = Iterate(n, IntCst(3)(U32), Function(x, x * x)())()
-    val e = (nVal: Int) => Let(n, IntCst(nVal)(U8), iter)().tchk()
-    assert(mhir.eval.eval(e(0)) == StmLiteral(3)())
-    assert(mhir.eval.eval(e(1)) == StmLiteral(9)())
-    assert(mhir.eval.eval(e(2)) == StmLiteral(81)())
-    assert(mhir.eval.eval(e(3)) == StmLiteral(81 * 81)())
-  }
-
-  test("Iterate:PlusTwo") {
-    val x = Param("x")(TyTuple(I8))
-    val n = Param("n")(U8)
-    val iter =
-      Iterate(n, Tuple(IntCst(-10)(I8))(), Function(x, Tuple(x.__0 + 2)())())()
-    val e =
-      (nVal: Int) => Let(n, IntCst(nVal)(U8), iter)().tchk()
-    assert(mhir.eval.eval(e(0)) == StmLiteral(Tuple(-10)())())
-    assert(mhir.eval.eval(e(1)) == StmLiteral(Tuple(-8)())())
-    assert(mhir.eval.eval(e(2)) == StmLiteral(Tuple(-6)())())
-    assert(mhir.eval.eval(e(3)) == StmLiteral(Tuple(-4)())())
-  }
-
   test("StmMap:1D-1D:+7") {
-    val s = StmMap(StmCount(IntCst(5)(U8))(), U8 ::+ (x => x + 7))().tchk()
+    val s = StmMap(StmCount(IntCst(5)(U8))(), U8 ::+ (x => x + 7)).tchk()
     assert(mhir.eval.eval(s) == StmLiteral(7, 8, 9, 10, 11)())
   }
 
   test("StmMap:1D-1D:Identity") {
-    val s = StmMap(StmCount(IntCst(3)(U8))(), Missing ::+ (x => x))()
+    val s = StmMap(StmCount(IntCst(3)(U8))(), Missing ::+ (x => x))
     assert(mhir.eval.eval(s.tchk()) == StmLiteral(0, 1, 2)())
   }
 
   test("StmMap:1D-1D:DiscardInputReturn42") {
-    val s = StmMap(StmCount(IntCst(6)(U8))(), U8 ::+ (_ => 42))()
+    val s = StmMap(StmCount(IntCst(6)(U8))(), U8 ::+ (_ => 42))
     assert(mhir.eval.eval(s.tchk()) == StmLiteral(42, 42, 42, 42, 42, 42)())
   }
 
   test("StmMap:1D-1D:SingleElementStream") {
-    val s = StmMap(StmCount(IntCst(1)(U8))(), U8 ::+ (x => x + 5))()
+    val s = StmMap(StmCount(IntCst(1)(U8))(), U8 ::+ (x => x + 5))
     assert(mhir.eval.eval(s.tchk()) == StmLiteral(5)())
   }
 
   // The scalar input to the inner function is used only in the `nextF`.
   test("StmMap:1D-2D:StmCst") {
     val s =
-      StmMap(StmCount(IntCst(4)(U8))(), U8 ::+ (c => StmCst(3, c)()))().tchk()
+      StmMap(StmCount(IntCst(4)(U8))(), U8 ::+ (c => StmCst(3, c)())).tchk()
     val expected = StmLiteral.ints(
       Seq(
         Seq(0, 0, 0),
@@ -214,7 +171,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       StmCount(IntCst(3)(U8))(),
       Missing ::+ (n => StmRange(4, n, IntCst(1)(U8))())
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral(
       Seq(
         Seq(0, 1, 2, 3),
@@ -234,15 +191,17 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         val acc = Param("acc")(U8)
         StmBuild(
           3,
+          Tuple()(),
+          Undefined(Missing),
           Tuple(i, acc)(),
           True,
-          Map[Param, (Expr, Expr)](
-            acc -> (i, acc + 3)
+          Map[Param, (Expr, Expr, Expr)](
+            acc -> (i, acc + 3, Tuple()())
           ),
           Map()
         )()
       })
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral(
       Seq(
         Seq(Tuple(0, 0)(), Tuple(0, 3)(), Tuple(0, 6)()),
@@ -255,7 +214,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmMap:1D-2D:DiscardInputReturnStmCount") {
     val s =
-      StmMap(StmCount(IntCst(4)(U8))(), U8 ::+ (_ => StmCount(3)()))().tchk()
+      StmMap(StmCount(IntCst(4)(U8))(), U8 ::+ (_ => StmCount(3)())).tchk()
     val expected = StmLiteral.ints(
       Seq(
         Seq(0, 1, 2),
@@ -271,7 +230,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       StmCst(1, IntCst(99)(U8))(),
       U8 ::+ (c => StmRange(5, c, IntCst(1)(U8))())
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral(99, 100, 101, 102, 103)()
     assert(mhir.eval.eval(s) == expected)
   }
@@ -289,7 +248,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
             )
           )()
         )
-      )().tchk().lower
+      ).tchk().lower
     val expected = StmLiteral({
       val s: Seq[Seq[(Int, Int)]] =
         (0 until 3).map(i => (0 until 3).map(j => (i, j)))
@@ -302,7 +261,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(actual) == expected)
   }
 
-  test("StmMap:2D-1D:StmReduce(StmPrefix)") {
+  test("StmMap:2D-1D:StmReduce(StmTake)") {
     // [[3, 4, 5, 6, 7],
     //  [4, 5, 6, 7, 8],
     //  [5, 6, 7, 8, 9]]
@@ -310,9 +269,9 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val actual = StmMap(
       s,
       Missing ::+ (row =>
-        StmReduce(StmPrefix(row, 2)(), (U8, U8) ::+ (x => x.__0 + x.__1))()
+        StmReduce(StmTake(row, 2)(), (U8, U8) ::+ (x => x.__0 + x.__1))()
       )
-    )().tchk().lower
+    ).tchk().lower
     val expected = StmLiteral(C(3 + 4)(U8), C(4 + 5)(U8), C(5 + 6)(U8))()
     assert(mhir.eval.eval(actual) == expected)
   }
@@ -321,7 +280,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(3)(U8))(),
       Missing ::+ (s => StmAccess(s, 1)())
-    )().tchk()
+    ).tchk()
     val expected =
       StmLiteral(Tuple(0, 1)(), Tuple(1, 1)(), Tuple(2, 1)(), Tuple(3, 1)())()
     assert(mhir.eval.eval(s) == expected)
@@ -331,7 +290,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(3)(U8))(),
       Missing ::+ (s => StmAccess(s, 2)())
-    )().tchk()
+    ).tchk()
     val expected =
       StmLiteral(Tuple(0, 2)(), Tuple(1, 2)(), Tuple(2, 2)(), Tuple(3, 2)())()
     assert(mhir.eval.eval(s) == expected)
@@ -342,7 +301,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
       StmMap(
         StmCount2D(C(5)(U8), C(3)(U8))(),
         TyStm((U8, U8), 3) ::+ (s => Stm2Vec(s)())
-      )().tchk()
+      ).tchk()
     val expected = StmLiteral(
       VecLiteral(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)())(),
       VecLiteral(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)())(),
@@ -357,7 +316,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       StmCount2D(C(3)(U8), C(4)(U8))(),
       TyStm((U8, U8), 4) ::+ (_ => StmCst(1, IntCst(42)())())
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral(42, 42, 42)()
     assert(mhir.eval.eval(s) == expected)
   }
@@ -365,8 +324,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmMap:2D-2D:StmMap") {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(3)(U8))(),
-      Missing ::+ (s => StmMap(s, (U8, U8) ::+ (x => x.__0 + x.__1))())
-    )().tchk()
+      Missing ::+ (s => StmMap(s, (U8, U8) ::+ (x => x.__0 + x.__1)))
+    ).tchk()
     val expected = StmLiteral.ints(
       Seq(
         Seq(0, 1, 2),
@@ -380,9 +339,9 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmMap:2D-2D:StmPrepend") {
     val s = StmMap(
-      StmCst2D(4, 5, C(42)(U8))(),
+      build2D(4, 5, _ => _ => C(42)(U8)),
       TyStm(U8, 5) ::+ (s => StmPrepend(s, C(43)(U8))())
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral.ints(
       Seq(
         Seq(43, 42, 42, 42, 42, 42),
@@ -396,9 +355,9 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmMap:2D-2D:StmAppend") {
     val s = StmMap(
-      StmCst2D(4, 5, C(42)(U8))(),
+      build2D(4, 5, _ => _ => C(42)(U8)),
       TyStm(U8, 5) ::+ (s => StmAppend(s, C(43)(U8))())
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral.ints(
       Seq(
         Seq(42, 42, 42, 42, 42, 43),
@@ -410,11 +369,11 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(s) == expected)
   }
 
-  test("StmMap:2D-2D:StmPrefix") {
+  test("StmMap:2D-2D:StmTake") {
     val s = StmMap(
       StmCount2D(C(3)(U8), C(100)(U8))(),
-      TyStm((U8, U8), 100) ::+ (s => StmPrefix(s, 2)())
-    )().tchk().lower
+      TyStm((U8, U8), 100) ::+ (s => StmTake(s, 2)())
+    ).tchk().lower
     val expected = StmLiteral(
       StmLiteral(Tuple(0, 0)(), Tuple(0, 1)())(),
       StmLiteral(Tuple(1, 0)(), Tuple(1, 1)())(),
@@ -423,11 +382,11 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(s) == expected.flatten)
   }
 
-  test("StmMap:2D-2D:StmSuffix") {
+  test("StmMap:2D-2D:StmDrop") {
     val s = StmMap(
       StmCount2D(C(3)(U8), C(100)(U8))(),
-      TyStm((U8, U8), 100) ::+ (s => StmSuffix(s, 2)())
-    )().tchk()
+      TyStm((U8, U8), 100) ::+ (s => StmDrop(s, 98)())
+    ).tchk()
     val expected = StmLiteral(
       Tuple(0, 98)(),
       Tuple(0, 99)(),
@@ -439,77 +398,11 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(s) == expected)
   }
 
-  test("StmMap:2D-2D:StmShiftLeft") {
-    val s = StmMap(
-      StmCount2D(C(2)(U8), C(3)(U8))(),
-      TyStm((U8, U8), 3) ::+ (s =>
-        StmShiftLeft(s, Tuple(C(100)(U8), C(101)(U8))())()
-      )
-    )().tchk()
-    val expected = StmLiteral(
-      Seq(
-        Seq(
-          Tuple(0, 1)(),
-          Tuple(0, 2)(),
-          Tuple(100, 101)()
-        ),
-        Seq(
-          Tuple(1, 1)(),
-          Tuple(1, 2)(),
-          Tuple(100, 101)()
-        )
-      ).flatten: _*
-    )()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("StmMap:2D-2D:StmShiftRight") {
-    val s = StmMap(
-      StmCount2D(C(4)(U8), C(5)(U8))(),
-      TyStm((U8, U8), 5) ::+ (s =>
-        StmShiftRight(s, Tuple(C(100)(U8), C(101)(U8))())()
-      )
-    )().tchk()
-    val expected = StmLiteral(
-      Seq(
-        Seq(
-          Tuple(100, 101)(),
-          Tuple(0, 0)(),
-          Tuple(0, 1)(),
-          Tuple(0, 2)(),
-          Tuple(0, 3)()
-        ),
-        Seq(
-          Tuple(100, 101)(),
-          Tuple(1, 0)(),
-          Tuple(1, 1)(),
-          Tuple(1, 2)(),
-          Tuple(1, 3)()
-        ),
-        Seq(
-          Tuple(100, 101)(),
-          Tuple(2, 0)(),
-          Tuple(2, 1)(),
-          Tuple(2, 2)(),
-          Tuple(2, 3)()
-        ),
-        Seq(
-          Tuple(100, 101)(),
-          Tuple(3, 0)(),
-          Tuple(3, 1)(),
-          Tuple(3, 2)(),
-          Tuple(3, 3)()
-        )
-      ).flatten: _*
-    )()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
   test("StmMap:2D-2D:StmConcatBefore") {
     val s = StmMap(
-      StmCst2D(5, 5, C(99)(U8))(),
-      TyStm(U8, 5) ::+ (s => StmConcat(StmCount(C(3)(U8))(), s)())
-    )().tchk()
+      build2D(5, 5, _ => _ => C(99)(U8)),
+      TyStm(U8, 5) ::+ (s => StmConcat(StmCount(C(3)(U8))(), s))
+    ).tchk()
     val expected = StmLiteral.ints(
       Seq(
         Seq(0, 1, 2, 99, 99, 99, 99, 99),
@@ -524,9 +417,9 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmMap:2D-2D:StmConcatAfter") {
     val s = StmMap(
-      StmCst2D(5, 5, C(99)(U8))(),
-      TyStm(U8, 5) ::+ (s => StmConcat(s, StmCount(C(3)(U8))())())
-    )().tchk()
+      build2D(5, 5, _ => _ => C(99)(U8)),
+      TyStm(U8, 5) ::+ (s => StmConcat(s, StmCount(C(3)(U8))()))
+    ).tchk()
     val expected = StmLiteral.ints(
       Seq(
         Seq(99, 99, 99, 99, 99, 0, 1, 2),
@@ -543,7 +436,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       StmCount2D(C(3)(U8), C(3)(U8))(),
       TyStm((U8, U8), 3) ::+ (s => StmZip(StmCount(3)(), s)())
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral(
       Seq(
         Seq(
@@ -570,7 +463,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       StmCount2D(C(3)(U8), C(3)(U8))(),
       TyStm((U8, U8), 3) ::+ (s => StmZip(s, StmCount(3)())())
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral(
       Seq(
         Seq(
@@ -597,7 +490,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(4)(U8))(),
       TyStm((U8, U8), 4) ::+ (s => StmRepeat(s, 3)())
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral(
       Seq(
         Seq(
@@ -629,7 +522,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       StmCount2D(C(2)(U8), C(3)(U8))(),
       TyStm((U8, U8), 3) ::+ (s => s)
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral(
       Seq(
         Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
@@ -643,7 +536,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(3)(U8))(),
       TyStm((U8, U8), 3) ::+ (_ => StmCount(5)())
-    )().tchk().lower
+    ).tchk().lower
     val expected = StmLiteral.ints(
       Seq(
         Seq(0, 1, 2, 3, 4),
@@ -659,7 +552,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       StmCount2D(C(3)(U8), C(5)(U8))(),
       TyStm((U8, U8), 5) ::+ (s => StmSlide(s, 3)())
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral(
       Seq(
         Seq(
@@ -685,10 +578,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmMap:2D-2D:SingleElementOuterStream") {
     val s = StmMap(
       StmCount2D(C(1)(U8), C(3)(U8))(),
-      TyStm((U8, U8), 3) ::+ (s =>
-        StmMap(s, (U8, U8) ::+ (x => x.__0 + x.__1))()
-      )
-    )().tchk()
+      TyStm((U8, U8), 3) ::+ (s => StmMap(s, (U8, U8) ::+ (x => x.__0 + x.__1)))
+    ).tchk()
     val expected = StmLiteral(0, 1, 2)()
     assert(mhir.eval.eval(s) == expected)
   }
@@ -696,10 +587,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmMap:2D-2D:SingleElementInnerStream") {
     val s = StmMap(
       StmCount2D(C(4)(U8), C(1)(U8))(),
-      TyStm((U8, U8), 1) ::+ (s =>
-        StmMap(s, (U8, U8) ::+ (x => x.__0 + x.__1))()
-      )
-    )().tchk()
+      TyStm((U8, U8), 1) ::+ (s => StmMap(s, (U8, U8) ::+ (x => x.__0 + x.__1)))
+    ).tchk()
     val expected = StmLiteral(0, 1, 2, 3)()
     assert(mhir.eval.eval(s) == expected)
   }
@@ -723,17 +612,19 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
           val s = Param("s")(TyStm((U8, U8), -1))
           StmBuild(
             k,
+            Tuple()(),
+            Undefined(Missing),
             i,
             i < k,
-            Map[Param, (Expr, Expr)](
-              i -> (C(0)(U8), i + 1)
+            Map[Param, (Expr, Expr, Expr)](
+              i -> (C(0)(U8), i + 1, Tuple()())
             ),
-            Map[Param, (Expr, Expr)](
-              s -> (sIn, i === k)
+            Map[Param, (Expr, Expr, Expr)](
+              s -> (sIn, i === k, Tuple()())
             )
           )()
         })
-      )().tchk()
+      ).tchk()
     val expected =
       StmLiteral(
         (0 until n).flatMap(_ => (0 until k).map(j => IntCst(j)())): _*
@@ -744,8 +635,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmMap:-2D:MapCount") {
     val s = StmMap(
       StmCount(C(2)(U8))(),
-      U8 ::+ (i => StmMap(StmCount(C(3)(U8))(), U8 ::+ (j => Tuple(i, j)()))())
-    )().tchk().lower
+      U8 ::+ (i => StmMap(StmCount(C(3)(U8))(), U8 ::+ (j => Tuple(i, j)())))
+    ).tchk().lower
     val expected = StmLiteral(
       Seq(
         Seq((0, 0), (0, 1), (0, 2)),
@@ -763,11 +654,11 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         StmMap(
           StmCount(C(3)(U8))(),
           U8 ::+ (j =>
-            StmMap(StmCount(C(4)(U8))(), U8 ::+ (k => Tuple(i, j, k)()))()
+            StmMap(StmCount(C(4)(U8))(), U8 ::+ (k => Tuple(i, j, k)()))
           )
-        )()
+        )
       )
-    )().tchk()
+    ).tchk()
     val expected = StmLiteral(
       Seq(
         Seq(
@@ -815,57 +706,15 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(s) == expected)
   }
 
-  test("StmMap:2D-3D:StmSlideS") {
-    val s = StmCount2D(C(3)(U8), C(5)(U8))()
-    val expected = StmLiteral(
-      Seq(
-        Seq(
-          Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
-          Seq(Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)()),
-          Seq(Tuple(0, 2)(), Tuple(0, 3)(), Tuple(0, 4)())
-        ),
-        Seq(
-          Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)()),
-          Seq(Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)()),
-          Seq(Tuple(1, 2)(), Tuple(1, 3)(), Tuple(1, 4)())
-        ),
-        Seq(
-          Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)()),
-          Seq(Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)()),
-          Seq(Tuple(2, 2)(), Tuple(2, 3)(), Tuple(2, 4)())
-        )
-      ).flatten.flatten: _*
-    )()
-    val actual =
-      StmMap(s, TyStm((U8, U8), 5) ::+ (s => StmSlideS(s, 3)()))().tchk()
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmMap:3D-3D:StmTranspose") {
-    val s = StmCount3D(C(2)(U8), C(2)(U8), C(2)(U8))()
-    val expected = StmLiteral(
-      (0 until 2).flatMap(i =>
-        (0 until 2).flatMap(j => (0 until 2).map(k => Tuple(i, k, j)()))
-      ): _*
-    )()
-    val actual =
-      StmMap(s, TyStm(TyStm((U8, U8, U8), 2), 2) ::+ (s => StmTranspose(s)()))()
-        .tchk()
-        .lower
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
   test("StmMap:RepeatedData1") {
     val n = 3
     val m = 4
-    val f =
-      (TyStm(TyStm(U8, m), n) ::+ (a =>
-        TyStm(I32, m) ::+ (b =>
-          StmMap(a, TyStm(U8, m) ::+ (rowA => StmZip(rowA, b)()))()
-        )
-      )).tchk().lower
-    val a = build2D(n, m, i => j => C(i + 2 * j)(U8)).tchk().lower
-    val b = StmRange(m, C(-1)(I32), C(2)(I32))().tchk().lower
+    val a = Param("a")(TyStm(TyStm(U8, m), n))
+    val b = Param("b")(TyStm(I32, m))
+    val s =
+      StmMap(a, TyStm(U8, m) ::+ (rowA => StmZip(rowA, b)())).tchk().lower
+    val aVal = build2D(n, m, i => j => C(i + 2 * j)(U8)).tchk().lower
+    val bVal = StmRange(m, C(-1)(I32), C(2)(I32))().tchk().lower
     val expected = {
       val aVals = (0 until n).map(i => (0 until m).map(j => i + 2 * j))
       val bVals = (0 until m).map(t => -1 + 2 * t)
@@ -874,7 +723,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         expectedVals.flatten.map({ case (x, y) => Tuple(x, y)() }): _*
       )()
     }
-    val actual = mhir.eval.eval(FunCall(FunCall(f, a)(), b)())
+    val actual = mhir.eval.eval(s, inputs = Map(a -> aVal, b -> bVal))
     assert(actual == expected)
   }
 
@@ -889,8 +738,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
       val rowB = Param("row_b")(TyStm((U8, U8), k))
       val map = StmMap(
         a,
-        Function(rowA, StmMap(b, Function(rowB, StmZip(rowA, rowB)())())())()
-      )()
+        Function(rowA, StmMap(b, Function(rowB, StmZip(rowA, rowB)())()))()
+      )
       map.tchk().lower
     }
     val subs: Map[Expr, Expr] = Map(
@@ -931,7 +780,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val combined = StmMap2(
       s1,
       s2,
-      Missing ::+ (s1 => Missing ::+ (s2 => StmConcat(s1, s2)()))
+      Missing ::+ (s1 => Missing ::+ (s2 => StmConcat(s1, s2)))
     )()
     val expected = StmLiteral(
       (0 until n).flatMap(i => {
@@ -1001,7 +850,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val combined = StmMap2(
       s1,
       s2,
-      Missing ::+ (_ => Missing ::+ (s2 => StmSuffix(s2, 2)()))
+      Missing ::+ (_ => Missing ::+ (s2 => StmDrop(s2, m2 - 2)()))
     )()
     val expected = StmLiteral(
       (0 until n).flatMap(i =>
@@ -1021,7 +870,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val combined = StmMap2(
       s1,
       s2,
-      Missing ::+ (s1 => Missing ::+ (_ => StmSuffix(s1, 2)()))
+      Missing ::+ (s1 => Missing ::+ (_ => StmDrop(s1, m1 - 2)()))
     )()
     val expected = StmLiteral(
       (0 until n).flatMap(i =>
@@ -1194,7 +1043,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = Param("s")(TyStm(TyStm(U8, 1), 4))
     val sum = StmReduce(
       s,
-      Missing ::+ (s => StmMap(s, Missing ::+ (x => x.__0 + x.__1))())
+      Missing ::+ (s => StmMap(s, Missing ::+ (x => x.__0 + x.__1)))
     )().tchk().lower
     val sVal = StmLiteral(C(1)(U8), C(11)(U8), C(21)(U8), C(31)(U8))().tchk()
     val expected = StmLiteral(C(64)())()
@@ -1218,9 +1067,9 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
                   Missing ::+ (v =>
                     VecMap(v, Missing ::+ (x => x.__0 + x.__1))()
                   )
-                )()
+                )
               )
-            )()
+            )
           )
         )()
       )
@@ -1249,7 +1098,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral((0 until m).map(i => C(i + t * m)(U8)): _*)()
       ): _*
     )().tchk()
-    val actual = StmSuffix(StmCascade(input)(), n - m + 1)().tchk().lower
+    val actual = StmCascade(input)().tchk().lower
     // [[ 0, xx, xx, xx],
     //  [ 4,  1, xx, xx],
     //  [ 8,  5,  2, xx],
@@ -1257,11 +1106,21 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     //  [16, 13, 10,  7],
     //  [20, 17, 14, 11],
     //  [24, 21, 18, 15],
-    //  [27, 25, 22, 19]]
+    //  [27, 25, 22, 19],
+    //  [xx, 28, 26, 23],
+    //  [xx, xx, 29, 26],
+    //  [xx, xx, xx, 30]]
     val expected = StmLiteral(
-      (m - 1 until n).map(t =>
+      (0 until (n + m - 1)).map(t =>
         VecLiteral(
-          (0 until m).map(i => C(i + t * m - m * i)(U8)): _*
+          (0 until m).map({ i =>
+            val outOfBounds = (t - i < 0) || (t - i > 7)
+            if (outOfBounds) {
+              Undefined(U8)
+            } else {
+              C(i + t * m - m * i)(U8)
+            }
+          }): _*
         )()
       ): _*
     )().tchk()
@@ -1270,7 +1129,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   for (delay <- Seq(0, 1, 2, 3)) {
 
-    test(s"MulAddCascaded(Stm[u8,0],$delay)") {
+    test(s"StmMapDotCascaded(Stm[u8,0],$delay)") {
       val tv = TyVec(U8, 0)
       val s1 = StmLiteral(
         VecLiteral()(tv),
@@ -1287,17 +1146,16 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral()(tv)
       )()
       val n = 5
-      assert(s1.elems.length == n)
-      assert(s2.elems.length == n)
-      val actualExpr =
-        StmSuffix(MulAddCascaded(s1, s2, delay)(), n - delay)().tchk().lower
+      assert(s1.logical.length == n)
+      assert(s2.logical.length == n)
+      val actualExpr = StmMapDotCascaded(s1, s2, delay)().tchk().lower
       val actual = mhir.eval.eval(actualExpr)
       val expected =
-        StmLiteral((0 until (n - delay)).map(_ => C(0)(U16)): _*)().tchk()
+        StmLiteral((0 until (n + 1)).map(_ => C(0)(U44)): _*)().tchk()
       assert(actual == expected)
     }
 
-    test(s"MulAddCascaded(Stm[u8,1],$delay)") {
+    test(s"StmMapDotCascaded(Stm[u8,1],$delay)") {
       val s1 = StmLiteral(
         VecLiteral(C(1)(U16))(),
         VecLiteral(C(2)(U16))(),
@@ -1317,26 +1175,23 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral(C(1)(U16))()
       )()
       val n = 7
-      assert(s1.elems.length == n)
-      assert(s2.elems.length == n)
-      val actualExpr =
-        StmSuffix(MulAddCascaded(s1, s2, delay)(), n - delay)().tchk().lower
+      assert(s1.logical.length == n)
+      assert(s2.logical.length == n)
+      val actualExpr = StmMapDotCascaded(s1, s2, delay)().tchk().lower
       val actual = mhir.eval.eval(actualExpr)
       val expected = StmLiteral(
-        Seq(
-          C(1 * 7)(U16),
-          C(2 * 6)(U16),
-          C(3 * 5)(U16),
-          C(4 * 4)(U16),
-          C(5 * 3)(U16),
-          C(6 * 2)(U16),
-          C(7 * 1)(U16)
-        ).dropRight(delay): _*
+        C(1 * 7)(U16),
+        C(2 * 6)(U16),
+        C(3 * 5)(U16),
+        C(4 * 4)(U16),
+        C(5 * 3)(U16),
+        C(6 * 2)(U16),
+        C(7 * 1)(U16)
       )().tchk()
       assert(actual == expected)
     }
 
-    test(s"MulAddCascaded(Stm[u16,4],$delay)") {
+    test(s"StmMapDotCascaded(Stm[u16,4],$delay)") {
       val s1 = StmLiteral(
         VecLiteral(C(1)(U16), C(2)(U16), C(3)(U16), C(4)(U16))(),
         VecLiteral(C(5)(U16), C(6)(U16), C(7)(U16), C(8)(U16))(),
@@ -1360,20 +1215,17 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))()
       )()
       val n = 9
-      assert(s1.elems.length == n)
-      assert(s2.elems.length == n)
-      val actualExpr =
-        StmSuffix(MulAddCascaded(s1, s2, delay)(), n - 3 - delay)().tchk().lower
+      assert(s1.logical.length == n)
+      assert(s2.logical.length == n)
+      val actualExpr = StmMapDotCascaded(s1, s2, delay)().tchk().lower
       val actual = mhir.eval.eval(actualExpr)
       val expected = StmLiteral(
-        Seq(
-          C(3 * (1 + 6 + 11 + 16))(U44),
-          C(3 * (5 + 10 + 15 + 20))(U44),
-          C(3 * (9 + 14 + 19 + 24))(U44),
-          C(3 * (13 + 18 + 23 + 28))(U44),
-          C(3 * (17 + 22 + 27 + 32))(U44),
-          C(3 * (21 + 26 + 31 + 36))(U44)
-        ).dropRight(delay): _*
+        C(3 * (1 + 6 + 11 + 16))(U44),
+        C(3 * (5 + 10 + 15 + 20))(U44),
+        C(3 * (9 + 14 + 19 + 24))(U44),
+        C(3 * (13 + 18 + 23 + 28))(U44),
+        C(3 * (17 + 22 + 27 + 32))(U44),
+        C(3 * (21 + 26 + 31 + 36))(U44)
       )().tchk()
       assert(actual == expected)
       assert(actual.typ == expected.typ)
@@ -1402,26 +1254,25 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))(),
         VecLiteral(C(3)(U8), C(3)(U8), C(3)(U8), C(3)(U8))()
       )()
-      assert(s1.elems.length == s2.elems.length)
-      val n = 9
-      val actualExpr =
-        StmSuffix(StmMapDot(s1, s2, delay)(), n - 3 - delay)().tchk().lower
+      assert(s1.logical.length == s2.logical.length)
+      val actualExpr = StmMapDot(s1, s2, delay)().tchk().lower
       val actual = mhir.eval.eval(actualExpr)
       val expected = StmLiteral(
-        Seq(
-          C(3 * (1 + 2 + 3 + 4))(U44),
-          C(3 * (5 + 6 + 7 + 8))(U44),
-          C(3 * (9 + 10 + 11 + 12))(U44),
-          C(3 * (13 + 14 + 15 + 16))(U44),
-          C(3 * (17 + 18 + 19 + 20))(U44),
-          C(3 * (21 + 22 + 23 + 24))(U44)
-        ).dropRight(delay): _*
+        C(3 * (1 + 2 + 3 + 4))(U44),
+        C(3 * (5 + 6 + 7 + 8))(U44),
+        C(3 * (9 + 10 + 11 + 12))(U44),
+        C(3 * (13 + 14 + 15 + 16))(U44),
+        C(3 * (17 + 18 + 19 + 20))(U44),
+        C(3 * (21 + 22 + 23 + 24))(U44),
+        C(3 * (25 + 26 + 27 + 28))(U44),
+        C(3 * (29 + 30 + 31 + 32))(U44),
+        C(3 * (33 + 34 + 35 + 36))(U44)
       )().tchk()
       assert(actual == expected)
       assert(actual.typ == expected.typ)
     }
 
-    test(s"MulAddCascaded(Stm[i16,4],$delay)") {
+    test(s"StmMapDotCascaded(Stm[i16,4],$delay)") {
       val s1 = StmLiteral(
         VecLiteral(C(1)(U8), C(2)(U8), C(3)(U8), C(4)(U8))(),
         VecLiteral(C(5)(U8), C(6)(U8), C(7)(U8), C(8)(U8))(),
@@ -1444,21 +1295,15 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))(),
         VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))()
       )()
-      val n = 9
-      assert(s1.elems.length == n)
-      assert(s2.elems.length == n)
-      val actualExpr =
-        StmSuffix(MulAddCascaded(s1, s2, delay)(), n - 3 - delay)().tchk().lower
+      val actualExpr = StmMapDotCascaded(s1, s2, delay)().tchk().lower
       val actual = mhir.eval.eval(actualExpr)
       val expected = StmLiteral(
-        Seq(
-          C(3 * 1 - 5 * 6 + 7 * 11 - 3 * 16)(I44),
-          C(3 * 5 - 5 * 10 + 7 * 15 - 3 * 20)(I44),
-          C(3 * 9 - 5 * 14 + 7 * 19 - 3 * 24)(I44),
-          C(3 * 13 - 5 * 18 + 7 * 23 - 3 * 28)(I44),
-          C(3 * 17 - 5 * 22 + 7 * 27 - 3 * 32)(I44),
-          C(3 * 21 - 5 * 26 + 7 * 31 - 3 * 36)(I44)
-        ).dropRight(delay): _*
+        C(3 * 1 - 5 * 6 + 7 * 11 - 3 * 16)(I44),
+        C(3 * 5 - 5 * 10 + 7 * 15 - 3 * 20)(I44),
+        C(3 * 9 - 5 * 14 + 7 * 19 - 3 * 24)(I44),
+        C(3 * 13 - 5 * 18 + 7 * 23 - 3 * 28)(I44),
+        C(3 * 17 - 5 * 22 + 7 * 27 - 3 * 32)(I44),
+        C(3 * 21 - 5 * 26 + 7 * 31 - 3 * 36)(I44)
       )().tchk()
       assert(actual == expected)
       assert(actual.typ == expected.typ)
@@ -1487,20 +1332,19 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))(),
         VecLiteral(C(3)(I8), C(-5)(I8), C(7)(I8), C(-3)(I8))()
       )()
-      assert(s1.elems.length == s2.elems.length)
-      val n = s1.elems.length
-      val actualExpr =
-        StmSuffix(StmMapDot(s1, s2, delay)(), n - 3 - delay)().tchk().lower
+      assert(s1.logical.length == s2.logical.length)
+      val actualExpr = StmMapDot(s1, s2, delay)().tchk().lower
       val actual = mhir.eval.eval(actualExpr)
       val expected = StmLiteral(
-        Seq(
-          C(3 * 1 - 5 * 2 + 7 * 3 - 3 * 4)(I44),
-          C(3 * 5 - 5 * 6 + 7 * 7 - 3 * 8)(I44),
-          C(3 * 9 - 5 * 10 + 7 * 11 - 3 * 12)(I44),
-          C(3 * 13 - 5 * 14 + 7 * 15 - 3 * 16)(I44),
-          C(3 * 17 - 5 * 18 + 7 * 19 - 3 * 20)(I44),
-          C(3 * 21 - 5 * 22 + 7 * 23 - 3 * 24)(I44)
-        ).dropRight(delay): _*
+        C(3 * 1 - 5 * 2 + 7 * 3 - 3 * 4)(I44),
+        C(3 * 5 - 5 * 6 + 7 * 7 - 3 * 8)(I44),
+        C(3 * 9 - 5 * 10 + 7 * 11 - 3 * 12)(I44),
+        C(3 * 13 - 5 * 14 + 7 * 15 - 3 * 16)(I44),
+        C(3 * 17 - 5 * 18 + 7 * 19 - 3 * 20)(I44),
+        C(3 * 21 - 5 * 22 + 7 * 23 - 3 * 24)(I44),
+        C(3 * 25 - 5 * 26 + 7 * 27 - 3 * 28)(I44),
+        C(3 * 29 - 5 * 30 + 7 * 31 - 3 * 32)(I44),
+        C(3 * 33 - 5 * 34 + 7 * 35 - 3 * 36)(I44)
       )().tchk()
       assert(actual == expected)
       assert(actual.typ == expected.typ)
@@ -1578,7 +1422,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s = StmMap(
       Vec2Stm(v)(),
       TyVec((U32, U32), C(3)(U32)) ::+ (v => Vec2Stm(v)())
-    )().tchk()
+    ).tchk()
 
     val expected = StmLiteral(
       Seq(
@@ -1621,7 +1465,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("Stm2Vec2Stm") {
     val s = Param("s")(TyStm(U32, C(6)(U8)))
     val actual =
-      StmMap(Stm2Vec(s)(), TyVec(U32, C(6)(U8)) ::+ (v => Vec2Stm(v)()))()
+      StmMap(Stm2Vec(s)(), TyVec(U32, C(6)(U8)) ::+ (v => Vec2Stm(v)()))
 
     val s0 = StmCount(C(6)(U32))()
     val expected0 = StmLiteral(0, 1, 2, 3, 4, 5)()
@@ -1635,18 +1479,18 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmConcat:1D") {
     val u7 = TyUInt(7)
     val s1 = StmCst(4, C(-77)(I8))()
-    val s2 = StmMap(StmCount(C(2)(u7))(), u7 ::+ (x => ReshapeData(x, I8)()))()
-    val s3 = StmMap(StmCount(C(3)(u7))(), u7 ::+ (x => ReshapeData(x, I8)()))()
+    val s2 = StmMap(StmCount(C(2)(u7))(), u7 ::+ (x => ReshapeData(x, I8)()))
+    val s3 = StmMap(StmCount(C(3)(u7))(), u7 ::+ (x => ReshapeData(x, I8)()))
 
-    val actual1 = StmConcat(s1, s1)().tchk().lower
+    val actual1 = StmConcat(s1, s1).tchk().lower
     val expected1 = StmLiteral((0 until 8).map(_ => C(-77)(I8)): _*)()
     assert(mhir.eval.eval(actual1) == expected1)
 
-    val actual2 = StmConcat(s3, s1)().tchk()
+    val actual2 = StmConcat(s3, s1).tchk()
     val expected2 = StmLiteral(0, 1, 2, -77, -77, -77, -77)()
     assert(mhir.eval.eval(actual2) == expected2)
 
-    val actual3 = StmConcat(StmConcat(s3, s1)(), s2)().tchk()
+    val actual3 = StmConcat(StmConcat(s3, s1), s2).tchk()
     val expected3 = StmLiteral(0, 1, 2, -77, -77, -77, -77, 0, 1)()
     assert(mhir.eval.eval(actual3) == expected3)
   }
@@ -1662,8 +1506,8 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
       U8 ::+ (t =>
         VecBuild(n, U8 ::+ (i => ReshapeData(Sum(i, Prod(t, t)())(), I16)()))()
       )
-    )()
-    val actual = StmConcat(s1, s2)()
+    )
+    val actual = StmConcat(s1, s2)
       .tchk(Map(), constValues)
       .subPreserveType(n -> nVal)
       .lower
@@ -1681,9 +1525,9 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   }
 
   test("StmConcat:2D") {
-    val s0 = StmCst2D(2, 2, Tuple(C(99)(U8), C(99)(U8))())()
+    val s0 = build2D(2, 2, _ => _ => Tuple(C(99)(U8), C(99)(U8))())
     val s1 = StmCount2D(C(3)(U8), C(2)(U8))()
-    val actual = StmConcat(s0, s1)().tchk()
+    val actual = StmConcat(s0, s1).tchk()
     val expected = Seq(
       Seq(Tuple(99, 99)(), Tuple(99, 99)()),
       Seq(Tuple(99, 99)(), Tuple(99, 99)()),
@@ -1697,7 +1541,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmConcat:3D") {
     val s0 = build3D(3, 2, 2, _ => _ => _ => C(100)(U8))
     val s1 = build3D(2, 2, 2, i => _ => _ => C(i)(U8))
-    val actual = StmConcat(s0, s1)().tchk()
+    val actual = StmConcat(s0, s1).tchk()
     val expected = StmLiteral.ints(
       Seq(
         Seq(
@@ -1749,7 +1593,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmPrepend:3D") {
     val s0 = build3D(2, 2, 2, _ => _ => _ => C(42)(U8))
-    val s1 = StmCst2D(2, 2, C(99)(U8))()
+    val s1 = build2D(2, 2, _ => _ => C(99)(U8))
     val actual = StmPrepend(s0, s1)().tchk()
 
     val expected = StmLiteral.ints(
@@ -1795,7 +1639,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmAppend:3D") {
     val s0 = build3D(2, 2, 2, _ => _ => _ => C(42)(U8))
-    val s1 = StmCst2D(2, 2, C(99)(U8))()
+    val s1 = build2D(2, 2, _ => _ => C(99)(U8))
     val actual = StmAppend(s0, s1)().tchk()
 
     val expected = StmLiteral.ints(
@@ -1817,10 +1661,10 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(actual) == expected)
   }
 
-  test("StmPrefix:1D") {
+  test("StmTake:1D") {
     val s = StmCount(3)()
     val k = Param("k")(U8)
-    val prefix = StmPrefix(s, k)().tchk()
+    val prefix = StmTake(s, k)().tchk()
 
     assert(mhir.eval.eval(Let(k, C(0)(U8), prefix)()) == StmLiteral()())
     assert(mhir.eval.eval(Let(k, C(1)(U8), prefix)()) == StmLiteral(0)())
@@ -1828,10 +1672,10 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(Let(k, C(3)(U8), prefix)()) == StmLiteral(0, 1, 2)())
   }
 
-  test("StmPrefix:2D") {
+  test("StmTake:2D") {
     val s = StmCount2D(C(2)(U8), C(3)(U8))()
     val k = Param("k")(U8)
-    val prefix = StmPrefix(s, k)().tchk()
+    val prefix = StmTake(s, k)().tchk()
 
     val expectedValues = Seq(
       Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)()),
@@ -1844,7 +1688,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     assert(mhir.eval.eval(Let(k, C(2)(U8), prefix)()) == expected(2))
   }
 
-  test("StmPrefix:3D") {
+  test("StmTake:3D") {
     val s = build3D(2, 4, 5, _ => j => k => Tuple(C(j)(U8), C(k)(U8))())
 
     val expected = Seq(
@@ -1909,46 +1753,45 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         )
       )
     )
-    assert(mhir.eval.eval(StmPrefix(s, 0)().tchk()) == StmLiteral()())
+    assert(mhir.eval.eval(StmTake(s, 0)().tchk()) == StmLiteral()())
     assert(
-      mhir.eval.eval(StmPrefix(s, 1)().tchk())
+      mhir.eval.eval(StmTake(s, 1)().tchk())
         == StmLiteral(expected.slice(0, 1).flatten.flatten: _*)()
     )
     assert(
-      mhir.eval.eval(StmPrefix(s, 2)().tchk())
+      mhir.eval.eval(StmTake(s, 2)().tchk())
         == StmLiteral(expected.slice(0, 2).flatten.flatten: _*)()
     )
   }
 
-  test("StmSuffix:1D") {
+  test("StmDrop:1D") {
     val s = StmCount(3)()
     val k = Param("k")(U8)
-    val suffix = StmSuffix(s, k)().tchk()
-    assert(mhir.eval.eval(Let(k, C(0)(U8), suffix)()) == StmLiteral()())
-    assert(mhir.eval.eval(Let(k, C(1)(U8), suffix)()) == StmLiteral(2)())
-    assert(mhir.eval.eval(Let(k, C(2)(U8), suffix)()) == StmLiteral(1, 2)())
-    assert(mhir.eval.eval(Let(k, C(3)(U8), suffix)()) == StmLiteral(0, 1, 2)())
+    val suffix = StmDrop(s, k)().tchk()
+    assert(mhir.eval.eval(Let(k, C(3)(U8), suffix)()) == StmLiteral()())
+    assert(mhir.eval.eval(Let(k, C(2)(U8), suffix)()) == StmLiteral(2)())
+    assert(mhir.eval.eval(Let(k, C(1)(U8), suffix)()) == StmLiteral(1, 2)())
+    assert(mhir.eval.eval(Let(k, C(0)(U8), suffix)()) == StmLiteral(0, 1, 2)())
   }
 
-  test("StmSuffix:2D") {
+  test("StmDrop:2D") {
     val s = StmCount2D(C(3)(U8), C(2)(U8))()
     val k = Param("k")(U8)
-    val suffix = StmSuffix(s, k)().tchk()
+    val suffix = StmDrop(s, k)().tchk()
 
     val expectedValues = Seq(
       Seq(Tuple(0, 0)(), Tuple(0, 1)()),
       Seq(Tuple(1, 0)(), Tuple(1, 1)()),
       Seq(Tuple(2, 0)(), Tuple(2, 1)())
     )
-    val expected =
-      (k: Int) => StmLiteral(expectedValues.slice(3 - k, 3).flatten: _*)()
+    val expected = (k: Int) => StmLiteral(expectedValues.drop(k).flatten: _*)()
     assert(mhir.eval.eval(Let(k, C(0)(U8), suffix)()) == expected(0))
     assert(mhir.eval.eval(Let(k, C(1)(U8), suffix)()) == expected(1))
     assert(mhir.eval.eval(Let(k, C(2)(U8), suffix)()) == expected(2))
     assert(mhir.eval.eval(Let(k, C(3)(U8), suffix)()) == expected(3))
   }
 
-  test("StmSuffix:3D") {
+  test("StmDrop:3D") {
     val s = build3D(2, 4, 5, _ => j => k => Tuple(C(j)(U8), C(k)(U8))())
 
     val expected = Seq(
@@ -2013,107 +1856,22 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
         )
       )
     )
-    assert(mhir.eval.eval(StmSuffix(s, 0)().tchk()) == StmLiteral()())
+    assert(mhir.eval.eval(StmDrop(s, 2)().tchk()) == StmLiteral()())
     assert(
-      mhir.eval.eval(StmSuffix(s, 1)().tchk())
-        == StmLiteral(expected.slice(1, 2).flatten.flatten: _*)()
+      mhir.eval.eval(StmDrop(s, 1)().tchk())
+        == StmLiteral(expected.drop(1).flatten.flatten: _*)()
     )
     assert(
-      mhir.eval.eval(StmSuffix(s, 2)().tchk())
-        == StmLiteral(expected.slice(0, 2).flatten.flatten: _*)()
+      mhir.eval.eval(StmDrop(s, 0)().tchk())
+        == StmLiteral(expected.flatten.flatten: _*)()
     )
-  }
-
-  test("StmShiftLeft:1D") {
-    val s = StmShiftLeft(StmCount(C(3)(U8))(), C(42)(U8))().tchk()
-    assert(mhir.eval.eval(s) == StmLiteral(1, 2, 42)())
-  }
-
-  test("StmShiftLeft:2D") {
-    val s0 = StmCount2D(C(3)(U8), C(4)(U8))()
-    val s1 = build1D(4, j => Tuple(C(99)(U8), C(j)(U8))())
-    val s = StmShiftLeft(s0, s1)().tchk()
-
-    val expected = StmLiteral(
-      Seq(
-        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)()),
-        Seq(Tuple(2, 0)(), Tuple(2, 1)(), Tuple(2, 2)(), Tuple(2, 3)()),
-        Seq(Tuple(99, 0)(), Tuple(99, 1)(), Tuple(99, 2)(), Tuple(99, 3)())
-      ).flatten: _*
-    )()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("StmShiftLeft:3D") {
-    val s0 = build3D(2, 4, 5, i => _ => _ => C(i)(U8))
-    val s1 = StmCst2D(4, 5, C(42)(U8))()
-    val actual = StmShiftLeft(s0, s1)().tchk()
-    val expected = StmLiteral.ints(
-      Seq(
-        Seq(
-          Seq(1, 1, 1, 1, 1),
-          Seq(1, 1, 1, 1, 1),
-          Seq(1, 1, 1, 1, 1),
-          Seq(1, 1, 1, 1, 1)
-        ),
-        Seq(
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42)
-        )
-      ).flatten.flatten: _*
-    )
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmShiftRight:1D") {
-    val s = StmShiftRight(StmCount(C(3)(U8))(), C(42)(U8))().tchk()
-    val expected = StmLiteral(42, 0, 1)()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("StmShiftRight:2D") {
-    val s0 = StmCount2D(C(3)(U8), C(4)(U8))()
-    val s1 = build1D(4, j => Tuple(C(99)(U8), C(j)(U8))())
-    val s = StmShiftRight(s0, s1)().tchk()
-
-    val expected = StmLiteral(
-      Seq(
-        Seq(Tuple(99, 0)(), Tuple(99, 1)(), Tuple(99, 2)(), Tuple(99, 3)()),
-        Seq(Tuple(0, 0)(), Tuple(0, 1)(), Tuple(0, 2)(), Tuple(0, 3)()),
-        Seq(Tuple(1, 0)(), Tuple(1, 1)(), Tuple(1, 2)(), Tuple(1, 3)())
-      ).flatten: _*
-    )()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("StmShiftRight:3D") {
-    val s0 = build3D(2, 4, 5, i => _ => _ => C(i)(U8))
-    val s1 = StmCst2D(4, 5, C(42)(U8))()
-    val actual = StmShiftRight(s0, s1)().tchk()
-    val expected = StmLiteral.ints(
-      Seq(
-        Seq(
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42),
-          Seq(42, 42, 42, 42, 42)
-        ),
-        Seq(
-          Seq(0, 0, 0, 0, 0),
-          Seq(0, 0, 0, 0, 0),
-          Seq(0, 0, 0, 0, 0),
-          Seq(0, 0, 0, 0, 0)
-        )
-      ).flatten.flatten: _*
-    )
-    assert(mhir.eval.eval(actual) == expected)
   }
 
   test("StmVecShiftRightGarbage:Stm[Vec[u8,3],4]") {
     def extractFlat(e: Expr): Seq[Expr] = {
-      e.asInstanceOf[StmLiteral].elems.flatMap(_.asInstanceOf[VecLiteral].elems)
+      e.asInstanceOf[StmLiteral]
+        .logical
+        .flatMap(_.asInstanceOf[VecLiteral].elems)
     }
 
     val input = StmLiteral(
@@ -2147,7 +1905,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmShiftRightGarbage:Stm[u8,8]") {
     def extract(e: Expr): Seq[Expr] = {
-      e.asInstanceOf[StmLiteral].elems
+      e.asInstanceOf[StmLiteral].logical
     }
 
     val input = StmLiteral((0 until 8).map(C(_)(U8)): _*)()
@@ -2176,7 +1934,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
 
   test("StmDelay:Stm[u8,8]") {
     def extract(e: Expr): Seq[Expr] = {
-      e.asInstanceOf[StmLiteral].elems
+      e.asInstanceOf[StmLiteral].logical
     }
 
     val input = StmLiteral((0 until 8).map(C(_)(U8)): _*)()
@@ -2214,7 +1972,15 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val a = StmCount(4)()
     val b = {
       val b = Param("b")(TyBool)
-      StmBuild(n, b, True, Map[Param, (Expr, Expr)](b -> (True, !b)), Map())()
+      StmBuild(
+        n,
+        Tuple()(),
+        Undefined(Missing),
+        b,
+        True,
+        Map[Param, (Expr, Expr, Expr)](b -> (True, !b, Tuple()())),
+        Map()
+      )()
     }
     val s = StmZip(a, b)()
       .tchk(Map(), constValues)
@@ -2296,28 +2062,6 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
       mhir.eval.eval(StmRepeat(s, 3)().tchk())
         == StmLiteral(expected ++ expected ++ expected: _*)()
     )
-  }
-
-  test("StmReverse:1D") {
-    val s = StmReverse(StmCount(C(5)(U8))())().tchk()
-    val expected = StmLiteral(4, 3, 2, 1, 0)()
-    assert(mhir.eval.eval(s) == expected)
-  }
-
-  test("StmReverse:2D") {
-    val s = StmReverse(StmCount2D(C(3)(U8), C(3)(U8))())().tchk()
-    val expected = StmLiteral(
-      Tuple(2, 0)(),
-      Tuple(2, 1)(),
-      Tuple(2, 2)(),
-      Tuple(1, 0)(),
-      Tuple(1, 1)(),
-      Tuple(1, 2)(),
-      Tuple(0, 0)(),
-      Tuple(0, 1)(),
-      Tuple(0, 2)()
-    )()
-    assert(mhir.eval.eval(s) == expected)
   }
 
   test("StmSplit:1D-2D") {
@@ -2486,7 +2230,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val actual1 = StmSlideStartingWith(
       // [1, 4, 9, 16, 25]
       build1D(5, i => C((i + 1) * (i + 1))(U8)),
-      AllZero(TyVec(U8, 2))
+      AllZero(TyVec(U8, 3))
     )().tchk().lower
     val expected1 = StmLiteral(
       VecLiteral(C(0)(U8), C(0)(U8), C(1)(U8))(),
@@ -2497,24 +2241,6 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     )().tchk()
     assert(actual1.typ == expected1.typ)
     assert(mhir.eval.eval(actual1) == expected1)
-  }
-
-  test("StmSlideS:1D:UnitWindow") {
-    val actual = StmSlideS(StmCount(3)(), 1)().tchk()
-    val expected = StmLiteral(0, 1, 2)()
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmSlideS:1D:SmallWindow") {
-    val actual = StmSlideS(StmCount(4)(), 2)().tchk()
-    val expected = StmLiteral(0, 1, 1, 2, 2, 3)()
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmSlideS:1D:SameSize") {
-    val actual = StmSlideS(StmCount(C(5)(U8))(), 5)().tchk()
-    val expected = StmLiteral(0, 1, 2, 3, 4)()
-    assert(mhir.eval.eval(actual) == expected)
   }
 
   test("StmSlide2D:3x3") {
@@ -2568,42 +2294,6 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val actual = StmSlide2D(s, 1, 1)().tchk().lower
     val expected =
       StmLiteral(Seq(0, 1, 2, 3).map(x => VecLiteral(VecLiteral(x)())()): _*)()
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmTranspose") {
-    val s = Param("s")()
-    val n = Param("n")()
-    val m = Param("m")()
-    val expected = StmLiteral(
-      Seq(
-        Seq(Tuple(0, 0)(), Tuple(1, 0)()),
-        Seq(Tuple(0, 1)(), Tuple(1, 1)())
-      ).flatten: _*
-    )()
-    val transposed = StmTranspose(s)()
-
-    val actual =
-      Let(
-        n,
-        2,
-        Let(m, 2, Let(s, StmCount2D(C(2)(U8), C(2)(U8))(), transposed)())()
-      )().tchk()
-    assert(mhir.eval.eval(actual) == expected)
-  }
-
-  test("StmTransposeTranspose") {
-    val s = Param("s")()
-    val actual =
-      Let(s, StmCount2D(2, 2)(), StmTranspose(StmTranspose(s)())())()
-        .tchk()
-        .lower
-    val expected = StmLiteral(
-      Seq(
-        Seq(Tuple(0, 0)(), Tuple(0, 1)()),
-        Seq(Tuple(1, 0)(), Tuple(1, 1)())
-      ).flatten: _*
-    )()
     assert(mhir.eval.eval(actual) == expected)
   }
 }

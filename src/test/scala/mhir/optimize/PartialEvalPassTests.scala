@@ -490,9 +490,11 @@ class PartialEvalPassTests extends AnyFunSuite {
     val a = Param("a")(U8)
     val s = StmBuild(
       10,
+      Tuple()(),
+      Undefined(Missing),
       Tuple(a >= 0, a < 4)(),
       True,
-      Map(a -> (C(0)(U8), a + 1)),
+      Map(a -> (C(0)(U8), a + 1, Tuple()())),
       Map()
     )()
     val e = Tuple(a < 4, s)().tchk().lower
@@ -503,9 +505,11 @@ class PartialEvalPassTests extends AnyFunSuite {
       True,
       StmBuild(
         10,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(True, a lt 4)(),
         True,
-        Map(a -> (C(0)(U8), Sum(1, a)())),
+        Map(a -> (C(0)(U8), Sum(1, a)(), Tuple()())),
         Map()
       )()
     )()

@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
-import mhir.typecheck.TypeCheck
+import mhir.typecheck._
 import org.slf4j.event.Level
 
 class StaticLetStmBufferShrinker(
@@ -18,7 +18,12 @@ class StaticLetStmBufferShrinker(
 
   override def shrinkBuffers(e: Expr): Expr = {
     time("statically shrinking letstm buffers", Level.DEBUG) {
-      shrinkBuffers(e, latencyAnalysis.actualLatency(e))
+      val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
+      val newBody = shrinkBuffers(
+        body,
+        latencyAnalysis.actualLatency(body, inputs.map(_ -> Some(0)).toMap)
+      )
+      TypeChecker.wrapTopLevelFunction(inputs, newBody)
     }
   }
 
@@ -28,12 +33,7 @@ class StaticLetStmBufferShrinker(
         Function(x, shrinkBuffers(body, lat))()
       case _ =>
         lat match {
-          case _: LatencyParam =>
-            assert(
-              e.isInstanceOf[Param],
-              s"expression $e does not correspond to latency node $lat"
-            )
-            e
+          case _: LatencySource => e
           case LatencyStmBuild(_, _, producersLat) =>
             assert(
               e.isInstanceOf[StmBuild],
@@ -45,8 +45,8 @@ class StaticLetStmBufferShrinker(
               "stream producers in expression do not match latency node" +
                 s" (${s.producers.keySet} vs ${producersLat.keySet})"
             )
-            s.mapProducers({ case (x, (stm, ready)) =>
-              x -> (shrinkBuffers(stm, producersLat(x)), ready)
+            s.mapProducers({ case (x, (stm, ready, delay)) =>
+              x -> (shrinkBuffers(stm, producersLat(x)), ready, delay)
             })
           case LatencyLetStm(latency, inLat, outLat) =>
             assert(
@@ -66,14 +66,15 @@ class StaticLetStmBufferShrinker(
                 assert(bufSize.typ.asInstanceOf[TyUInt].w >= 1)
                 C(1)(bufSize.typ)
               case Some(_) =>
-                logger.warn(
+                logger.debug(
                   s"could not shrink buffer for letstm $x = ... because the" +
                     s" handshake protocol is enabled and assumeThroughputsMatch=false"
                 )
                 bufSize
               case None =>
-                logger.warn(
-                  s"could not show that latencies are matched for letstm $x = ..."
+                logger.debug(
+                  s"could not shrink buffer for letstm $x = ... because" +
+                    s" there appears to be a latency mismatch"
                 )
                 bufSize
             }

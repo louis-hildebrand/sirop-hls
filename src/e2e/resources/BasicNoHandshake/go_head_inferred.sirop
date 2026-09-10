@@ -1,0 +1,11 @@
+accelerator[no_handshake, go=go] top = (s: Stm[u8, 4]) => (go: Stm[bool, 4]) =>
+    s
+    .StmMap(x => x + 5)
+    .StmZip(go, /*head=*/(undefined:u8, false))
+
+assert {
+    s = [undefined:u8, undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s,
+    go = [false, false]s ++ [true, true, true, true]s
+}
+yields [(6:u8, true), (7:u8, true), (8:u8, true), (9:u8, true)]s
+with prefix @(_, go) => !go

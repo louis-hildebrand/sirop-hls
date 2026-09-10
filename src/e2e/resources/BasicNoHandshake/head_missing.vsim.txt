@@ -1,0 +1,3 @@
+[WARN ] no head specified for input stream 'valid_i'. The latency matcher will delay the stream by prepending undefined elements. To dismiss this warning, add 'head(valid_i)=undefined' to the top-level annotations. To choose a different value, add the same annotation but using your value instead of undefined.
+[INFO ] the design has a latency of 3 cycles
+[INFO ] VHDL testbench passed!

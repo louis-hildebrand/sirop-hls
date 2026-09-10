@@ -6,17 +6,6 @@ sealed abstract class EvalException(msg: String) extends RuntimeException(msg) {
   override def getMessage: String = s"EvalError: $msg"
 }
 
-/** The result of evaluation seems to depend on undefined behaviour.
-  *
-  * @param warnings
-  *   the undefined behaviours that the result depends on.
-  */
-case class UndefinedValException(warnings: Set[EvalWarning])
-    extends EvalException(
-      "value may rely on undefined behaviours: "
-        ++ warnings.map(w => w.display).mkString("", ", ", ".")
-    )
-
 /** The stream became deadlocked.
   *
   * @param reasons
@@ -54,13 +43,11 @@ object PipelineFixpoint extends DeadlockReason {
   override def name: String = "pipeline reached fixpoint"
 }
 
-object InvalidLetStmBufSize
-    extends EvalException(
-      "cannot implement letstm with nonzero buffer size when the handshake protocol is disabled"
-    )
+/** There is a delay mismatch and the handshake protocol is disabled.
+  */
+case class DelayMismatch(msg: String) extends EvalException(msg)
 
-object IllegalBackpressure
-    extends EvalException(
-      "attempt to apply backpressure while the handshake protocol is disabled."
-        + " Is there a latency mismatch?"
-    )
+/** A required value (e.g., the length of a stream) is missing somehow (e.g., it
+  * evaluated to [[mhir.ir.Undefined]]).
+  */
+case class MissingRequiredValue(msg: String) extends EvalException(msg)

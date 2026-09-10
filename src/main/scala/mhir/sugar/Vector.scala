@@ -6,14 +6,13 @@ import mhir.sugar.StreamReplicator.StreamReplication
 import mhir.sugar.Streamifier.Streamify
 import mhir.typecheck.{TypeCheck, TypeChecker, TypeError}
 
-import scala.annotation.tailrec
-
 private object VL {
   val logger: Logger = Logger("VectorSyntaxSugar")
 }
 
-case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+case class VecLength(v: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(v)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecLength = {
     newChildren match {
       case Seq(v) => VecLength(v)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -23,7 +22,7 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecLength = {
     val newV = v.tchk(context, constValues)
     newV.typ match {
       case TyVec(_, n) =>
@@ -43,9 +42,9 @@ case class VecLength(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
 }
 
 case class VecCst(n: Expr, k: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(n, k)(typ) {
+    extends ResolvedSyntaxSugar(n, k)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecCst = {
     newChildren match {
       case Seq(n, k) => VecCst(n, k)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -55,7 +54,7 @@ case class VecCst(n: Expr, k: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecCst = {
     val n = this.n.tchk(context, constValues).expectUInt()
     val k = this.k.tchk(context, constValues)
     this.rebuild(TyVec(k.typ, n), Seq(n, k))
@@ -70,9 +69,9 @@ case class VecCst(n: Expr, k: Expr)(typ: Type = Missing)
 }
 
 case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(n, z, delta)(typ) {
+    extends ResolvedSyntaxSugar(n, z, delta)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecRange = {
     newChildren match {
       case Seq(n, z, delta) => VecRange(n, z, delta)(typ)
       case _                => throw new BadRebuildError(this, newChildren)
@@ -82,7 +81,7 @@ case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecRange = {
     val n = this.n.tchk(context, constValues).expectUInt()
     val z = this.z.tchk(context, constValues).expectAnyInt()
     val delta = this.delta
@@ -102,9 +101,9 @@ case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
 
 case class VecSlice(v: Expr, start: Expr, len: Expr, step: Expr)(
     typ: Type = Missing
-) extends SyntaxSugar(v, start, len, step)(typ) {
+) extends ResolvedSyntaxSugar(v, start, len, step)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecSlice = {
     newChildren match {
       case Seq(v, start, len, step) => VecSlice(v, start, len, step)(typ)
       case _ => throw new BadRebuildError(this, newChildren)
@@ -114,7 +113,7 @@ case class VecSlice(v: Expr, start: Expr, len: Expr, step: Expr)(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecSlice = {
     val v = this.v.tchk(context, constValues)
     val (elemTyp, n) = v.typ match {
       case TyVec(t, n) => (t, n)
@@ -220,8 +219,8 @@ case class VecSlice(v: Expr, start: Expr, len: Expr, step: Expr)(
 case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
     typ: Type = Missing
 ) /* Vec<B; n> */
-    extends SyntaxSugar(v, f)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(v, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecMap = {
     newChildren match {
       case Seq(v, f) => VecMap(v, f)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -231,7 +230,7 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecMap = {
     val newV = v.tchk(context, constValues)
     val (t1, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
@@ -300,8 +299,8 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
   *   the result will have type `Vec[C, n]`
   */
 case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(v1, v2, f)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(v1, v2, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecMap2 = {
     newChildren match {
       case Seq(v1, v2, f) => VecMap2(v1, v2, f)(typ)
       case _              => throw new BadRebuildError(this, newChildren)
@@ -311,7 +310,7 @@ case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecMap2 = {
     val v1 = this.v1.tchk(context, constValues)
     val (t1, n1) = v1.typ match {
       case TyVec(t, n) => (t, n)
@@ -410,8 +409,8 @@ case class VecFoldComb(
     z: Expr /* T2 */,
     f: Expr /* T2 -> T1 -> T2 */
 )(typ: Type = Missing) /* T2 */
-    extends SyntaxSugar(v, z, f)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(v, z, f)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecFoldComb = {
     newChildren match {
       case Seq(v, z, f) => VecFoldComb(v, z, f)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
@@ -421,7 +420,7 @@ case class VecFoldComb(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecFoldComb = {
     val v = this.v.tchk(context, constValues)
     val t1 = v.typ match {
       case TyVec(t, _) => t
@@ -457,9 +456,10 @@ case class VecFoldComb(
   }
 }
 
-case class VecAll(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
+case class VecAll(v: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(v)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecAll = {
     newChildren match {
       case Seq(v) => VecAll(v)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -469,7 +469,7 @@ case class VecAll(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecAll = {
     val v = this.v.tchk(context, constValues)
     v.typ match {
       case TyVec(TyBool, _) => ()
@@ -492,9 +492,10 @@ case class VecAll(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   }
 }
 
-case class VecAny(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
+case class VecAny(v: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(v)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecAny = {
     newChildren match {
       case Seq(v) => VecAny(v)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -504,7 +505,7 @@ case class VecAny(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecAny = {
     val v = this.v.tchk(context, constValues)
     v.typ match {
       case TyVec(TyBool, _) => ()
@@ -527,9 +528,10 @@ case class VecAny(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   }
 }
 
-case class VecSum(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
+case class VecSum(v: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(v)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecSum = {
     newChildren match {
       case Seq(v) => VecSum(v)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -539,7 +541,7 @@ case class VecSum(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecSum = {
     val v = this.v.tchk(context, constValues)
     val typ = v.typ match {
       case TyVec(t: TyAnyInt, _) => t
@@ -563,208 +565,9 @@ case class VecSum(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   }
 }
 
-/** Combinational reduce over a vector
-  *
-  * This is a bit like [[VecFoldComb]], but the first element of the vector is
-  * used as the initial value.
-  *
-  * This is meant to mirror the `reduce_s` primitive from
-  * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]]. Therefore,
-  * strange expressions like `reduce_s (map_s (add I) I) I` must unfortunately
-  * be supported.
-  */
-case class VecReduceComb(
-    v: Expr /* Vec<T; n> */,
-    f: Expr /* (T, T) -> T */
-)(typ: Type = Missing) /* Vec<T; 1> */
-    extends SyntaxSugar(v, f)(typ) /* T */ {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(v, f) => VecReduceComb(v, f)(typ)
-      case _         => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
-    val v = this.v.tchk(context, constValues)
-    // The type of the accumulator, but possibly wrapped in a bunch of vectors
-    // and streams of length 1
-    val wrappedTyp = v.typ match {
-      case TyVec(t, _) => t
-      case t =>
-        throw new TypeError(
-          s"Vector in $className has type $t. Expected a vector."
-        )
-    }
-    val tupledTyp = tupleElemType(wrappedTyp, this.f)
-    val f =
-      this.f
-        .annotateFunc(tupledTyp)
-        .tchk(context, constValues)
-        .expectType(tupledTyp ->: wrappedTyp, constValues)
-    this.rebuild(TyVec(wrappedTyp, 1), Seq(v, f))
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    VL.logger.trace(s"lowering $className: $this")
-    requireType()
-    val v = this.v.lower
-    val wrappedTyp = this.typ.asInstanceOf[TyVec].t
-    val f = unwrapFunc(wrappedTyp, this.f).lower
-    val n = this.v.typ.asInstanceOf[TyVec].n match {
-      case IntCst(n) if n > 0 => n
-      case IntCst(n) if n <= 0 =>
-        throw new IllegalArgumentException(
-          s"Cannot reduce over empty vector (length $n)."
-        )
-      case e =>
-        throw new IllegalArgumentException(
-          s"Cannot reduce over vector with non-constant size $e."
-        )
-    }
-    val result = (v: Expr) => {
-      val elem =
-        (i: Int) => unwrapElem(wrappedTyp, this.f, VecAccess(v, i)())
-      (1 until n.toInt)
-        .foldLeft(elem(0))({ case (acc, i) => f(Tuple(acc, elem(i))()) })
-    }
-    wrapResult(result, v).tchk().lower
-  }
-
-  private def tupleElemType(wrappedTyp: Type, f: Expr)(implicit
-      c: Canonicalizer
-  ): Type = {
-    (wrappedTyp, f) match {
-      case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
-        TyVec(tupleElemType(t, g), 1)
-      case (TyStm(t, IntCst(1)), Function(s0, StmMap(s1, g))) if s0 == s1 =>
-        TyStm(tupleElemType(t, g), 1)
-      case _ =>
-        (wrappedTyp, wrappedTyp)
-    }
-  }
-
-  @tailrec
-  private def unwrapFunc(wrappedTyp: Type, f: Expr): Expr = {
-    (wrappedTyp, f) match {
-      case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
-        unwrapFunc(t, g)
-      case (TyStm(t, IntCst(1)), Function(s0, StmMap(s1, g))) if s0 == s1 =>
-        unwrapFunc(t, g)
-      case _ =>
-        f
-    }
-  }
-
-  private def unwrapElem(wrappedTyp: Type, f: Expr, x: Expr): Expr = {
-    (wrappedTyp, f) match {
-      case (TyVec(t, IntCst(1)), Function(v0, VecMap(v1, g))) if v0 == v1 =>
-        VecAccess(unwrapElem(t, g, x), 0)()
-      case (TyStm(t, IntCst(1)), Function(s0, StmMap(s1, g))) if s0 == s1 =>
-        // Streams should be moved to the outside during lowering, so no need
-        // to do anything here
-        unwrapElem(t, g, x)
-      case _ =>
-        x
-    }
-  }
-
-  private def wrapResult(result: Expr => Expr, v: Expr)(implicit
-      c: Canonicalizer
-  ): Expr = {
-    def wrap(t: Type, x: Expr): Expr = {
-      assert(x.hasType)
-      if (t == x.typ) {
-        x
-      } else {
-        t match {
-          case TyVec(t, IntCst(1)) =>
-            VecBuild(1, U8 ::+ (_ => wrap(t, x)))()
-          case TyStm(t, IntCst(1)) =>
-            wrap(t, x)
-          case t =>
-            throw new IllegalArgumentException(
-              s"Cannot wrap result of $className to have type $t."
-            )
-        }
-      }
-    }
-    this.typ.lower match {
-      case TyStm(t, m) =>
-        require(
-          c.sameLen(m, 1),
-          s"Cannot wrap result of $className into a stream of length $m."
-        )
-        val vv = Param("v")(v.typ.asInstanceOf[TyStm].t)
-        val res = result(vv).tchk()
-        StmMap(v, Function(vv, wrap(t, res))())()
-      case t =>
-        val res = result(v).tchk()
-        wrap(t, res)
-    }
-  }
-}
-
-case class Stm2Vec(s: Expr /* Stm<A; n> */ )(
-    typ: Type = Missing
-) /* Stm<Vec<A; n>; 1> */
-    extends SyntaxSugar(s)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    newChildren match {
-      case Seq(s) => Stm2Vec(s)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
-    val newS = s.tchk(context, constValues)
-    newS.typ match {
-      case TyStm(t, n) => this.rebuild(TyStm(TyVec(t, n), 1), Seq(newS))
-      case t           => throw new TypeError(s"Stream in Stm2Vec has type $t.")
-    }
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    requireType()
-    val s = this.s.lower
-    val (t, n) = this.typ match {
-      case TyStm(TyVec(t, n), IntCst(1)) => (t, n)
-      case t =>
-        throw new IllegalArgumentException(s"Stm2Vec has wrong type $t.")
-    }
-    val p = Param("s")(TyStm(t, -1))
-    val v = Param("v")(TyVec(t, n))
-    val ctrTyp = n match {
-      case IntCst(n) => TyAnyInt.tightest(0, n)
-      case _         => n.typ
-    }
-    val i = Param("i")(ctrTyp)
-    StmBuild(
-      1,
-      VecShiftLeft(v, StmData(p)())().tchk().lower,
-      (Sum(C(1)(i.typ), i)() >= n).tchk().lower,
-      Map[Param, (Expr, Expr)](
-        v -> (
-          Undefined(v.typ).lower,
-          VecShiftLeft(v, StmData(p)())().tchk().lower
-        ),
-        i -> (C(0)(i.typ), Sum(C(1)(i.typ), i)())
-      ),
-      Map[Param, (Expr, Expr)](
-        p -> (s, True)
-      )
-    )().annotateWithName("Stm2Vec").tchk()
-  }
-}
-
-case class Vec2Tuple(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+case class Vec2Tuple(v: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(v)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Vec2Tuple = {
     newChildren match {
       case Seq(v) => Vec2Tuple(v)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -774,7 +577,7 @@ case class Vec2Tuple(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): Vec2Tuple = {
     val v = this.v.tchk(context, constValues)
     val (t, n) = v.typ match {
       case TyVec(t, IntCst(n)) => (t, n)
@@ -798,8 +601,8 @@ case class Vec2Tuple(v: Expr)(typ: Type = Missing) extends SyntaxSugar(v)(typ) {
 case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     typ: Type = Missing
 ) /* Vec<A; n+1> */
-    extends SyntaxSugar(v, e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(v, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecPrepend = {
     newChildren match {
       case Seq(v, e) => VecPrepend(v, e)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -809,7 +612,7 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecPrepend = {
     val newV = v.tchk(context, constValues)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
@@ -833,8 +636,8 @@ case class VecPrepend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
 case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
     typ: Type = Missing
 ) /* Vec<A; n+1> */
-    extends SyntaxSugar(v, e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(v, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecAppend = {
     newChildren match {
       case Seq(v, e) => VecAppend(v, e)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -844,7 +647,7 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecAppend = {
     val newV = v.tchk(context, constValues)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
@@ -865,14 +668,14 @@ case class VecAppend(v: Expr /* Vec<A; n> */, e: Expr /* A */ )(
   }
 }
 
-case class VecPrefix(
+case class VecTake(
     vec: Expr /* Vec<A; n> */,
     k: Expr /* Int */
 )(typ: Type = Missing)
-    extends SyntaxSugar(vec, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(vec, k)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecTake = {
     newChildren match {
-      case Seq(v, k) => VecPrefix(v, k)(typ)
+      case Seq(v, k) => VecTake(v, k)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -880,7 +683,7 @@ case class VecPrefix(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecTake = {
     val newK = k.tchk(context, constValues).expectUInt()
     val newV = vec.tchk(context, constValues)
     newV.typ match {
@@ -888,7 +691,7 @@ case class VecPrefix(
         this.rebuild(TyVec(t, newK), Seq(newV, newK))
       case t =>
         throw new TypeError(
-          s"Argument of ${VecPrefix.getClass.getSimpleName} has type $t. Expected a vector."
+          s"Argument of ${VecTake.getClass.getSimpleName} has type $t. Expected a vector."
         )
     }
   }
@@ -898,14 +701,14 @@ case class VecPrefix(
   }
 }
 
-case class VecSuffix(
+case class VecDrop(
     vec: Expr /* Vec<A; n> */,
     k: Expr /* Int */
 )(typ: Type = Missing) /* Vec<A; k> */
-    extends SyntaxSugar(vec, k)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(vec, k)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecDrop = {
     newChildren match {
-      case Seq(v, k) => VecSuffix(v, k)(typ)
+      case Seq(v, k) => VecDrop(v, k)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -913,25 +716,27 @@ case class VecSuffix(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecDrop = {
     val newK = k.tchk(context, constValues).expectUInt()
     val newV = vec.tchk(context, constValues)
     newV.typ match {
-      case TyVec(t, _) =>
-        this.rebuild(TyVec(t, k), Seq(newV, newK))
+      case TyVec(t, n) =>
+        val newLen = SmartDiff(n, newK)().tchk()
+        this.rebuild(TyVec(t, newLen), Seq(newV, newK))
       case t =>
         throw new TypeError(
-          s"Argument of ${VecSuffix.getClass.getSimpleName} has type $t. Expected a vector."
+          s"Argument of $className has type $t. Expected a vector."
         )
     }
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    val n = vec.typ.asInstanceOf[TyVec].n
-    val i0 = ToUnsigned(n - k)()
-    VecBuild(k, U32 ::+ (i => VecAccess(vec, i0 + i)()))()
-      .tchk()
-      .lower
+    requireType()
+    val v = this.vec.lower
+    val k = this.k.lower
+    val TyVec(_, n) = this.vec.typ
+    val newLen = SmartDiff(n, k)().tchk().lower
+    VecBuild(newLen, U32 ::+ (i => VecAccess(vec, k + i)()))().tchk().lower
   }
 }
 
@@ -947,8 +752,8 @@ case class VecShiftLeft(
     vec: Expr /* Vec<A; n> */,
     e: Expr /* A */
 )(typ: Type = Missing) /* Vec<A; n> */
-    extends SyntaxSugar(vec, e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(vec, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecShiftLeft = {
     newChildren match {
       case Seq(v, e) => VecShiftLeft(v, e)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -958,7 +763,7 @@ case class VecShiftLeft(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecShiftLeft = {
     val newV = vec.tchk(context, constValues)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
@@ -979,7 +784,7 @@ case class VecShiftLeft(
     v.typ match {
       case TyStm(tv: TyVec, _) =>
         val tt = TyTuple(tv, tv.t)
-        StmMap(StmZip(v, e)(), tt ::+ (vv => VecShiftLeft(vv.__0, vv.__1)()))()
+        StmMap(StmZip(v, e)(), tt ::+ (vv => VecShiftLeft(vv.__0, vv.__1)()))
           .tchk()
           .lower
       case _ =>
@@ -1003,8 +808,8 @@ case class VecShiftRight(
     vec: Expr /* Vec<A; n> */,
     e: Expr /* A */
 )(typ: Type = Missing) /* Vec<A; n> */
-    extends SyntaxSugar(vec, e)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(vec, e)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecShiftRight = {
     newChildren match {
       case Seq(v, e) => VecShiftRight(v, e)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -1014,7 +819,7 @@ case class VecShiftRight(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecShiftRight = {
     val newV = vec.tchk(context, constValues)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
@@ -1030,7 +835,7 @@ case class VecShiftRight(
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val n = vec.typ.asInstanceOf[TyVec].n
-    VecPrepend(VecPrefix(vec, ToUnsigned(n - 1)())(), e)().tchk().lower
+    VecPrepend(VecTake(vec, ToUnsigned(n - 1)())(), e)().tchk().lower
   }
 }
 
@@ -1042,8 +847,11 @@ case class VecShiftRight(
   */
 case class VecShiftRightGarbage(vec: Expr, shiftAmount: IntCst)(
     typ: Type = Missing
-) extends SyntaxSugar(vec, shiftAmount)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+) extends ResolvedSyntaxSugar(vec, shiftAmount)(typ) {
+  override def rebuild(
+      typ: Type,
+      newChildren: Seq[Expr]
+  ): VecShiftRightGarbage = {
     newChildren match {
       case Seq(v, m: IntCst) => VecShiftRightGarbage(v, m)(typ)
       case _                 => throw new BadRebuildError(this, newChildren)
@@ -1053,7 +861,7 @@ case class VecShiftRightGarbage(vec: Expr, shiftAmount: IntCst)(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecShiftRightGarbage = {
     val newV = vec.tchk(context, constValues)
     val (t, n) = newV.typ match {
       case TyVec(t, n) => (t, n)
@@ -1081,7 +889,7 @@ case class VecShiftRightGarbage(vec: Expr, shiftAmount: IntCst)(
     val TyVec(t, n) = this.vec.typ
     VecConcat(
       Undefined(TyVec(t, this.shiftAmount)),
-      VecPrefix(
+      VecTake(
         this.vec,
         ToUnsigned(SafeSum(n, C(-this.shiftAmount.i)())())()
       )()
@@ -1093,8 +901,8 @@ case class VecConcat(
     v1: Expr /* Vec<A; n> */,
     v2: Expr /* Vec<A; m> */
 )(typ: Type = Missing) /* Vec<A; n+m> */
-    extends SyntaxSugar(v1, v2)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(v1, v2)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecConcat = {
     newChildren match {
       case Seq(v1, v2) => VecConcat(v1, v2)(typ)
       case _           => throw new BadRebuildError(this, newChildren)
@@ -1104,7 +912,7 @@ case class VecConcat(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecConcat = {
     val newV1 = v1.tchk(context, constValues)
     val (t1, n1) = newV1.typ match {
       case TyVec(t, n) => (t, n)
@@ -1142,7 +950,7 @@ case class VecConcat(
         StmMap(
           StmZip(v1, v2)(),
           TyTuple(tv1, tv2) ::+ (vv => VecConcat(vv.__0, vv.__1)())
-        )().tchk().lower
+        ).tchk().lower
       case _ =>
         VecBuild(
           SafeSum(n1, n2)(),
@@ -1159,8 +967,8 @@ case class VecConcat(
 }
 
 case class VecZip(a: Expr, b: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(a, b)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(a, b)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecZip = {
     newChildren match {
       case Seq(a, b) => VecZip(a, b)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -1170,7 +978,7 @@ case class VecZip(a: Expr, b: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecZip = {
     val a = this.a.tchk(context, constValues)
     val (aElem, aLen) = a.typ match {
       case TyVec(t, n) => (t, n)
@@ -1231,8 +1039,8 @@ object VecReverse {
   *   (`Vec[Vec[T, m], n/m]`)
   */
 case class VecSplit(vec: Expr, m: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(vec, m)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(vec, m)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecSplit = {
     newChildren match {
       case Seq(v, m) => VecSplit(v, m)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
@@ -1242,7 +1050,7 @@ case class VecSplit(vec: Expr, m: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecSplit = {
     val vec = this.vec.tchk(context, constValues)
     val (t, n) = vec.typ match {
       case TyVec(t, n) => (t, n)
@@ -1271,8 +1079,8 @@ case class VecSplit(vec: Expr, m: Expr)(typ: Type = Missing)
 case class VecJoin(v: Expr /* Vec<Vec<A; m>; n> */ )(
     typ: Type = Missing
 ) /* Vec<A; n*m> */
-    extends SyntaxSugar(v)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    extends ResolvedSyntaxSugar(v)(typ) {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecJoin = {
     newChildren match {
       case Seq(v) => VecJoin(v)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -1282,7 +1090,7 @@ case class VecJoin(v: Expr /* Vec<Vec<A; m>; n> */ )(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecJoin = {
     val newV = v.tchk(context, constValues)
     newV.typ match {
       case TyVec(TyVec(t, m), n) =>
@@ -1321,9 +1129,9 @@ object VecSlide {
 }
 
 case class VecTranspose(v: Expr)(typ: Type = Missing)
-    extends SyntaxSugar(v)(typ) {
+    extends ResolvedSyntaxSugar(v)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecTranspose = {
     newChildren match {
       case Seq(v) => VecTranspose(v)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
@@ -1333,7 +1141,7 @@ case class VecTranspose(v: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): Expr = {
+  )(implicit c: Canonicalizer): VecTranspose = {
     val v = this.v.tchk(context, constValues)
     val (t, n, m) = v.typ match {
       case TyVec(TyVec(t, m), n) => (t, n, m)

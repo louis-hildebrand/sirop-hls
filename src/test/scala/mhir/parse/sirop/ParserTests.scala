@@ -12,6 +12,12 @@ class ParserTests extends AnyFunSuite {
   private val y = Param("y", -1)(Missing)
   private val z = Param("z", -1)(Missing)
 
+  private def param(name: String): Param = Param(name, -1)(Missing)
+
+  private def call(name: String, args: Expr*): Call = {
+    Call(param(name), Seq(), args)
+  }
+
   test("ParenthesizedExpr") {
     assert(Parser.parse("(42)").body == C(42)())
     assert(Parser.parse("(true)").body == True)
@@ -39,20 +45,32 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse("x").body == x)
   }
 
-  test("undefined[()]") {
-    assert(Parser.parse("undefined[()]").body == Undefined(TyTuple()))
+  test("undefined") {
+    val actual = Parser.parse("undefined").body
+    assert(actual == Undefined(Missing))
+    assert(actual.typ == Missing)
   }
 
-  test("undefined[(u8,)]") {
-    assert(Parser.parse("undefined[(u8,)]").body == Undefined(TyTuple(U8)))
+  test("undefined:()") {
+    val actual = Parser.parse("undefined:()").body
+    assert(actual == Undefined(TyTuple()))
+    assert(actual.typ == TyTuple())
   }
 
-  test("undefined[(u8)]") {
-    assert(Parser.parse("undefined[(u8)]").body == Undefined(U8))
+  test("undefined:(u8,)") {
+    val actual = Parser.parse("undefined:(u8,)").body
+    assert(actual == Undefined(TyTuple(U8)))
+    assert(actual.typ == TyTuple(U8))
   }
 
-  test("undefined[(i16, bool, u8, Vec[u32, 5])]") {
-    val src = "undefined[(i16, bool, u8, Vec[u32, 5])]"
+  test("undefined:(u8)") {
+    val actual = Parser.parse("undefined:(u8)").body
+    assert(actual == Undefined(U8))
+    assert(actual.typ == U8)
+  }
+
+  test("undefined:(i16, bool, u8, Vec[u32, 5])") {
+    val src = "undefined:(i16, bool, u8, Vec[u32, 5])"
     val expected = Undefined(TyTuple(I16, TyBool, U8, TyVec(U32, 5)))
     assert(Parser.parse(src).body == expected)
   }
@@ -184,6 +202,20 @@ class ParserTests extends AnyFunSuite {
     assert(exc.getMessage.contains("expected a Stm type"))
   }
 
+  test("StmLiteral:Empty++Empty") {
+    val src = "[]s ++ []s:Stm[u8,0]"
+    val actual = Parser.parse(src).body
+    assert(actual == StmLiteral()())
+    assert(actual.typ == TyStm(U8, 0))
+  }
+
+  test("StmLiteral:Empty++Empty:MissingTypeAnnotation") {
+    val exc = intercept[SyntaxError](Parser.parse("[]s ++ []s"))
+    assert(
+      exc.getMessage.contains("missing type annotation for empty Stm literal")
+    )
+  }
+
   test("StmLiteral:OneElem") {
     assert(Parser.parse("[42:u8]s").body == StmLiteral(C(42)(U8))())
   }
@@ -203,24 +235,73 @@ class ParserTests extends AnyFunSuite {
     assert(Parser.parse(src).body == expected)
   }
 
+  test("StmLiteral:Empty++NonEmpty") {
+    val src = "[]s ++ [42:u8, 43:u8]s"
+    val expected = StmLiteral(Seq(), Seq(C(42)(U8), C(43)(U8)))(Missing)
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("StmLiteral:Empty++NonEmpty:TypeAnnotation") {
+    val exc = intercept[SyntaxError](Parser.parse("[]s ++ [1:u8]s:Stm[u8, 1]"))
+    assert(
+      exc.getMessage.contains(
+        "type annotations are forbidden for non-empty Stm literals"
+      )
+    )
+  }
+
+  test("StmLiteral:NonEmpty++Empty") {
+    val src = "[1:u8, 2:u8]s ++ []s"
+    val expected = StmLiteral(Seq(C(1)(U8), C(2)(U8)), Seq())(Missing)
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("StmLiteral:NonEmpty++Empty:TypeAnnotation") {
+    val exc = intercept[SyntaxError](Parser.parse("[1:u8]s ++ []s:Stm[u8, 0]"))
+    assert(
+      exc.getMessage.contains(
+        "type annotations are forbidden for non-empty Stm literals"
+      )
+    )
+  }
+
+  test("StmLiteral:NonEmpty++NonEmpty") {
+    val src = "[1:i8, 2:i8]s ++ [-1:i8, -2:i8, -3:i8]s"
+    val expected = StmLiteral(
+      Seq(C(1)(I8), C(2)(I8)),
+      Seq(C(-1)(I8), C(-2)(I8), C(-3)(I8))
+    )(Missing)
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("StmLiteral:NonEmpty++NonEmpty:TypeAnnotation") {
+    val exc =
+      intercept[SyntaxError](Parser.parse("[1:u8]s ++ [1:u8]s:Stm[u8, 1]"))
+    assert(
+      exc.getMessage.contains(
+        "type annotations are forbidden for non-empty Stm literals"
+      )
+    )
+  }
+
   test("Pad") {
-    assert(Parser.parse("pad7(x)").body == PadTo(x, 7)())
-    assert(Parser.parse("x.pad16()").body == PadTo(x, 16)())
+    assert(Parser.parse("pad7(x)").body == call("pad7", x))
+    assert(Parser.parse("x.pad16()").body == call("pad16", x))
   }
 
   test("Truncate") {
-    assert(Parser.parse("truncate7(x)").body == TruncateTo(x, 7)())
-    assert(Parser.parse("x.truncate16()").body == TruncateTo(x, 16)())
+    assert(Parser.parse("truncate7(x)").body == call("truncate7", x))
+    assert(Parser.parse("x.truncate16()").body == call("truncate16", x))
   }
 
   test("Sign") {
-    assert(Parser.parse("sign(x)").body == ToSigned(x)())
-    assert(Parser.parse("x.sign()").body == ToSigned(x)())
+    assert(Parser.parse("sign(x)").body == call("sign", x))
+    assert(Parser.parse("x.sign()").body == call("sign", x))
   }
 
   test("Unsign") {
-    assert(Parser.parse("unsign(x)").body == ToUnsigned(x)())
-    assert(Parser.parse("x.unsign()").body == ToUnsigned(x)())
+    assert(Parser.parse("unsign(x)").body == call("unsign", x))
+    assert(Parser.parse("x.unsign()").body == call("unsign", x))
   }
 
   test("Sdata") {
@@ -229,7 +310,7 @@ class ParserTests extends AnyFunSuite {
 
   test("vbuild") {
     val src = "vbuild(42) { (i: u8) => sign(i) }"
-    val expected = VecBuild(42, U8 ::+ (i => ToSigned(i)()))()
+    val expected = VecBuild(42, U8 ::+ (i => call("sign", i)))()
     val actual = Parser.parse(src).body
     assert(actual == expected)
     assert(actual.asInstanceOf[VecBuild].f.param.typ == expected.f.param.typ)
@@ -243,9 +324,13 @@ class ParserTests extends AnyFunSuite {
       val i = Param("i", -1)(U8)
       StmBuild(
         42,
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](i -> (C(0)(U8), SmartSum(C(1)(U8), i)())),
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(0)(U8), SmartSum(C(1)(U8), i)(), Tuple()())
+        ),
         Map()
       )()
     }
@@ -266,11 +351,13 @@ class ParserTests extends AnyFunSuite {
       val b = Param("b", -1)(TyBool)
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(i, b)(),
         True,
-        Map[Param, (Expr, Expr)](
-          i -> (C(0)(U8), SmartSum(C(1)(U8), i)()),
-          b -> (True, !b)
+        Map[Param, (Expr, Expr, Expr)](
+          i -> (C(0)(U8), SmartSum(C(1)(U8), i)(), Tuple()()),
+          b -> (True, !b, Tuple()())
         ),
         Map()
       )()
@@ -289,10 +376,12 @@ class ParserTests extends AnyFunSuite {
       val s = Param("s", -1)(TyStm(U8, 42))
       StmBuild(
         42,
+        Tuple()(),
+        Undefined(Missing),
         SmartSum(StmData(s)(), C(5)(U8))(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](s -> (s, True))
+        Map[Param, (Expr, Expr, Expr)](s -> (s, True, Tuple()()))
       )()
     }
     assert(Parser.parse(src).body == expected)
@@ -311,16 +400,61 @@ class ParserTests extends AnyFunSuite {
       val s2 = Param("s2", -1)(TyStm(TyBool, 42))
       StmBuild(
         42,
+        Tuple()(),
+        Undefined(Missing),
         Tuple(StmData(s1)(), StmData(s2)())(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s1 -> (s1, True),
-          s2 -> (s2, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s1 -> (s1, True, Tuple()()),
+          s2 -> (s2, True, Tuple()())
         )
       )()
     }
     assert(Parser.parse(src).body == expected)
+  }
+
+  test("sbuild:DelayAnnotations") {
+    val src =
+      """sbuild(10 @ 3)((0:u8, 0:u8, 0:u8), (a, sdata(p1), sdata(p2)), true) {
+        |  (a: u8 @ 3) = {
+        |    init: 0,
+        |    next: a +` 1
+        |  }
+        |} {
+        |  (p1: Stm[u8, -1] @ 1) = {
+        |    stm: input1,
+        |    ready: true
+        |  },
+        |  (p2: Stm[u8, -1] @ 2) = {
+        |    stm: input2,
+        |    ready: true
+        |  }
+        |}
+        |""".stripMargin.stripTrailing
+    val actual = Parser.parse(src).body
+    val expected = {
+      val a = Param("a", -1)(U8)
+      val input1 = Param("input1", -1)(TyStm(U8, 10))
+      val input2 = Param("input2", -1)(TyStm(U8, 10))
+      val p1 = Param("p1", -1)(TyStm(U8, -1))
+      val p2 = Param("p2", -1)(TyStm(U8, -1))
+      StmBuild(
+        10,
+        3,
+        Tuple(C(0)(U8), C(0)(U8), C(0)(U8))(),
+        Tuple(a, StmData(p1)(), StmData(p2)())(),
+        True,
+        Map(
+          a -> (C(0)(), Sum(a, C(1)())(), C(3)())
+        ),
+        Map(
+          p1 -> (input1, True, C(1)()),
+          p2 -> (input2, True, C(2)())
+        )
+      )()
+    }
+    assert(actual == expected)
   }
 
   test("sdata(s).0.1.2") {
@@ -478,13 +612,15 @@ class ParserTests extends AnyFunSuite {
 
   test("f(42)(x, y)()") {
     val src = "f(42)(x, y)()"
-    val expected = FunCall(
-      FunCall(
-        FunCall(Param("f", -1)(Missing), 42)(),
-        Tuple(x, y)()
-      )(),
-      Tuple()()
-    )()
+    val expected = Call(
+      Call(
+        Call(param("f"), Seq(), Seq(42)),
+        Seq(),
+        Seq(x, y)
+      ),
+      Seq(),
+      Seq()
+    )
     assert(Parser.parse(src).body == expected)
   }
 
@@ -834,37 +970,38 @@ class ParserTests extends AnyFunSuite {
 
   test("bits(x)") {
     val src = "bits(x)"
-    val expected = Bits(x)()
+    val expected = call("bits", x)
     assert(Parser.parse(src).body == expected)
   }
 
   test("x.bits()") {
     val src = "x.bits()"
-    val expected = Bits(x)()
+    val expected = call("bits", x)
     assert(Parser.parse(src).body == expected)
   }
 
-  test("interpret_as:[bool](x)") {
-    val src = "interpret_as:[bool](x)"
-    val expected = InterpretAs(x, TyBool)()
+  test("interpret_as:[bool](y)") {
+    val src = "interpret_as:[bool](y)"
+    val expected = Call(param("interpret_as"), Seq(TyBool), Seq(y))
     assert(Parser.parse(src).body == expected)
   }
 
   test("x.interpret_as:[(i16, bool)]()") {
     val src = "x.interpret_as:[(i16, bool)]()"
-    val expected = InterpretAs(x, (I16, TyBool))()
+    val expected =
+      Call(param("interpret_as"), Seq(TyTuple(I16, TyBool)), Seq(x))
     assert(Parser.parse(src).body == expected)
   }
 
   test("zeros:[i16]()") {
     val src = "zeros:[i16]()"
-    val expected = AllZero(I16)
+    val expected = Call(param("zeros"), Seq(I16), Seq())
     assert(Parser.parse(src).body == expected)
   }
 
   test("ones:[i16]()") {
     val src = "ones:[i16]()"
-    val expected = AllOne(I16)
+    val expected = Call(param("ones"), Seq(I16), Seq())
     assert(Parser.parse(src).body == expected)
   }
 
@@ -1244,7 +1381,7 @@ class ParserTests extends AnyFunSuite {
 
   test("StmRange") {
     val src = "StmRange(100, 1:i32, -3:i32)"
-    val expected = StmRange(100, C(1)(I32), C(-3)(I32))()
+    val expected = call("StmRange", 100, C(1)(I32), C(-3)(I32))
     assert(Parser.parse(src).body == expected)
   }
 
@@ -1252,15 +1389,29 @@ class ParserTests extends AnyFunSuite {
     val src = "StmMap(s, x => x + 5:u8)"
     val s = Param("s", -1)(Missing)
     val x = Param("x", -1)(Missing)
-    val expected = StmMap(s, Function(x, SmartSum(x, 5)())())()
+    val expected = call("StmMap", s, Function(x, SmartSum(x, 5)())())
     assert(Parser.parse(src).body == expected)
   }
 
-  test("StmReduce") {
+  test("StmReduce:SmartDiff") {
     val src = "StmReduce(s, (x) => x.0 - x.1)"
     val s = Param("s", -1)(Missing)
     val x = Param("x", -1)(Missing)
-    val expected = StmReduce(s, Function(x, SmartDiff(x.__0, x.__1)())())()
+    val expected =
+      call("StmReduce", s, Function(x, SmartDiff(x.__0, x.__1)())())
+    assert(Parser.parse(src).body == expected)
+  }
+
+  test("StmReduce:NotEquals") {
+    val src = "s.StmReduce(!=)"
+    val s = Param("s", -1)(Missing)
+    val x = Param("x", -1)(Missing)
+    val y = Param("y", -1)(Missing)
+    val f = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      SmartNotEqual(x, y)()
+    )()
+    val expected = call("StmReduce", s, f)
     assert(Parser.parse(src).body == expected)
   }
 
@@ -1270,8 +1421,12 @@ class ParserTests extends AnyFunSuite {
     val s2 = Param("s2", -1)(Missing)
     val x1 = Param("x1", -1)(Missing)
     val x2 = Param("x2", -1)(Missing)
-    val expected =
-      StmMap2(s1, s2, Function(x1, Function(x2, SmartDiff(x1, x2)())())())()
+    val expected = call(
+      "StmMap2",
+      s1,
+      s2,
+      Function(x1, Function(x2, SmartDiff(x1, x2)())())()
+    )
     assert(Parser.parse(src).body == expected)
   }
 
@@ -1279,7 +1434,7 @@ class ParserTests extends AnyFunSuite {
     val src = "StmZip(s1, s2)"
     val s1 = Param("s1", -1)(Missing)
     val s2 = Param("s2", -1)(Missing)
-    val expected = StmZip(s1, s2)()
+    val expected = call("StmZip", s1, s2)
     assert(Parser.parse(src).body == expected)
   }
 
@@ -1289,11 +1444,15 @@ class ParserTests extends AnyFunSuite {
     val s1 = Param("s1", -1)(Missing)
     val s2 = Param("s2", -1)(Missing)
     val x = Param("x", -1)(Missing)
-    val expected =
-      StmReduce(
-        StmMap(StmZip(s1, s2)(), Function(x, SmartProd(x.__0, x.__1)())())(),
-        Function(x, SmartSum(x.__0, x.__1)())()
-      )()
+    val expected = call(
+      "StmReduce",
+      call(
+        "StmMap",
+        call("StmZip", s1, s2),
+        Function(x, SmartProd(x.__0, x.__1)())()
+      ),
+      Function(x, SmartSum(x.__0, x.__1)())()
+    )
     assert(Parser.parse(src).body == expected)
   }
 
@@ -1400,6 +1559,35 @@ class ParserTests extends AnyFunSuite {
     assert(ex.loc.contains(SourcePoint(1, 13)))
   }
 
+  test("AcceleratorAnnotation:Head") {
+    val src =
+      """accelerator[head(a)=undefined, head(b)=0]
+        |top = (a: Stm[u8, 8]) => (b: Stm[u8, 8]) =>
+        |  StmZip(a, b)
+        |""".stripMargin.stripTrailing
+    val prog = Parser.parse(src)
+    val a = Param("a", -1)(Missing)
+    val b = Param("b", -1)(Missing)
+    val expected = Map(a -> Undefined(Missing), b -> C(0)(U8))
+    assert(prog.headByParam == expected)
+    assert(prog.headByParam.get(a).exists(_.typ == Missing))
+    assert(prog.headByParam.get(b).exists(_.typ == Missing))
+  }
+
+  test("AcceleratorAnnotation:Head:MissingParam") {
+    val src = "accelerator[head=foo] top = (s: Stm[u8, 8]) => s"
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(ex.msg == "missing parameter for annotation 'head'")
+    assert(ex.loc.contains(SourcePoint(1, 13)))
+  }
+
+  test("AcceleratorAnnotation:Head:MissingValue") {
+    val src = "accelerator[head(s)] top = (s: Stm[u8, 8]) => s"
+    val ex = intercept[SyntaxError](Parser.parse(src))
+    assert(ex.msg == "missing value for annotation 'head(s)'")
+    assert(ex.loc.contains(SourcePoint(1, 13)))
+  }
+
   test("TestSuite:OK1") {
     val src =
       """const N: u32 = 10
@@ -1418,6 +1606,7 @@ class ParserTests extends AnyFunSuite {
         |}
         |yields StmRange(N, Z2 + 5, DELTA2)
         |ignoring StmConcat([ones:[u8]()]s, StmCst(9, zeros:[u8]()))
+        |with prefix x => true
         |""".stripMargin
     val actual = Parser.parse(src)
     val expected = {
@@ -1432,7 +1621,11 @@ class ParserTests extends AnyFunSuite {
         Seq(ConstDecl(n, ReshapeData(C(10)(), U32)())),
         AccelDecl(
           "top",
-          Function(s, StmMap(s, Missing ::+ (x => SmartSum(x, C(5)())()))())(),
+          Function(
+            s,
+            call("StmMap", s, Missing ::+ (x => SmartSum(x, C(5)())()))
+          )(),
+          Map(),
           Map()
         ),
         Seq(
@@ -1445,28 +1638,35 @@ class ParserTests extends AnyFunSuite {
             z,
             ReshapeData(
               VecAccess(
-                VecReduceComb(v, Missing ::+ (x => SmartSum(x.__0, x.__1)()))(),
+                call(
+                  "VecReduce",
+                  v,
+                  Missing ::+ (x => SmartSum(x.__0, x.__1)())
+                ),
                 0
               )(),
               U8
             )()
           ),
           Assertion(
-            Map(s -> StmRange(n, z, C(1)(U8))()),
-            StmRange(n, SmartSum(z, C(5)())(), C(1)(U8))(),
+            Map(s -> call("StmRange", n, z, C(1)(U8))),
+            call("StmRange", n, SmartSum(z, C(5)())(), C(1)(U8)),
+            None,
             None
           ),
           ConstDecl(z2, ReshapeData(C(9)(), U8)()),
           ConstDecl(delta2, ReshapeData(C(2)(), U8)()),
           Assertion(
-            Map(s -> StmRange(n, z2, delta2)()),
-            StmRange(n, SmartSum(z2, C(5)())(), delta2)(),
+            Map(s -> call("StmRange", n, z2, delta2)),
+            call("StmRange", n, SmartSum(z2, C(5)())(), delta2),
             Some(
-              StmConcat(
-                StmLiteral(AllOne(U8))(),
-                StmCst(9, AllZero(U8))()
-              )()
-            )
+              call(
+                "StmConcat",
+                StmLiteral(Call(param("ones"), Seq(U8), Seq()))(),
+                call("StmCst", 9, Call(param("zeros"), Seq(U8), Seq()))
+              )
+            ),
+            Some(Function(Param("x", -1)(Missing), True)())
           )
         )
       )
@@ -1491,7 +1691,12 @@ class ParserTests extends AnyFunSuite {
       val b = Param("b", -1)(TyStm(TyBool, 4))
       Program(
         Seq(),
-        AccelDecl("top", Function(a, Function(b, StmZip(a, b)())())(), Map()),
+        AccelDecl(
+          "top",
+          Function(a, Function(b, call("StmZip", a, b))())(),
+          Map(),
+          Map()
+        ),
         Seq(
           Assertion(
             Map(
@@ -1504,6 +1709,7 @@ class ParserTests extends AnyFunSuite {
               Tuple(C(2)(), True)(),
               Tuple(C(3)(), False)()
             )(),
+            None,
             None
           )
         )
@@ -1521,8 +1727,15 @@ class ParserTests extends AnyFunSuite {
     val actual = Parser.parse(src)
     val expected = Program(
       Seq(),
-      AccelDecl("top", StmRange(5, C(-2)(I16), C(1)(I16))(), Map()),
-      Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None))
+      AccelDecl(
+        "top",
+        call("StmRange", 5, C(-2)(I16), C(1)(I16)),
+        Map(),
+        Map()
+      ),
+      Seq(
+        Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None, None)
+      )
     )
     assert(actual == expected)
   }
@@ -1536,8 +1749,15 @@ class ParserTests extends AnyFunSuite {
     val actual = Parser.parse(src)
     val expected = Program(
       Seq(),
-      AccelDecl("top", StmRange(5, C(-2)(I16), C(1)(I16))(), Map()),
-      Seq(Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None))
+      AccelDecl(
+        "top",
+        call("StmRange", 5, C(-2)(I16), C(1)(I16)),
+        Map(),
+        Map()
+      ),
+      Seq(
+        Assertion(Map(), StmLiteral((-2 to 2).map(C(_)(I16)): _*)(), None, None)
+      )
     )
     assert(actual == expected)
   }

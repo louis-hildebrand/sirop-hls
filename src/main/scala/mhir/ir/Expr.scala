@@ -68,17 +68,21 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           // Free variables in the stream length and seeds are definitely free,
           // even if they are bound by the stream
           stm.n.freeVars
-            ++ stm.accumulators.flatMap({ case (_, (init, _)) =>
-              init.freeVars
+            ++ stm.delay.freeVars
+            ++ stm.initData.freeVars
+            ++ stm.accumulators.flatMap({ case (_, (init, _, delay)) =>
+              init.freeVars ++ delay.freeVars
             })
-            ++ stm.producers.flatMap({ case (_, (stm, _)) => stm.freeVars })
+            ++ stm.producers.flatMap({ case (_, (stm, _, delay)) =>
+              stm.freeVars ++ delay.freeVars
+            })
             // There may be bound variables in the output and "next" functions
             ++ (
-              stm.data.freeVars ++ stm.valid.freeVars ++
-                stm.producers.flatMap({ case (_, (_, ready)) =>
+              stm.nextData.freeVars ++ stm.valid.freeVars ++
+                stm.producers.flatMap({ case (_, (_, ready, _)) =>
                   ready.freeVars
                 }) ++
-                stm.accumulators.flatMap({ case (_, (_, next)) =>
+                stm.accumulators.flatMap({ case (_, (_, next, _)) =>
                   next.freeVars
                 })
             ).diff(stm.namesDefinedHere)
@@ -100,17 +104,23 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           // Free variables in the stream length and seeds are definitely free,
           // even if they are bound by the stream
           stm.n.freeVarsInTypes
+            ++ stm.delay.freeVarsInTypes
+            ++ stm.initData.freeVarsInTypes
             ++ stm.accumulators
-              .flatMap({ case (_, (init, _)) => init.freeVarsInTypes })
+              .flatMap({ case (_, (init, _, delay)) =>
+                init.freeVarsInTypes ++ delay.freeVarsInTypes
+              })
             ++ stm.producers
-              .flatMap({ case (_, (stm, _)) => stm.freeVarsInTypes })
+              .flatMap({ case (_, (stm, _, delay)) =>
+                stm.freeVarsInTypes ++ delay.freeVarsInTypes
+              })
             // There may be bound variables in the output and "next" functions
             ++ (
-              stm.data.freeVarsInTypes ++ stm.valid.freeVarsInTypes
+              stm.nextData.freeVarsInTypes ++ stm.valid.freeVarsInTypes
                 ++ stm.accumulators
-                  .flatMap({ case (_, (_, next)) => next.freeVarsInTypes })
+                  .flatMap({ case (_, (_, next, _)) => next.freeVarsInTypes })
                 ++ stm.producers
-                  .flatMap({ case (_, (_, ready)) => ready.freeVarsInTypes })
+                  .flatMap({ case (_, (_, ready, _)) => ready.freeVarsInTypes })
             ).diff(stm.namesDefinedHere)
         )
       case e if e.children.isEmpty => Set.empty
@@ -870,18 +880,45 @@ object MaybeOr {
   }
 }
 
-case class Undefined(override val typ: Type) extends Expr()(typ) {
+/** Represents an unknown value of the given type.
+  *
+  * The semantics of [[Undefined]] are similar to LLVM's "poison":
+  * https://llvm.org/docs/UndefinedBehavior.html#poison-values. For example,
+  * {{{2 * undefined}}} evaluates to `undefined`. This may be slightly
+  * surprising for the programmer: e.g., {{{(2 * undefined) % 2}}} evaluates to
+  * `undefined`, not 0. However, the Sirop compiler is allowed to transform an
+  * expression that evaluates to `undefined` into one that evaluates to a
+  * concrete value. Thus, it is allowed to automatically transform
+  * {{{(2 * x) % 2}}} into 0, as expected.
+  *
+  * Having `undefined` evaluate to a random value on each read (similar to
+  * LLVM's `undef`) would make transformations like {{{2 * x --> x + x}}}
+  * unsound. Having `undefined` behave like LLVM's `freeze` (i.e., the value is
+  * random but consistent between uses) would make it unsound to substitute
+  * arguments into the body of a function unless you can prove the arguments
+  * will not be `undefined`.
+  */
+final case class Undefined(override val typ: Type) extends Expr()(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
       case Seq() => Undefined(typ)
       case _     => throw new BadRebuildError(this, newChildren)
     }
   }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case _: Undefined => true
+      case _            => false
+    }
+  }
+
+  override def hashCode(): Int = Undefined.hashCode()
 }
 
 object Undefined {
   def apply(typ: Type): Undefined = {
-    if (!typ.isData) {
+    if (!typ.isData && typ != Missing) {
       throw new IllegalArgumentException(
         s"Cannot construct undefined value for non-data type $typ."
       )
@@ -896,21 +933,34 @@ object Undefined {
   * only ever access the next element of a stream, and once you read the element
   * it will only be available for one time step.
   *
+  * The output, accumulators, and producers all have some delay in time steps.
+  * This tells you when the output data becomes valid, when the accumulator can
+  * start being updated, and when the producer stream's data becomes valid. They
+  * are all ignored when the handshake protocol is enabled. [[initData]] is
+  * likewise ignored when the handshake protocol is enabled.
+  *
   * @param n
   *   the length of the stream. This must <i>not</i> depend on any of the
   *   accumulators or producers.
-  * @param data
+  * @param delay
+  *   the delay (in time steps) until the data in this stream becomes valid.
+  *   This must <i>not</i> depend on any of the * accumulators or producers.
+  * @param initData
+  *   the contents of the `data` output register before [[delay]] is over. This
+  *   must <i>not</i> depend on any of the * accumulators or producers.
+  * @param nextData
   *   an expression for the next output of this stream. This may depend on any
   *   of the accumulators and producers.
   * @param valid
   *   an expression indicating whether the next output of this stream is valid.
-  *   If not, then the value of [[data]] doesn't matter. This may depend on any
-  *   of the accumulators and producers.
+  *   If not, then the value of [[nextData]] doesn't matter. This may depend on
+  *   any of the accumulators and producers.
   * @param accumulators
   *   a set of accumulators, which basically represent some internal state. Each
-  *   accumulator has (1) a [[Param]] representing it, (2) an initial value
-  *   (which <i>cannot</i> use any of the accumulators or producers), and (3) a
-  *   `next` expression (which may use any of the accumulators and producers).
+  *   accumulator is bound to a [[Param]] and has (1) an initial value (which
+  *   <i>cannot</i> use any of the accumulators or producers), (2) a `next`
+  *   expression (which may use any of the accumulators and producers), and (3)
+  *   an optional delay (in time steps) before the accumulator can be updated.
   * @param producers
   *   a set of stream producers that this expression reads. Each producer is
   *   bound to a [[Param]] and has (1) the stream itself (which <i>cannot</i>
@@ -919,36 +969,52 @@ object Undefined {
   *   `ready` evaluates to `true`.
   */
 case class StmBuild(
-    n: Expr /* Int */,
-    data: Expr /* B */,
-    valid: Expr /* Bool */,
-    accumulators: Map[Param, (Expr, Expr)], /* (A, A) */
-    producers: Map[Param, (Expr, Expr)] /* (A, bool) */
+    n: Expr,
+    delay: Expr,
+    initData: Expr,
+    nextData: Expr,
+    valid: Expr,
+    accumulators: Map[Param, (Expr, Expr, Expr)],
+    producers: Map[Param, (Expr, Expr, Expr)]
 )(typ: Type = Missing, val annotations: Set[StmBuildAnnotation] = Set())
     extends Expr(
-      Seq(n, data, valid)
+      Seq(n, delay, initData, nextData, valid)
         ++ accumulators
-          .flatMap({ case (x, (init, next)) => Seq(x, init, next) })
+          .flatMap({ case (x, (init, next, delay)) =>
+            Seq(x, init, next, delay)
+          })
         ++ producers
-          .flatMap({ case (x, (stm, ready)) => Seq(x, stm, ready) }): _*
+          .flatMap({ case (x, (stm, ready, delay)) =>
+            Seq(x, stm, ready, delay)
+          }): _*
     )(typ) {
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(n, data, valid, eqns @ _*) if eqns.length % 3 == 0 =>
-        var accumulators = Map[Param, (Expr, Expr)]()
-        var producers = Map[Param, (Expr, Expr)]()
-        for (i <- 0 until eqns.length / 3) {
-          val x = eqns(3 * i).asInstanceOf[Param]
-          (x.typ, eqns(3 * i + 1), eqns(3 * i + 2)) match {
-            case (_: TyStm, stm, ready) =>
-              producers += (x -> (stm, ready))
-            case (TyData(_), init, next) =>
-              accumulators += (x -> (init, next))
+      case Seq(n, delay, initData, nextData, valid, eqns @ _*)
+          if eqns.length % 4 == 0 =>
+        var accumulators = Map[Param, (Expr, Expr, Expr)]()
+        var producers = Map[Param, (Expr, Expr, Expr)]()
+        for (i <- 0 until eqns.length / 4) {
+          val x = eqns(4 * i).asInstanceOf[Param]
+          (x.typ, eqns(4 * i + 1), eqns(4 * i + 2), eqns(4 * i + 3)) match {
+            case (_: TyStm, stm, ready, delay) =>
+              producers += (x -> (stm, ready, delay))
+            case (TyData(_), init, next, delay) =>
+              accumulators += (x -> (init, next, delay))
             case _ =>
               throw new BadRebuildError(this, newChildren)
           }
         }
-        StmBuild(n, data, valid, accumulators, producers)(typ, this.annotations)
+        StmBuild(
+          n,
+          delay,
+          initData,
+          nextData,
+          valid,
+          accumulators,
+          producers
+        )(typ, this.annotations)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -958,12 +1024,12 @@ case class StmBuild(
   }
 
   def initOrStm(x: Param): Expr = {
-    val (init, _) = this.accumulators.getOrElse(x, this.producers(x))
+    val (init, _, _) = this.accumulators.getOrElse(x, this.producers(x))
     init
   }
 
   def nextOrReady(x: Param): Expr = {
-    val (_, next) = this.accumulators.getOrElse(x, this.producers(x))
+    val (_, next, _) = this.accumulators.getOrElse(x, this.producers(x))
     next
   }
 
@@ -976,6 +1042,10 @@ case class StmBuild(
         if (this eq that) {
           true
         } else if (this.n != that.n) {
+          false
+        } else if (this.delay != that.delay) {
+          false
+        } else if (this.initData != that.initData) {
           false
         } else if (this.accumulators.size != that.accumulators.size) {
           false
@@ -1009,22 +1079,33 @@ case class StmBuild(
       this.namesDefinedHere
         .map(x => x -> StmBuild.HashCodeParam.rebuild(x.typ))
         .toMap
-    val len = this.n
-    val data = this.data.subAndEraseType(subs)
+    val nextData = this.nextData.subAndEraseType(subs)
     val valid = this.valid.subAndEraseType(subs)
     val accumulators = this.accumulators.toSeq
-      .map({ case (_, (init, next)) => (init, next.subAndEraseType(subs)) })
+      .map({ case (_, (init, next, delay)) =>
+        (init, next.subAndEraseType(subs), delay)
+      })
     val accumulatorBag =
       accumulators.groupBy(x => x).map({ case (k, v) => k -> v.size })
     val producers = this.producers.toSeq
-      .map({ case (_, (stm, ready)) => (stm, ready.subAndEraseType(subs)) })
+      .map({ case (_, (stm, ready, delay)) =>
+        (stm, ready.subAndEraseType(subs), delay)
+      })
     val producerBag =
       producers.groupBy(x => x).map({ case (k, v) => k -> v.size })
     // Be careful not to remove accumulators or producers due to the fact that
     // they'll all use the same param now!
     assert(accumulatorBag.values.sum == this.accumulators.size)
     assert(producerBag.values.sum == this.producers.size)
-    (len, data, valid, accumulatorBag, producerBag).hashCode
+    (
+      this.n,
+      this.delay,
+      this.initData,
+      nextData,
+      valid,
+      accumulatorBag,
+      producerBag
+    ).hashCode
   }
 
   /** Basically just brute-force check through all the possible mappings from
@@ -1065,11 +1146,13 @@ case class StmBuild(
           == that.nextOrReady(y).subAndEraseType(thatSubs))
       })
       val thisOutput = (
-        this.data.subAndEraseType(thisSubs),
+        this.initData,
+        this.nextData.subAndEraseType(thisSubs),
         this.valid.subAndEraseType(thisSubs)
       )
       val thatOutput = (
-        that.data.subAndEraseType(thatSubs),
+        that.initData,
+        that.nextData.subAndEraseType(thatSubs),
         that.valid.subAndEraseType(thatSubs)
       )
       eqnsMatch && thisOutput == thatOutput
@@ -1283,28 +1366,59 @@ object VecLiteral {
   * Normally you should use [[StmBuild]]. However, [[StmLiteral]] is needed as
   * it is the result of evaluating a [[StmLiteral]].
   *
-  * @param elems
-  *   the elements within the stream.
+  * @param physical
+  *   the "physical prefix" of the steam, i.e., the sequence of outputs you'd
+  *   get from the physical circuit before the logical outputs.
+  * @param logical
+  *   the logical elements of the stream.
   */
-case class StmLiteral(elems: Expr*)(typ: Type = Missing)
-    extends Expr(elems: _*)(typ) {
+case class StmLiteral(
+    physical: Seq[Expr],
+    logical: Seq[Expr]
+)(typ: Type)
+    extends Expr(physical ++ logical: _*)(typ) {
+
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
-    StmLiteral(newChildren: _*)(typ)
+    if (newChildren.length != this.children.length) {
+      throw new BadRebuildError(this, newChildren)
+    }
+    val newPhysical = newChildren.take(this.physical.length)
+    val newLogical = newChildren.drop(this.physical.length)
+    StmLiteral(newPhysical, newLogical)(typ)
   }
 
   /** Flatten a [[StmLiteral]] whose elements are also [[StmLiteral]].
     */
   def flatten: StmLiteral = {
-    require(elems.forall(e => e.isInstanceOf[StmLiteral]))
-    StmLiteral(elems.flatMap(e => e.asInstanceOf[StmLiteral].elems): _*)()
+    require(this.physical.isEmpty)
+    require(this.logical.forall({
+      case StmLiteral(Seq(), _) => true
+      case _                    => false
+    }))
+    StmLiteral(
+      this.logical.flatMap(e => e.asInstanceOf[StmLiteral].logical): _*
+    )()
+  }
+
+  def dropPhysical(expectedLen: Int = -1): StmLiteral = {
+    assert(
+      expectedLen < 0 || this.physical.length == expectedLen,
+      s"expected the physical prefix to have a length of $expectedLen, but found ${this.physical.length}"
+    )
+    this.copy(physical = Seq())(typ = this.typ)
   }
 }
 
 /** Companion object for [[StmLiteral]].
   */
 object StmLiteral {
+
+  def apply(logical: Expr*)(typ: Type = Missing): StmLiteral = {
+    StmLiteral(Seq(), logical)(typ)
+  }
+
   def ints(elems: Int*): StmLiteral = {
-    StmLiteral(elems.map(n => IntCst(n)()): _*)()
+    StmLiteral(elems.map(C(_)()): _*)()
   }
 }
 
@@ -1312,7 +1426,7 @@ object StmLiteral {
   *
   * This can be used to define syntax sugar (e.g., `StmMap`, `VecReduce`).
   */
-abstract class SyntaxSugar(children: Expr*)(typ: Type)
+sealed abstract class SyntaxSugar(children: Expr*)(typ: Type)
     extends Expr(children: _*)(typ) {
 
   /** The precedence of this expression. See [[Precedence]].
@@ -1344,17 +1458,6 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): Expr
 
-  /** Remove syntax sugar from this node and its children.
-    *
-    * If this expression has already been type checked, this method <i>MUST</i>
-    * return the flattened version of that same type. This method <i>MAY</i>
-    * assume that the expression has already been type checked, but it is
-    * acceptable to gracefully handle the case where it has not yet been type
-    * checked. (This would make it easier to test expressions where lowering
-    * does not require the type.)
-    */
-  def lowerSyntaxSugar(implicit c: Canonicalizer): Expr
-
   def sugarSubAndKeepType(
       subs: Map[Expr, Expr]
   )(implicit c: Canonicalizer): Expr = {
@@ -1372,3 +1475,37 @@ abstract class SyntaxSugar(children: Expr*)(typ: Type)
 
   def annotateFuncSyntaxSugar(typ: Type*): Expr = this
 }
+
+/** Syntax sugar that has already undergone name resolution.
+  *
+  * Name resolution happens during type checking. It is only after this that
+  * lowering can happen; before name resolution, we don't know which
+  * implementation will be chosen.
+  */
+abstract class ResolvedSyntaxSugar(children: Expr*)(typ: Type)
+    extends SyntaxSugar(children: _*)(typ) {
+
+  /** Remove syntax sugar from this node and its children.
+    *
+    * If this expression has already been type checked, this method <i>MUST</i>
+    * return the flattened version of that same type. This method <i>MAY</i>
+    * assume that the expression has already been type checked, but it is
+    * acceptable to gracefully handle the case where it has not yet been type
+    * checked. (This would make it easier to test expressions where lowering
+    * does not require the type.)
+    */
+  def lowerSyntaxSugar(implicit c: Canonicalizer): Expr
+}
+
+/** Syntax sugar that has not yet undergone name resolution.
+  *
+  * @note
+  *   it is important that the [[typ]] of this node be [[Missing]]. Otherwise,
+  *   we might (in principle) end up in a situation where the type checker skips
+  *   this node (because it has a type already) but it has not yet undergone
+  *   name resolution. This would be problematic because later steps (i.e.,
+  *   lowering) rely on the fact that name resolution is done once type checking
+  *   is done.
+  */
+abstract class UnresolvedSyntaxSugar(children: Expr*)
+    extends SyntaxSugar(children: _*)(Missing)

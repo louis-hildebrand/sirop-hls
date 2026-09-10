@@ -1,4 +1,4 @@
-src/e2e/resources/actual/DSP/fir_signed
+.
 ├── design
 │   ├── conversions.vhd
 │   ├── dsp_systolic_signed.vhd

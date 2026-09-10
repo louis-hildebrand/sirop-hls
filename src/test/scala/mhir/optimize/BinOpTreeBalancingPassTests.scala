@@ -157,6 +157,34 @@ class BinOpTreeBalancingPassTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
+  test("x0 * x1 * x2 + 1") {
+    val e = Sum(Prod(x0, x1, x2)(), C(1)(I8))().tchk()
+    val expected = Sum(Prod(x0, Prod(x1, x2)())(), C(1)(I8))().tchk()
+    val actual = pass.balance(e)
+    assert(actual == expected)
+  }
+
+  test("x0 * x1 * x2 +% 1") {
+    val e = WrappingSum(Prod(x0, x1, x2)(), C(1)(I8))().tchk()
+    val expected = WrappingSum(Prod(x0, Prod(x1, x2)())(), C(1)(I8))().tchk()
+    val actual = pass.balance(e)
+    assert(actual == expected)
+  }
+
+  test("(x0 + x1 + x2) * x3") {
+    val e = Prod(Sum(x0, x1, x2)(), x3)().tchk()
+    val expected = Prod(Sum(x0, Sum(x1, x2)())(), x3)().tchk()
+    val actual = pass.balance(e)
+    assert(actual == expected)
+  }
+
+  test("(x0 + x1 + x2) *% x3") {
+    val e = WrappingProd(Sum(x0, x1, x2)(), x3)().tchk()
+    val expected = WrappingProd(Sum(x0, Sum(x1, x2)())(), x3)().tchk()
+    val actual = pass.balance(e)
+    assert(actual == expected)
+  }
+
   test("b0 && b1 && b2 && b3") {
     val e = And(b0, b1, b2, b3)().tchk()
     val expected = And(And(b0, b1)(), And(b2, b3)())()
@@ -167,6 +195,20 @@ class BinOpTreeBalancingPassTests extends AnyFunSuite {
   test("b0 || b1 || b2 || b3") {
     val e = Or(b0, b1, b2, b3)().tchk()
     val expected = Or(Or(b0, b1)(), Or(b2, b3)())()
+    val actual = pass.balance(e)
+    assert(actual == expected)
+  }
+
+  test("(b0 || b1 || b2) && b3") {
+    val e = And(Or(b0, b1, b2)(), b3)().tchk()
+    val expected = And(Or(b0, Or(b1, b2)())(), b3)().tchk()
+    val actual = pass.balance(e)
+    assert(actual == expected)
+  }
+
+  test("(b0 && b1 && b2) || b3") {
+    val e = Or(And(b0, b1, b2)(), b3)().tchk()
+    val expected = Or(And(b0, And(b1, b2)())(), b3)().tchk()
     val actual = pass.balance(e)
     assert(actual == expected)
   }

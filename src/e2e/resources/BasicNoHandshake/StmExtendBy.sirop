@@ -1,0 +1,10 @@
+accelerator[no_handshake] extend = (s: Stm[u8, 5]) => s.StmExtendBy(3)
+
+const no: u8 = zeros:[u8]()
+const YES: u8 = ones:[u8]()
+
+assert {
+    s = [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s
+}
+yields   [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 0:u8, 0:u8, 0:u8]s
+ignoring [  no,   no,   no,   no,   no,  YES,  YES,  YES]s

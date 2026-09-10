@@ -1,6 +1,7 @@
 package mhir.typecheck
 
 import mhir.ir._
+import mhir.sem.SemanticError
 
 import scala.annotation.tailrec
 
@@ -36,9 +37,12 @@ trait TypeChecker {
         return this.expr
       }
       this.expr match {
-        case u: Undefined =>
-          assert(u.hasType)
+        case u @ Undefined(TyData(_)) =>
           u
+        case Undefined(typ) =>
+          throw new TypeError(
+            s"undefined is not applicable to non-data type $typ"
+          )
         case x: Param =>
           context.get(x) match {
             case Some(t) => x.rebuild(t)
@@ -500,40 +504,48 @@ trait TypeChecker {
               }
           })
           val newN = s.n.tchk(context, constValues).expectUInt()
-          val newAccumulators = s.accumulators.map({ case (x, (z, next)) =>
-            if (!x.typ.isData) {
-              throw new TypeError(
-                s"Type ${x.typ} (of $x) is not allowed for an accumulator"
-              )
-            }
-            val newZ = (z, x.typ) match {
-              // TODO: Generalize this by using ReshapeData?
-              //       But then there will be a circular dependency between
-              //       the type checker and the lowering package :(
-              case (IntCst(z), typ: TyAnyInt) if typ.contains(z) =>
-                IntCst(z)(x.typ)
-              case _ =>
-                val newZ = z.tchk(context, constValues)
-                if (!newZ.typ.equalsGivenConstants(x.typ, constValues)) {
-                  throw new TypeError(
-                    s"seed for accumulator $x has type ${newZ.typ}."
-                      + s" Expected type ${x.typ}.",
-                    TypeChecker.relevantBindings(constValues, newZ.typ, x.typ)
-                  )
+          val newAccumulators = s.accumulators.map({
+            case (x, (init, next, delay)) =>
+              if (!x.typ.isData) {
+                throw new TypeError(
+                  s"Type ${x.typ} (of $x) is not allowed for an accumulator"
+                )
+              }
+              val newZ =
+                (init, x.typ) match {
+                  // TODO: Generalize this by using ReshapeData?
+                  //       But then there will be a circular dependency between
+                  //       the type checker and the lowering package :(
+                  case (IntCst(z), typ: TyAnyInt) if typ.contains(z) =>
+                    IntCst(z)(x.typ)
+                  case _ =>
+                    val newZ = init.tchk(context, constValues)
+                    if (!newZ.typ.equalsGivenConstants(x.typ, constValues)) {
+                      throw new TypeError(
+                        s"seed for accumulator $x has type ${newZ.typ}."
+                          + s" Expected type ${x.typ}.",
+                        TypeChecker.relevantBindings(
+                          constValues,
+                          newZ.typ,
+                          x.typ
+                        )
+                      )
+                    }
+                    newZ
                 }
-                newZ
-            }
-            val newNext = next.tchk(newContext, constValues)
-            if (!newNext.typ.equalsGivenConstants(x.typ, constValues)) {
-              throw new TypeError(
-                s"next value for accumulator $x has type ${newNext.typ}."
-                  + s" Expected type ${x.typ}",
-                TypeChecker.relevantBindings(constValues, newNext.typ, x.typ)
-              )
-            }
-            x -> (newZ, newNext)
+              val newNext = next.tchk(newContext, constValues)
+              if (!newNext.typ.equalsGivenConstants(x.typ, constValues)) {
+                throw new TypeError(
+                  s"next value for accumulator $x has type ${newNext.typ}."
+                    + s" Expected type ${x.typ}",
+                  TypeChecker.relevantBindings(constValues, newNext.typ, x.typ)
+                )
+              }
+              val newDelay =
+                delay.tchk(context, constValues).expectIntOrUnit()
+              x -> (newZ, newNext, newDelay)
           })
-          val newProducers = s.producers.map({ case (x, (s, ready)) =>
+          val newProducers = s.producers.map({ case (x, (s, ready, delay)) =>
             if (!x.typ.isInstanceOf[TyStm]) {
               throw new TypeError(
                 s"Type ${x.typ} (of $x) is not allowed for a producer"
@@ -563,19 +575,42 @@ trait TypeChecker {
                 TypeChecker.relevantBindings(constValues, newReady.typ, x.typ)
               )
             }
-            x -> (newS, newReady)
+            val newDelay =
+              delay.tchk(context, constValues).expectIntOrUnit()
+            x -> (newS, newReady, newDelay)
           })
-          val newData = s.data.tchk(newContext, constValues)
+          val newDelay =
+            s.delay.tchk(context, constValues).expectIntOrUnit()
+          val newNextData = s.nextData.tchk(newContext, constValues)
+          val newInitData = s.initData match {
+            case Undefined(Missing) =>
+              Undefined(newNextData.typ)
+            case _ =>
+              val newInitData = s.initData.tchk(context, constValues)
+              val sameType = newInitData.typ.equalsGivenConstants(
+                newNextData.typ,
+                constValues
+              )
+              if (!sameType) {
+                throw new TypeError(
+                  s"initial output has type ${newInitData.typ}," +
+                    s" but next output has type ${newNextData.typ}."
+                )
+              }
+              newInitData
+          }
           val newValid = s.valid
             .tchk(newContext, constValues)
             .expectType(TyBool, constValues)
           StmBuild(
             newN,
-            newData,
+            newDelay,
+            newInitData,
+            newNextData,
             newValid,
             newAccumulators,
             newProducers
-          )(TyStm(newData.typ, newN), s.annotations)
+          )(TyStm(newNextData.typ, newN), s.annotations)
         case sn @ StmData(s) =>
           val newS = s.tchk(context, constValues)
           newS.typ match {
@@ -623,18 +658,22 @@ trait TypeChecker {
           }
           val newOut = out.tchk(context + (newX -> newIn.typ), constValues)
           let.rebuild(newOut.typ, Seq(newBufSize, newX, newIn, newOut))
-        case sl @ StmLiteral(elems @ _*) =>
-          val checkedElems = elems.map(e => e.tchk(context, constValues))
-          val types = checkedElems.map(e => e.typ).toSet
+        case sl @ StmLiteral(physical, logical) =>
+          val newPhysical = physical.map(e => e.tchk(context, constValues))
+          val newLogical = logical.map(e => e.tchk(context, constValues))
+          val types = (newPhysical ++ newLogical).map(_.typ).toSet
           if (types.isEmpty) {
             throw new IllegalArgumentException(
-              "Cannot type check empty stream literal."
+              "Cannot type check empty stream literal; an explicit type annotation must be provided."
             )
           } else if (types.size == 1) {
             val t = types.head
-            val len = checkedElems.length
+            val len = newLogical.length
             val n = C(len)(TyAnyInt.tightest(0, len))
-            sl.rebuild(TyStm(t, n)(NoOpCanonicalizer), checkedElems)
+            sl.rebuild(
+              TyStm(t, n)(NoOpCanonicalizer),
+              newPhysical ++ newLogical
+            )
           } else {
             throw new IllegalArgumentException(
               "Inconsistent element types in stream literal."
@@ -665,6 +704,16 @@ trait TypeChecker {
         case _: TyUInt => this.expr
         case t =>
           throw new TypeError(s"Expected an unsigned integer but found $t.")
+      }
+    }
+
+    def expectIntOrUnit(): Expr = {
+      this.expr.typ match {
+        case _: TyAnyInt | TyTuple() => this.expr
+        case t =>
+          throw new TypeError(
+            s"Expected an integer or empty tuple, but found $t."
+          )
       }
     }
 
@@ -776,6 +825,18 @@ trait TypeChecker {
       TypeCheckProgram(prog1).checkOthers()
     }
 
+    def typecheckAnnotations()(implicit c: Canonicalizer): Program = {
+      val (inputSeq, _) =
+        TypeChecker.unwrapTopLevelFunction(this.prog.accel.body)
+      val inputs = inputSeq.toSet
+      this.prog.copy(accel =
+        this.prog.accel.copy(
+          annotations = checkAccelAnnotations(inputs),
+          annotationsByParam = checkAccelAnnotationsByParam(inputs)
+        )
+      )
+    }
+
     private def checkAndEvalConstants()(implicit c: Canonicalizer): Program = {
       // Type checking and evaluating constants need to be interleaved because
       // type checking an expression may depend on the value of previous
@@ -845,6 +906,90 @@ trait TypeChecker {
               )
           })
       Program(this.prog.constants, newAccel, newTestSuite)
+    }
+
+    private def checkAccelAnnotations(inputs: Set[Param]): Map[String, Expr] = {
+      val newGo = prog.go.map({ go =>
+        inputs.find(_ == go) match {
+          case Some(goWithTyp) =>
+            // Ensure the type annotation is correct in prog.go
+            assert(
+              goWithTyp.hasType,
+              s"missing type annotation for input $goWithTyp"
+            )
+            goWithTyp.typ match {
+              case TyStm(TyBool, _) => ()
+              case typ =>
+                throw new TypeError(
+                  "invalid value for annotation 'go'."
+                    + s" Expected the name of a stream of booleans, but found $typ."
+                )
+            }
+            goWithTyp
+          case None =>
+            val availableInputs = if (inputs.isEmpty) {
+              ""
+            } else {
+              inputs.map(x => s"'$x'").mkString(" (e.g., ", ", ", ")")
+            }
+            throw NameError(
+              s"invalid value for annotation 'go': '$go'."
+                + s" Expected the name of one of the accelerator inputs$availableInputs."
+            )
+        }
+      })
+      newGo match {
+        case Some(newGo) => prog.accel.annotations + ("go" -> newGo)
+        case None        => prog.accel.annotations
+      }
+    }
+
+    private def checkAccelAnnotationsByParam(
+        inputs: Set[Param]
+    )(implicit c: Canonicalizer): Map[(String, Param), Expr] = {
+      val annotationsByParam = this.prog.go match {
+        case Some(go) =>
+          prog.accel.annotationsByParam.get(("head", go)) match {
+            case None | Some(False) => ()
+            case Some(head) =>
+              throw SemanticError(s"head($go) must be false, but it is $head")
+          }
+          prog.accel.annotationsByParam + (("head", go) -> False)
+        case None => prog.accel.annotationsByParam
+      }
+      annotationsByParam.map({
+        case ((key @ "head", x), v) =>
+          inputs.find(_ == x) match {
+            case Some(xWithType) =>
+              // Ensure the type annotation is correct
+              val elemTyp = xWithType.typ match {
+                case TyStm(TyData(t), _) => t
+                case typ =>
+                  throw new TypeError(
+                    s"invalid type for accelerator input: $typ"
+                  )
+              }
+              val vWithTyp = v match {
+                case Undefined(Missing) => Undefined(elemTyp)
+                case v =>
+                  val vWithTyp = v.tchk()
+                  val vTyp = vWithTyp.typ
+                  if (vTyp != elemTyp) {
+                    throw new TypeError(
+                      s"expected $elemTyp but found $vTyp in annotation '$key($x)'"
+                    )
+                  }
+                  vWithTyp
+              }
+              (key, xWithType) -> vWithTyp
+            case None =>
+              throw NameError(
+                s"unknown input '$x' (in annotation key '$key($x)')"
+              )
+          }
+        case ((key, _), _) =>
+          throw new NotImplementedError(s"unknown key '$key'")
+      })
     }
   }
 }
@@ -932,7 +1077,20 @@ object TypeChecker {
       }
       newE
     })
-    Assertion(newIn, newOut, newIgnore)
+    val newPrefixCondition = a.prefixCondition.map({ f =>
+      val TyStm(elemTyp, _) = newOut.typ
+      val newF = f.annotateFunc(elemTyp).tchk(constTypes, constVals)
+      val expectedTyp = elemTyp ->: TyBool
+      if (!newF.typ.equalsGivenConstants(expectedTyp, constVals)) {
+        throw new TypeError(
+          "invalid prefix condition in assertion:" +
+            s" expected $expectedTyp, but found ${newF.typ}",
+          TypeChecker.relevantBindings(constVals, newF.typ, expectedTyp)
+        )
+      }
+      newF
+    })
+    Assertion(newIn, newOut, newIgnore, newPrefixCondition)
   }
 
   private def checkInputNames(params: Set[Param], args: Set[Param]): Unit = {

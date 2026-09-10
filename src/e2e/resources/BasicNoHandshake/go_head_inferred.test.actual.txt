@@ -1,0 +1,12 @@
+/* Test 0 */
+[
+  (undefined:u8, false),
+  (undefined:u8, false),
+  (undefined:u8, false),
+  (undefined:u8, false)
+]s ++ [
+  (6:u8, true),
+  (7:u8, true),
+  (8:u8, true),
+  (9:u8, true)
+]s

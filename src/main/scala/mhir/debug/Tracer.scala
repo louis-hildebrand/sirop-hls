@@ -42,8 +42,11 @@ object Tracer {
           case ex: EvalException =>
             return (ErrorTraceStep(ex) +: steps).reverse
         }
-      if (maxCycles.contains(0) || pipe.isEmpty || pipe.isStuck) {
+      if (maxCycles.contains(0) || pipe.isEmpty) {
         newSteps.reverse
+      } else if (pipe.isStuck) {
+        val ex = new DeadlockError(pipe.deadlockReasons.toSeq)
+        (ErrorTraceStep(ex) +: newSteps).reverse
       } else {
         val newPipe =
           try {
@@ -52,10 +55,6 @@ object Tracer {
             case ex: EvalException =>
               return (ErrorTraceStep(ex) +: newSteps).reverse
           }
-        if (newPipe.sameState(pipe)) {
-          val ex = new DeadlockError(Seq(PipelineFixpoint))
-          return (ErrorTraceStep(ex) +: newSteps).reverse
-        }
         trace(newPipe, newSteps, maxCycles.map(_ - 1))
       }
     }
@@ -64,16 +63,25 @@ object Tracer {
       val (_, body) = TypeChecker.unwrapTopLevelFunction(s.tchk().lower)
       StmPipeline(body, inputs = inputs, handshake = handshake)
     }
+    // Add a connection from the real sink to a dummy sink so the sequence
+    // of outputs is easily visible (e.g., when converting to a DOT diagram)
+    val structure = if (pipe.sinkId == StmNodeId.Sink) {
+      pipe.connections
+    } else {
+      pipe.connections
+        .addNode(StmNodeId.Sink)
+        .addEdges(pipe.sinkId -> StmNodeId.Sink)
+    }
     try {
       Trace(
-        structure = pipe.connections,
+        structure = structure,
         sink = pipe.sinkId,
         steps = trace(pipe, Seq(), maxCycles)
       )
     } catch {
       case ex: EvalException =>
         Trace(
-          structure = pipe.connections,
+          structure = structure,
           sink = pipe.sinkId,
           steps = Seq(ErrorTraceStep(ex))
         )

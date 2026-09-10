@@ -1,9 +1,12 @@
 package mhir.sem
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.typecheck.TypeChecker
 
 object SemanticAnalyzer {
+
+  private val logger: Logger = Logger(getClass.getName)
 
   /** Check for errors like duplicate input names, collisions between the input
     * and output names, etc.
@@ -44,8 +47,20 @@ object SemanticAnalyzer {
 
     if (!prog.handshake) {
       checkNoHandshake(prog.body)
+      checkDelays(prog.body)
     }
     checkStmData(prog.body)
+  }
+
+  def checkForWarnings(prog: Program): Unit = {
+    prog.test.zipWithIndex.foreach({
+      case (Assertion(_, StmLiteral(physical, _), _, _), i)
+          if physical.nonEmpty =>
+        logger.warn(
+          s"physical prefix in expected output of test $i will be ignored"
+        )
+      case _ => ()
+    })
   }
 
   /** Check that the `valid` and `ready` expressions are always `true`.
@@ -60,7 +75,7 @@ object SemanticAnalyzer {
               s" its output is not always valid"
           )
         }
-        for ((_, (p, ready)) <- s.producers) {
+        for ((_, (p, ready, _)) <- s.producers) {
           if (ready != True) {
             val name = s.nameAnnotation.getOrElse("(unknown name)")
             throw SemanticError(
@@ -74,10 +89,43 @@ object SemanticAnalyzer {
     }
   }
 
+  private def checkDelays(e: Expr): Unit = {
+    e match {
+      case s: StmBuild =>
+        if (!s.delay.typ.isInstanceOf[TyAnyInt]) {
+          assert(
+            s.delay.typ.isInstanceOf[TyAnyInt] ||
+              s.delay.typ.isInstanceOf[TyTuple],
+            s"delay should be an int or (), but found ${s.delay.typ}"
+          )
+          val name = s.nameAnnotation.getOrElse("(unknown name)")
+          throw SemanticError(
+            s"missing output delay for stream operator $name"
+              + s" (the delay must be specified when the handshake protocol is disabled)"
+          )
+        }
+        for ((x, (_, _, delay)) <- s.producers) {
+          assert(
+            delay.typ.isInstanceOf[TyAnyInt] ||
+              delay.typ.isInstanceOf[TyTuple],
+            s"delay should be an unsigned int or (), but found ${delay.typ}"
+          )
+          if (!delay.typ.isInstanceOf[TyAnyInt]) {
+            val name = s.nameAnnotation.getOrElse("(unknown name)")
+            throw SemanticError(
+              s"missing delay for producer $x in stream operator $name"
+                + s" (the delay must be specified when the handshake protocol is disabled)"
+            )
+          }
+        }
+      case e => e.children.foreach(checkDelays)
+    }
+  }
+
   private def checkStmData(e: Expr): Unit = {
     e match {
       case s: StmBuild =>
-        for ((x, (stm, ready)) <- s.producers) {
+        for ((x, (stm, ready, _)) <- s.producers) {
           checkStmData(stm)
           if (ready.contains(classOf[StmData])) {
             val name = s.nameAnnotation.getOrElse("sbuild")

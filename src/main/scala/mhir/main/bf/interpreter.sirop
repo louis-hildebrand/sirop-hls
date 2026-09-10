@@ -45,7 +45,7 @@ let RSQ    /* ] */ = 93:u8 in
 			}
 		},
 		(cmd_arr: Vec[u8, PROG_LEN]) = {
-			init: undefined[Vec[u8, PROG_LEN]],
+			init: undefined:Vec[u8, PROG_LEN],
 			next: vbuild(PROG_LEN) { (i: u32) =>
 				if i == cmd_ptr && mode == LOADING then {
 					sdata(cmd_stream) /* update just the element at index cmd_ptr */

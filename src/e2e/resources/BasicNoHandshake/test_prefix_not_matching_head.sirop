@@ -1,0 +1,13 @@
+accelerator[no_handshake, head(s)=(undefined:u8, false)]
+top = (s: Stm[(u8, bool), 4]) =>
+    s.StmMap(@(data, valid) => (data*data, valid))
+
+assert {
+    s = [(9:u8, true), (8:u8, true), (7:u8, true), (6:u8, true)]s
+}
+yields [(81:u8, true), (64:u8, true), (49:u8, true), (36:u8, true)]s
+
+assert {
+    s = StmRange(4, 0:u8, 1:u8).StmMap(x => (x, true))
+}
+yields [(0:u8, true), (1:u8, true), (4:u8, true), (9:u8, true)]s

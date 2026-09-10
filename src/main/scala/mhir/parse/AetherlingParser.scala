@@ -3,6 +3,7 @@ package mhir.parse
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.sugar._
+import mhir.sugar.handshake.{StmMap, _}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
@@ -797,7 +798,7 @@ object AetherlingParser {
       val (f, suffix3) = parseExpr(suffix2, modules)
       val suffix4 = expect(suffix3, " ")
       val (v, suffix5) = parseExpr(suffix4, modules)
-      (VecReduceComb(v, makeUnaryFunction(f, modules))(), suffix5)
+      (VecReduce(v, makeUnaryFunction(f, modules))(), suffix5)
     } else if (code.startsWith("Reduce_tN ")) {
       val suffix0 = expect(code, "Reduce_tN ")
       val (_, suffix1) = parseNat(suffix0)

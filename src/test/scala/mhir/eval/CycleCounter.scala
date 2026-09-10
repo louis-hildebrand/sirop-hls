@@ -41,10 +41,6 @@ object CycleCounter {
             logger.error(s"an error occurred during evaluation: $ex")
             return None
         }
-      if (newPipe.sameState(pipe)) {
-        logger.error(s"pipeline reached fixpoint")
-        return None
-      }
       countCycles(newPipe, t + 1, maxCycles)
     }
 

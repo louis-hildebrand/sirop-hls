@@ -19,48 +19,123 @@ class ExprTests extends AnyFunSuite {
     assert(e.freeVars == Set(x, y))
   }
 
-  test("FreeVars:StmBuild") {
-    val x = Param("x")(U8)
-    val y = Param("y")(U8)
-    val z = Param("z")(U8)
-    val c = Param("c")(TyBool)
+  private val x = Param("x")(U8)
+  private val y = Param("y")(U8)
+  private val z = Param("z")(U8)
+  private val c = Param("c")(TyBool)
 
+  test("FreeVars:StmBuild:PlacesWhereVarsAreBound") {
     // Accumulator variables are bound within the data, valid, and next
     // expressions.
-    val s0 = StmBuild(
+    val s = StmBuild(
       5,
+      Tuple()(),
+      Undefined(Missing),
       Prod(x, y)(),
       (x % 2 === 0) && c,
-      Map[Param, (Expr, Expr)](
-        x -> (C(0)(U8), Sum(x, z)())
+      Map[Param, (Expr, Expr, Expr)](
+        x -> (C(0)(U8), Sum(x, z)(), Tuple()())
       ),
       Map()
     )().tchk()
-    assert(s0.freeVars == Set(y, z, c))
+    assert(s.freeVars == Set(y, z, c))
+  }
 
-    // Accumulator variables are not found within the stream length.
-    val s1 = StmBuild(
+  test("FreeVars:StmBuild:Len") {
+    // Accumulator variables are not bound within the stream length.
+    val s = StmBuild(
+      x,
+      Tuple()(),
+      Undefined(Missing),
+      Prod(x, y)(),
+      (x % 2 === 0) && c,
+      Map[Param, (Expr, Expr, Expr)](
+        x -> (C(0)(U8), Sum(x, z)(), Tuple()())
+      ),
+      Map()
+    )().tchk()
+    assert(s.freeVars == Set(x, y, z, c))
+  }
+
+  test("FreeVars:StmBuild:Delay") {
+    // Accumulator variables are not bound within the stream delay.
+    val s = StmBuild(
+      5,
+      x,
+      Undefined(Missing),
+      Prod(x, y)(),
+      (x % 2 === 0) && c,
+      Map[Param, (Expr, Expr, Expr)](
+        x -> (C(0)(U8), Sum(x, z)(), Tuple()())
+      ),
+      Map()
+    )().tchk()
+    assert(s.freeVars == Set(x, y, z, c))
+  }
+
+  test("FreeVars:StmBuild:InitData") {
+    // Accumulator variables are not bound within the initial data.
+    val s = StmBuild(
+      5,
+      Tuple()(),
       x,
       Prod(x, y)(),
       (x % 2 === 0) && c,
-      Map[Param, (Expr, Expr)](
-        x -> (C(0)(U8), Sum(x, z)())
+      Map[Param, (Expr, Expr, Expr)](
+        x -> (C(0)(U8), Sum(x, z)(), Tuple()())
       ),
       Map()
     )().tchk()
-    assert(s1.freeVars == Set(x, y, z, c))
+    assert(s.freeVars == Set(x, y, z, c))
+  }
 
-    // Accumulator variables are not found within the accumulator seeds.
-    val s2 = StmBuild(
+  test("FreeVars:StmBuild:AccumulatorInit") {
+    // Accumulator variables are not bound within the accumulator initial values.
+    val s = StmBuild(
       5,
+      Tuple()(),
+      Undefined(Missing),
       Prod(x, y)(),
       (x % 2 === 0) && c,
-      Map[Param, (Expr, Expr)](
-        x -> (x, Sum(x, z)())
+      Map[Param, (Expr, Expr, Expr)](
+        x -> (x, Sum(x, z)(), Tuple()())
       ),
       Map()
     )().tchk()
-    assert(s2.freeVars == Set(x, y, z, c))
+    assert(s.freeVars == Set(x, y, z, c))
+  }
+
+  test("FreeVars:StmBuild:AccumulatorDelay") {
+    // Accumulator variables are not bound within the accumulator delays.
+    val s = StmBuild(
+      5,
+      Tuple()(),
+      Undefined(Missing),
+      Prod(x, y)(),
+      (x % 2 === 0) && c,
+      Map[Param, (Expr, Expr, Expr)](
+        x -> (C(0)(U8), Sum(x, z)(), x)
+      ),
+      Map()
+    )().tchk()
+    assert(s.freeVars == Set(x, y, z, c))
+  }
+
+  test("FreeVars:StmBuild:ProducerStmAndDelay") {
+    val input = Param("input")(TyStm(U8, 5))
+    val p = Param("p")(TyStm(U8, -1))
+    val s = StmBuild(
+      5,
+      Tuple()(),
+      Undefined(Missing),
+      Sum(StmData(p)(), StmData(p)())(),
+      True,
+      Map(),
+      Map(
+        p -> (input, True, p.rebuild(U8))
+      )
+    )().tchk()
+    assert(s.freeVars == Set(input, p.rebuild(U8)))
   }
 
   test("FreeVars:LetStm") {
@@ -109,7 +184,15 @@ class ExprTests extends AnyFunSuite {
   }
 
   test("LetStm:Equals") {
-    val in = StmBuild(5, C(42)(U16), True, Map(), Map())()
+    val in = StmBuild(
+      5,
+      Tuple()(),
+      Undefined(Missing),
+      C(42)(U16),
+      True,
+      Map(),
+      Map()
+    )()
     val s0 = Param("s")()
     val s1 = Param("s")()
     val e0 = LetStm(1, s0, in, StmZip(s0, s0)())()
@@ -120,8 +203,24 @@ class ExprTests extends AnyFunSuite {
   }
 
   test("LetStm:NotEquals:DifferentInput") {
-    val in0 = StmBuild(5, C(42)(I8), True, Map(), Map())()
-    val in1 = StmBuild(5, C(-1)(I8), True, Map(), Map())()
+    val in0 = StmBuild(
+      5,
+      Tuple()(),
+      Undefined(Missing),
+      C(42)(I8),
+      True,
+      Map(),
+      Map()
+    )()
+    val in1 = StmBuild(
+      5,
+      Tuple()(),
+      Undefined(Missing),
+      C(-1)(I8),
+      True,
+      Map(),
+      Map()
+    )()
     val s0 = Param("s")()
     val s1 = Param("s")()
     val e0 = LetStm(1, s0, in0, StmZip(s0, s0)())()
@@ -131,7 +230,15 @@ class ExprTests extends AnyFunSuite {
   }
 
   test("LetStm:NotEquals:DifferentOutput") {
-    val in = StmBuild(5, C(42)(U16), True, Map(), Map())()
+    val in = StmBuild(
+      5,
+      Tuple()(),
+      Undefined(Missing),
+      C(42)(U16),
+      True,
+      Map(),
+      Map()
+    )()
     val s0 = Param("s")()
     val s1 = Param("s")()
     val e0 = LetStm(1, s0, in, StmZip(s0, s0)())()
@@ -142,10 +249,24 @@ class ExprTests extends AnyFunSuite {
 
   test("StmBuild:Equals:NoAccumulatorVars") {
     val v = Param("v")()
-    val s1 =
-      StmBuild(3, VecAccess(v, C(1)(U8))(), True, Map(), Map())()
-    val s2 =
-      StmBuild(3, VecAccess(v, C(1)(U16))(), True, Map(), Map())()
+    val s1 = StmBuild(
+      3,
+      Tuple()(),
+      Undefined(Missing),
+      VecAccess(v, C(1)(U8))(),
+      True,
+      Map(),
+      Map()
+    )()
+    val s2 = StmBuild(
+      3,
+      Tuple()(),
+      Undefined(Missing),
+      VecAccess(v, C(1)(U16))(),
+      True,
+      Map(),
+      Map()
+    )()
     assert(s1 == s2)
     assert(s2 == s1)
     assert(s1.hashCode == s2.hashCode)
@@ -156,10 +277,24 @@ class ExprTests extends AnyFunSuite {
     val i = Param("i")()
     val j = Param("j")()
     val z = Param("z")()
-    val s1 =
-      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)), Map())()
-    val s2 =
-      StmBuild(n, j, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)), Map())()
+    val s1 = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      i,
+      True,
+      Map[Param, (Expr, Expr, Expr)](i -> (z, i + 1, Tuple()())),
+      Map()
+    )()
+    val s2 = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      j,
+      True,
+      Map[Param, (Expr, Expr, Expr)](j -> (z, j + 1, Tuple()())),
+      Map()
+    )()
     assert(s1 == s2)
     assert(s2 == s1)
     assert(s1.hashCode == s2.hashCode)
@@ -170,22 +305,30 @@ class ExprTests extends AnyFunSuite {
     val i = Param("i")()
     val j = Param("j")()
     val z = Param("z")()
-    val s1 =
-      StmBuild(
-        n,
-        j - i,
-        True,
-        Map[Param, (Expr, Expr)](i -> (z, i + 1), j -> (0, j * 2)),
-        Map()
-      )()
-    val s2 =
-      StmBuild(
-        n,
-        i - j,
-        True,
-        Map[Param, (Expr, Expr)](j -> (z, j + 1), i -> (0, i * 2)),
-        Map()
-      )()
+    val s1 = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      j - i,
+      True,
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (z, i + 1, Tuple()()),
+        j -> (0, j * 2, Tuple()())
+      ),
+      Map()
+    )()
+    val s2 = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      i - j,
+      True,
+      Map[Param, (Expr, Expr, Expr)](
+        j -> (z, j + 1, Tuple()()),
+        i -> (0, i * 2, Tuple()())
+      ),
+      Map()
+    )()
     assert(s1 == s2)
     assert(s2 == s1)
     assert(s1.hashCode == s2.hashCode)
@@ -198,23 +341,27 @@ class ExprTests extends AnyFunSuite {
     val d = Param("d")()
     val s1 = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       a * c * d,
       True,
-      Map[Param, (Expr, Expr)](
-        a -> (0, a + 1),
-        c -> (1, c + 2),
-        d -> (2, d + 3)
+      Map[Param, (Expr, Expr, Expr)](
+        a -> (0, a + 1, Tuple()()),
+        c -> (1, c + 2, Tuple()()),
+        d -> (2, d + 3, Tuple()())
       ),
       Map()
     )()
     val s2 = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       a * c * d,
       True,
-      Map[Param, (Expr, Expr)](
-        a -> (0, a + 1),
-        d -> (2, d + 3),
-        c -> (1, c + 2)
+      Map[Param, (Expr, Expr, Expr)](
+        a -> (0, a + 1, Tuple()()),
+        d -> (2, d + 3, Tuple()()),
+        c -> (1, c + 2, Tuple()())
       ),
       Map()
     )()
@@ -228,9 +375,11 @@ class ExprTests extends AnyFunSuite {
     val untyped =
       StmBuild(
         4,
+        Tuple()(),
+        Undefined(Missing),
         i,
         True,
-        Map[Param, (Expr, Expr)](i -> (IntCst(0)(U8), i + 1)),
+        Map[Param, (Expr, Expr, Expr)](i -> (IntCst(0)(U8), i + 1, Tuple()())),
         Map()
       )()
     val typed = untyped.tchk()
@@ -245,19 +394,23 @@ class ExprTests extends AnyFunSuite {
       val a = Param("a")()
       StmBuild(
         10,
+        Tuple()(),
+        Undefined(Missing),
         StmData(a)(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](a -> (s, True))
+        Map[Param, (Expr, Expr, Expr)](a -> (s, True, Tuple()()))
       )()
     }
     val f1 = Function(s, stm1)()
     val stm2 = StmBuild(
       10,
+      Tuple()(),
+      Undefined(Missing),
       StmData(s)(),
       True,
       Map(),
-      Map[Param, (Expr, Expr)](s -> (s, True))
+      Map[Param, (Expr, Expr, Expr)](s -> (s, True, Tuple()()))
     )()
     val f2 = Function(s, stm2)()
     assert(stm1 == stm2)
@@ -268,10 +421,24 @@ class ExprTests extends AnyFunSuite {
     val i = Param("i")()
     val j = Param("j")()
     val z = Param("z")()
-    val s1 =
-      StmBuild(i, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)), Map())()
-    val s2 =
-      StmBuild(j, j, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)), Map())()
+    val s1 = StmBuild(
+      i,
+      Tuple()(),
+      Undefined(Missing),
+      i,
+      True,
+      Map[Param, (Expr, Expr, Expr)](i -> (z, i + 1, Tuple()())),
+      Map()
+    )()
+    val s2 = StmBuild(
+      j,
+      Tuple()(),
+      Undefined(Missing),
+      j,
+      True,
+      Map[Param, (Expr, Expr, Expr)](j -> (z, j + 1, Tuple()())),
+      Map()
+    )()
     assert(s1 != s2)
     assert(s2 != s1)
   }
@@ -281,10 +448,24 @@ class ExprTests extends AnyFunSuite {
     val i = Param("i")()
     val j = Param("j")()
     val z = Param("z")()
-    val s1 =
-      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (z, i + 1)), Map())()
-    val s2 =
-      StmBuild(n, i, True, Map[Param, (Expr, Expr)](j -> (z, j + 1)), Map())()
+    val s1 = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      i,
+      True,
+      Map[Param, (Expr, Expr, Expr)](i -> (z, i + 1, Tuple()())),
+      Map()
+    )()
+    val s2 = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      i,
+      True,
+      Map[Param, (Expr, Expr, Expr)](j -> (z, j + 1, Tuple()())),
+      Map()
+    )()
     assert(s1 != s2)
     assert(s2 != s1)
   }
@@ -294,22 +475,30 @@ class ExprTests extends AnyFunSuite {
     val i = Param("i")()
     val j = Param("j")()
     val z = Param("z")()
-    val s1 =
-      StmBuild(
-        n,
-        i - j,
-        True,
-        Map[Param, (Expr, Expr)](i -> (z, i + 1), j -> (0, j * 2)),
-        Map()
-      )()
-    val s2 =
-      StmBuild(
-        n,
-        i - j,
-        True,
-        Map[Param, (Expr, Expr)](j -> (z, j + 1), i -> (0, i * 2)),
-        Map()
-      )()
+    val s1 = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      i - j,
+      True,
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (z, i + 1, Tuple()()),
+        j -> (0, j * 2, Tuple()())
+      ),
+      Map()
+    )()
+    val s2 = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      i - j,
+      True,
+      Map[Param, (Expr, Expr, Expr)](
+        j -> (z, j + 1, Tuple()()),
+        i -> (0, i * 2, Tuple()())
+      ),
+      Map()
+    )()
     assert(s1 != s2)
     assert(s2 != s1)
   }
@@ -318,10 +507,24 @@ class ExprTests extends AnyFunSuite {
     val n = Param("n")()
     val i = Param("i")()
     val j = Param("j")()
-    val s1 =
-      StmBuild(n, i, True, Map[Param, (Expr, Expr)](i -> (i, i + 1)), Map())()
-    val s2 =
-      StmBuild(n, j, True, Map[Param, (Expr, Expr)](j -> (j, j + 1)), Map())()
+    val s1 = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      i,
+      True,
+      Map[Param, (Expr, Expr, Expr)](i -> (i, i + 1, Tuple()())),
+      Map()
+    )()
+    val s2 = StmBuild(
+      n,
+      Tuple()(),
+      Undefined(Missing),
+      j,
+      True,
+      Map[Param, (Expr, Expr, Expr)](j -> (j, j + 1, Tuple()())),
+      Map()
+    )()
     assert(s1 != s2)
     assert(s2 != s1)
   }
@@ -333,24 +536,130 @@ class ExprTests extends AnyFunSuite {
     val z = Param("z")()
     val s1 = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       i,
       True,
-      Map[Param, (Expr, Expr)](
-        i -> (z, i + 1),
-        j -> (z, j - 1)
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (z, i + 1, Tuple()()),
+        j -> (z, j - 1, Tuple()())
       ),
       Map()
     )()
     val s2 = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       j,
       True,
-      Map[Param, (Expr, Expr)](
-        i -> (z, j + 1),
-        j -> (z, i - 1)
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (z, j + 1, Tuple()()),
+        j -> (z, i - 1, Tuple()())
       ),
       Map()
     )()
+    assert(s1 != s2)
+    assert(s2 != s1)
+  }
+
+  test("StmBuild:NotEquals:DifferentOutDelay") {
+    val s1 = StmBuild(
+      C(42)(),
+      C(1)(),
+      Undefined(Missing),
+      Tuple(C(99)(), True)(),
+      True,
+      Map(),
+      Map()
+    )().tchk()
+    val s2 = StmBuild(
+      C(42)(),
+      C(2)(),
+      Undefined(Missing),
+      Tuple(C(99)(), True)(),
+      True,
+      Map(),
+      Map()
+    )().tchk()
+    assert(s1 != s2)
+    assert(s2 != s1)
+  }
+
+  test("StmBuild:NotEquals:DifferentInitData") {
+    val s1 = StmBuild(
+      C(42)(),
+      C(1)(),
+      Undefined(Missing),
+      Tuple(C(99)(U8), True)(),
+      True,
+      Map(),
+      Map()
+    )().tchk()
+    val s2 = StmBuild(
+      C(42)(),
+      C(1)(),
+      Tuple(Undefined(U8), False)(),
+      Tuple(C(99)(U8), True)(),
+      True,
+      Map(),
+      Map()
+    )().tchk()
+    assert(s1 != s2)
+    assert(s2 != s1)
+  }
+
+  test("StmBuild:NotEquals:DifferentAccumulatorDelay") {
+    val a = Param("a")(U8)
+    val s1 = StmBuild(
+      C(42)(),
+      C(1)(),
+      Undefined(Missing),
+      a,
+      True,
+      Map(
+        a -> (C(0)(U8), Sum(C(1)(U8), a)(), C(1)(U8))
+      ),
+      Map()
+    )().tchk()
+    val s2 = StmBuild(
+      C(42)(),
+      C(1)(),
+      Undefined(Missing),
+      a,
+      True,
+      Map(
+        a -> (C(0)(U8), Sum(C(1)(U8), a)(), C(2)(U8))
+      ),
+      Map()
+    )().tchk()
+    assert(s1 != s2)
+    assert(s2 != s1)
+  }
+
+  test("StmBuild:NotEquals:DifferentProducerDelay") {
+    val p = Param("p")(TyStm(U8, -1))
+    val s1 = StmBuild(
+      C(42)(),
+      C(1)(),
+      Undefined(Missing),
+      StmData(p)(),
+      True,
+      Map(),
+      Map(
+        p -> (p, True, C(0)())
+      )
+    )().tchk()
+    val s2 = StmBuild(
+      C(42)(),
+      C(1)(),
+      Undefined(Missing),
+      StmData(p)(),
+      True,
+      Map(),
+      Map(
+        p -> (p, True, C(1)())
+      )
+    )().tchk()
     assert(s1 != s2)
     assert(s2 != s1)
   }
@@ -363,12 +672,14 @@ class ExprTests extends AnyFunSuite {
     val r1 = Param("r1")()
     val original = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       z + a + r0 * r1,
       True,
-      Map[Param, (Expr, Expr)](
-        a -> (z, a + 1),
-        r0 -> (1, a * 2),
-        r1 -> (z, a - 1)
+      Map[Param, (Expr, Expr, Expr)](
+        a -> (z, a + 1, Tuple()()),
+        r0 -> (1, a * 2, Tuple()()),
+        r1 -> (z, a - 1, Tuple()())
       ),
       Map()
     )()
@@ -386,9 +697,13 @@ class ExprTests extends AnyFunSuite {
     val outCtr = Param("out_ctr")(U8)
     val s = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       data,
       valid,
-      Map[Param, (Expr, Expr)](outCtr -> (IntCst(10)(U8), outCtr * 2)),
+      Map[Param, (Expr, Expr, Expr)](
+        outCtr -> (IntCst(10)(U8), outCtr * 2, Tuple()())
+      ),
       Map()
     )().tchk().asInstanceOf[StmBuild]
 
@@ -400,11 +715,13 @@ class ExprTests extends AnyFunSuite {
     val expectedOutCtrNext = Mux(valid, Sum(C(1)(), outCtr)(), outCtr)()
     val expected = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       data,
       valid,
-      Map[Param, (Expr, Expr)](
-        i -> (IntCst(10)(U8), i * 2),
-        outCtr -> (expectedOutCtrSeed, expectedOutCtrNext)
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (IntCst(10)(U8), i * 2, Tuple()()),
+        outCtr -> (expectedOutCtrSeed, expectedOutCtrNext, Tuple()())
       ),
       Map()
     )()
@@ -429,16 +746,19 @@ class ExprTests extends AnyFunSuite {
     )
     val original = StmBuild(
       n,
+      Tuple()(),
+      Undefined(Missing),
       StmData(s)(),
       FunCall(f, i)(),
-      Map[Param, (Expr, Expr)](
-        i -> (IntCst(3)(U8), i + 1),
-        inCtr -> (IntCst(1)(U8), inCtr + 2)
+      Map[Param, (Expr, Expr, Expr)](
+        i -> (IntCst(3)(U8), i + 1, Tuple()()),
+        inCtr -> (IntCst(1)(U8), inCtr + 2, Tuple()())
       ),
-      Map[Param, (Expr, Expr)](
+      Map[Param, (Expr, Expr, Expr)](
         s -> (
           input,
-          FunCall(f, i)() || FunCall(g, inCtr)()
+          FunCall(f, i)() || FunCall(g, inCtr)(),
+          Tuple()()
         )
       )
     )().tchk(context, Map()).asInstanceOf[StmBuild]
@@ -451,11 +771,11 @@ class ExprTests extends AnyFunSuite {
     // I need to find the new parameters representing `i` and `inCtr` so that
     // I can check that the new input counter is updated correctly.
     val freshI = actual.accumulators
-      .collectFirst({ case (x, (z, _)) if z == C(3)() => x })
+      .collectFirst({ case (x, (z, _, _)) if z == C(3)() => x })
       .get
     // Call this one `j` to avoid confusion
     val j = actual.accumulators
-      .collectFirst({ case (x, (z, _)) if z == C(1)() => x })
+      .collectFirst({ case (x, (z, _, _)) if z == C(1)() => x })
       .get
     val expectedInCtrSeed = IntCst(0)()
     val expectedInCtrNext =
@@ -467,17 +787,20 @@ class ExprTests extends AnyFunSuite {
     val expected =
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         StmData(s)(),
         FunCall(f, freshI)(),
-        Map[Param, (Expr, Expr)](
-          freshI -> (3, freshI + 1),
-          j -> (1, j + 2),
-          inCtr -> (0, expectedInCtrNext)
+        Map[Param, (Expr, Expr, Expr)](
+          freshI -> (3, freshI + 1, Tuple()()),
+          j -> (1, j + 2, Tuple()()),
+          inCtr -> (0, expectedInCtrNext, Tuple()())
         ),
-        Map[Param, (Expr, Expr)](
+        Map[Param, (Expr, Expr, Expr)](
           s -> (
             input,
-            FunCall(f, freshI)() || FunCall(g, j)()
+            FunCall(f, freshI)() || FunCall(g, j)(),
+            Tuple()()
           )
         )
       )()
@@ -494,12 +817,14 @@ class ExprTests extends AnyFunSuite {
     val outside = Param("outside")()
     val s = StmBuild(
       5,
+      Tuple()(),
+      Undefined(Missing),
       Tuple(a, b, FunCall(Function(c, c)(), 42)(), outside)(),
       True,
-      Map[Param, (Expr, Expr)](
-        a -> (b, a + 1 + outside),
-        b -> (0, b + c + FunCall(Function(a, a)(), 1)()),
-        c -> (1, b * b)
+      Map[Param, (Expr, Expr, Expr)](
+        a -> (b, a + 1 + outside, Tuple()()),
+        b -> (0, b + c + FunCall(Function(a, a)(), 1)(), Tuple()()),
+        c -> (1, b * b, Tuple()())
       ),
       Map()
     )()
@@ -528,12 +853,14 @@ class ExprTests extends AnyFunSuite {
     val outside = Param("outside")()
     val s = StmBuild(
       5,
+      Tuple()(),
+      Undefined(Missing),
       Tuple(a, b, FunCall(Function(c, c)(), 42)(), outside)(),
       True,
-      Map[Param, (Expr, Expr)](
-        a -> (b, a + 1 + outside),
-        b -> (0, b + c + FunCall(Function(a, a)(), 1)()),
-        c -> (1, b * b)
+      Map[Param, (Expr, Expr, Expr)](
+        a -> (b, a + 1 + outside, Tuple()()),
+        b -> (0, b + c + FunCall(Function(a, a)(), 1)(), Tuple()()),
+        c -> (1, b * b, Tuple()())
       ),
       Map()
     )()

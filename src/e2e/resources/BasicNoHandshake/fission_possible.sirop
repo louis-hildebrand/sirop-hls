@@ -1,0 +1,6 @@
+accelerator[no_handshake] top = (s: Stm[u8, 4]) => s.StmMap(x => x*x*x + 1)
+
+assert {
+    s = []s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
+}
+yields [2:u8, 9:u8, 28:u8, 65:u8]s

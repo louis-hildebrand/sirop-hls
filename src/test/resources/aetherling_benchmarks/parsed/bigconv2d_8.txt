@@ -21,12 +21,11 @@ let module0: Vec[Vec[u32, 3:u2], 3:u2] -> Vec[Vec[u32, 1:u1], 1:u1] = (
     let n126: Vec[Vec[u32, 1:u1], 3:u2] = (
       VecMap(
         n121,
-        (I : Vec[u32, 3:u2]) =>
-          VecReduceComb(I, (I : (u32, u32)) => I.0 +%` I.1)
+        (I : Vec[u32, 3:u2]) => VecReduce(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n131: Vec[Vec[u32, 1:u1], 1:u1] = (
-      VecReduceComb(
+      VecReduce(
         n126,
         (I : Vec[(u32, u32), 1:u1]) =>
           VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)

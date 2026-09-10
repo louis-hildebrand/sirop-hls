@@ -11,12 +11,15 @@ const_decl        ::= "const" ident ":" typ "=" expr
 accel_decl        ::= "accelerator" [ "[" accel_annotations "]" ] ident "=" expr
 accel_annotations ::= ""
                     | accel_annotation ( "," accel_annotation )*
-accel_annotation  ::= ident [ "=" expr ]
+accel_annotation  ::= ident [ "(" ident ")" ] [ "=" expr ]
 
 test_decl         ::= const_decl
                     | assertion
 
-assertion         ::= "assert" input_specs "yields" expr [ "ignoring" expr ]
+assertion         ::= "assert" input_specs
+                      "yields" expr
+                      [ "ignoring" expr ]
+                      [ "with" "prefix" expr ]
 input_specs       ::= "{" "}"
                     | ""
                     | "{" input_spec ( "," input_spec )* "}"
@@ -84,16 +87,19 @@ expr200         ::= "!" expr200
                   | "!" | "~"
                   | expr100
 expr100         ::= "vbuild" "(" expr ")" "{" function "}" expr100'
-                  | "sbuild" "(" expr ")" "(" expr "," expr ")" "{" accumulators "}" "{" producers "}" expr100'
+                  | "sbuild" "(" expr [ "@" expr ] ")"
+                             "(" expr "," expr [ "," expr ] ")"
+                             "{" accumulators "}"
+                             "{" producers "}"
+                             expr100'
                   | "sdata" "(" expr ")" expr100'
                   | expr0 expr100'
 accumulators    ::= ""
                   | accumulator ( "," accumulator )*
-accumulator     ::= "(" ident ":" typ ")" "=" "{" "init" ":" expr "," "next" ":" expr "}"
-
+accumulator     ::= "(" ident ":" typ [ "@" expr ] ")" "=" "{" "init" ":" expr "," "next" ":" expr "}"
 producers       ::= ""
                   | producer ( "," producer )*
-producer        ::= "(" ident ":" stm_typ ")" "=" "{" "stm" ":" expr "," "ready" ":" expr "}"
+producer        ::= "(" ident ":" stm_typ [ "@" expr ] ")" "=" "{" "stm" ":" expr "," "ready" ":" expr "}"
 expr100'          ::= ""
                   | [ ":[" typ "]" ] "(" expr_list ")" expr100'
                   | "." nat expr100'
@@ -104,29 +110,35 @@ expr0           ::= "(" expr ")"
                   | "{" expr "}"
                   | "()" | "(" expr "," ")" | "(" expr ( "," expr )+ ")"
                   | ident
-                  | "undefined" "[" typ "]"
+                  | "undefined" [ ":" typ ]
                   | "default" "[" typ "]"
                   | "true" | "false"
                   | int_cst
-                  # Type annotation is required if the vec/stm literal is empty.
-                  # Without it, the type checker cannot handle empty sequences.
-                  # Type annotation is forbidden otherwise.
-                  # If it was allowed, the compiler would need to carefully check that
-                  # the type is correct.
-                  # Furthermore, the type annotation cannot be stored directly in the
-                  # literal, since the elements might not have been type checked yet.
-                  # In short, supporting type annotations on any sequence literals would
-                  # require a new primitive like `AssertType` which causes the type
-                  # checker to check that the given expression has the expected type.
-                  | "[" "]v" ":" vec_typ
-                  | "[" expr ( "," expr )* "]v"
-                  | "[" "]s" ":" stm_typ
-                  | "[" expr ( "," expr )* "]s"
+                  | vec_literal
+                  | stm_literal
                   # You can use these symbols in isolation to describe a binary function
                   | binop_symbol
 int_cst         ::= ( "+" | "-" | "" ) nat [ ":" typ ]
 expr_list       ::= ""
                   | expr ( "," expr )*
+# Type annotation is required if the vec/stm literal is empty.
+# Without it, the type checker cannot handle empty sequences.
+# Type annotation is forbidden otherwise.
+# If it was allowed, the compiler would need to carefully check that
+# the type is correct.
+# Furthermore, the type annotation cannot be stored directly in the
+# literal, since the elements might not have been type checked yet.
+# In short, supporting type annotations on any sequence literals would
+# require a new primitive like `AssertType` which causes the type
+# checker to check that the given expression has the expected type.
+vec_literal     ::= "[" "]v" ":" vec_typ
+                  | "[" expr ( "," expr )* "]v"
+stm_literal     ::=                                  "[" "]s"                    ":" stm_typ
+                  |                                  "[" expr ( "," expr )* "]s"
+                  | "[" "]s"                    "++" "[" "]s"                    ":" stm_typ
+                  | "[" "]s"                    "++" "[" expr ( "," expr )* "]s"
+                  | "[" expr ( "," expr )* "]s" "++" "[" "]s"
+                  | "[" expr ( "," expr )* "]s" "++" "[" expr ( "," expr )* "]s"
 
 # First(typ) = { "bool", "u", "i", "(", "Vec", "Stm" }
 typ             ::= "(" typ ")"

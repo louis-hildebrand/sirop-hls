@@ -23,13 +23,17 @@ ThisBuild / autoAPIMappings := true
 ThisBuild / scalacOptions ++= Seq(
   "-deprecation",
   "-Wconf:cat=other-match-analysis:error",
-  "-feature"
+  "-feature",
+  "-Xmaxerrs",
+  "999"
 )
 ThisBuild / showSuccess := false
 Global / excludeLintKeys += showSuccess
 
-// Some test suites (e.g., AetherlingBenchmarkTests) unfortunately do not
-// support parallel testing
+// Some test suites unfortunately do not support parallel testing.
+// For example:
+//  * AetherlingBenchmarkTests
+//  * Any test that relies on mhir.ir.globalOptions
 Test / parallelExecution := false
 Test / logBuffered := false
 

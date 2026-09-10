@@ -4,6 +4,7 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.sugar._
+import mhir.sugar.handshake.VecReduce
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -31,12 +32,14 @@ class StmFissionPassTests extends AnyFunSuite {
       val sharp = b +% alphaH
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         sharp,
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          sA -> (inputA, True),
-          sB -> (inputB, True)
+        Map[Param, (Expr, Expr, Expr)](
+          sA -> (inputA, True, Tuple()()),
+          sB -> (inputB, True, Tuple()())
         )
       )().tchk().lower
     }
@@ -67,13 +70,15 @@ class StmFissionPassTests extends AnyFunSuite {
       val s = Param("s")(TyStm(TyVec(uint, m), n))
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         (VecAccess(StmData(s)(), 0)() *% VecAccess(StmData(s)(), 1)()) *%
           (VecAccess(StmData(s)(), 2)() *% (VecAccess(StmData(s)(), 3)() *%
             VecAccess(StmData(s)(), 4)())),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s -> (input, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s -> (input, True, Tuple()())
         )
       )().tchk().lower
     }
@@ -107,6 +112,8 @@ class StmFissionPassTests extends AnyFunSuite {
       val s = Param("s")(TyStm(TyVec(uint, m), n))
       StmBuild(
         n,
+        Tuple()(),
+        Undefined(Missing),
         WrappingProd(
           VecAccess(StmData(s)(), 0)(),
           VecAccess(StmData(s)(), 1)(),
@@ -116,8 +123,8 @@ class StmFissionPassTests extends AnyFunSuite {
         )(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s -> (input, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s -> (input, True, Tuple()())
         )
       )().tchk().lower
     }
@@ -148,11 +155,13 @@ class StmFissionPassTests extends AnyFunSuite {
       val s = Param("s")(TyStm(TyVec(uint, m), n))
       StmBuild(
         n,
-        VecReduceComb(StmData(s)(), (uint, uint) ::+ (x => x.__0 * x.__1))(),
+        Tuple()(),
+        Undefined(Missing),
+        VecReduce(StmData(s)(), (uint, uint) ::+ (x => x.__0 * x.__1))(),
         True,
         Map(),
-        Map[Param, (Expr, Expr)](
-          s -> (input, True)
+        Map[Param, (Expr, Expr, Expr)](
+          s -> (input, True, Tuple()())
         )
       )().tchk().lower
     }
