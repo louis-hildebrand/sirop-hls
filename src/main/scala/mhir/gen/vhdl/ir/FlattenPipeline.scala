@@ -21,7 +21,8 @@ object FlattenPipeline {
       options: VhdlGeneratorOptions
   ): FlatPipeline = {
     validateExpr(f, options)
-    val (inputs, stm) = TypeChecker.unwrapTopLevelFunction(f)
+    val (inputs, stm1) = TypeChecker.unwrapTopLevelFunction(f)
+    val stm = makeDataRegisterExplicitInSbuild(stm1)
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
     val latency = {
       val analysis = new LatencyAnalysis(handshake = options.handshake)
@@ -36,7 +37,15 @@ object FlattenPipeline {
       unusedInputs = unusedInputs,
       sink = sink2
     )
-    val pipe2 = ensureAtLeastOneBuffer(pipe1)
+    val pipe2 = if (options.handshake) {
+      // TODO: isn't this just due to the VHDL testbench being needlessly
+      //       fragile in assuming there will always be a delay of at least 1
+      //       cycle? If I fix the testbench generator, maybe I can delete
+      //       this transformation.
+      ensureAtLeastOneBuffer(pipe1)
+    } else {
+      pipe1
+    }
     val pipe3 = cleanUpSbuilds(pipe2)
     pipe3
   }
@@ -250,20 +259,25 @@ object FlattenPipeline {
   /** Apply a few final transformations on the new representation of sbuild.
     */
   private def cleanUpSbuild(s: GenStmBuild): GenStmBuild = {
-    val s1 = makeDataRegisterExplicit(s)
-    val s2 = renameLocalProducers(s1)
-    s2
+    renameLocalProducers(s)
   }
 
-  private def makeDataRegisterExplicit(s: GenStmBuild): GenStmBuild = {
-    val (newData, newAccumulators) = SplitTupleIntoAccumulators(s.data, "data")
-    GenStmBuild(
-      data = newData,
-      valid = s.valid,
-      accumulators = s.accumulators ++ newAccumulators,
-      producers = s.producers,
-      intermediates = s.intermediates
-    )
+  private def makeDataRegisterExplicitInSbuild(e: Expr): Expr = {
+    e.map(makeDataRegisterExplicitInSbuild).tchk() match {
+      case s: StmBuild =>
+        val (newData, newAccumulators) =
+          SplitTupleIntoAccumulators(s.initData, s.nextData, "data")
+        StmBuild(
+          s.n,
+          s.delay,
+          Undefined(Missing),
+          newData,
+          s.valid,
+          s.accumulators ++ newAccumulators,
+          s.producers
+        )(annotations = s.annotations).tchk()
+      case e => e
+    }
   }
 
   /** Rename all the producer variables to match the corresponding stream.
@@ -315,10 +329,13 @@ object FlattenPipeline {
   private def ensureAtLeastOneBuffer(pipe: FlatPipeline): FlatPipeline = {
     if (pipe.inputs.contains(pipe.sink)) {
       val newSink = Param("s")(pipe.sink.typ)
+      val TyStm(elemTyp, _) = pipe.sink.typ
+      val data = Param("data")(elemTyp)
       val nop = GenStmBuild(
-        data = StmData(pipe.sink)().tchk(),
+        data = data,
         valid = True,
-        accumulators = Map(),
+        accumulators =
+          Map(data -> ExprAccumulator(None, StmDataIntermediate(pipe.sink))),
         producers = Map(pipe.sink -> (pipe.sink, True)),
         intermediates = ListMap()
       )
@@ -339,28 +356,50 @@ object FlattenPipeline {
   * multiplication is buried somewhere in a tuple.
   */
 private object SplitTupleIntoAccumulators {
-  def apply(e: Expr, prefix: String): (Expr, Map[Param, Accumulator]) = {
+  def apply(
+      initData: Expr,
+      nextData: Expr,
+      prefix: String
+  ): (Expr, Map[Param, (Expr, Expr, Expr)]) = {
+    assert(nextData.hasType, "next data expression should have a type")
     val splitter = new SplitTupleIntoAccumulators(Map())
-    val newE = splitter.runAndMutateAccumulators(e, prefix)
-    (newE, splitter.accumulators)
+    val newE = splitter.runAndMutateAccumulators(initData, nextData, prefix)
+    val newAccumulators = splitter.accumulators.map({ case (x, (init, next)) =>
+      x -> (init, next, Tuple()().tchk())
+    })
+    (newE, newAccumulators)
   }
 }
 
 private class SplitTupleIntoAccumulators(
-    var accumulators: Map[Param, Accumulator]
+    var accumulators: Map[Param, (Expr, Expr)]
 ) {
 
-  private def runAndMutateAccumulators(e: Expr, prefix: String): Expr = {
-    e match {
-      case Tuple(elems @ _*) =>
-        val newElems = elems.zipWithIndex
-          .map({ case (e, i) =>
-            this.runAndMutateAccumulators(e, s"${prefix}_$i")
+  private def runAndMutateAccumulators(
+      init: Expr,
+      next: Expr,
+      prefix: String
+  ): Expr = {
+    assert(next.hasType, "next data expression should have a type")
+    (init, next) match {
+      case (Tuple(initElems @ _*), Tuple(nextElems @ _*)) =>
+        assert(
+          initElems.length == nextElems.length,
+          "init and next tuple should have the same shape"
+        )
+        val newElems = initElems
+          .zip(nextElems)
+          .zipWithIndex
+          .map({ case ((init, next), i) =>
+            this.runAndMutateAccumulators(init, next, s"${prefix}_$i")
           })
         Tuple(newElems: _*)().tchk()
-      case e =>
-        val x = Param(prefix)(e.typ)
-        this.accumulators += (x -> ExprAccumulator(None, ExprIntermediate(e)))
+      case (Undefined(TyTuple(ts @ _*)), next: Tuple) =>
+        val splitInit = Tuple(ts.map(Undefined(_)): _*)().tchk()
+        this.runAndMutateAccumulators(splitInit, next, prefix)
+      case (init, next) =>
+        val x = Param(prefix)(next.typ)
+        this.accumulators += (x -> (init, next))
         x
     }
   }
