@@ -7,6 +7,8 @@ Functions for testing the Sirop compiler's ability to generate and run VHDL test
 from pathlib import Path
 import subprocess
 
+from colorama import Fore, Style
+
 from helpers import assert_equals, TestFailed
 import constants as c
 
@@ -61,8 +63,8 @@ def run(src: Path, cli_args: list[str], save: bool) -> bool:
         # Check output
         expected_out_file = src.with_suffix(".vsim.txt")
         assert_equals("output", actual_out_file, expected_out_file, save=save)
-        print("OK")
+        print(Fore.GREEN + "OK" + Style.RESET_ALL)
         return True
     except TestFailed as e:
-        print(str(e))
+        print(Fore.RED + str(e) + Style.RESET_ALL)
         return False

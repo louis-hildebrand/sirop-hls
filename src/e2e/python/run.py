@@ -11,6 +11,10 @@ import os
 import shutil
 import subprocess
 import sys
+import time
+
+from colorama import Fore, Style
+import colorama
 
 from helpers import assert_equals, TestFailed
 import constants as c
@@ -72,9 +76,11 @@ def look_for_unused_files() -> None:
         it_or_them = "it" if error_count == 1 else "them"
         print()
         print(
-            f"{error_count} {file_or_files} within {c.RESOURCES.relative_to(c.ROOT)}"
-            f" {is_or_are} not used for testing."
-            f" Consider deleting or moving {it_or_them}."
+            Fore.RED
+            + f"{error_count} {file_or_files} within {c.RESOURCES.relative_to(c.ROOT)}"
+            + f" {is_or_are} not used for testing."
+            + f" Consider deleting or moving {it_or_them}."
+            + Style.RESET_ALL
         )
         sys.exit(1)
 
@@ -86,7 +92,11 @@ def copy_files_that_shouldnt_be_overwritten() -> None:
     """
     for src in c.DO_NOT_OVERWRITE_FILES:
         if not src.exists():
-            print(f"{src} does not exist. Check DO_NOT_OVERWRITE_FILES in constants.py.")
+            print(
+                Fore.RED
+                + f"{src} does not exist. Check DO_NOT_OVERWRITE_FILES in constants.py."
+                + Style.RESET_ALL
+            )
             sys.exit(1)
         dest = c.ACTUAL_OUTPUTS / src.relative_to(c.RESOURCES)
         if dest.is_file():
@@ -139,9 +149,9 @@ def check_files_that_shouldnt_be_overwritten() -> int:
             )
             sys.exit(1)
         if ok:
-            print("OK")
+            print(Fore.GREEN + "OK" + Style.RESET_ALL)
         else:
-            print("CHANGED")
+            print(Fore.RED + "CHANGED" + Style.RESET_ALL)
             error_count += 1
     return error_count
 
@@ -181,10 +191,10 @@ def test_plain(expected_stderr_file: Path, cli_args: list[str], save: bool) -> b
             raise TestFailed(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
         # Check stderr
         assert_equals("stderr", actual_stderr_file, expected_stderr_file, save=save)
-        print("OK")
+        print(Fore.GREEN + "OK" + Style.RESET_ALL)
         return True
     except TestFailed as e:
-        print(e)
+        print(Fore.RED + str(e) + Style.RESET_ALL)
         return False
 
 
@@ -217,10 +227,10 @@ def test_eval(eval_output: Path, cli_args: list[str], save: bool) -> bool:
             raise TestFailed(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
         # Check output
         assert_equals("output", actual_out_file, eval_output, save=save)
-        print("OK")
+        print(Fore.GREEN + "OK" + Style.RESET_ALL)
         return True
     except TestFailed as e:
-        print(e)
+        print(Fore.RED + str(e) + Style.RESET_ALL)
         return False
 
 
@@ -272,10 +282,10 @@ def test_repl(repl_output: Path, compiler_version: str, cli_args: list[str]) -> 
                 f" with {actual_out_file.relative_to(c.ROOT)})"
             )
         actual_out_file.unlink(missing_ok=True)
-        print("OK")
+        print(Fore.GREEN + "OK" + Style.RESET_ALL)
         return True
     except TestFailed as e:
-        print(e)
+        print(Fore.RED + str(e) + Style.RESET_ALL)
         return False
 
 
@@ -283,6 +293,7 @@ def main(test_sources: list[Path], skip_vsim: bool, save: bool) -> None:
     """
     Script entry point.
     """
+    start_timestamp = time.monotonic()
     look_for_unused_files()
     copy_files_that_shouldnt_be_overwritten()
     os.chdir(c.ROOT)
@@ -341,16 +352,23 @@ def main(test_sources: list[Path], skip_vsim: bool, save: bool) -> None:
             if not ok:
                 error_count += 1
         if not ran and test not in c.IGNORE_FILES:
-            print(f"ERROR: Nothing to do for file {test.relative_to(c.ROOT)}")
+            print(
+                Fore.RED
+                + f"ERROR: Nothing to do for file {test.relative_to(c.ROOT)}"
+                + Style.RESET_ALL
+            )
             error_count += 1
     error_count += check_files_that_shouldnt_be_overwritten()
+    end_timestamp = time.monotonic()
+    elapsed_time = end_timestamp - start_timestamp
+    elapsed_time = f" (in {elapsed_time:.1f} seconds)"
     if error_count > 0:
         test_or_tests = "test" if error_count == 1 else "tests"
         print()
-        print(f"{error_count} {test_or_tests} failed")
+        print(Fore.RED + f"{error_count} {test_or_tests} failed" + Style.RESET_ALL + elapsed_time)
         sys.exit(1)
     print()
-    print("All tests passed!")
+    print(Fore.GREEN + "All tests passed!" + Style.RESET_ALL + elapsed_time)
 
 
 def _parse_args() -> Namespace:
@@ -376,6 +394,11 @@ def _parse_args() -> Namespace:
         action="store_true",
         help="overwrite the expected results with whatever the compiler currently outputs",
     )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="suppress colored output",
+    )
     args = parser.parse_args()
     if not args.test_sources:
         args.test_sources = sorted(list(c.RESOURCES.glob("**/*.sirop")) + c.MISSING_FILES)
@@ -392,4 +415,9 @@ def _parse_args() -> Namespace:
 
 if __name__ == "__main__":
     _args = _parse_args()
-    main(_args.test_sources, skip_vsim=_args.skip_vsim, save=_args.save)
+    colorama.init(strip=True if _args.no_color else None)
+    try:
+        main(_args.test_sources, skip_vsim=_args.skip_vsim, save=_args.save)
+    except KeyboardInterrupt:
+        print()
+        print("Cancelled")

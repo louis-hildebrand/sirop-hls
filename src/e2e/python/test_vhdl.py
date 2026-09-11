@@ -7,6 +7,8 @@ import os
 import re
 import subprocess
 
+from colorama import Fore, Style
+
 from helpers import assert_equals, TestFailed
 import constants as c
 
@@ -120,10 +122,10 @@ def run(src: Path, cli_args: list[str], save: bool) -> bool:
             actual_ip_blocks_path = c.ACTUAL_OUTPUTS / f"{name}.vhdl.ip.txt"
             actual_ip_blocks_path.write_text(_get_ip_blocks(vhdl_dir), encoding="utf-8")
             assert_equals("IP blocks", actual_ip_blocks_path, expected_ip_blocks_path, save=save)
-        print("OK")
+        print(Fore.GREEN + "OK" + Style.RESET_ALL)
         return True
     except TestFailed as e:
-        print(str(e))
+        print(Fore.RED + str(e) + Style.RESET_ALL)
         return False
 
 
