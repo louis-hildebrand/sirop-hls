@@ -3,7 +3,16 @@ package mhir.optimize
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.optimize.{PartialEvalPass => PE}
-import mhir.sugar.{Cast, ExprLowering}
+import mhir.sugar.{
+  Cast,
+  ExprLowering,
+  SafeSum,
+  VecConcat,
+  VecDrop,
+  VecShiftLeft,
+  VecTake,
+  VecTakeRight
+}
 import mhir.typecheck.TypeCheck
 
 import scala.annotation.tailrec
@@ -38,6 +47,13 @@ object StmAccRemovalPass {
   }
 
   def deduplicateVars(stm: StmBuild): StmBuild = {
+    val stm1 = mergeFullyEquivalentVars(stm)
+    val stm2 = mergeChainedShiftRegisters(stm1)
+    val stm3 = mergeShiftRegistersWithSameInput(stm2)
+    stm3
+  }
+
+  private def mergeFullyEquivalentVars(stm: StmBuild): StmBuild = {
     val equivClasses =
       findDuplicateAccumulators(stm) ++ findDuplicateInputs(stm)
     val replacements: Map[Param, Expr] =
@@ -80,6 +96,242 @@ object StmAccRemovalPass {
       "deduplicating accumulator variables should not have changed the set of free variables"
     )
     newStm
+  }
+
+  private def mergeChainedShiftRegisters(original: StmBuild): StmBuild = {
+    @tailrec
+    def merge(stm: StmBuild, visited: Set[Param]): StmBuild = {
+      val childCandidate = stm.accumulators.keySet.diff(visited).headOption
+      childCandidate match {
+        case None => stm
+        case Some(child) =>
+          (child, stm.accumulators(child)) match {
+            // TODO: this match syntax is kind of gross. Can I simplify?
+            case ShiftLeft(
+                  _,
+                  ShiftLeft(childLen, VecAccess(parent: Param, IntCst(src)))
+                ) if stm.accumulators.contains(parent) && parent != child =>
+              (parent, stm.accumulators(parent)) match {
+                case ShiftLeft(_, ShiftLeft(parentLen, parentInput)) =>
+                  // TODO: can I combine these two branches?
+                  if (src >= childLen) {
+                    // child is completely inside parent
+                    val newStm = mergeChainedShiftRegisterInside(
+                      stm,
+                      child,
+                      childLen,
+                      parent,
+                      src
+                    )
+                    newStm match {
+                      case Some(s) => merge(s, visited)
+                      case None    => merge(stm, visited + child)
+                    }
+                  } else {
+                    // child extends past index 0 of parent; make one big shift register to replace both
+                    val newStm = mergeChainedShiftRegistersOutside(
+                      stm,
+                      child,
+                      childLen,
+                      parent,
+                      parentLen,
+                      parentInput,
+                      src
+                    )
+                    newStm match {
+                      case Some(s) => merge(s, visited)
+                      case None    => merge(stm, visited + child)
+                    }
+                  }
+                case _ => merge(stm, visited + child)
+              }
+            case _ => merge(stm, visited + child)
+          }
+      }
+    }
+    merge(
+      original,
+      visited =
+        original.accumulators.keySet.filterNot(_.typ.isInstanceOf[TyVec])
+    )
+  }
+
+  private def mergeChainedShiftRegisterInside(
+      stm: StmBuild,
+      child: Param,
+      childLen: Long,
+      parent: Param,
+      src: Long
+  ): Option[StmBuild] = {
+    val (childInit, _, childDelay) = stm.accumulators(child)
+    val (parentInit, _, parentDelay) = stm.accumulators(parent)
+    // The part of the parent's initial value that the child's initial value should match
+    val overlapInitFromParent = PartialEvalPass.partialEval(
+      // Discard from the left until the length matches childLen
+      VecTakeRight(
+        // Discard everything after and including index `src`
+        VecTake(parentInit, C(src)())(),
+        C(childLen)()
+      )().tchk().lower
+    )
+    assert(overlapInitFromParent.typ == childInit.typ)
+    val sameInit = (
+      childInit.isInstanceOf[Undefined]
+        || parentInit.isInstanceOf[Undefined]
+        || (
+          overlapInitFromParent == childInit
+            && parentDelay == childDelay
+        )
+    )
+    if (sameInit) {
+      val i = Param("i")(TyAnyInt.tightest(0, childLen - 1))
+      val newChild = PartialEvalPass.partialEval(
+        VecBuild(
+          C(childLen)(),
+          Function(
+            i,
+            // child[childLen-1] is a duplicate of parent[src-1]
+            // child[childLen-2] is a duplicate of parent[src-2]
+            // ...
+            // child[childLen-childLen] is a duplicate of parent[src-childLen]
+            VecAccess(parent, SafeSum(i, C(src - childLen)())())()
+          )()
+        )().tchk().lower
+      )
+      Some(
+        stm
+          .replaceVars(Map(child -> newChild))
+          .tchk()
+          .asInstanceOf[StmBuild]
+      )
+    } else {
+      None
+    }
+  }
+
+  private def mergeChainedShiftRegistersOutside(
+      stm: StmBuild,
+      child: Param,
+      childLen: Long,
+      parent: Param,
+      parentLen: Long,
+      parentInput: Expr,
+      src: Long
+  ): Option[StmBuild] = {
+    val TyVec(elemTyp, _) = parent.typ
+    val (childInit, _, childDelay) = stm.accumulators(child)
+    val (parentInit, _, parentDelay) = stm.accumulators(parent)
+    // Initial value in the overlapping region
+    // TODO: skip this calculation if one of them are undefined or src == 0? Maybe move this to a method?
+    val overlapInitFromChild = PartialEvalPass.partialEval(
+      VecTakeRight(childInit, C(src)())().tchk().lower
+    )
+    val overlapInitFromParent = PartialEvalPass.partialEval(
+      VecTake(parentInit, C(src)())().tchk().lower
+    )
+    val sameInitInOverlap = (
+      // TODO: is simplification possible if childInit is undefined but parentInit is a concrete value, or vice-versa?
+      //       Need to think carefully about the semantics of a missing delay annotation.
+      //       Maybe the programmer has assumed the input latency is exactly a certain value;
+      //       in that case, shift register merging might change the behaviour.
+      //       If it turns out to be important for performance to merge in this case,
+      //       maybe I can add a compiler flag or accelerator annotation to let the compiler assume strict latency insensitivity.
+      src == 0 // no overlap at all
+        || (childInit.isInstanceOf[Undefined]
+          && parentInit.isInstanceOf[Undefined])
+        || (overlapInitFromParent == overlapInitFromChild
+          && childDelay == parentDelay)
+    )
+    if (sameInitInOverlap) {
+      val combinedLen = {
+        // src == 0: combinedLen = childLen + parentLen
+        // src == 1: combinedLen = childLen + parentLen - 1
+        // etc.
+        childLen + parentLen - src
+      }
+      val combined = parent.freshCopy
+        .rebuild(TyVec(elemTyp, C(combinedLen)()))
+        .asInstanceOf[Param]
+      val combinedDelay = parentInit match {
+        case _: Undefined => childDelay
+        case _            => parentDelay
+      }
+      val combinedInit = PartialEvalPass.partialEval(
+        VecConcat(childInit, VecDrop(parentInit, C(src)())())()
+          .tchk()
+          .lower
+      )
+      val combinedNext = PartialEvalPass.partialEval(
+        VecShiftLeft(combined, parentInput)().tchk().lower
+      )
+      val newChild = PartialEvalPass.partialEval(
+        VecTake(combined, C(childLen)())().tchk().lower
+      )
+      val newParent = PartialEvalPass.partialEval(
+        VecTakeRight(combined, C(parentLen)())().tchk().lower
+      )
+      val result = stm
+        .addAccumulator(
+          combined,
+          combinedInit,
+          combinedNext,
+          combinedDelay
+        )
+        .replaceVars(
+          Map(
+            child -> newChild,
+            parent -> newParent
+          )
+        )
+      Some(result)
+    } else {
+      None
+    }
+  }
+
+  private def mergeShiftRegistersWithSameInput(original: StmBuild): StmBuild = {
+    val shiftRegisters = original.accumulators
+      .collect({ case ShiftLeft(x, shift) => x -> shift })
+    val groups = shiftRegisters
+      .map({ case (x, ShiftLeft(_, input)) => x -> input })
+      .groupBy({ case (x, input) =>
+        val (_, _, delay) = original.accumulators(x)
+        (input, delay)
+      })
+      .map({ case (_, map) => map.keySet })
+      .toSet
+    // Length of the register needed for each input
+    val replacements = groups
+      .flatMap({ xs =>
+        val maxLength = xs.map(shiftRegisters(_).length).max
+        // Keep the longest shift register
+        val representative = xs.find(shiftRegisters(_).length == maxLength).get
+        val (representativeInit, _, _) = original.accumulators(representative)
+        xs
+          .filterNot(_ == representative)
+          .map({ x =>
+            val ShiftLeft(xLen, _) = shiftRegisters(x)
+            (x, xLen)
+          })
+          .filter({ case (x, xLen) =>
+            // Check that the initial value matches the representative.
+            // Discard if not.
+            // TODO: try to make a separate group if the initial value doesn't match, instead of discarding?
+            val (xInit, _, _) = original.accumulators(x)
+            val overlapInitFromRep = PartialEvalPass.partialEval(
+              VecTakeRight(representativeInit, C(xLen)())().tchk().lower
+            )
+            val overlapInitFromX = PartialEvalPass.partialEval(
+              VecTakeRight(xInit, C(xLen)())().tchk().lower
+            )
+            overlapInitFromRep == overlapInitFromX
+          })
+          .map({ case (x, xLen) =>
+            x -> VecTakeRight(representative, C(xLen)())().tchk().lower
+          })
+      })
+      .toMap
+    original.replaceVars(replacements)
   }
 
   @tailrec
@@ -192,5 +444,40 @@ object StmAccRemovalPass {
       .groupBy({ case (_, (s, ready, delay)) => (s, ready, delay) })
       .map({ case (_, eqns) => eqns.map({ case (x, _) => x }).toSet })
       .toSet
+  }
+}
+
+// TODO: generalize to non-static lengths
+private case class ShiftLeft(length: Long, input: Expr)
+
+// TODO: this is very similar to code in mhir.gen (ClassifyVecAccumulators); try to deduplicate this code
+private object ShiftLeft {
+
+  def unapply(acc: (Param, (Expr, Expr, Expr))): Option[(Param, ShiftLeft)] = {
+    acc match {
+      case (
+            x0,
+            (
+              _,
+              VecBuild(
+                IntCst(n),
+                Function(
+                  i0,
+                  Mux(
+                    Equal(i1, IntCst(nMinusOne)),
+                    input,
+                    VecAccess(x1, Sum(IntCst(1), i2))
+                  )
+                )
+              ),
+              _
+            )
+          ) if i1 == i0 && i2 == i0 && x1 == x0 && nMinusOne == n - 1 =>
+        Some(x0 -> ShiftLeft(n, input))
+      case (x, (_, VecBuild(IntCst(1), Function(i, input)), _))
+          if !input.freeVars.contains(i) =>
+        Some(x -> ShiftLeft(1, input))
+      case _ => None
+    }
   }
 }

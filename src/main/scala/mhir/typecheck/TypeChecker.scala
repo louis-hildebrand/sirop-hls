@@ -517,7 +517,9 @@ trait TypeChecker {
                   //       But then there will be a circular dependency between
                   //       the type checker and the lowering package :(
                   case (IntCst(z), typ: TyAnyInt) if typ.contains(z) =>
-                    IntCst(z)(x.typ)
+                    IntCst(z)(typ)
+                  case (Undefined(Missing), TyData(typ)) =>
+                    Undefined(typ)
                   case _ =>
                     val newZ = init.tchk(context, constValues)
                     if (!newZ.typ.equalsGivenConstants(x.typ, constValues)) {

@@ -732,11 +732,14 @@ case class VecDrop(
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val v = this.vec.lower
     val k = this.k.lower
     val TyVec(_, n) = this.vec.typ
     val newLen = SmartDiff(n, k)().tchk().lower
-    VecBuild(newLen, U32 ::+ (i => VecAccess(vec, k + i)()))().tchk().lower
+    VecBuild(
+      newLen,
+      // Need to use this.vec instead of the lowered version to avoid a type error
+      U32 ::+ (i => VecAccess(this.vec, SmartSum(k, i)())())
+    )().tchk().lower
   }
 }
 
