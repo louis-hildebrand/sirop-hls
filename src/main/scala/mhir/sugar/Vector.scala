@@ -740,6 +740,38 @@ case class VecDrop(
   }
 }
 
+case class VecTakeRight(v: Expr, k: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(v, k)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, k) => VecTakeRight(v, k)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val v = this.v.tchk(context, constValues)
+    val elemTyp = v.typ match {
+      case TyVec(elemTyp, _) => elemTyp
+      case typ =>
+        throw new TypeError(
+          s"input of $className has type $typ. Expected a vector."
+        )
+    }
+    val k = this.k.tchk(context, constValues).expectUInt()
+    this.rebuild(TyVec(elemTyp, k), Seq(v, k))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    VecDrop(this.v, SmartDiff(VecLength(this.v)(), this.k)())().tchk().lower
+  }
+}
+
 /** Discard the first element of the given vector and insert the given value at
   * the end.
   *
