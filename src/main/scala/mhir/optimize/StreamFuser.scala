@@ -93,17 +93,14 @@ object StreamFuser {
               )
               None
           }
-          val updateDelay = (e: Expr) =>
-            e.typ match {
-              case _: TyAnyInt =>
-                deltaDelay match {
-                  case None        => e
-                  case Some(delta) => SafeSum(e, delta)().tchk().lower
+          val updateDelay = deltaDelay match {
+            case None => (e: Expr) => e
+            case Some(delta) =>
+              (e: Expr) =>
+                e.updateDelayIfPresent { delay =>
+                  SafeSum(delay, delta)().tchk().lower
                 }
-              case TyTuple() => e
-              case typ =>
-                throw new AssertionError(s"wrong type for delay: $typ")
-            }
+          }
           val (_, consumerReady, _) = consumer.producers(x)
           // IN CONSUMER
           // | consumer ready | producer valid | result                     |

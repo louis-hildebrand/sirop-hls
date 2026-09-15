@@ -239,6 +239,15 @@ object PartialEvalPass {
           case Not(e) =>
             ArithSimplifier.simplifyArithmetic(Not(doPartialEval(e))())(facts)
 
+          case tup @ Tuple(elems @ _*) =>
+            val newElems = elems.map(doPartialEval)
+            val allUndefined =
+              newElems.nonEmpty && newElems.forall(_.isInstanceOf[Undefined])
+            if (allUndefined) {
+              Undefined(tup.typ)
+            } else {
+              Tuple(newElems: _*)()
+            }
           case TupleAccess(t: Expr, IntCst(i)) =>
             doPartialEval(t) match {
               case tuple: Tuple =>
@@ -274,6 +283,8 @@ object PartialEvalPass {
                   // It's not a no-op if the length changes
                     && x.typ == vb.typ =>
                 x
+              case Function(_, _: Undefined) =>
+                Undefined(vb.typ)
               case _ =>
                 VecBuild(newN, newF)()
             }

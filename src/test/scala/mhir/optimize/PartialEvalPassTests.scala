@@ -828,4 +828,18 @@ class PartialEvalPassTests extends AnyFunSuite {
     val expected = Not(SmartLessThan(t, 0)())()
     assert(actual == expected)
   }
+
+  test("CoalesceUndefinedTuple") {
+    val e = Tuple(Undefined(U8), Undefined(TyBool))().tchk()
+    val actual = PE.partialEval(e)
+    val expected = Undefined(TyVec(U8, 4))
+    assert(actual == expected)
+  }
+
+  test("CoalesceUndefinedVector") {
+    val e = VecBuild(4, U8 ::+ (_ => Undefined(U8)))().tchk()
+    val actual = PE.partialEval(e)
+    val expected = Undefined(TyVec(U8, 4))
+    assert(actual == expected)
+  }
 }

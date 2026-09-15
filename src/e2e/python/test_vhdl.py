@@ -96,6 +96,7 @@ def run(src: Path, cli_args: list[str], save: bool) -> bool:
         # Check error code
         actual_stderr = result.stderr
         actual_stderr_file = c.ACTUAL_OUTPUTS / f"{name}.vhdl.stderr.txt"
+        actual_stderr_file.parent.mkdir(exist_ok=True, parents=True)
         actual_stderr_file.write_text(actual_stderr, encoding="utf-8")
         expected_code = 1 if src.parent.name.endswith("Error") else 0
         if result.returncode != expected_code:

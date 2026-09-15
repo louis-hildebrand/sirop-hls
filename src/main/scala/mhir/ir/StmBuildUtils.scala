@@ -1,5 +1,7 @@
 package mhir.ir
 
+import scala.annotation.tailrec
+
 trait StmBuildUtils {
 
   /** Helper methods for [[StmBuild]].
@@ -249,6 +251,33 @@ trait StmBuildUtils {
       this.stm.nextData.freeVars
         .union(this.stm.valid.freeVars)
         .intersect(this.stm.namesDefinedHere)
+    }
+
+    def indicesUsed(v: Param): VecUses = {
+      require(
+        v.typ.isInstanceOf[TyVec],
+        s"target param has type ${v.typ}; expected a vector"
+      )
+      val whereToLook = Seq(this.stm.nextData, this.stm.valid) ++
+        this.stm.accumulators.-(v).map({ case (_, (_, next, _)) => next }) ++
+        this.stm.producers.map({ case (_, (_, ready, _)) => ready })
+      indicesUsedIn(v, Tuple(whereToLook: _*)())
+    }
+
+    private def indicesUsedIn(v: Param, e: Expr): VecUses = {
+      @tailrec
+      def find(candidates: Seq[Expr], acc: VecUses): VecUses = {
+        candidates match {
+          case Seq()        => acc
+          case head +: tail => find(tail, acc.union(indicesUsedIn(v, head)))
+        }
+      }
+      e match {
+        case VecAccess(v1: Param, IntCst(i)) if v1 == v =>
+          VecUses.Indices(Set(i))
+        case v1: Param if v1 == v => VecUses.All
+        case e                    => find(e.children, VecUses.None)
+      }
     }
 
     def annotate(annotation: StmBuildAnnotation): StmBuild = {

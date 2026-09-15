@@ -2,83 +2,11 @@ package mhir.optimize
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.parse.sirop.Parser
 import mhir.sugar._
+import mhir.testing.SiropFunSuite
 import mhir.typecheck._
-import org.scalatest.funsuite.AnyFunSuite
 
-class StmAccRemovalPassTests extends AnyFunSuite {
-
-  private def makeSbuild(src: String, context: Map[Param, Type]): StmBuild = {
-    val expr = Parser.parse(src).body
-    PartialEvalPass
-      .partialEval(expr.tchk(context, Map()).lower)
-      .asInstanceOf[StmBuild]
-  }
-
-  private def assertSameVal(
-      actual: Expr,
-      expected: Expr,
-      handshake: Boolean,
-      inputs: Map[Param, Expr]
-  ): Unit = {
-    val expectedVal =
-      mhir.eval.eval(expected, handshake = handshake, inputs = inputs)
-    val actualVal =
-      mhir.eval.eval(actual, handshake = handshake, inputs = inputs)
-    assert(valueMatches(actualVal, expectedVal))
-  }
-
-  private def valueMatches(actual: Expr, expected: Expr): Boolean = {
-    (actual, expected) match {
-      case (actual, expected) if actual == expected => true
-      // It's fine to replace undefined with a concrete value
-      case (_, _: Undefined) => true
-      // It's NOT fine to replace a concrete value with undefined
-      case (_: Undefined, _) => false
-      case (
-            StmLiteral(actualPhysical, actualLogical),
-            StmLiteral(expectedPhysical, expectedLogical)
-          ) =>
-        seqMatches(actualPhysical, expectedPhysical) &&
-        seqMatches(actualLogical, expectedLogical)
-      case (VecLiteral(actualElems @ _*), VecLiteral(expectedElems @ _*)) =>
-        seqMatches(actualElems, expectedElems)
-      case (Tuple(actualElems @ _*), Tuple(expectedElems @ _*)) =>
-        seqMatches(actualElems, expectedElems)
-      case _ => false
-    }
-  }
-
-  private def seqMatches(
-      actualElems: Seq[Expr],
-      expectedElems: Seq[Expr]
-  ): Boolean = {
-    actualElems.length == expectedElems.length &&
-    actualElems.zip(expectedElems).forall({ case (x, y) => valueMatches(x, y) })
-  }
-
-  private def assertSameAccumulators(
-      actual: StmBuild,
-      expected: StmBuild
-  ): Unit = {
-    // Include the types separately because two params with the same name but
-    // different types will be considered syntactically equal.
-    val expectedAccumulators = expected.accumulators.keySet.map(x => (x, x.typ))
-    val actualAccumulators = actual.accumulators.keySet.map(x => (x, x.typ))
-    assert(actualAccumulators == expectedAccumulators)
-  }
-
-  private def counterWithPrefix(
-      n: Int,
-      start: Long,
-      elemTyp: TyAnyInt = U8
-  ): StmLiteral = {
-    StmLiteral(
-      (0 until 2).map(100 + _).map(C(_)(elemTyp)),
-      (0 until n).map(start + _).map(C(_)(elemTyp))
-    )(Missing).tchk().asInstanceOf[StmLiteral]
-  }
+class StmAccRemovalPassTests extends SiropFunSuite {
 
   test("RemoveUnusedCounters") {
     val n = Param("n")(U8)

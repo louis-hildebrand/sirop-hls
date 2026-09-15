@@ -1622,7 +1622,7 @@ case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
       case typ =>
         throw new TypeError(
           s"Input to $className has type $typ."
-            + s" Expected a nno-nested stream."
+            + s" Expected a non-nested stream."
         )
     }
     val delay = this.delay.tchk(context, constValues).expectUInt()

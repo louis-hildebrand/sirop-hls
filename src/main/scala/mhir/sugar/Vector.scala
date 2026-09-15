@@ -95,7 +95,8 @@ case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     val n = this.n.lower
     val z = this.z.lower
     val delta = this.delta.lower
-    VecBuild(n, z.typ ::+ (i => Sum(z, Prod(i, delta)())()))().tchk()
+    val i = Param("i")(z.typ)
+    VecBuild(n, Function(i, Sum(z, Prod(i, delta)())())())().tchk()
   }
 }
 
@@ -823,9 +824,10 @@ case class VecShiftLeft(
           .tchk()
           .lower
       case _ =>
+        val i = Param("i")(n.typ)
         VecBuild(
           n,
-          U32 ::+ (i => Mux((i + 1) === n, e, VecAccess(v, i + 1)())())
+          Function(i, Mux((i + 1) === n, e, VecAccess(v, i + 1)())())()
         )().tchk().lower
     }
   }
