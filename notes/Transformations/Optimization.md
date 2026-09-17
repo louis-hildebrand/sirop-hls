@@ -219,7 +219,7 @@
 			- *Problem:* Seems like this wouldn't work for a case where the number of steps until a valid output is not statically known
 				- *Example:* `StmAccess(StmRange(n, z, delta), i)`, which can be simplified to `StmCst(1, z + i * delta)`
 			- *Problem:* Need to watch out for infinite loops in the partial evaluator: this rule would make it so that the `StmBuild` and `StmNext` cases each potentially recursively call the other
-		- Possibly better approach: chain of transformations 
+		- Possibly better approach: chain of transformations
 			1. Shift accumulator to simply skip the delay (i.e., start at `n - 1` rather than 0)
 			2. Perhaps "re-index" the accumulator so that it starts at 0 (in this case, it can be done with induction variable removal)
 				- We would then have:

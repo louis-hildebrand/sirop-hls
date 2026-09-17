@@ -88,7 +88,13 @@ trait StmBuildUtils {
             + s" The stream is $this."
         )
       } else {
+        // TODO: skip this if subs is empty?
         val subs: Map[Expr, Expr] = replacements.toMap
+        val newAnnotations = this.stm.annotations.map({
+          case SinkAnnotation(sink) =>
+            SinkAnnotation(sink.subPreserveType(subs))
+          case a => a
+        })
         StmBuild(
           this.stm.n,
           this.stm.delay,
@@ -105,7 +111,7 @@ trait StmBuildUtils {
             .map({ case (x, (stm, ready, delay)) =>
               x -> (stm, ready.subPreserveType(subs), delay)
             })
-        )(annotations = this.stm.annotations)
+        )(annotations = newAnnotations)
       }
     }
 
@@ -253,15 +259,20 @@ trait StmBuildUtils {
         .intersect(this.stm.namesDefinedHere)
     }
 
-    def indicesUsed(v: Param): VecUses = {
+    @deprecated
+    def indicesUsed(v: Param): (VecUses, VecUses) = {
       require(
         v.typ.isInstanceOf[TyVec],
         s"target param has type ${v.typ}; expected a vector"
       )
       val whereToLook = Seq(this.stm.nextData, this.stm.valid) ++
         this.stm.accumulators.-(v).map({ case (_, (_, next, _)) => next }) ++
-        this.stm.producers.map({ case (_, (_, ready, _)) => ready })
-      indicesUsedIn(v, Tuple(whereToLook: _*)())
+        this.stm.producers.map({ case (_, (_, ready, _)) => ready }) ++
+        this.stm.sinkAnnotation.toSeq
+      (
+        indicesUsedIn(v, Tuple(whereToLook: _*)()),
+        indicesUsedIn(v, this.stm.sinkAnnotation.getOrElse(False))
+      )
     }
 
     private def indicesUsedIn(v: Param, e: Expr): VecUses = {
@@ -294,6 +305,10 @@ trait StmBuildUtils {
 
     def nameAnnotation: Option[String] = {
       this.stm.annotations.collectFirst({ case NameAnnotation(name) => name })
+    }
+
+    def sinkAnnotation: Option[Expr] = {
+      this.stm.annotations.collectFirst({ case SinkAnnotation(sink) => sink })
     }
   }
 }

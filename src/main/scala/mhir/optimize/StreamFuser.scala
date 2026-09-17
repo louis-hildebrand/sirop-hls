@@ -164,6 +164,16 @@ object StreamFuser {
                   val newDelay = updateDelay(delay)
                   y -> (stm, (consumerCanStep && ready).tchk(), newDelay)
                 })
+
+          /** TODO: combine annotations like [[NoInputsAfterLastOut]] too? It
+            * seems like it would require some care. It probably isn't necessary
+            * anyway, since those annotations are meant for the lowering pass.
+            */
+          val newAnnotations = (
+            combineSinks(producer.sinkAnnotation, consumer.sinkAnnotation)
+              .toSet[StmBuildAnnotation]
+              + combineNames(producer.nameAnnotation, consumer.nameAnnotation)
+          )
           StmBuild(
             consumer.n,
             updateDelay(consumer.delay),
@@ -172,7 +182,7 @@ object StreamFuser {
             newValid,
             newAccumulators,
             newProducers
-          )().tchk().asInstanceOf[StmBuild]
+          )(annotations = newAnnotations).tchk().asInstanceOf[StmBuild]
         case Some((e, _, _)) =>
           throw new IllegalArgumentException(
             s"Expected the initial value of $x to be a StmBuild, but found $e"
@@ -206,6 +216,7 @@ object StreamFuser {
   private def addOutputRegisters(s: StmBuild): StmBuild = {
     val data = Param("data")(s.nextData.typ)
     val valid = Param("valid")(TyBool)
+    // TODO: use StmExtendBy to fix this? Maybe the added resource usage would defeat the purpose of fusion
     // Adding these output registers leads to a problem at the last time step:
     // we're reading one more element from the input streams than we used to.
     // (We're also updating the other accumulators one time more than we used
@@ -234,6 +245,27 @@ object StreamFuser {
       valid,
       newAccumulators,
       newProducers
-    )().tchk().asInstanceOf[StmBuild]
+    )(annotations = s.annotations).tchk().asInstanceOf[StmBuild]
+  }
+
+  private def combineNames(
+      producerName: Option[String],
+      consumerName: Option[String]
+  ): NameAnnotation = {
+    val p1 = producerName.getOrElse("_Unknown")
+    val p2 = if (p1.contains("+")) s"($p1)" else p1
+    val c1 = consumerName.getOrElse("_Unknown")
+    val c2 = if (c1.contains("+")) s"($c1)" else c1
+    NameAnnotation(s"$p2+$c2")
+  }
+
+  private def combineSinks(
+      producerSink: Option[Expr],
+      consumerSink: Option[Expr]
+  ): Option[SinkAnnotation] = {
+    (producerSink, consumerSink) match {
+      case (Some(e1), Some(e2)) => Some(SinkAnnotation(Tuple(e1, e2)()))
+      case (e1, e2) => e1.orElse(e2).flatMap(e => Some(SinkAnnotation(e)))
+    }
   }
 }

@@ -70,17 +70,7 @@ object PartialEvalPass {
       case Some(false) => False
       case None =>
         e match {
-          case u: Undefined =>
-            // Be very careful with undefined values.
-            // For example, don't say that undefined + x --> undefined and
-            // undefined * x --> undefined.
-            // You may end up incorrectly simplifying as follows:
-            //       (x => x + -1*x)(undefined)
-            //   --> undefined + -1*undefined
-            //   --> undefined + undefined
-            //   --> undefined
-            // Yet clearly the original expression will always evaluate to 0.
-            u
+          case u: Undefined => u
           case x: Param =>
             facts.getRange(x) match {
               case Some(ScalarRange(Some(IntCst(lo)), Some(IntCst(hi))))
@@ -318,6 +308,16 @@ object PartialEvalPass {
               s.namesDefinedHere
                 .foldLeft(facts)({ case (facts, x) => facts.clearRange(x) })
             val newValid = doPartialEval(s.valid)(newFacts)
+            val newAnnotations = s.annotations.map({
+              case SinkAnnotation(sink) =>
+                val newSink = doPartialEval(sink) match {
+                  case Tuple(elems @ _*) =>
+                    Tuple(elems.filter(_.freeVars.nonEmpty): _*)().tchk()
+                  case e => e
+                }
+                SinkAnnotation(newSink)
+              case a => a
+            })
             StmBuild(
               doPartialEval(s.n)(facts),
               doPartialEval(s.delay)(facts),
@@ -342,7 +342,7 @@ object PartialEvalPass {
                   doPartialEval(delay)(facts)
                 )
               })
-            )(annotations = s.annotations)
+            )(annotations = newAnnotations)
           case LetStm(bufSize, x, in, out) =>
             LetStm(
               doPartialEval(bufSize),

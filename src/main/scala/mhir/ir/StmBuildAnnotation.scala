@@ -46,3 +46,15 @@ object NoOutputsAfterLastIn extends StmBuildAnnotation
   * like `counter < 5`, then it will satisfy the condition.
   */
 object SelfControlledOutputs extends StmBuildAnnotation
+
+/** The given [[sink]] expression should be considered "used" for the purpose of
+  * transformations like shift register shrinking
+  * ([[mhir.optimize.ShiftRegisterShrinker]]).
+  *
+  * This can be used to limit how much the optimizer will shrink certain shift
+  * registers if you want them to be available for DSP register packing (e.g.,
+  * in [[mhir.gen.vhdl.agilex7.DspSelection]]).
+  */
+// TODO: warning if this has free variables?
+// TODO: warning if there are more than one of these?
+case class SinkAnnotation(sink: Expr) extends StmBuildAnnotation

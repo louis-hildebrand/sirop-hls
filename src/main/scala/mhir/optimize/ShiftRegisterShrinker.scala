@@ -53,17 +53,20 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
   private implicit val logger: Logger = Logger(getClass.getName)
 
   def applyRecursively(e: Expr): Expr = {
-    time("shrinking shift registers", Level.DEBUG) {
-      val e1 = e.map(this.applyRecursively).tchk()
-      val e2 = e1 match {
+    def rec(e0: Expr): Expr = {
+      val e1 = e0.map(rec).tchk()
+      e1 match {
         case s: StmBuild => this.applyOnce(s)
         case e           => e
       }
+    }
+    time("shrinking shift registers", Level.DEBUG) {
+      val result = rec(e)
       assert(
-        e2.freeVars.subsetOf(e.freeVars),
+        result.freeVars.subsetOf(e.freeVars),
         "no new free variables should have been introduced by shift register shrinking"
       )
-      e2
+      result
     }
   }
 
@@ -89,11 +92,15 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
       val shiftRegisterUses = shiftRegisters
         .flatMap({ case (v, ShiftLeft(len, input)) =>
           stm.indicesUsed(v) match {
-            case VecUses.Indices(indices) =>
+            case (VecUses.Indices(indices), VecUses.Indices(indicesInSink))
+                if indices.nonEmpty || indicesInSink.nonEmpty =>
+              val maxIndex = (indices ++ indicesInSink).max
               val delayCost = delayCostModel.rawCost(
                 input,
                 varCosts = stm.namesDefinedHere.map(_ -> 0L).toMap
               )
+              val canOmitOneMore =
+                delayCost == 0 && !indicesInSink.contains(maxIndex)
               // We have a situation like
               //                     |
               //                     v
@@ -102,7 +109,7 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
               //   +---+---+---+---+---+
               //     |   |   |
               //     v   v   v
-              val newLen = if (delayCost != 0) {
+              val newLen = if (!canOmitOneMore) {
                 // We could change this to the following:
                 //             |
                 //             v
@@ -128,7 +135,7 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
               } else {
                 None
               }
-            case VecUses.All => None
+            case _ => None
           }
         })
         .toMap
@@ -241,7 +248,15 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
               )
               x -> (init, next.subAndEraseType(subs), delay)
             })
-            .+(newV -> (newInit, newNext, newDelay)),
+            .+(newV -> (newInit, newNext, newDelay))
+            // TODO: fix this hack (by fixing equality of StmBuild, e.g., in partial evaluator)
+            .map({ case (x, (init, next, delay)) =>
+              x -> (
+                PartialEvalPass.partialEval(init),
+                PartialEvalPass.partialEval(next),
+                PartialEvalPass.partialEval(delay)
+              )
+            }),
           producers = stm.producers
             .map({ case (x, (stm1, ready, delay)) =>
               val newDelay = if (vDependencies.contains(x)) {
