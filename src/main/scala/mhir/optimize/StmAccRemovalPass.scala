@@ -179,7 +179,9 @@ object StmAccRemovalPass {
       childInit.isInstanceOf[Undefined]
         || parentInit.isInstanceOf[Undefined]
         || (
-          overlapInitFromParent == childInit
+          // It's fine to use alphaEquals here because we know we're dealing
+          // with vectors, not sbuild
+          (overlapInitFromParent alphaEquals childInit)
             && parentDelay == childDelay
         )
     )
@@ -239,7 +241,9 @@ object StmAccRemovalPass {
       src == 0 // no overlap at all
         || (childInit.isInstanceOf[Undefined]
           && parentInit.isInstanceOf[Undefined])
-        || (overlapInitFromParent == overlapInitFromChild
+        // It's fine to use alphaEquals here because we know we're dealing
+        // with vectors, not sbuild
+        || ((overlapInitFromParent alphaEquals overlapInitFromChild)
           && childDelay == parentDelay)
     )
     if (sameInitInOverlap) {
@@ -324,7 +328,9 @@ object StmAccRemovalPass {
             val overlapInitFromX = PartialEvalPass.partialEval(
               VecTakeRight(xInit, C(xLen)())().tchk().lower
             )
-            overlapInitFromRep == overlapInitFromX
+            // It's fine to use alphaEquals here because we know we're dealing
+            // with vectors, not sbuild
+            overlapInitFromRep alphaEquals overlapInitFromX
           })
           .map({ case (x, xLen) =>
             x -> VecTakeRight(representative, C(xLen)())().tchk().lower

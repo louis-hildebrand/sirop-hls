@@ -120,7 +120,7 @@ class StreamifierTests extends AnyFunSuite {
           )()
         )
       )).tchk().lower
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
@@ -141,7 +141,7 @@ class StreamifierTests extends AnyFunSuite {
           )()
         )
       )).tchk().lower
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }
 
@@ -308,7 +308,7 @@ class StreamifierTests extends AnyFunSuite {
       }
       Function(c, LetStm(1, c, c, concat)())().tchk().lower
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
 
     VhdlGenerator.validateExpr(DiscardAccumulatorDelays(actual))
   }

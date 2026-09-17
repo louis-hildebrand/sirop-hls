@@ -17,7 +17,7 @@ class StmSimplifierTests extends AnyFunSuite {
       LetStm(1, s, StmCount(C(10)(U8))(), count)().tchk().lower
     }
     val actual = simplifier.simplify(e)
-    assert(actual == count)
+    assert(actual alphaEquals count)
   }
 
   test("LetStm:OneUse") {
@@ -27,7 +27,7 @@ class StmSimplifierTests extends AnyFunSuite {
     val e = LetStm(1, s, count, map)().tchk().lower
     val expected = simplifier.simplify(map.subPreserveType(s -> count))
     val actual = simplifier.simplify(e)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("LetStm:TwoUses") {
@@ -38,6 +38,6 @@ class StmSimplifierTests extends AnyFunSuite {
     val e = LetStm(1, s1, s0, zipped)()
     val expected = e
     val actual = simplifier.simplify(e)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 }

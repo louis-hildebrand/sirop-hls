@@ -28,8 +28,6 @@ package object ir
   }
 
   def reset(globalOptions: GlobalOptions): Unit = {
-    Function.forceInit()
-    StmBuild.forceInit()
     Param.reset()
     this.globalOptions = globalOptions
   }

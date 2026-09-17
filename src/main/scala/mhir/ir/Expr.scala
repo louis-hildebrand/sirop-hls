@@ -142,6 +142,32 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
   def rebuild(typ: Type, newChildren: Seq[Expr]): Expr
 
   override def toString: String = ExprPrinter.displayOneLine(this)
+
+  /** Check whether this expression is alpha-equivalent to [[that]].
+    *
+    * Two expressions are alpha-equivalent if you can consistently rename bound
+    * variables (e.g., function parameters) and find that they are syntactically
+    * equal:
+    * https://en.wikipedia.org/wiki/Lambda_calculus#:~:text=alpha%2Dequivalent
+    *
+    * !!!!! WARNING !!!!! This method may be extremely slow in certain cases.
+    * [[mhir.ir.StmBuild.alphaEquals]] in particular has an O(n!) runtime in the
+    * worst case, where `n` is the number of accumulators and producers.
+    * [[alphaEquals]] should therefore usually be avoided in the main code,
+    * although using it in tests is OK.
+    */
+  def alphaEquals(that: Expr): Boolean = {
+    that match {
+      case that if that.getClass != this.getClass => false
+      case that: Expr =>
+        val thisChildren = this.children
+        val thatChildren = that.children
+        thisChildren.length == thatChildren.length &&
+        thisChildren
+          .zip(thatChildren)
+          .forall({ case (x, y) => x alphaEquals y })
+    }
+  }
 }
 
 /** A tuple.
@@ -199,6 +225,13 @@ case class Param(prefix: String, id: Long)(typ: Type) extends Expr()(typ) {
     */
   def freshCopy: Param = Param(this.prefix)(this.typ)
 
+  override def alphaEquals(that: Expr): Boolean = {
+    that match {
+      case that: Param => this.name == that.name
+      case _           => false
+    }
+  }
+
   override def toString: String = name
 }
 
@@ -241,11 +274,11 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
     }
   }
 
-  override def equals(x: Any): Boolean = {
+  override def alphaEquals(x: Expr): Boolean = {
     x match {
       case that: Function if that.param == this.param =>
         // Skip the substitution, which may be slow
-        this.body == that.body
+        this.body alphaEquals that.body
       case that: Function =>
         val fresh = Param("p")()
         val thisRenamed =
@@ -256,36 +289,10 @@ case class Function(param: Param, body: Expr)(typ: Type = Missing)
           that.body.subAndEraseType(
             that.param -> fresh.rebuild(that.param.typ)
           )(NoOpCanonicalizer)
-        thisRenamed == thatRenamed
+        thisRenamed alphaEquals thatRenamed
       case _ => false
     }
   }
-
-  override lazy val hashCode: Int = {
-    // This implementation should be correct, but it may cause excessive
-    // collisions when dealing with nested functions. For example,
-    // x => y => x - y and x => y => y - x will be assigned the same hash code.
-    this.body
-      .subAndEraseType(
-        this.param -> Function.HashCodeParam.rebuild(this.param.typ)
-      )(NoOpCanonicalizer)
-      .hashCode
-  }
-}
-
-/** Companion object for [[Function]].
-  */
-object Function {
-
-  /** Parameter to be used in the definition of <code>hashCode</code> to ensure
-    * that the bound variable name doesn't affect the hash code. <i>It MUST NOT
-    * be used for anything else</i>.
-    */
-  private val HashCodeParam = Param("hashCode")()
-
-  /** Force initialization of this object.
-    */
-  private[ir] def forceInit(): Unit = {}
 }
 
 /** A function application.
@@ -333,6 +340,13 @@ case class IntCst(i: Long)(typ: Type = Missing) extends IntExpr()(typ) {
     require(typ.isInstanceOf[TyAnyInt] || typ == Missing)
     require(newChildren.isEmpty)
     IntCst(i)(typ)
+  }
+
+  override def alphaEquals(that: Expr): Boolean = {
+    that match {
+      case that: IntCst => this.i == that.i
+      case _            => false
+    }
   }
 }
 
@@ -538,6 +552,13 @@ case class PadTo(e: Expr, w: Int)(typ: Type = Missing) extends IntExpr(e)(typ) {
       case _      => throw new BadRebuildError(this, newChildren)
     }
   }
+
+  override def alphaEquals(that: Expr): Boolean = {
+    that match {
+      case that: PadTo => (this.e alphaEquals that.e) && this.w == that.w
+      case _           => false
+    }
+  }
 }
 
 /** Truncate an integer to be [[w]] bits wide by dropping the most significant
@@ -557,6 +578,13 @@ case class TruncateTo(e: Expr, w: Int)(typ: Type = Missing)
     newChildren match {
       case Seq(e) => TruncateTo(e, w)(typ)
       case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def alphaEquals(that: Expr): Boolean = {
+    that match {
+      case that: TruncateTo => (this.e alphaEquals that.e) && this.w == that.w
+      case _                => false
     }
   }
 }
@@ -685,6 +713,13 @@ case class FixCst(numer: Long)(override val typ: TyFix) extends Expr()(typ) {
     newChildren match {
       case Seq() => this
       case _     => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def alphaEquals(that: Expr): Boolean = {
+    that match {
+      case that: FixCst => this.numer == that.numer
+      case _            => false
     }
   }
 }
@@ -907,6 +942,9 @@ final case class Undefined(override val typ: Type) extends Expr()(typ) {
   }
 
   override def equals(obj: Any): Boolean = {
+    // Need to override equals if you want the type to be ignored.
+    // This is to be consistent with other AST nodes, which also ignore types
+    // for the purpose of checking equality.
     obj match {
       case _: Undefined => true
       case _            => false
@@ -1033,25 +1071,20 @@ case class StmBuild(
     next
   }
 
-  /** Checks for structural equality, ignoring order of equations and names of
-    * accumulator variables.
-    */
-  override def equals(obj: Any): Boolean = {
+  override def alphaEquals(obj: Expr): Boolean = {
     obj match {
       case that: StmBuild =>
         if (this eq that) {
           true
-        } else if (this.n != that.n) {
+        } else if (!(this.n alphaEquals that.n)) {
           false
-        } else if (this.delay != that.delay) {
+        } else if (!(this.delay alphaEquals that.delay)) {
           false
-        } else if (this.initData != that.initData) {
+        } else if (!(this.initData alphaEquals that.initData)) {
           false
         } else if (this.accumulators.size != that.accumulators.size) {
           false
         } else if (this.producers.size != that.producers.size) {
-          false
-        } else if (this.hashCode != that.hashCode) {
           false
         } else {
           assert(this.namesDefinedHere.size == that.namesDefinedHere.size)
@@ -1069,43 +1102,6 @@ case class StmBuild(
         }
       case _ => false
     }
-  }
-
-  override lazy val hashCode: Int = {
-    // This implementation should be correct, but it may cause excessive
-    // collisions since it maps all variables to the same one variable.
-    implicit val c: Canonicalizer = NoOpCanonicalizer
-    val subs: Map[Expr, Expr] =
-      this.namesDefinedHere
-        .map(x => x -> StmBuild.HashCodeParam.rebuild(x.typ))
-        .toMap
-    val nextData = this.nextData.subAndEraseType(subs)
-    val valid = this.valid.subAndEraseType(subs)
-    val accumulators = this.accumulators.toSeq
-      .map({ case (_, (init, next, delay)) =>
-        (init, next.subAndEraseType(subs), delay)
-      })
-    val accumulatorBag =
-      accumulators.groupBy(x => x).map({ case (k, v) => k -> v.size })
-    val producers = this.producers.toSeq
-      .map({ case (_, (stm, ready, delay)) =>
-        (stm, ready.subAndEraseType(subs), delay)
-      })
-    val producerBag =
-      producers.groupBy(x => x).map({ case (k, v) => k -> v.size })
-    // Be careful not to remove accumulators or producers due to the fact that
-    // they'll all use the same param now!
-    assert(accumulatorBag.values.sum == this.accumulators.size)
-    assert(producerBag.values.sum == this.producers.size)
-    (
-      this.n,
-      this.delay,
-      this.initData,
-      nextData,
-      valid,
-      accumulatorBag,
-      producerBag
-    ).hashCode
   }
 
   /** Basically just brute-force check through all the possible mappings from
@@ -1142,26 +1138,35 @@ case class StmBuild(
           y -> fresh.rebuild(y.typ)
         })
       val eqnsMatch = map.forall({ case (x, y) =>
-        (this.nextOrReady(x).subAndEraseType(thisSubs)
-          == that.nextOrReady(y).subAndEraseType(thatSubs))
+        (this.nextOrReady(x).subAndEraseType(thisSubs) alphaEquals
+          that.nextOrReady(y).subAndEraseType(thatSubs))
       })
-      val thisOutput = (
-        this.initData,
-        this.nextData.subAndEraseType(thisSubs),
-        this.valid.subAndEraseType(thisSubs)
-      )
-      val thatOutput = (
-        that.initData,
-        that.nextData.subAndEraseType(thatSubs),
-        that.valid.subAndEraseType(thatSubs)
-      )
-      eqnsMatch && thisOutput == thatOutput
+      eqnsMatch &&
+      (this.nextData.subAndEraseType(thisSubs) alphaEquals
+        that.nextData.subAndEraseType(thatSubs)) &&
+      (this.valid.subAndEraseType(thisSubs) alphaEquals
+        that.valid.subAndEraseType(thatSubs))
     } else {
       // Don't have a full candidate mapping yet, so recurse
       val x = domain(map.size)
+      val xDelay = if (this.accumulators.contains(x)) {
+        val (_, _, delay) = this.accumulators(x)
+        delay
+      } else {
+        val (_, _, delay) = this.producers(x)
+        delay
+      }
       codomain.exists(y => {
+        val yDelay = if (that.accumulators.contains(y)) {
+          val (_, _, delay) = that.accumulators(y)
+          delay
+        } else {
+          val (_, _, delay) = that.producers(y)
+          delay
+        }
         (!inverse.isDefinedAt(y)
-        && this.initOrStm(x) == that.initOrStm(y)
+        && (this.initOrStm(x) alphaEquals that.initOrStm(y))
+        && (xDelay alphaEquals yDelay)
         && existsVarRenamingThatMakesEqual(
           domain,
           codomain,
@@ -1172,21 +1177,6 @@ case class StmBuild(
       })
     }
   }
-}
-
-/** Companion object for [[StmBuild]].
-  */
-object StmBuild {
-
-  /** Parameter to be used in the definition of <code>hashCode</code> to ensure
-    * that bound variable names don't affect the hash code. <i>It MUST NOT be
-    * used for anything else</i>.
-    */
-  private val HashCodeParam = Param("hashCode")()
-
-  /** Force initialization of this object.
-    */
-  private[ir] def forceInit(): Unit = {}
 }
 
 /** Access the data of another stream.
@@ -1266,32 +1256,24 @@ case class LetStm(
     }
   }
 
-  private def asFunCall(): FunCall = {
-    FunCall(Function(this.x, this.out)(), this.in)()
-  }
-
-  override def equals(obj: Any): Boolean = {
+  override def alphaEquals(obj: Expr): Boolean = {
     obj match {
       case that: LetStm =>
-        if (this.in != that.in) {
+        if (!(this.in alphaEquals that.in)) {
           false
         } else if (this.x == that.x) {
           // Skip the substitution, which may be slow
-          this.out == that.out
+          this.out alphaEquals that.out
         } else {
           val fresh = Param("equalsX")()
           val thisOutRenamed =
             this.out.subAndEraseType(this.x -> fresh)(NoOpCanonicalizer)
           val thatOutRenamed =
             that.out.subAndEraseType(that.x -> fresh)(NoOpCanonicalizer)
-          thisOutRenamed == thatOutRenamed
+          thisOutRenamed alphaEquals thatOutRenamed
         }
       case _ => false
     }
-  }
-
-  override lazy val hashCode: Int = {
-    this.asFunCall().hashCode()
   }
 }
 

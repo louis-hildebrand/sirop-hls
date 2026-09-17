@@ -45,7 +45,7 @@ class LetStmMoverTests extends AnyFunSuite {
         )()
       )()
     )().tchk()
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test(
@@ -90,7 +90,7 @@ class LetStmMoverTests extends AnyFunSuite {
           LetStm(1, s, zipped(TyBool), zipped((TyBool, TyBool)))()
         )()
       )().tchk()
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("MoveUp:VariableCapture:LetStm") {
@@ -136,7 +136,7 @@ class LetStmMoverTests extends AnyFunSuite {
       val b2 = Param("b")(TyStm(U8, n))
       LetStm(1, b2, count, LetStm(1, a, b2, zipped)())().tchk()
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("MoveUp:VariableCapture:StmBuild") {
@@ -194,7 +194,7 @@ class LetStmMoverTests extends AnyFunSuite {
         )()
       )().tchk()
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("MoveDown:TwoMaps") {
@@ -285,6 +285,6 @@ class LetStmMoverTests extends AnyFunSuite {
       val s = Param("s")(TyStm(U16, n))
       dot(LetStm(1, s, count, zipSelf(s))()).tchk().lower
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 }

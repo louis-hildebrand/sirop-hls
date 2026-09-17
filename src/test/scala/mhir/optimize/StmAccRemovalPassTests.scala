@@ -44,7 +44,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
       Map()
     )()
     val actual = StmAccRemovalPass.removeUnusedVars(stm)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("RemoveUnusedStream") {
@@ -80,7 +80,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
         p1 -> (s, a >= n, Tuple()())
       )
     )()
-    assert(StmAccRemovalPass.removeUnusedVars(original) == expected)
+    assert(StmAccRemovalPass.removeUnusedVars(original) alphaEquals expected)
   }
 
   test("RemoveConstantVars:EmptyStmBuild") {
@@ -93,7 +93,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
       Map(),
       Map()
     )()
-    assert(StmAccRemovalPass.removeConstantAccumulators(s) == s)
+    assert(StmAccRemovalPass.removeConstantAccumulators(s) alphaEquals s)
   }
 
   test("RemoveConstantVars:OneInt") {
@@ -129,7 +129,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
       Map()
     )()
     val actual = StmAccRemovalPass.removeConstantAccumulators(s)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("RemoveConstantVars:TwoInts") {
@@ -166,7 +166,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
       Map()
     )()
     val actual = StmAccRemovalPass.removeConstantAccumulators(s)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("RemoveConstantVars:EmptyTuples") {
@@ -209,7 +209,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
       Map()
     )()
     val actual = StmAccRemovalPass.removeConstantAccumulators(s)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("RemoveDuplicateVars") {
@@ -252,7 +252,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
         s0 -> (input, i0 < n, Tuple()())
       )
     )()
-    assert(optimized == expected)
+    assert(optimized alphaEquals expected)
   }
 
   test("RemoveDuplicateVars:DifferentDelay") {
@@ -320,7 +320,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
       Map()
     )()
     val actual = StmAccRemovalPass.deduplicateVars(s)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.namesDefinedHere.head.typ == U8)
   }
 
@@ -370,7 +370,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
       )().tchk().lower
     }
     val actual = StmAccRemovalPass.deduplicateVars(original)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.namesDefinedHere.head.typ == u2)
   }
 
@@ -405,7 +405,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
       Map()
     )()
     val actual = StmAccRemovalPass.deduplicateVars(s)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.namesDefinedHere.head.typ == I8)
   }
 
@@ -448,7 +448,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
       Map()
     )()
     val actual = StmAccRemovalPass.deduplicateVars(s)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.namesDefinedHere.head.typ == U8)
   }
 

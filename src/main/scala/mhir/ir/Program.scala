@@ -47,6 +47,16 @@ case class Program(
   def headByParam: Map[Param, Expr] = {
     this.accel.annotationsByParam.collect({ case (("head", x), e) => x -> e })
   }
+
+  def alphaEquals(that: Program): Boolean = {
+    (this.constants.length == that.constants.length) &&
+    this.constants
+      .zip(that.constants)
+      .forall({ case (d1, d2) => d1 alphaEquals d2 }) &&
+    (this.accel alphaEquals that.accel) &&
+    (this.test.length == that.test.length) &&
+    this.test.zip(that.test).forall({ case (d1, d2) => d1 alphaEquals d2 })
+  }
 }
 
 /** Companion object for [[Program]].

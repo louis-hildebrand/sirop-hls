@@ -11,8 +11,8 @@ class SugarTests extends AnyFunSuite {
     val y = Param("y")(U8)
     val e = Let(x, x * y, x + y)()
     val expected = Let(x, y * y, x + y)()
-    assert(e.subPreserveType(x -> y) == expected)
-    assert(e.subAndEraseType(x -> y) == expected)
+    assert(e.subPreserveType(x -> y) alphaEquals expected)
+    assert(e.subAndEraseType(x -> y) alphaEquals expected)
   }
 
   test("Substitute:[y / x](let y = x * y in x + y)") {
@@ -23,15 +23,15 @@ class SugarTests extends AnyFunSuite {
       val y2 = Param("y2")(U8)
       Let(y2, y * y, y + y2)()
     }
-    assert(e.subPreserveType(x -> y) == expected)
-    assert(e.subAndEraseType(x -> y) == expected)
+    assert(e.subPreserveType(x -> y) alphaEquals expected)
+    assert(e.subAndEraseType(x -> y) alphaEquals expected)
   }
 
   test("Substitute:[4/n](zeros:[Vec[u8,n]]())") {
     val n = Param("n")(U8)
     val e = AllZero(TyVec(U8, n))
     val actual = e.subPreserveType(n -> C(4)(U8))
-    assert(actual == AllZero(TyVec(U8, 4)))
+    assert(actual alphaEquals AllZero(TyVec(U8, 4)))
     assert(actual.typ == TyVec(U8, 4))
   }
 
@@ -39,7 +39,7 @@ class SugarTests extends AnyFunSuite {
     val n = Param("n")(U8)
     val e = AllOne(TyVec(U8, n))
     val actual = e.subPreserveType(n -> C(4)(U8))
-    assert(actual == AllOne(TyVec(U8, 4)))
+    assert(actual alphaEquals AllOne(TyVec(U8, 4)))
     assert(actual.typ == TyVec(U8, 4))
   }
 
@@ -75,9 +75,8 @@ class SugarTests extends AnyFunSuite {
         (z + 1) * (w + 2)
       )()
     }
-    assert(f == g)
-    assert(g == f)
-    assert(f.hashCode == g.hashCode)
+    assert(f alphaEquals g)
+    assert(g alphaEquals f)
   }
 
   test("PatternFunction:Equals2") {
@@ -91,9 +90,8 @@ class SugarTests extends AnyFunSuite {
       TuplePattern(ParamPattern(y), ParamPattern(x)),
       (y + 1) * (x + 2)
     )()
-    assert(f == g)
-    assert(g == f)
-    assert(f.hashCode == g.hashCode)
+    assert(f alphaEquals g)
+    assert(g alphaEquals f)
   }
 
   test("PatternFunction:NotEquals:SwappedNames") {
@@ -107,8 +105,8 @@ class SugarTests extends AnyFunSuite {
       TuplePattern(ParamPattern(y), ParamPattern(x)),
       (x + 1) * (y + 2)
     )()
-    assert(f != g)
-    assert(g != f)
+    assert(!(f alphaEquals g))
+    assert(!(g alphaEquals f))
   }
 
   test("PatternFunction:NotEquals:DifferentShape1") {
@@ -122,8 +120,8 @@ class SugarTests extends AnyFunSuite {
       TuplePattern(ParamPattern(x), ParamPattern(y)),
       Tuple(x, y)()
     )()
-    assert(f != g)
-    assert(g != f)
+    assert(!(f alphaEquals g))
+    assert(!(g alphaEquals f))
   }
 
   test("PatternFunction:NotEquals:DifferentShape2") {
@@ -182,10 +180,10 @@ class SugarTests extends AnyFunSuite {
     )()
 
     val actual1 = original.subAndEraseType(subs)
-    assert(actual1 == expected)
+    assert(actual1 alphaEquals expected)
 
     val actual2 = original.subPreserveType(subs)
-    assert(actual2 == expected)
+    assert(actual2 alphaEquals expected)
     assert(actual2.typ != Missing)
   }
 
@@ -283,9 +281,8 @@ class SugarTests extends AnyFunSuite {
       val y = Param("y")()
       Let(y, 42, (y + 1) * (y + 2))()
     }
-    assert(e1 == e2)
-    assert(e2 == e1)
-    assert(e1.hashCode() == e2.hashCode())
+    assert(e1 alphaEquals e2)
+    assert(e2 alphaEquals e1)
   }
 
   test("Let:NotEquals:DifferentBody") {
@@ -293,16 +290,16 @@ class SugarTests extends AnyFunSuite {
     val e1 = Let(x, 42, (x + 1) * (x + 2))()
     val y = Param("y")(U8)
     val e2 = Let(y, 42, (y + 1) * (x + 2))()
-    assert(e1 != e2)
-    assert(e2 != e1)
+    assert(!(e1 alphaEquals e2))
+    assert(!(e2 alphaEquals e1))
   }
 
   test("Let:NotEquals:DifferentArg") {
     val x = Param("x")(U8)
     val e1 = Let(x, 42, (x + 1) * (x + 2))()
     val e2 = Let(x, 43, (x + 1) * (x + 2))()
-    assert(e1 != e2)
-    assert(e2 != e1)
+    assert(!(e1 alphaEquals e2))
+    assert(!(e2 alphaEquals e1))
   }
 
   test("Let:Display") {
@@ -345,7 +342,7 @@ class SugarTests extends AnyFunSuite {
         .lower
     )
     val expected = VecLiteral(False, True, False)()
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("Let:Vec[bool, 4] <- Vec[bool, n]") {
@@ -362,7 +359,7 @@ class SugarTests extends AnyFunSuite {
         .lower
     )
     val expected = VecLiteral(False, True, False, True)()
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("Lets") {
@@ -370,7 +367,7 @@ class SugarTests extends AnyFunSuite {
     val y = Param("y")()
     val actual = Lets(x -> C(5)(U8), y -> C(-21)(I32))(x + y)
     val expected = Let(x, C(5)(U8), Let(y, C(-21)(I32), x + y)())()
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("LetStm") {
@@ -396,7 +393,7 @@ class SugarTests extends AnyFunSuite {
     val let = Let(x, s, zipped)()
     val actual = let.tchk().lower
     val expected = LetStm(1, x, s, zipped)()
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("if c then x else 0") {
@@ -494,11 +491,11 @@ class SugarTests extends AnyFunSuite {
     assert(e(U8, I16) == PadTo(ToSigned(x)(), 16)())
     assert(
       e(TyTuple(U8, U16), TyTuple(U16, U32))
-        == Tuple(PadTo(x.__0, 16)(), PadTo(x.__1, 32)())()
+        alphaEquals Tuple(PadTo(x.__0, 16)(), PadTo(x.__1, 32)())()
     )
     assert(
       e(TyVec(I8, 5), TyVec(I16, 5))
-        == VecBuild(5, U32 ::+ (i => PadTo(VecAccess(x, i)(), 16)()))()
+        alphaEquals VecBuild(5, U32 ::+ (i => PadTo(VecAccess(x, i)(), 16)()))()
     )
   }
 

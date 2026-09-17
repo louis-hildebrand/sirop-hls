@@ -14,7 +14,7 @@ class NameSimplifierTests extends AnyFunSuite {
   test("FreeVariable") {
     val original = Param("x")(U8)
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
   }
 
   /** Parameters with unique prefixes can obviously be renamed.
@@ -26,7 +26,7 @@ class NameSimplifierTests extends AnyFunSuite {
       Function(x, Function(y, Sum(x, y)())())()
     }
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
     assert(simplified.toString() == "(x : u16) => (y : u16) => x +` y")
   }
 
@@ -39,7 +39,7 @@ class NameSimplifierTests extends AnyFunSuite {
       Function(x, Function(x, Sum(C(1)(I8), x)())())()
     }
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
     assert(simplified.toString() == "(x : i8) => (x : i8) => 1:i8 +` x")
   }
 
@@ -53,7 +53,7 @@ class NameSimplifierTests extends AnyFunSuite {
       Function(x1, Function(x2, Sum(x1, x2)())())()
     }
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
     // You can still rename the first param
     assert(simplified.toString() == "(x : i8) => (x_2 : i8) => x +` x_2")
   }
@@ -68,7 +68,7 @@ class NameSimplifierTests extends AnyFunSuite {
       LetStm(1, x, x, LetStm(1, y, y, StmZip(x, y)())())().tchk()
     }
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
     val expectedStr =
       "letstm[1:u1] x: Stm[u8, 5:u3] = x_1 in letstm[1:u1] y: Stm[i32, 5:u3] = y_2 in StmZip(x, y, undefined:(u8, i32))"
     assert(simplified.toString() == expectedStr)
@@ -85,7 +85,7 @@ class NameSimplifierTests extends AnyFunSuite {
         .tchk()
     }
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
     val expectedStr =
       """letstm[1:u1] x: Stm[u8, 5:u3] = x_1 in
         |letstm[1:u1] x: Stm[u8, 5:u3] = letstm[1:u1] x: Stm[u8, 5:u3] = x in x in
@@ -111,7 +111,7 @@ class NameSimplifierTests extends AnyFunSuite {
       )().tchk()
     }
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
     // You can still rename the first param
     val expectedStr =
       """letstm[1:u1] x: Stm[u8, 5:u3] = x_1 in
@@ -143,7 +143,7 @@ class NameSimplifierTests extends AnyFunSuite {
       )().tchk()
     }
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
     val expectedStr =
       """sbuild(((x : u3) => x)(4:u3))(((x : u8) => x)(a), ((x : bool) => x)(b)) {
         |  (a: u8) = {
@@ -185,7 +185,7 @@ class NameSimplifierTests extends AnyFunSuite {
       )().tchk()
     }
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
     val expectedStr =
       """sbuild(6:u3)((a, b_1, b_2), b_1) {
         |  (a: u8) = {
@@ -225,7 +225,7 @@ class NameSimplifierTests extends AnyFunSuite {
       )().tchk()
     }
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
   }
 
   /** Accumulators cannot be renamed if it would lead to variable capture.
@@ -247,7 +247,7 @@ class NameSimplifierTests extends AnyFunSuite {
       )()
     }
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
   }
 
   /** Accumulators cannot be renamed if it would lead to variable capture.
@@ -269,13 +269,13 @@ class NameSimplifierTests extends AnyFunSuite {
       )()
     }
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
   }
 
   test("VecBuild:1D") {
     val original = VecBuild(5, U8 ::+ (i => i))().tchk()
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
     val expectedStr = "vbuild(5:u3) { (i : u8) => i }"
     assert(simplified.toString() == expectedStr)
   }
@@ -285,7 +285,7 @@ class NameSimplifierTests extends AnyFunSuite {
       VecBuild(5, U8 ::+ (i => VecBuild(4, U16 ::+ (j => Tuple(i, j)()))()))()
         .tchk()
     val simplified = NS.simplify(original)
-    assert(simplified == original)
+    assert(simplified alphaEquals original)
     val expectedStr =
       "vbuild(5:u3) { (i : u8) => vbuild(4:u3) { (j : u16) => (i, j) } }"
     assert(simplified.toString() == expectedStr)

@@ -248,15 +248,7 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
               )
               x -> (init, next.subAndEraseType(subs), delay)
             })
-            .+(newV -> (newInit, newNext, newDelay))
-            // TODO: fix this hack (by fixing equality of StmBuild, e.g., in partial evaluator)
-            .map({ case (x, (init, next, delay)) =>
-              x -> (
-                PartialEvalPass.partialEval(init),
-                PartialEvalPass.partialEval(next),
-                PartialEvalPass.partialEval(delay)
-              )
-            }),
+            .+(newV -> (newInit, newNext, newDelay)),
           producers = stm.producers
             .map({ case (x, (stm1, ready, delay)) =>
               val newDelay = if (vDependencies.contains(x)) {
