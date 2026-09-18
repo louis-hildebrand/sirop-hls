@@ -353,8 +353,9 @@ case class Call(
         }
       case f @ Param("StmDelay", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s, d)) => StmDelay(s, d)()
-          case _                  => error(f)
+          case (Seq(), Seq(s, d))       => StmDelay(s, d)()
+          case (Seq(), Seq(s, d, head)) => StmDelay(s, d, head)()
+          case _                        => error(f)
         }
       case _ =>
         combinedArgs match {

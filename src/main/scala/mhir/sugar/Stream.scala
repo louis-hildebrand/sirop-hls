@@ -1609,13 +1609,17 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
   }
 }
 
-case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
+case class StmDelay(
+    stm: Expr,
+    delay: Expr,
+    head: Expr = Undefined(Missing)
+)(typ: Type = Missing)
     extends ResolvedSyntaxSugar(stm, delay)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): StmDelay = {
     newChildren match {
-      case Seq(s, d) => StmDelay(s, d)(typ)
-      case _         => throw new BadRebuildError(this, newChildren)
+      case Seq(s, d, h) => StmDelay(s, d, h)(typ)
+      case _            => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -1624,8 +1628,8 @@ case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): StmDelay = {
     val stm = this.stm.tchk(context, constValues)
-    stm.typ match {
-      case TyStm(TyData(_), _) => ()
+    val elemTyp = stm.typ match {
+      case TyStm(TyData(t), _) => t
       case typ =>
         throw new TypeError(
           s"Input to $className has type $typ."
@@ -1633,21 +1637,26 @@ case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
         )
     }
     val delay = this.delay.tchk(context, constValues).expectUInt()
-    this.rebuild(stm.typ, Seq(stm, delay))
+    val head = this.head match {
+      case Undefined(Missing) => Undefined(elemTyp)
+      case head =>
+        head.tchk(context, constValues).expectType(elemTyp, constValues)
+    }
+    this.rebuild(stm.typ, Seq(stm, delay, head))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val stm = this.stm.lower
     val delay = this.delay.lower
+    val head = this.head.lower
     val TyStm(elemTyp, n) = stm.typ
     val p = Param("p")(TyStm(elemTyp, -1))
     val buf = Param("buf")(TyVec(elemTyp, delay))
     StmBuild(
       n,
       SafeSum(delay, 1)().tchk().lower,
-      // TODO: Add optional parameter for initial value
-      Undefined(elemTyp),
+      head,
       Mux(
         delay === C(0)(),
         StmData(p)(),
@@ -1656,7 +1665,7 @@ case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
       True,
       Map[Param, (Expr, Expr, Expr)](
         buf -> (
-          Undefined(buf.typ),
+          VecCst(delay, head)().tchk().lower,
           VecShiftLeft(buf, StmData(p)())().tchk().lower,
           Tuple()()
         )
