@@ -604,11 +604,8 @@ trait TypeChecker {
           val newValid = s.valid
             .tchk(newContext, constValues)
             .expectType(TyBool, constValues)
-          val newAnnotations = s.annotations.map({
-            case SinkAnnotation(sink) =>
-              SinkAnnotation(sink.tchk(newContext, constValues))
-            case a => a
-          })
+          val newAnnotations =
+            s.annotations.map(_.map(_.tchk(newContext, constValues)))
           StmBuild(
             newN,
             newDelay,

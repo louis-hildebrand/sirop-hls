@@ -173,10 +173,7 @@ object IntConversionMover {
       // TODO: emit warning if there's syntax sugar?
       case s: StmBuild =>
         val s1 = s.map(widen).asInstanceOf[StmBuild]
-        val newAnnotations = s1.annotations.map({
-          case SinkAnnotation(sink) => SinkAnnotation(widen(sink))
-          case a                    => a
-        })
+        val newAnnotations = s1.annotations.map(_.map(widen))
         s1.copy()(annotations = newAnnotations, typ = Missing)
       case e => e.map(widen)
     }

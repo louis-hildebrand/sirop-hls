@@ -87,14 +87,12 @@ trait StmBuildUtils {
           s"Cannot replace variables ${invalidKeys.mkString(", ")} because they are neither accumulators nor producers."
             + s" The stream is $this."
         )
+      } else if (replacements.isEmpty) {
+        this.stm
       } else {
-        // TODO: skip this if subs is empty?
         val subs: Map[Expr, Expr] = replacements.toMap
-        val newAnnotations = this.stm.annotations.map({
-          case SinkAnnotation(sink) =>
-            SinkAnnotation(sink.subPreserveType(subs))
-          case a => a
-        })
+        val newAnnotations =
+          this.stm.annotations.map(_.map(_.subPreserveType(subs)))
         StmBuild(
           this.stm.n,
           this.stm.delay,

@@ -308,16 +308,13 @@ object PartialEvalPass {
               s.namesDefinedHere
                 .foldLeft(facts)({ case (facts, x) => facts.clearRange(x) })
             val newValid = doPartialEval(s.valid)(newFacts)
-            val newAnnotations = s.annotations.map({
-              case SinkAnnotation(sink) =>
-                val newSink = doPartialEval(sink) match {
-                  case Tuple(elems @ _*) =>
-                    Tuple(elems.filter(_.freeVars.nonEmpty): _*)().tchk()
-                  case e => e
-                }
-                SinkAnnotation(newSink)
-              case a => a
-            })
+            val newAnnotations = s.annotations.map(_.map({ sink =>
+              doPartialEval(sink) match {
+                case Tuple(elems @ _*) =>
+                  Tuple(elems.filter(_.freeVars.nonEmpty): _*)().tchk()
+                case e => e
+              }
+            }))
             StmBuild(
               doPartialEval(s.n)(facts),
               doPartialEval(s.delay)(facts),
