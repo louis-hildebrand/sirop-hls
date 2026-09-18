@@ -56,7 +56,7 @@ case class StmSlide(input: Expr, winSize: Expr /* Int */ )(
     val TyStm(_, myLen) = this.typ
     val TyStm(t, _) = input.typ
     val s = Param("s")(TyStm(t, -1))
-    val v = Param("v")(TyVec(t, winSize))
+    val v = Param("slide_buf")(TyVec(t, winSize))
     val lowered = StmBuild(
       myLen,
       winSize,

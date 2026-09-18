@@ -1652,7 +1652,7 @@ case class StmDelay(
     val head = this.head.lower
     val TyStm(elemTyp, n) = stm.typ
     val p = Param("p")(TyStm(elemTyp, -1))
-    val buf = Param("buf")(TyVec(elemTyp, delay))
+    val buf = Param("delay_buf")(TyVec(elemTyp, delay))
     StmBuild(
       n,
       SafeSum(delay, 1)().tchk().lower,
@@ -1954,7 +1954,7 @@ case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
     val TyStm(TyData(elemTyp), n) = s.typ
     val z = this.z.lower
     val p = Param("s")(TyStm(elemTyp, -1))
-    val buf = Param("buf")(z.typ)
+    val buf = Param("slide_buf")(z.typ)
     StmBuild(
       n,
       C(1)(),

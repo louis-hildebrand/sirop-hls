@@ -168,4 +168,53 @@ class UnusedDataRemoverTests extends AnyFunSuite {
     )
     assert(producerDataTyp == expectedTyp)
   }
+
+  test("MakeFunction:(u8,bool,(i16,i16)):(_,_,(used,_))") {
+    val typ = TyTuple(U8, TyBool, TyTuple(I16, I16))
+    val useStatus =
+      SomeUnused(AllUnused, AllUnused, SomeUnused(AllUsed, AllUnused))
+
+    // Forward
+    val actualForward = pass.makeFunction(useStatus, typ)
+    val expectedForward = (typ ::+ (x => x.__2.__0)).tchk()
+    assert(actualForward alphaEquals expectedForward)
+    assert(actualForward.typ == expectedForward.typ)
+
+    // Inverse
+    val actualInverse = pass.makeInverseFunction(useStatus, typ)
+    val expectedInverse = (I16 ::+ (x =>
+      Tuple(Undefined(U8), Undefined(TyBool), Tuple(x, Undefined(I16))())()
+    )).tchk()
+    assert(actualInverse alphaEquals expectedInverse)
+    assert(actualInverse.typ == expectedInverse.typ)
+  }
+
+  test("MakeFunction:(u8,u8,(i16,i16,i16,i16),u8):(used,_,(_,used,_,used),_)") {
+    val typ = TyTuple(U8, U8, TyTuple(I16, I16, I16, I16), U8)
+    val useStatus = SomeUnused(
+      AllUsed,
+      AllUnused,
+      SomeUnused(AllUnused, AllUsed, AllUnused, AllUsed),
+      AllUnused
+    )
+
+    // Forward
+    val actualForward = pass.makeFunction(useStatus, typ)
+    val expectedForward =
+      (typ ::+ (x => Tuple(x.__0, Tuple(x.__2.__1, x.__2.__3)())())).tchk()
+    assert(actualForward alphaEquals expectedForward)
+
+    // Inverse
+    val actualInverse = pass.makeInverseFunction(useStatus, typ)
+    val expectedInverse = (TyTuple(U8, TyTuple(I16, I16)) ::+ (x =>
+      Tuple(
+        x.__0,
+        Undefined(U8),
+        Tuple(Undefined(I16), x.__1.__0, Undefined(I16), x.__1.__1)(),
+        Undefined(U8)
+      )()
+    )).tchk()
+    assert(actualInverse alphaEquals expectedInverse)
+    assert(actualInverse.typ == expectedInverse.typ)
+  }
 }

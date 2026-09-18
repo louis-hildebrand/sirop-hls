@@ -25,6 +25,15 @@ object StreamFuser {
 
   implicit class StmBuildFusion(consumer: StmBuild) {
 
+    def fuseWithUnique(): StmBuild = {
+      require(
+        this.consumer.producers.size == 1,
+        s"fuseWithUnique expected to find 1 producer, but found ${this.consumer.producers.size}"
+      )
+      val (x, _) = this.consumer.producers.head
+      this.fuseWith(x)
+    }
+
     /** Fuse a <code>StmBuild</code> with the input stream represented by
       * variable <code>x</code> (which must be one of the accumulator variables
       * in the stream).

@@ -38,8 +38,14 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     })
     val simplified = PartialEvalPass.partialEval(func)
     val latencyAnalysis = new LatencyAnalysis(handshake = handshake)
-    val latencyMatcher =
-      EnabledLatencyMatcher(latencyAnalysis, handshake = handshake)
+    // Unused data removal doesn't really matter in this case, since we're
+    // dealing with test code rather than the main program
+    val unusedDataRemover = UnusedDataRemover(enabled = false)
+    val latencyMatcher = EnabledLatencyMatcher(
+      latencyAnalysis,
+      unusedDataRemover,
+      handshake = handshake
+    )
     val afterLatencyMatching =
       latencyMatcher.matchLatencies(simplified, headByParam)
     val letBufShrinker = new StaticLetStmBufferShrinker(
@@ -253,14 +259,14 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
         |""".stripMargin.stripTrailing,
       context = Map(input -> input.typ)
     )
-    val simplified = this.postProcess(
-      pass.applyOnce(original),
-      headByParam = Map(input -> Undefined(U8))
-    )
+    val simplified = pass.applyOnce(original)
 
     // Same behaviour
     assertSameVal(
-      simplified,
+      this.postProcess(
+        simplified,
+        headByParam = Map(input -> Undefined(Missing))
+      ),
       original,
       handshake = false,
       inputs = Map(input -> counterWithPrefix(12, 42))

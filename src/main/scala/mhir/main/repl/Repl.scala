@@ -4,12 +4,7 @@ import mhir.canonicalize._
 import mhir.eval.EvalException
 import mhir.ir._
 import mhir.main.shared.Version
-import mhir.optimize.{
-  EnabledLatencyMatcher,
-  LatencyAnalysis,
-  PartialEvalPass,
-  StaticLetStmBufferShrinker
-}
+import mhir.optimize._
 import mhir.parse.SyntaxError
 import mhir.parse.sirop.Parser
 import mhir.sugar.ExprLowering
@@ -149,8 +144,14 @@ object Repl {
       //    about nonzero buffer sizes).
       val simplified = PartialEvalPass.partialEval(lowered)
       val latencyAnalysis = new LatencyAnalysis(handshake = state.handshake)
-      val latencyMatcher =
-        EnabledLatencyMatcher(latencyAnalysis, handshake = state.handshake)
+      // Unused data removal doesn't really matter in this case, since we're
+      // dealing with throwaway code in the REPL rather than the main program
+      val unusedDataRemover = UnusedDataRemover(enabled = false)
+      val latencyMatcher = EnabledLatencyMatcher(
+        latencyAnalysis,
+        unusedDataRemover,
+        handshake = state.handshake
+      )
       val headByParam = state.env
         .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
         .map({

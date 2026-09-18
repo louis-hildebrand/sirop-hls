@@ -14,10 +14,15 @@ class LatencyMatcherTests extends AnyFunSuite {
 
   private class Env(handshake: Boolean) {
     private val analysis = new LatencyAnalysis(handshake = handshake)
+    private val unusedDataRemover = UnusedDataRemover(enabled = true)
     val loggerStub = new LoggerStub(getClass.getName)
     private val logger = Logger(loggerStub)
-    val pass =
-      new EnabledLatencyMatcher(analysis, logger, handshake = handshake)
+    val pass = new EnabledLatencyMatcher(
+      analysis,
+      unusedDataRemover,
+      logger,
+      handshake = handshake
+    )
   }
 
   test("let s = ... in Dynamic(StmZip(s, s |> StmMap(+5) |> StmMap(*2)))") {

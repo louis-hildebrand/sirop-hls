@@ -82,7 +82,13 @@ class Optimizer(
       s3_3
     }
 
-    val s5 = latencyMatcher.matchLatencies(s4, headByParam = headByParam)
+    val s5 = {
+      val s4_1 = latencyMatcher.matchLatencies(s4, headByParam = headByParam)
+      // In no_handshake mode, some new shift registers may have appeared and
+      // it may be possible to merge these with existing ones
+      val s4_2 = simplifier.simplify(s4_1)
+      s4_2
+    }
 
     val s6 = unusedDataRemover.removeUnusedData(s5)
 
@@ -148,8 +154,11 @@ object Optimizer {
       handshake = handshake
     )
     val latencyAnalysis = new LatencyAnalysis(handshake = handshake)
+    val unusedDataRemover =
+      UnusedDataRemover(enabled = options.removeUnusedData)
     val latencyMatcher = LatencyMatcher(
       latencyAnalysis,
+      unusedDataRemover,
       handshake = handshake,
       enabled = options.matchLatency
     )
@@ -169,8 +178,6 @@ object Optimizer {
         options.maxLetStmBufSize.map(mbs => new ManualLetStmBufferShrinker(mbs))
       new CombinedLetStmBufferShrinker(Seq(staticPass, manualPass).flatten)
     }
-    val unusedDataRemover =
-      UnusedDataRemover(enabled = options.removeUnusedData)
     new Optimizer(
       loggingSimplifier,
       letStmSimplifier,
