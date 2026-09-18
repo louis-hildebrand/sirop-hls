@@ -144,8 +144,7 @@ object Optimizer {
     )
     val shiftRegisterShrinker = ShiftRegisterShrinker(
       delayCostModel = delayCostModel,
-      // TODO: introduce command-line arg to control this
-      enabled = true,
+      enabled = options.shrinkShiftRegisters,
       handshake = handshake
     )
     val latencyAnalysis = new LatencyAnalysis(handshake = handshake)

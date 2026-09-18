@@ -103,6 +103,51 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     assert(buf.typ == TyVec(U8, 1))
   }
 
+  test("SimpleWithSink") {
+    val input = Param("input", -1)(TyStm(U8, 12))
+    val original = makeSbuild(
+      """sbuild(8 @ 4)(undefined, (buf[0], buf[1]), true) {
+        |  (buf: Vec[u8, 4]) = {
+        |    init: undefined:Vec[u8, 4],
+        |    // NOTICE: The input to the shift register is basically free in
+        |    //         terms of combinational delay.
+        |    //         However, since the sink annotation indicates that
+        |    //         buf[1] is used, we should not shrink the vector below
+        |    //         length 2.
+        |    next: buf.VecShiftLeft(sdata(p))
+        |  }
+        |} {
+        |  (p: Stm[u8, -1] @ 0) = {
+        |    stm: input,
+        |    ready: true
+        |  }
+        |}
+        |""".stripMargin.stripTrailing,
+      context = Map(input -> input.typ),
+      annotations =
+        Set(SinkAnnotation(VecAccess(Param("buf", -1)(Missing), C(1)())()))
+    )
+    val simplified = this.postProcess(
+      pass.applyOnce(original),
+      headByParam = Map(input -> Undefined(U8))
+    )
+
+    // Same behaviour
+    assertSameVal(
+      // StmDelay(..., 1) actually delays by 2 cycles due to out register
+      StmDelay(simplified, C(1)())().tchk().lower,
+      original,
+      handshake = false,
+      inputs = Map(input -> counterWithPrefix(12, 42))
+    )
+
+    // Successful simplification: the shift register should now be smaller
+    val simplifiedSbuild = unwrapLetStm(simplified).asInstanceOf[StmBuild]
+    assert(simplifiedSbuild.accumulators.size == 1)
+    val (buf, _) = simplifiedSbuild.accumulators.head
+    assert(buf.typ == TyVec(U8, 2))
+  }
+
   test("RemoveCompletely") {
     val input = Param("input", -1)(TyStm(U8, 12))
     val original = makeSbuild(
@@ -226,6 +271,37 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     assert(simplifiedSbuild.accumulators.size == 1)
     val (buf, _) = simplifiedSbuild.accumulators.head
     assert(buf.typ == TyVec(U8, 1))
+  }
+
+  test("ConstantInput") {
+    val original = makeSbuild(
+      """sbuild(8 @ 4)(undefined, (buf[0], buf[1]), true) {
+        |  (buf: Vec[(u8, bool), 4]) = {
+        |    init: undefined,
+        |    next: buf.VecShiftLeft( (42:u8, true) )
+        |  }
+        |} {}
+        |""".stripMargin.stripTrailing,
+      context = Map()
+    )
+    val simplified = this.postProcess(
+      pass.applyOnce(original),
+      headByParam = Map()
+    )
+
+    // Same behaviour
+    assertSameVal(
+      simplified,
+      original,
+      handshake = false,
+      inputs = Map()
+    )
+
+    // Successful simplification: the shift register should now be smaller
+    val simplifiedSbuild = unwrapLetStm(simplified).asInstanceOf[StmBuild]
+    assert(simplifiedSbuild.accumulators.size == 1)
+    val (buf, _) = simplifiedSbuild.accumulators.head
+    assert(buf.typ == TyVec(TyTuple(U8, TyBool), 0))
   }
 
   test("ConcreteInit") {

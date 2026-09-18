@@ -42,9 +42,25 @@ object ShiftRegisterShrinker {
 
 object DisabledShiftRegisterShrinker extends ShiftRegisterShrinker {
 
-  override def applyRecursively(e: Expr): Expr = e
+  private val logger: Logger = Logger(getClass.getName)
+  private var hasLogged: Boolean = false
 
-  override def applyOnce(stm: StmBuild): Expr = stm
+  override def applyRecursively(e: Expr): Expr = {
+    log()
+    e
+  }
+
+  override def applyOnce(stm: StmBuild): Expr = {
+    log()
+    stm
+  }
+
+  private def log(): Unit = {
+    if (!hasLogged) {
+      hasLogged = true
+      logger.debug("shift register shrinking is disabled")
+    }
+  }
 }
 
 class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
@@ -101,6 +117,7 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
               )
               val canOmitOneMore =
                 delayCost == 0 && !indicesInSink.contains(maxIndex)
+              val isConstant = input.freeVars.isEmpty
               // We have a situation like
               //                     |
               //                     v
@@ -109,7 +126,11 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
               //   +---+---+---+---+---+
               //     |   |   |
               //     v   v   v
-              val newLen = if (!canOmitOneMore) {
+              val newLen = if (isConstant) {
+                // If the input is constant, why bother with the shift register
+                // at all?
+                0
+              } else if (!canOmitOneMore) {
                 // We could change this to the following:
                 //             |
                 //             v
@@ -215,9 +236,13 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
         val newV = Param(v.prefix)(TyVec(elemTyp, C(newLen)()))
         // Append the next input, in case we decided to omit the last part of
         // the shift register
-        val newVPlusOne = PartialEvalPass.partialEval(
-          VecAppend(newV, input)().tchk().lower
-        )
+        val newVPlusOne = if (input.freeVars.isEmpty) {
+          VecCst(C(oldLen)(), input)().tchk().lower
+        } else {
+          PartialEvalPass.partialEval(
+            VecAppend(newV, input)().tchk().lower
+          )
+        }
         val subs = Map[Expr, Expr](v -> newVPlusOne)
         val newInit = PartialEvalPass.partialEval(
           VecTake(oldInit, C(newLen)())().tchk().lower

@@ -10,10 +10,16 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class SiropFunSuite extends AnyFunSuite {
 
-  def makeSbuild(src: String, context: Map[Param, Type]): StmBuild = {
-    val expr = Parser.parse(src).body
+  def makeSbuild(
+      src: String,
+      context: Map[Param, Type],
+      annotations: Set[StmBuildAnnotation] = Set()
+  ): StmBuild = {
+    val expr = Parser.parse(src).body.asInstanceOf[StmBuild]
+    val withAnnotations = annotations
+      .foldLeft(expr)({ case (e, a) => e.annotate(a) })
     PartialEvalPass
-      .partialEval(expr.tchk(context, Map()).lower)
+      .partialEval(withAnnotations.tchk(context, Map()).lower)
       .asInstanceOf[StmBuild]
   }
 

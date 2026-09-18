@@ -4,6 +4,8 @@ package mhir.optimize
   *
   * @param simplifyStmBuild
   *   whether to run the [[mhir.optimize.StmBuildSimplifier]].
+  * @param shrinkShiftRegisters
+  *   whether to run the [[mhir.optimize.ShiftRegisterShrinker]].
   * @param inlineLetStm
   *   whether to run the [[mhir.optimize.LetStmSimplifier]].
   * @param fuse
@@ -25,6 +27,7 @@ package mhir.optimize
   */
 case class OptimizerOptions(
     simplifyStmBuild: Boolean,
+    shrinkShiftRegisters: Boolean,
     inlineLetStm: Boolean,
     fuse: Boolean,
     fission: Boolean,
@@ -49,6 +52,7 @@ object OptimizerOptions {
   ): OptimizerOptions = {
     new OptimizerOptions(
       simplifyStmBuild = true,
+      shrinkShiftRegisters = true,
       inlineLetStm = true,
       fuse = true,
       fission = true,
@@ -69,6 +73,7 @@ object OptimizerOptions {
   def Empty: OptimizerOptions = {
     OptimizerOptions(
       simplifyStmBuild = false,
+      shrinkShiftRegisters = false,
       inlineLetStm = false,
       fuse = false,
       fission = false,
