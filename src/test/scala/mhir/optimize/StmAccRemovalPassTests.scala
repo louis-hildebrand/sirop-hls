@@ -652,6 +652,47 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     assert(simplified.accumulators.size == 1)
   }
 
+  test("DeduplicateShiftRegisters:Bool") {
+    val input = Param("input", -1)(TyStm(TyBool, 12))
+    val original = makeSbuild(
+      """sbuild(12 @ 1)(undefined, (big_vec, outside_vec), true) {
+        |  (big_vec: Vec[bool, 8] @ 1) = {
+        |    init: undefined,
+        |    next: big_vec.VecShiftLeft(sdata(p))
+        |  },
+        |  (outside_vec: Vec[bool, 4] @ 1) = {
+        |    init: undefined,
+        |    next: outside_vec.VecShiftLeft(big_vec[2])
+        |  }
+        |} {
+        |  (p: Stm[bool, -1] @ 0) = {
+        |    stm: input,
+        |    ready: true
+        |  }
+        |}
+        |""".stripMargin.stripTrailing,
+      context = Map(input -> input.typ)
+    )
+    val simplified = StmAccRemovalPass.deduplicateVars(original)
+
+    // Same behaviour
+    assertSameVal(
+      simplified,
+      original,
+      handshake = false,
+      inputs = Map(
+        input -> StmLiteral(
+          Seq(True, False, True),
+          (0 until 12).map(_ % 2 == 0).map(if (_) True else False)
+        )(Missing).tchk()
+      )
+    )
+
+    // Successful simplification: one accumulator was removed
+    assert(original.accumulators.size == 2)
+    assert(simplified.accumulators.size == 1)
+  }
+
   test("DeduplicateShiftRegisters:Outside:BothInitsUndefined") {
     val input = Param("input", -1)(TyStm(U8, 12))
     val original = makeSbuild(

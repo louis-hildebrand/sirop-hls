@@ -483,6 +483,32 @@ private object ShiftLeft {
       case (x, (_, VecBuild(IntCst(1), Function(i, input)), _))
           if !input.freeVars.contains(i) =>
         Some(x -> ShiftLeft(1, input))
+      case (
+            x0,
+            (
+              _,
+              VecBuild(
+                IntCst(n),
+                Function(
+                  i0,
+                  Or(
+                    And(
+                      Not(Equal(i1, IntCst(nMinusOne))),
+                      VecAccess(x1, Sum(IntCst(1), i2))
+                    ),
+                    And(Equal(i3, IntCst(nMinusOneAgain)), input)
+                  )
+                )
+              ),
+              _
+            )
+          )
+          if i1 == i0
+            && i2 == i0
+            && i3 == i0
+            && nMinusOne == n - 1
+            && nMinusOneAgain == n - 1 =>
+        Some(x0 -> ShiftLeft(n, input))
       case _ => None
     }
   }
