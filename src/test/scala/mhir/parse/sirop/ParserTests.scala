@@ -312,7 +312,7 @@ class ParserTests extends AnyFunSuite {
     val src = "vbuild(42) { (i: u8) => sign(i) }"
     val expected = VecBuild(42, U8 ::+ (i => call("sign", i)))()
     val actual = Parser.parse(src).body
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.asInstanceOf[VecBuild].f.param.typ == expected.f.param.typ)
   }
 
@@ -1224,7 +1224,7 @@ class ParserTests extends AnyFunSuite {
     val src = "(_) => true"
     val expected = Missing ::+ (_ => True)
     val actual = Parser.parse(src).body
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.asInstanceOf[Function].param.typ == expected.param.typ)
   }
 
@@ -1232,7 +1232,7 @@ class ParserTests extends AnyFunSuite {
     val src = "(s : Stm[u8, 42]) => s"
     val expected = TyStm(U8, 42) ::+ (s => s)
     val actual = Parser.parse(src).body
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.asInstanceOf[Function].param.typ == expected.param.typ)
   }
 
@@ -1240,7 +1240,7 @@ class ParserTests extends AnyFunSuite {
     val src = "(f : u32 -> bool) => f"
     val expected = (U32 ->: TyBool) ::+ (f => f)
     val actual = Parser.parse(src).body
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.asInstanceOf[Function].param.typ == expected.param.typ)
   }
 
@@ -1248,7 +1248,7 @@ class ParserTests extends AnyFunSuite {
     val src = "(f : i32 -> i16 -> i8) => f"
     val expected = TyArrow(I32, TyArrow(I16, I8)) ::+ (f => f)
     val actual = Parser.parse(src).body
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.asInstanceOf[Function].param.typ == expected.param.typ)
   }
 
@@ -1256,7 +1256,7 @@ class ParserTests extends AnyFunSuite {
     val src = "(h:(i32 -> i16) -> i8) => h"
     val expected = TyArrow(TyArrow(I32, I16), I8) ::+ (f => f)
     val actual = Parser.parse(src).body
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.asInstanceOf[Function].param.typ == expected.param.typ)
   }
 
@@ -1264,7 +1264,7 @@ class ParserTests extends AnyFunSuite {
     val src = "@() => 42:u8"
     val expected = PatternFunction(TuplePattern(), C(42)(U8))()
     val actual = Parser.parse(src).body
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("Pattern:(x) => x") {
@@ -1461,7 +1461,7 @@ class ParserTests extends AnyFunSuite {
     val prog = Parser.parse(src)
     assert(prog.name == "top")
     assert(prog.accel.annotations("out_name") == Param("my_name", -1)(Missing))
-    assert(prog.body == TyStm(U8, 10) ::+ (s => s))
+    assert(prog.body alphaEquals TyStm(U8, 10) ::+ (s => s))
   }
 
   test("AcceleratorAnnotation:UnknownKey") {
@@ -1671,7 +1671,7 @@ class ParserTests extends AnyFunSuite {
         )
       )
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("TestSuite:OK2") {

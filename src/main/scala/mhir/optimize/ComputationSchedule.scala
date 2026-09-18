@@ -6,14 +6,25 @@ import mhir.ir._
 /** Which pipeline stage a certain computation should be performed in---producer
   * or consumer.
   */
-sealed trait ComputationSchedule
+sealed trait ComputationSchedule {
+
+  def alphaEquals(that: ComputationSchedule): Boolean
+}
 
 /** All computation should be performed in the producer.
   *
   * @param e
   *   the expression.
   */
-case class InProducer(e: Expr) extends ComputationSchedule
+case class InProducer(e: Expr) extends ComputationSchedule {
+
+  override def alphaEquals(that: ComputationSchedule): Boolean = {
+    that match {
+      case that: InProducer => this.e alphaEquals that.e
+      case _                => false
+    }
+  }
+}
 
 /** Some computation should be performed in the consumer and some should be
   * performed in the producer.
@@ -27,16 +38,12 @@ case class InProducer(e: Expr) extends ComputationSchedule
   */
 case class InConsumer(cData: Expr, pData: Map[Param, Expr])
     extends ComputationSchedule {
-  override def equals(obj: Any): Boolean = {
-    obj match {
-      case that: InConsumer =>
-        that.canEqual(this) && this.asFunCall() == that.asFunCall()
-      case _ => false
-    }
-  }
 
-  override def hashCode(): Int = {
-    this.asFunCall().hashCode
+  override def alphaEquals(that: ComputationSchedule): Boolean = {
+    that match {
+      case that: InConsumer => this.asFunCall() alphaEquals that.asFunCall()
+      case _                => false
+    }
   }
 
   def asFunCall(): FunCall = {

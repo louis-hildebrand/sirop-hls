@@ -1018,6 +1018,11 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
           Seq(),
           Seq(s2, delay)
         ).tchk()
+        // Instruct the optimizer not to delete these shift registers
+        val sink = Tuple(
+          pipe1Vars.map(v => VecAccess(v, SmartDiff(delay, C(1)())())()) ++
+            pipe2Vars.map(v => VecAccess(v, SmartDiff(delay, C(1)())())()): _*
+        )().tchk().lower
         Call(
           Param("StmDrop", -1)(Missing),
           Seq(),
@@ -1033,7 +1038,9 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
                 p1 -> (s1Extended, True, C(0)()),
                 p2 -> (s2Extended, True, C(0)())
               )
-            )(),
+            )()
+              .annotateWithName("StmMapDotCascaded")
+              .annotate(SinkAnnotation(sink)),
             totDelay
           )
         ).tchk().lower
@@ -1622,7 +1629,7 @@ case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
       case typ =>
         throw new TypeError(
           s"Input to $className has type $typ."
-            + s" Expected a nno-nested stream."
+            + s" Expected a non-nested stream."
         )
     }
     val delay = this.delay.tchk(context, constValues).expectUInt()

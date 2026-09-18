@@ -17,6 +17,7 @@ class Optimizer(
     fusionPass: StmFusionPass,
     fissionPass: StmFissionPass,
     delay: SimpleDelayCostModel,
+    shiftRegisterShrinker: ShiftRegisterShrinker,
     latencyMatcher: LatencyMatcher,
     letStmBufShrinker: LetStmBufferShrinker,
     binOpBalancer: BinOpTreeBalancingPass,
@@ -68,22 +69,35 @@ class Optimizer(
       fix(s2, i = 0)
     }
 
-    val s4 = latencyMatcher.matchLatencies(s3, headByParam = headByParam)
+    val s4 = {
+      val s3_1 = shiftRegisterShrinker.applyRecursively(s3)
+      val s3_2 = simplifier.simplify(s3_1)
+      val s3_3 = letStmSimplifier.simplifyAll(s3_2)
+      // TODO: shift register shrinking tends to result in a bunch of duplicate let bindings, as in
+      //    letstm[n] s1 = ... in
+      //    letstm[n] s2 = s1 in
+      //    letstm[n] s3 = s2 in
+      //    ...
+      //  Will this cause problems for resource usage?
+      s3_3
+    }
 
-    val s5 = unusedDataRemover.removeUnusedData(s4)
+    val s5 = latencyMatcher.matchLatencies(s4, headByParam = headByParam)
 
-    val s6 = letStmBufShrinker.shrinkBuffers(s5)
+    val s6 = unusedDataRemover.removeUnusedData(s5)
+
+    val s7 = letStmBufShrinker.shrinkBuffers(s6)
 
     // I think the program is more readable like this.
     // I don't think a compiler flag is needed, since it shouldn't change the
     // generated hardware in any meaningful way.
-    val s7 = time("moving LetStm up", Level.DEBUG) {
-      LetStmMover.moveUp(s6)
+    val s8 = time("moving LetStm up", Level.DEBUG) {
+      LetStmMover.moveUp(s7)
     }
 
-    val s8 = binOpBalancer.balance(s7)
+    val s9 = binOpBalancer.balance(s8)
 
-    val delayCost = delay.rawCost(s8)
+    val delayCost = delay.rawCost(s9)
     val delayCostPercent =
       100 * (delayCost / delay.FullCycleDelay.toDouble)
     logger.debug(
@@ -96,7 +110,7 @@ class Optimizer(
       )
     }
 
-    s8
+    s9
   }
 }
 
@@ -128,6 +142,11 @@ object Optimizer {
         enabled = options.fission
       )
     )
+    val shiftRegisterShrinker = ShiftRegisterShrinker(
+      delayCostModel = delayCostModel,
+      enabled = options.shrinkShiftRegisters,
+      handshake = handshake
+    )
     val latencyAnalysis = new LatencyAnalysis(handshake = handshake)
     val latencyMatcher = LatencyMatcher(
       latencyAnalysis,
@@ -158,6 +177,7 @@ object Optimizer {
       fusionPass,
       fissionPass,
       delayCostModel,
+      shiftRegisterShrinker,
       latencyMatcher,
       letStmBufShrinker,
       binOpBalancerWithLogging,

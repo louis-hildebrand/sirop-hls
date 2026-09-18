@@ -189,7 +189,15 @@ private[eval] object DataEvaluator {
         }
 
       case tup @ Tuple(elems @ _*) =>
-        Tuple(elems.map(evalBigStep(stmData)): _*)(tup.typ)
+        val elemValues = elems.map(evalBigStep(stmData))
+        val allUndefined =
+          elemValues.nonEmpty && elemValues.forall(_.isInstanceOf[Undefined])
+        if (allUndefined) {
+          // This makes it easier to read the results and makes tests less brittle
+          Undefined(tup.typ)
+        } else {
+          Tuple(elemValues: _*)(tup.typ)
+        }
       case ta @ TupleAccess(tup, IntCst(i)) =>
         evalBigStep(stmData)(tup) match {
           case Tuple(elems @ _*) => elems(i.toInt)
@@ -204,7 +212,14 @@ private[eval] object DataEvaluator {
               val subs = Map[Expr, Expr](iVar -> IntCst(i)(iVar.typ))
               evalBigStep(stmData)(body.subPreserveType(subs))
             })
-            VecLiteral(elemValues: _*)(vb.typ)
+            val allUndefined = elemValues.nonEmpty &&
+              elemValues.forall(_.isInstanceOf[Undefined])
+            if (allUndefined) {
+              // This makes it easier to read the results and makes tests less brittle
+              Undefined(vb.typ)
+            } else {
+              VecLiteral(elemValues: _*)(vb.typ)
+            }
           case _: Undefined => Undefined(vb.typ)
           case n =>
             throw new IllegalArgumentException(
@@ -224,7 +239,15 @@ private[eval] object DataEvaluator {
           case (v, i)            => badArgs(va.className)(v, i)
         }
       case vec @ VecLiteral(elems @ _*) =>
-        VecLiteral(elems.map(evalBigStep(stmData)): _*)(vec.typ)
+        val elemValues = elems.map(evalBigStep(stmData))
+        val allUndefined = elemValues.nonEmpty &&
+          elemValues.forall(_.isInstanceOf[Undefined])
+        if (allUndefined) {
+          // This makes it easier to read the results and makes tests less brittle
+          Undefined(vec.typ)
+        } else {
+          VecLiteral(elemValues: _*)(vec.typ)
+        }
 
       case c: FixCst => c
       case prod @ IntFixProd(e1, e2) =>

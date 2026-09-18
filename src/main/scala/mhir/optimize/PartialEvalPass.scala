@@ -70,17 +70,7 @@ object PartialEvalPass {
       case Some(false) => False
       case None =>
         e match {
-          case u: Undefined =>
-            // Be very careful with undefined values.
-            // For example, don't say that undefined + x --> undefined and
-            // undefined * x --> undefined.
-            // You may end up incorrectly simplifying as follows:
-            //       (x => x + -1*x)(undefined)
-            //   --> undefined + -1*undefined
-            //   --> undefined + undefined
-            //   --> undefined
-            // Yet clearly the original expression will always evaluate to 0.
-            u
+          case u: Undefined => u
           case x: Param =>
             facts.getRange(x) match {
               case Some(ScalarRange(Some(IntCst(lo)), Some(IntCst(hi))))
@@ -239,6 +229,15 @@ object PartialEvalPass {
           case Not(e) =>
             ArithSimplifier.simplifyArithmetic(Not(doPartialEval(e))())(facts)
 
+          case tup @ Tuple(elems @ _*) =>
+            val newElems = elems.map(doPartialEval)
+            val allUndefined =
+              newElems.nonEmpty && newElems.forall(_.isInstanceOf[Undefined])
+            if (allUndefined) {
+              Undefined(tup.typ)
+            } else {
+              Tuple(newElems: _*)()
+            }
           case TupleAccess(t: Expr, IntCst(i)) =>
             doPartialEval(t) match {
               case tuple: Tuple =>
@@ -274,6 +273,8 @@ object PartialEvalPass {
                   // It's not a no-op if the length changes
                     && x.typ == vb.typ =>
                 x
+              case Function(_, _: Undefined) =>
+                Undefined(vb.typ)
               case _ =>
                 VecBuild(newN, newF)()
             }
@@ -307,6 +308,13 @@ object PartialEvalPass {
               s.namesDefinedHere
                 .foldLeft(facts)({ case (facts, x) => facts.clearRange(x) })
             val newValid = doPartialEval(s.valid)(newFacts)
+            val newAnnotations = s.annotations.map(_.map({ sink =>
+              doPartialEval(sink) match {
+                case Tuple(elems @ _*) =>
+                  Tuple(elems.filter(_.freeVars.nonEmpty): _*)().tchk()
+                case e => e
+              }
+            }))
             StmBuild(
               doPartialEval(s.n)(facts),
               doPartialEval(s.delay)(facts),
@@ -331,7 +339,7 @@ object PartialEvalPass {
                   doPartialEval(delay)(facts)
                 )
               })
-            )(annotations = s.annotations)
+            )(annotations = newAnnotations)
           case LetStm(bufSize, x, in, out) =>
             LetStm(
               doPartialEval(bufSize),

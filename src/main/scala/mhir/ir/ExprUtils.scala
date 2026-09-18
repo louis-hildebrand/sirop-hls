@@ -280,5 +280,17 @@ trait ExprUtils {
         case e         => default(e)
       }
     }
+
+    def updateDelayIfPresent(f: Expr => Expr): Expr = {
+      val delay = this.expr
+      delay.typ match {
+        case _: TyAnyInt => f(delay)
+        case TyTuple()   => delay
+        case typ =>
+          throw new IllegalArgumentException(
+            s"invalid type for delay annotation: $typ"
+          )
+      }
+    }
   }
 }
