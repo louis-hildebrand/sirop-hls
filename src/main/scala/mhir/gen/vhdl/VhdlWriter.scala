@@ -18,7 +18,7 @@ object VhdlWriter {
     if (os.isDir(dir)) os.remove.all(dir)
     val designDir = dir / "design"
     os.makeDir.all(designDir)
-    emitConversionsPackage(typesToDefine, designDir)
+    emitConversionsPackage(typesToDefine, designDir, options)
     emitTypedefs(typesToDefine, designDir)
     emitComponents(top, designDir, options)
     emitProjectFiles(dir, designDir, options, top)
@@ -94,7 +94,11 @@ object VhdlWriter {
     os.write.append(dir / s"$topName.qsf", options.appendQsf.map(_ + "\n"))
   }
 
-  private def emitConversionsPackage(types: Set[VhdlType], dir: Path): Unit = {
+  private def emitConversionsPackage(
+      types: Set[VhdlType],
+      dir: Path,
+      options: VhdlGeneratorOptions
+  ): Unit = {
     val defaultFunctions = Seq(
       VhdlFunction(
         name = "bool2sl",
@@ -136,7 +140,9 @@ object VhdlWriter {
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
          |use IEEE.numeric_std.all;
-         |use work.typedefs.all;
+         |
+         |library ${options.library};
+         |use ${options.library}.typedefs.all;
          |
          |package conversions is
          |${indent(signatures)}
@@ -232,7 +238,13 @@ object VhdlWriter {
     for ((destination, source) <- ops) {
       source match {
         case Left(resource) =>
-          os.write.over(destination, Source.fromResource(resource).mkString)
+          os.write.over(
+            destination,
+            Source
+              .fromResource(resource)
+              .mkString
+              .replace("%{LIBRARY}%", options.library)
+          )
         case Right(component) =>
           component.writeVhdl(destination, options)
       }

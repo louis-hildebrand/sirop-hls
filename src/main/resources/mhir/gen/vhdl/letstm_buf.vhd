@@ -2,7 +2,9 @@ library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 use IEEE.math_real.all;
-use work.conversions.all;
+
+library %{LIBRARY}%;
+use %{LIBRARY}%.conversions.all;
 
 -- Hardware template for letstm.
 entity letstm_buf is
@@ -80,7 +82,7 @@ architecture arch of letstm_buf is
 begin
 
     -- Memory for buffer
-    MULTI_RAM : entity work.multi_consumer_ram
+    MULTI_RAM : entity %{LIBRARY}%.multi_consumer_ram
         generic map (
             ADDR_WIDTH => IDX_WIDTH,
             RAM_LEN => RAM_LEN,

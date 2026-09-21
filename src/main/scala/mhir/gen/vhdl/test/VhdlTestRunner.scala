@@ -36,8 +36,12 @@ object VhdlTestRunner {
     * @return
     *   the test result.
     */
-  def testExistingProject(dir: Path, timeLimit: String = ""): TestResult = {
-    val shellScriptPath = copyTestScripts(dir)
+  def testExistingProject(
+      dir: Path,
+      options: VhdlGeneratorOptions = VhdlGeneratorOptions(),
+      timeLimit: String = ""
+  ): TestResult = {
+    val shellScriptPath = copyTestScripts(dir, options)
     val cmd = s"$shellScriptPath $dir"
     val cmdWithTimeout =
       if (timeLimit.isBlank) cmd else s"$cmd --time-limit=$timeLimit"
@@ -79,7 +83,7 @@ object VhdlTestRunner {
       )
     }
     time("running simulation", Level.DEBUG) {
-      testExistingProject(VHDL_TEST_DIR)
+      testExistingProject(VHDL_TEST_DIR, options)
     }
   }
 
@@ -103,7 +107,7 @@ object VhdlTestRunner {
       )
     }
     time("running simulation", Level.DEBUG) {
-      testExistingProject(VHDL_TEST_DIR)
+      testExistingProject(VHDL_TEST_DIR, options)
     }
   }
 
@@ -114,13 +118,20 @@ object VhdlTestRunner {
     * @return
     *   the path to the Bash script (inside [[dir]]).
     */
-  def copyTestScripts(dir: Path, compileIpBlocks: Boolean = false): Path = {
+  def copyTestScripts(
+      dir: Path,
+      options: VhdlGeneratorOptions,
+      compileIpBlocks: Boolean = false
+  ): Path = {
     val scriptsDir = dir / "scripts"
     os.makeDir.all(scriptsDir)
     val testShPath = scriptsDir / "test_vhdl.sh"
     os.write.over(
       testShPath,
-      Source.fromResource("mhir/gen/vhdl/test_vhdl.sh").mkString,
+      Source
+        .fromResource("mhir/gen/vhdl/test_vhdl.sh")
+        .mkString
+        .replace("%{LIBRARY}%", options.library),
       perms = "rwxrwxr-x"
     )
     if (compileIpBlocks) {

@@ -12,6 +12,10 @@ case class Program(
     */
   def body: Expr = this.accel.body
 
+  def library: Option[String] = {
+    this.accel.annotations.get("library").collect({ case x: Param => x.name })
+  }
+
   /** The name of the accelerator.
     */
   def name: String = this.accel.name
@@ -82,6 +86,7 @@ object Program {
           case None    => ()
           case Some(_) => err(s"unexpected value for annotation '$key'")
         }
+      case "library"  => expectIdentWithoutParam(key, param, value, err)
       case "out_name" => expectIdentWithoutParam(key, param, value, err)
       case "reset"    => expectIdentWithoutParam(key, param, value, err)
       case "go"       => expectIdentWithoutParam(key, param, value, err)

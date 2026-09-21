@@ -2,6 +2,8 @@ library IEEE;
 use IEEE.numeric_std.all;
 use IEEE.std_logic_1164.all;
 
+library %{LIBRARY}%;
+
 -- BRAM with (potentially) more than one consumer, each (potentially) reading from a different address.
 -- There is only one writer.
 entity multi_consumer_ram is
@@ -30,7 +32,7 @@ architecture arch of multi_consumer_ram is
 begin
 
     gen_ram : for i in 0 to N_CONSUMERS-1 generate
-        DPRAM : entity work.dual_port_ram
+        DPRAM : entity %{LIBRARY}%.dual_port_ram
             generic map (
                 ADDR_WIDTH => ADDR_WIDTH,
                 RAM_LEN => RAM_LEN,

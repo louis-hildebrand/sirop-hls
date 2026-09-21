@@ -15,7 +15,7 @@ case class SystolicSignedDspComponent(
     enableChainIn: Boolean
 ) extends PredefinedComponent {
 
-  override def entityName: String = "work.dsp_systolic_signed"
+  override def entityName: String = "dsp_systolic_signed"
 
   override def generics: ListMap[String, String] = {
     ListMap(

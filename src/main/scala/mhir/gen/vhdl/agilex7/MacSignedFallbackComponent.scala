@@ -12,7 +12,7 @@ case class MacSignedFallbackComponent(
     resultWidth: Int
 ) extends PredefinedComponent {
 
-  override def entityName: String = "work.mac_fallback_signed"
+  override def entityName: String = "mac_fallback_signed"
 
   override def generics: ListMap[String, String] = {
     ListMap(

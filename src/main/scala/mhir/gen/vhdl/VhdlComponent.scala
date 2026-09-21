@@ -32,7 +32,7 @@ private[vhdl] case class LetStmBufComponent(
     numConsumers: Int
 ) extends PredefinedComponent {
 
-  override def entityName: String = "work.letstm_buf"
+  override def entityName: String = "letstm_buf"
 
   override def generics: ListMap[String, String] = {
     ListMap(
@@ -111,21 +111,23 @@ private[vhdl] case class CustomVhdlComponent(
   }
 
   def writeVhdl(f: Path, options: VhdlGeneratorOptions): Unit = {
-    writeHeader(f)
+    writeHeader(f, options)
     writeEntity(f)
     writeArchitecture(f, options)
   }
 
-  private def writeHeader(f: Path): Unit = {
+  private def writeHeader(f: Path, options: VhdlGeneratorOptions): Unit = {
     os.write.append(
       f,
-      """
-        |library IEEE;
-        |use IEEE.std_logic_1164.all;
-        |use IEEE.numeric_std.all;
-        |use work.conversions.all;
-        |use work.typedefs.all;
-        |""".stripMargin
+      s"""library IEEE;
+         |use IEEE.std_logic_1164.all;
+         |use IEEE.numeric_std.all;
+         |
+         |library ${options.library};
+         |use ${options.library}.conversions.all;
+         |use ${options.library}.typedefs.all;
+         |
+         |""".stripMargin
     )
   }
 
@@ -178,7 +180,7 @@ private[vhdl] case class CustomVhdlComponent(
             .mkString(",\n" + " ".repeat(12))
         c match {
           case c: CustomVhdlComponent =>
-            s"""    $name : entity work.${c.name}
+            s"""    $name : entity ${options.library}.${c.name}
                |        port map(
                |            $assignments);
                |""".stripMargin.stripTrailing
@@ -188,7 +190,7 @@ private[vhdl] case class CustomVhdlComponent(
               .toSeq
               .sorted
               .mkString(",\n" + " ".repeat(12))
-            s"""    $name : entity ${c.entityName}
+            s"""    $name : entity ${options.library}.${c.entityName}
                |        generic map(
                |            $genericAssignments)
                |        port map(

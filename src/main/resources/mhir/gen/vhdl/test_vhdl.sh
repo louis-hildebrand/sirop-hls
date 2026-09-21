@@ -5,6 +5,7 @@ set -u
 DEFAULT_TIMEOUT='10s'
 SHOW_WAVES='true'
 TIME_RESOLUTION='100ps'
+LIBRARY='%{LIBRARY}%'
 
 BAD_ARGS=2
 MISSING_PROJ=3
@@ -88,11 +89,11 @@ function parse_args {
 function compile {
     echo "Compiling" "$@"
     mkdir -p './lib'
-    if [[ ! -e './lib/work' ]]; then
-        vlib './lib/work'
+    if [[ ! -e "./lib/$LIBRARY" ]]; then
+        vlib "./lib/$LIBRARY"
     fi
-    vmap 'work' './lib/work'
-    vcom -2002 -autoorder "$@"
+    vmap "$LIBRARY" "./lib/$LIBRARY"
+    vcom -2002 -autoorder -work "$LIBRARY" "$@"
 }
 
 function exit_if_missing_vcom {
@@ -115,10 +116,10 @@ function run_simulation {
         if [[ "$SHOW_WAVES" == "true" ]]; then
             tcl_script="add wave sim:/testbench/*; add wave sim:/testbench/out_check_*/*; add wave sim:/testbench/DUT/*; $tcl_script"
         fi
-        vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" "${library_args[@]}" -voptargs="+acc" testbench
+        vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" "${library_args[@]}" -voptargs="+acc" -work "$LIBRARY" testbench
     else
         tcl_script='set NumericStdNoWarnings 1; log -r /*; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]'
-        timeout "$time_limit" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" "${library_args[@]}" -voptargs="+acc" testbench
+        timeout "$time_limit" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" "${library_args[@]}" -voptargs="+acc" -work "$LIBRARY" testbench
     fi
 }
 

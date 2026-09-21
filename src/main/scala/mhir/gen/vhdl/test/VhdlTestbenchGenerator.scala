@@ -209,8 +209,10 @@ object VhdlTestbenchGenerator {
          |use IEEE.std_logic_1164.all;
          |use IEEE.numeric_std.all;
          |use std.textio.all;
-         |use work.typedefs.all;
-         |use work.conversions.all;
+         |
+         |library ${options.library};
+         |use ${options.library}.typedefs.all;
+         |use ${options.library}.conversions.all;
          |
          |entity testbench is
          |    -- empty
@@ -362,7 +364,7 @@ object VhdlTestbenchGenerator {
         inputVars.map(x => s"${x.name} => ${x.name}_data")
       }
     )).mkString(", ")
-    s"DUT : entity work.${options.topName} port map($assignments);"
+    s"DUT : entity ${options.library}.${options.topName} port map($assignments);"
   }
 
   private def getSharedDecls(

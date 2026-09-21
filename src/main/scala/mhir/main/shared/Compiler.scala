@@ -84,7 +84,11 @@ object Compiler {
         case None        => vhdl1
       }
       val vhdl3 = vhdl2.copy(handshake = prog.handshake)
-      vhdl3
+      val vhdl4 = prog.library match {
+        case Some(lib) => vhdl3.copy(library = lib)
+        case None      => vhdl3
+      }
+      vhdl4
     }
     val options = originalOptions.copy(vhdl = vhdlOptions)
     val (checked, tchkTime) = typecheck(prog)
@@ -189,7 +193,8 @@ object Compiler {
           )
         case VhdlTarget(outDir, _, runSim) =>
           if (runSim) {
-            val result = VhdlTestRunner.testExistingProject(outDir)
+            val result =
+              VhdlTestRunner.testExistingProject(outDir, options.vhdl)
             val moreInfoMsg =
               "For more details, try running './scripts/test_vhdl.sh . -v' in the generated VHDL directory."
             result match {
@@ -526,6 +531,7 @@ object Compiler {
       )
       VhdlTestRunner.copyTestScripts(
         outDir,
+        options,
         compileIpBlocks = designUsesIpBlocks
       )
     }

@@ -1,6 +1,7 @@
 package mhir.main.stored
 
 import com.typesafe.scalalogging.Logger
+import mhir.gen.vhdl.VhdlGeneratorOptions
 import mhir.gen.vhdl.test.{
   DirectTestInput,
   DirectTestOutput,
@@ -56,7 +57,7 @@ object GenTestbench {
       )
     }
     time("copying test_vhdl.sh", Level.DEBUG) {
-      VhdlTestRunner.copyTestScripts(dir)
+      VhdlTestRunner.copyTestScripts(dir, VhdlGeneratorOptions())
     }
   }
 }

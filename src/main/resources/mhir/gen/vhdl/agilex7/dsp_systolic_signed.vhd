@@ -2,6 +2,8 @@ library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 
+library %{LIBRARY}%;
+
 entity dsp_systolic_signed is
 
     generic(
@@ -28,7 +30,7 @@ end entity;
 architecture structural of dsp_systolic_signed is
 begin
 
-    DSP : entity work.dsp_systolic
+    DSP : entity %{LIBRARY}%.dsp_systolic
         generic map(
             USE_SIGNED      => true,
             AX_WIDTH        => AX_WIDTH,

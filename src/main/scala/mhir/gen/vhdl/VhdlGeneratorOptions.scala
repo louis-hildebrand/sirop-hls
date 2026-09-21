@@ -4,6 +4,8 @@ import scala.io.Source
 
 /** Settings for VHDL generation.
   *
+  * @param library
+  *   the name of the library that this entity will be compiled into.
   * @param topName
   *   the name for the top-level entity.
   * @param clock
@@ -27,6 +29,7 @@ import scala.io.Source
   *   settings to append to the .qsf file.
   */
 case class VhdlGeneratorOptions(
+    library: String = "work",
     topName: String = "top",
     clock: String = "clk",
     reset: String = "rst",

@@ -2,6 +2,7 @@ package mhir.main.aetherling
 
 import com.typesafe.scalalogging.Logger
 import mhir.gen.verilog.{VerilogTestRunner, VerilogTestbenchGenerator}
+import mhir.gen.vhdl.VhdlGeneratorOptions
 import mhir.gen.vhdl.test._
 import mhir.logging.time
 import org.slf4j.event.Level
@@ -60,7 +61,7 @@ object GenTestbench {
       VhdlTestbenchGenerator.makeFileBasedTestbench(io = io, dir = dir)
     }
     time("copying test_vhdl.sh into VHDL project") {
-      VhdlTestRunner.copyTestScripts(dir)
+      VhdlTestRunner.copyTestScripts(dir, VhdlGeneratorOptions())
     }
   }
 }
