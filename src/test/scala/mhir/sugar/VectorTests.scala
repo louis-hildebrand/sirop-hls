@@ -733,6 +733,14 @@ class VectorTests extends AnyFunSuite {
     assert(mhir.eval.eval(VecTakeRight(v, 3)().tchk()) == VecLiteral(0, 1, 2)())
   }
 
+  test("VecDropRight:Vec[Int]") {
+    val v = VecBuild(3, U32 ::+ (i => i))()
+    assert(mhir.eval.eval(VecDropRight(v, 0)().tchk()) == VecLiteral(0, 1, 2)())
+    assert(mhir.eval.eval(VecDropRight(v, 1)().tchk()) == VecLiteral(0, 1)())
+    assert(mhir.eval.eval(VecDropRight(v, 2)().tchk()) == VecLiteral(0)())
+    assert(mhir.eval.eval(VecDropRight(v, 3)().tchk()) == VecLiteral()())
+  }
+
   test("VecShiftLeft:Vec[Int, 3]") {
     val v = VecBuild(3, U32 ::+ (i => i * (i + 2)))()
     assert(

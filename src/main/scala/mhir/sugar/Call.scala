@@ -192,6 +192,11 @@ case class Call(
           case (Seq(), Seq(v, k)) => VecTakeRight(v, k)()
           case _                  => error(f)
         }
+      case f @ Param("VecDropRight", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(v, k)) => VecDropRight(v, k)()
+          case _                  => error(f)
+        }
       // Stream operators --------------------------------------------------
       case f @ Param("Stm2Vec", -1) =>
         combinedArgs match {
