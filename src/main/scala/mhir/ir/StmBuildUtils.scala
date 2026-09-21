@@ -1,5 +1,7 @@
 package mhir.ir
 
+import scala.annotation.tailrec
+
 trait StmBuildUtils {
 
   /** Helper methods for [[StmBuild]].
@@ -85,8 +87,12 @@ trait StmBuildUtils {
           s"Cannot replace variables ${invalidKeys.mkString(", ")} because they are neither accumulators nor producers."
             + s" The stream is $this."
         )
+      } else if (replacements.isEmpty) {
+        this.stm
       } else {
         val subs: Map[Expr, Expr] = replacements.toMap
+        val newAnnotations =
+          this.stm.annotations.map(_.map(_.subPreserveType(subs)))
         StmBuild(
           this.stm.n,
           this.stm.delay,
@@ -103,7 +109,7 @@ trait StmBuildUtils {
             .map({ case (x, (stm, ready, delay)) =>
               x -> (stm, ready.subPreserveType(subs), delay)
             })
-        )(annotations = this.stm.annotations)
+        )(annotations = newAnnotations)
       }
     }
 
@@ -251,6 +257,38 @@ trait StmBuildUtils {
         .intersect(this.stm.namesDefinedHere)
     }
 
+    @deprecated
+    def indicesUsed(v: Param): (VecUses, VecUses) = {
+      require(
+        v.typ.isInstanceOf[TyVec],
+        s"target param has type ${v.typ}; expected a vector"
+      )
+      val whereToLook = Seq(this.stm.nextData, this.stm.valid) ++
+        this.stm.accumulators.-(v).map({ case (_, (_, next, _)) => next }) ++
+        this.stm.producers.map({ case (_, (_, ready, _)) => ready }) ++
+        this.stm.sinkAnnotation.toSeq
+      (
+        indicesUsedIn(v, Tuple(whereToLook: _*)()),
+        indicesUsedIn(v, this.stm.sinkAnnotation.getOrElse(False))
+      )
+    }
+
+    private def indicesUsedIn(v: Param, e: Expr): VecUses = {
+      @tailrec
+      def find(candidates: Seq[Expr], acc: VecUses): VecUses = {
+        candidates match {
+          case Seq()        => acc
+          case head +: tail => find(tail, acc.union(indicesUsedIn(v, head)))
+        }
+      }
+      e match {
+        case VecAccess(v1: Param, IntCst(i)) if v1 == v =>
+          VecUses.Indices(Set(i))
+        case v1: Param if v1 == v => VecUses.All
+        case e                    => find(e.children, VecUses.None)
+      }
+    }
+
     def annotate(annotation: StmBuildAnnotation): StmBuild = {
       val newAnnotations = this.stm.annotations + annotation
       this.stm.copy()(typ = this.stm.typ, annotations = newAnnotations)
@@ -265,6 +303,10 @@ trait StmBuildUtils {
 
     def nameAnnotation: Option[String] = {
       this.stm.annotations.collectFirst({ case NameAnnotation(name) => name })
+    }
+
+    def sinkAnnotation: Option[Expr] = {
+      this.stm.annotations.collectFirst({ case SinkAnnotation(sink) => sink })
     }
   }
 }

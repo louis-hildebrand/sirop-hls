@@ -10,7 +10,7 @@ class LoweringTests extends AnyFunSuite {
   test("LowerParam") {
     val s = Param("s")(TyStm(TyStm(U8, 2), 2))
     val actual = s.lowerParam
-    assert(actual == s)
+    assert(actual alphaEquals s)
     assert(actual.typ == TyStm(U8, Prod(PadTo(2, 4)(), PadTo(2, 4)())()))
   }
 
@@ -18,7 +18,7 @@ class LoweringTests extends AnyFunSuite {
     val s = Param("s")(TyStm(TyStm(U16, 3), 2))
     val f = Function(s, s)().tchk()
     val actual = f.lower.asInstanceOf[Function]
-    assert(actual == f)
+    assert(actual alphaEquals f)
     assert(actual.param.typ == TyStm(U16, Prod(PadTo(3, 4)(), PadTo(2, 4)())()))
   }
 
@@ -27,14 +27,14 @@ class LoweringTests extends AnyFunSuite {
     val y = Param("y")((U8, I16))
     val e = Let(x, y, x)().tchk()
     val actual = e.lower.asInstanceOf[FunCall]
-    assert(actual == FunCall(Function(x, x)(), y)())
+    assert(actual alphaEquals FunCall(Function(x, x)(), y)())
     assert(actual.f.asInstanceOf[Function].param.typ == TyTuple(U8, I16))
   }
 
   test("UncurryFunction:1arg") {
     val f = (U8 ::+ (x => x * x + 1)).tchk()
     val actual = f.uncurry
-    assert(actual == f)
+    assert(actual alphaEquals f)
     assert(actual.typ == U8 ->: U8)
   }
 
@@ -42,7 +42,7 @@ class LoweringTests extends AnyFunSuite {
     val f =
       (U8 ::+ (x => U8 ::+ (y => x + x * y + y))).tchk()
     val expected = TyTuple(U8, U8) ::+ (a => a.__0 + a.__0 * a.__1 + a.__1)
-    assert(f.uncurry == expected)
+    assert(f.uncurry alphaEquals expected)
   }
 
   test("UncurryFunction:3args") {
@@ -52,14 +52,14 @@ class LoweringTests extends AnyFunSuite {
     val expected = TyTuple(U8, TyTuple(TyBool, U8)) ::+ (z =>
       Tuple(z.__0 + z.__1.__1, z.__1.__0)()
     )
-    assert(f.uncurry == expected)
+    assert(f.uncurry alphaEquals expected)
   }
 
   test("UncurryFunCall:1arg") {
     val f = Param("f")(I8 ->: I8)
     val e = FunCall(f, IntCst(42)(I8))().tchk()
     val actual = e.uncurry
-    assert(actual == e)
+    assert(actual alphaEquals e)
     assert(actual.typ == I8)
   }
 
@@ -68,7 +68,7 @@ class LoweringTests extends AnyFunSuite {
     val e = FunCall(FunCall(f, IntCst(42)(I16))(), IntCst(99)(I16))().tchk()
     val expected = FunCall(f.lower, Tuple(42, 99)())()
     val actual = e.uncurry
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(e.typ == I16)
   }
 
@@ -80,7 +80,7 @@ class LoweringTests extends AnyFunSuite {
         .tchk()
     val expected = FunCall(f.lower, Tuple(42, Tuple(True, 99)())())()
     val actual = e.uncurry
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.typ == I32)
   }
 
@@ -93,7 +93,7 @@ class LoweringTests extends AnyFunSuite {
       f.lower,
       Tuple(FunCall(g.lower, Tuple(C(42)(U8), C(43)(U8))())(), C(44)(U8))()
     )()
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("UncurryFunction:Mux") {

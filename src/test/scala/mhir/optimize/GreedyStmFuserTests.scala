@@ -32,7 +32,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
 
     // Successful fusion
     val expected = mapPlus(input, C(3)(U8))
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   /* The `VecAccess` in the consumer cancels out the `VecBuild` in the
@@ -91,7 +91,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
         Map()
       )().tchk()
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   /* Test that fusion works even with multiple consumers and when the consumers
@@ -178,7 +178,7 @@ class GreedyStmFuserTests extends AnyFunSuite {
         )
       )().tchk()
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   /* Don't put two multiplications in the same cycle because then the design
@@ -238,6 +238,6 @@ class GreedyStmFuserTests extends AnyFunSuite {
     assert(actualVal == originalVal)
 
     // No fusion
-    assert(actual == original)
+    assert(actual alphaEquals original)
   }
 }

@@ -170,12 +170,12 @@ object IntConversionMover {
         } else {
           e.rebuildAndEraseType(newC +: newBranches)
         }
-      case i: IntCst =>
-        // Don't erase type annotation on IntCst
-        i
       // TODO: emit warning if there's syntax sugar?
-      case e =>
-        e.map(e => widen(e))
+      case s: StmBuild =>
+        val s1 = s.map(widen).asInstanceOf[StmBuild]
+        val newAnnotations = s1.annotations.map(_.map(widen))
+        s1.copy()(annotations = newAnnotations, typ = Missing)
+      case e => e.map(widen)
     }
     val typedResult = result.tchk()
     assert(

@@ -45,6 +45,7 @@ object Args {
     var vhdlFmax: Option[Int] = None
     var vhdlVirtualPins: Option[Boolean] = None
     var vhdlAppendQsf = Seq[String]()
+    var vhdlAbsorbOutReg: Option[Boolean] = None
     var prettyPrintDest: Option[String] = None
     var prettyPrintLoweredDest: Option[String] = None
     var timeReportFile: Option[String] = None
@@ -61,6 +62,7 @@ object Args {
     var logLevel = Level.INFO
     // Optimizer args
     var simplifyStmBuild = true
+    var shrinkShiftRegisters = true
     var inlineLetStm = true
     var fuse = true
     var fission = true
@@ -169,6 +171,8 @@ object Args {
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
+        case "--out:vhdl:absorb-out-reg" =>
+          vhdlAbsorbOutReg = Some(true)
         case "--out:pp" =>
           mutArgs.drop(1).headOption match {
             case Some(path) =>
@@ -268,6 +272,8 @@ object Args {
         // Optimizer args
         case "--opt:no-simplify-sbuild" =>
           simplifyStmBuild = false
+        case "--opt:no-shrink-shift-reg" =>
+          shrinkShiftRegisters = false
         case "--opt:no-inline-letstm" =>
           inlineLetStm = false
         case "--opt:no-fuse" =>
@@ -367,6 +373,11 @@ object Args {
               "--out:vhdl:run-sim is only valid when --out:vhdl is also given"
             )
           }
+          if (vhdlAbsorbOutReg.isDefined) {
+            throw new BadArgsException(
+              "--out:vhdl:absorb-out-reg is only valid when --out:vhdl is also given"
+            )
+          }
           None
       }
       val ppTarget = prettyPrintDest.map({
@@ -449,10 +460,15 @@ object Args {
           case Some(b) => opt3.copy(virtualPins = b)
           case None    => opt3
         }
-        opt4
+        val opt5 = vhdlAbsorbOutReg match {
+          case Some(b) => opt4.copy(absorbOutReg = b)
+          case None    => opt4
+        }
+        opt5
       },
       optFlags = OptimizerOptions(
         simplifyStmBuild = simplifyStmBuild,
+        shrinkShiftRegisters = shrinkShiftRegisters,
         inlineLetStm = inlineLetStm,
         fuse = fuse,
         fission = fission,
@@ -509,92 +525,15 @@ object Args {
     val defaultFmax = VhdlGeneratorOptions.DEFAULT_FMAX
     this.printShortUsage()
     println()
+    val longHelpText = scala.io.Source
+      .fromResource("mhir/main/long_help.txt")
+      .getLines
+      .mkString("\n")
     println(
-      s"""  -h,--help                     print the help message and exit
-         |  --version                     print the compiler version and exit
-         |
-         |Source Arguments:
-         |  -s (sirop|aetherling|stored)  source language (default: sirop)
-         |  -i INPUT                      where to get the source code.
-         |                                With -s stored, this is the program name.
-         |                                Otherwise, this is the path to the source file.
-         |                                If this argument is omitted, the REPL will be
-         |                                launched.
-         |  -c IDENTIFIER=expression      const overrides. The constant called IDENTIFIER
-         |                                will use the given expression rather than what
-         |                                is currently specified in the source code. For
-         |                                example, if the source code has the line
-         |                                    const N: u32 = 16
-         |                                and you pass -c N=8, it's as if you has written
-         |                                    const N: u32 = 8
-         |                                in the first place. This is useful for exploring
-         |                                different design alternatives without changing
-         |                                the source code. The -c argument can be given
-         |                                arbitrarily many times.
-         |
-         |Output Arguments:
-         |  --out:eval                       evaluate the program and print its value
-         |  --out:eval:max-invalid-steps N   maximum number of invalid sbuild outputs when
-         |                                   evaluating. A negative value disables the
-         |                                   limit.
-         |
-         |  --out:trace DIR                  generate a trace in the given directory. The
-         |                                   trace shows the state of the accelerator at
-         |                                   each time step.
-         |  --out:trace:test TEST            the zero-based index of the test case from
-         |                                   which to get the inputs to the accelerator
-         |                                   when generating the trace
-         |
-         |  --out:test                       run the tests and print the results
-         |  --out:test:expected FILE         where to write the expected outputs
-         |  --out:test:actual FILE           where to write the actual outputs
-         |  --out:test:actual:show-physical  include the physical prefix when printing
-         |                                   the actual outputs
-         |
-         |  --out:vhdl DIR                   emit VHDL code in the given directory
-         |  --out:vhdl:run-sim               run the VHDL testbench after codegen
-         |  --out:vhdl:family                the value for the FAMILY assignment in the
-         |                                   .qsf file (default: $defaultFamily)
-         |  --out:vhdl:device                the value for the DEVICE assignment in the
-         |                                   .qsf file (default: $defaultDevice)
-         |  --out:vhdl:fmax                  the target Fmax, in MHz (default: $defaultFmax)
-         |  --out:vhdl:no-virtual-pins       don't mark the ports of the top-level entity
-         |                                   as virtual pins
-         |  --out:vhdl:append-qsf            append the given settings to the .qsf file
-         |
-         |  --out:pp (FILE|-)                pretty-print the final program to the given
-         |                                   file, or to stdout if argument "-" is given
-         |  --out:pp:lowered (FILE|-)        pretty-print the program after lowering but
-         |                                   before optimization
-         |
-         |  --out:ctime FILE                 write a report of the compile time to the
-         |                                   given directory
-         |
-         |  --overwrite                      what to do if the output file or directory
-         |                                   already exists: if true then delete it, if
-         |                                   false then raise an error
-         |  -q,--quiet                       reduce the number of log messages
-         |  -v,--verbose                     increase the number of log messages
-         |
-         |Optimization Flags:
-         |  --opt:no-simplify-sbuild        skip basic sbuild simplifications
-         |  --opt:no-inline-letstm          skip inlining letstm
-         |  --opt:no-fuse                   skip the greedy stream fusion pass
-         |  --opt:no-fission                skip the stream fission pass
-         |  --opt:no-latmatch               skip the latency matching pass
-         |  --opt:no-remove-unused-data     skip the unused data removal pass
-         |  --opt:no-static-buf-shrink      skip static letstm buffer shrinking
-         |  --opt:max-let-buf-size SIZE     maximum buffer size for letstm
-         |  --opt:no-balance-binop-trees    skip the binop tree balancing pass
-         |  --opt:no-madd                   disallow chaining multiplication and addition.
-         |                                  Use this option if the DSPs on the target
-         |                                  device do NOT include a mode like
-         |                                  ax*ay + bx*by
-         |  --opt:assume-throughputs-match  whether the optimizer can assume the
-         |                                  throughputs along different branches of a
-         |                                  letstm match. This is always the case for
-         |                                  Aetherling programs, for example.
-         |""".stripMargin.stripTrailing()
+      longHelpText
+        .replace("%{OUT_VHDL_FAMILY_DEFAULT}%", defaultFamily)
+        .replace("%{OUT_VHDL_DEVICE_DEFAULT}%", defaultDevice)
+        .replace("%{OUT_VHDL_FMAX_DEFAULT}%", defaultFmax.toString)
     )
   }
 }

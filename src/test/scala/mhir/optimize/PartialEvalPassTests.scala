@@ -483,7 +483,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         U8 ::+ (_ => False)
       )()
     )
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("ReusedParam:StmAccumulator") {
@@ -532,7 +532,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         VecBuild(7, U8 ::+ (i => Tuple(True, True, LessThan(2, i)())()))(),
         True
       )()
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("MuxTrueBranchSpecialCaseOfFalseBranch") {
@@ -642,7 +642,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         n,
         U8 ::+ (i => Tuple(True, True, False, False, i gt 0)())
       )()
-    assert(PartialEvalPass.partialEval(v) == expected)
+    assert(PartialEvalPass.partialEval(v) alphaEquals expected)
   }
 
   test("vbuild(n) { i => v[i] }") {
@@ -718,7 +718,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e = (U8 ::+ (i => Mux(c0, i + 1, i)())).tchk().lower
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected = U8 ::+ (i => Sum(1, i)())
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("ClearVariableRange") {
@@ -727,7 +727,7 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e = Function(i, i === 0)().tchk().lower
     val actual = PartialEvalPass.partialEval(e)(facts)
     val expected = U8 ::+ (i => i equ 0)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("VecAccess(VecBuild)") {
@@ -804,7 +804,7 @@ class PartialEvalPassTests extends AnyFunSuite {
         C(3)(U8),
         U32 ::+ (i => VecBuild(C(2)(U8), U32 ::+ (j => Tuple(i, j)()))())
       )()
-    assert(evaluated == expected)
+    assert(evaluated alphaEquals expected)
     assert(evaluated.typ == TyVec(TyVec((U32, U32), C(2)(U8)), C(3)(U8)))
   }
 
@@ -826,6 +826,20 @@ class PartialEvalPassTests extends AnyFunSuite {
     val e = And(True, Not(SmartLessThan(t, 0)())())()
     val actual = PE.partialEval(e)
     val expected = Not(SmartLessThan(t, 0)())()
+    assert(actual == expected)
+  }
+
+  test("CoalesceUndefinedTuple") {
+    val e = Tuple(Undefined(U8), Undefined(TyBool))().tchk()
+    val actual = PE.partialEval(e)
+    val expected = Undefined(TyVec(U8, 4))
+    assert(actual == expected)
+  }
+
+  test("CoalesceUndefinedVector") {
+    val e = VecBuild(4, U8 ::+ (_ => Undefined(U8)))().tchk()
+    val actual = PE.partialEval(e)
+    val expected = Undefined(TyVec(U8, 4))
     assert(actual == expected)
   }
 }

@@ -128,7 +128,7 @@ class StreamFusionTests extends AnyFunSuite {
         )
       )().tchk()
     )
-    assert(actual1 == ideal1)
+    assert(actual1 alphaEquals ideal1)
 
     // 2) After fusion with x2
     val actual2 = lpe(s.fuseWith(x2)).tchk()
@@ -150,7 +150,7 @@ class StreamFusionTests extends AnyFunSuite {
         )
       )().tchk()
     )
-    assert(actual2 == ideal2)
+    assert(actual2 alphaEquals ideal2)
 
     // 3) After two fusions
     val actual3 = lpe(s.fuseWith(x1).fuseWith(x2))
@@ -175,7 +175,7 @@ class StreamFusionTests extends AnyFunSuite {
         Map()
       )().tchk()
     )
-    assert(actual3 == ideal3)
+    assert(actual3 alphaEquals ideal3)
   }
 
   /** Stream fusion where the producer is not always valid <i>and</i> the

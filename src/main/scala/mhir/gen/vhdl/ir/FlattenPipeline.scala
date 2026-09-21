@@ -4,12 +4,9 @@ package ir
 import mhir.canonicalize._
 import mhir.gen.CodegenError
 import mhir.ir._
-import mhir.optimize.{
-  LatencyAnalysis,
-  LatencyLetStm,
-  LatencyNode,
-  LatencyStmBuild
-}
+import mhir.matchers.ShiftLeft
+import mhir.optimize._
+import mhir.sugar.{ExprLowering, VecCst, VecDrop, VecDropRight, VecShiftLeft}
 import mhir.typecheck._
 
 import scala.collection.immutable.ListMap
@@ -21,8 +18,16 @@ object FlattenPipeline {
       options: VhdlGeneratorOptions
   ): FlatPipeline = {
     validateExpr(f, options)
-    val (inputs, stm1) = TypeChecker.unwrapTopLevelFunction(f)
-    val stm = makeDataRegisterExplicitInSbuild(stm1)
+    val (inputs, stm) = {
+      val (inputs, stm1) = TypeChecker.unwrapTopLevelFunction(f)
+      val stm2 = makeDataRegisterExplicitInSbuild(stm1)
+      val stm3 = if (options.absorbOutReg) {
+        absorbOutReg(stm2)
+      } else {
+        stm2
+      }
+      (inputs, stm3)
+    }
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
     val latency = {
       val analysis = new LatencyAnalysis(handshake = options.handshake)
@@ -280,6 +285,52 @@ object FlattenPipeline {
     }
   }
 
+  private def absorbOutReg(e: Expr): Expr = {
+    // TODO: make this a bit more general?
+    e match {
+      case stm: StmBuild =>
+        stm.nextData match {
+          case Tuple(x: Param, y: Param)
+              if x != y && y.typ == TyBool && stm.accumulators.contains(y) =>
+            val (init, next, delay) = stm.accumulators(y)
+            (init, next) match {
+              // TODO: generalize to any init, minIndex?
+              case (False, ReductionFromVec(zShift, 0))
+                  if stm.accumulators.contains(zShift) =>
+                val (zInit, zNext, zDelay) = stm.accumulators(zShift)
+                (zInit, zDelay) match {
+                  case (VecBuild(_, Function(_, False)), zDelay)
+                      if zDelay == delay =>
+                    (zShift, (zInit, zNext, zDelay)) match {
+                      case ShiftLeft(_, ShiftLeft(length, input)) =>
+                        val TyVec(elemTyp, _) = zShift.typ
+                        val newLen = C(length + 1)()
+                        val newZ = Param(zShift.prefix)(TyVec(elemTyp, newLen))
+                        val newZInit = VecCst(newLen, False)().tchk().lower
+                        val newZNext = VecShiftLeft(newZ, input)().tchk().lower
+                        val newZDelay = zDelay
+                        val replacements = Map(
+                          y -> next.subPreserveType(
+                            zShift -> VecDropRight(newZ, C(1)())().tchk().lower
+                          ),
+                          zShift -> VecDrop(newZ, C(1)())().tchk().lower
+                        )
+                        PartialEvalPass.partialEval(
+                          stm
+                            .addAccumulator(newZ, newZInit, newZNext, newZDelay)
+                            .replaceVars(replacements)
+                        )
+                      case _ => e
+                    }
+                }
+              case _ => e
+            }
+          case _ => e
+        }
+      case e => e
+    }
+  }
+
   /** Rename all the producer variables to match the corresponding stream.
     *
     * Within `sbuild` there are a bunch of producers, each of which have (1) a
@@ -401,6 +452,22 @@ private class SplitTupleIntoAccumulators(
         val x = Param(prefix)(next.typ)
         this.accumulators += (x -> (init, next))
         x
+    }
+  }
+}
+
+private object ReductionFromVec {
+
+  def unapply(next: Expr): Option[(Param, Long)] = {
+    next match {
+      case VecAccess(x: Param, IntCst(i)) => Some((x, i))
+      case Not(ReductionFromVec(x, i))    => Some(x, i)
+      case And(ReductionFromVec(x1, i1), ReductionFromVec(x2, i2))
+          if x1 == x2 =>
+        Some((x1, math.min(i1, i2)))
+      case Or(ReductionFromVec(x1, i1), ReductionFromVec(x2, i2)) if x1 == x2 =>
+        Some((x1, math.min(i1, i2)))
+      case _ => None
     }
   }
 }

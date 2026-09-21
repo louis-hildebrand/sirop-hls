@@ -169,9 +169,8 @@ class ExprTests extends AnyFunSuite {
       val y = Param("y")()
       Function(y, (y + 1) * (y + 2))()
     }
-    assert(f == g)
-    assert(g == f)
-    assert(f.hashCode == g.hashCode)
+    assert(f alphaEquals g)
+    assert(g alphaEquals f)
   }
 
   test("Function:NotEquals:DifferentBody") {
@@ -179,8 +178,8 @@ class ExprTests extends AnyFunSuite {
     val f = Function(x, (x + 1) * (x + 2))()
     val y = Param("y")(U8)
     val g = Function(y, (y + 1) * (x + 2))()
-    assert(f != g)
-    assert(g != f)
+    assert(!(f alphaEquals g))
+    assert(!(g alphaEquals f))
   }
 
   test("LetStm:Equals") {
@@ -197,9 +196,8 @@ class ExprTests extends AnyFunSuite {
     val s1 = Param("s")()
     val e0 = LetStm(1, s0, in, StmZip(s0, s0)())()
     val e1 = LetStm(1, s1, in, StmZip(s1, s1)())()
-    assert(e0 == e1)
-    assert(e1 == e0)
-    assert(e0.hashCode == e1.hashCode)
+    assert(e0 alphaEquals e1)
+    assert(e1 alphaEquals e0)
   }
 
   test("LetStm:NotEquals:DifferentInput") {
@@ -225,8 +223,8 @@ class ExprTests extends AnyFunSuite {
     val s1 = Param("s")()
     val e0 = LetStm(1, s0, in0, StmZip(s0, s0)())()
     val e1 = LetStm(1, s1, in1, StmZip(s1, s1)())()
-    assert(e0 != e1)
-    assert(e1 != e0)
+    assert(!(e0 alphaEquals e1))
+    assert(!(e1 alphaEquals e0))
   }
 
   test("LetStm:NotEquals:DifferentOutput") {
@@ -243,8 +241,8 @@ class ExprTests extends AnyFunSuite {
     val s1 = Param("s")()
     val e0 = LetStm(1, s0, in, StmZip(s0, s0)())()
     val e1 = LetStm(1, s1, in, StmZip(s1, s0)())()
-    assert(e0 != e1)
-    assert(e1 != e0)
+    assert(!(e0 alphaEquals e1))
+    assert(!(e1 alphaEquals e0))
   }
 
   test("StmBuild:Equals:NoAccumulatorVars") {
@@ -267,9 +265,8 @@ class ExprTests extends AnyFunSuite {
       Map(),
       Map()
     )()
-    assert(s1 == s2)
-    assert(s2 == s1)
-    assert(s1.hashCode == s2.hashCode)
+    assert(s1 alphaEquals s2)
+    assert(s2 alphaEquals s1)
   }
 
   test("StmBuild:Equals:OneAccumulatorVar") {
@@ -295,9 +292,8 @@ class ExprTests extends AnyFunSuite {
       Map[Param, (Expr, Expr, Expr)](j -> (z, j + 1, Tuple()())),
       Map()
     )()
-    assert(s1 == s2)
-    assert(s2 == s1)
-    assert(s1.hashCode == s2.hashCode)
+    assert(s1 alphaEquals s2)
+    assert(s2 alphaEquals s1)
   }
 
   test("StmBuild:Equals:TwoAccumulatorVars") {
@@ -329,9 +325,8 @@ class ExprTests extends AnyFunSuite {
       ),
       Map()
     )()
-    assert(s1 == s2)
-    assert(s2 == s1)
-    assert(s1.hashCode == s2.hashCode)
+    assert(s1 alphaEquals s2)
+    assert(s2 alphaEquals s1)
   }
 
   test("StmBuild:Equals:ThreeAccumulatorVars") {
@@ -365,9 +360,8 @@ class ExprTests extends AnyFunSuite {
       ),
       Map()
     )()
-    assert(s1 == s2)
-    assert(s2 == s1)
-    assert(s1.hashCode == s2.hashCode)
+    assert(s1 alphaEquals s2)
+    assert(s2 alphaEquals s1)
   }
 
   test("StmBuild:Equals:TypedAndUntyped") {
@@ -383,9 +377,8 @@ class ExprTests extends AnyFunSuite {
         Map()
       )()
     val typed = untyped.tchk()
-    assert(typed.hashCode == untyped.hashCode)
-    assert(typed == untyped)
-    assert(untyped == typed)
+    assert(typed alphaEquals untyped)
+    assert(untyped alphaEquals typed)
   }
 
   test("StmBuild:Equals:Shadowing") {
@@ -413,8 +406,8 @@ class ExprTests extends AnyFunSuite {
       Map[Param, (Expr, Expr, Expr)](s -> (s, True, Tuple()()))
     )()
     val f2 = Function(s, stm2)()
-    assert(stm1 == stm2)
-    assert(f1 == f2)
+    assert(stm1 alphaEquals stm2)
+    assert(f1 alphaEquals f2)
   }
 
   test("StmBuild:NotEquals:DifferentLengths") {
@@ -439,8 +432,8 @@ class ExprTests extends AnyFunSuite {
       Map[Param, (Expr, Expr, Expr)](j -> (z, j + 1, Tuple()())),
       Map()
     )()
-    assert(s1 != s2)
-    assert(s2 != s1)
+    assert(!(s1 alphaEquals s2))
+    assert(!(s2 alphaEquals s1))
   }
 
   test("StmBuild:NotEquals:DifferentOutputs1") {
@@ -466,8 +459,8 @@ class ExprTests extends AnyFunSuite {
       Map[Param, (Expr, Expr, Expr)](j -> (z, j + 1, Tuple()())),
       Map()
     )()
-    assert(s1 != s2)
-    assert(s2 != s1)
+    assert(!(s1 alphaEquals s2))
+    assert(!(s2 alphaEquals s1))
   }
 
   test("StmBuild:NotEquals:DifferentOutputs2") {
@@ -499,8 +492,8 @@ class ExprTests extends AnyFunSuite {
       ),
       Map()
     )()
-    assert(s1 != s2)
-    assert(s2 != s1)
+    assert(!(s1 alphaEquals s2))
+    assert(!(s2 alphaEquals s1))
   }
 
   test("StmBuild:NotEquals:DifferentSeeds") {
@@ -525,8 +518,8 @@ class ExprTests extends AnyFunSuite {
       Map[Param, (Expr, Expr, Expr)](j -> (j, j + 1, Tuple()())),
       Map()
     )()
-    assert(s1 != s2)
-    assert(s2 != s1)
+    assert(!(s1 alphaEquals s2))
+    assert(!(s2 alphaEquals s1))
   }
 
   test("StmBuild:NotEquals:DifferentStructures") {
@@ -558,8 +551,8 @@ class ExprTests extends AnyFunSuite {
       ),
       Map()
     )()
-    assert(s1 != s2)
-    assert(s2 != s1)
+    assert(!(s1 alphaEquals s2))
+    assert(!(s2 alphaEquals s1))
   }
 
   test("StmBuild:NotEquals:DifferentOutDelay") {
@@ -581,8 +574,8 @@ class ExprTests extends AnyFunSuite {
       Map(),
       Map()
     )().tchk()
-    assert(s1 != s2)
-    assert(s2 != s1)
+    assert(!(s1 alphaEquals s2))
+    assert(!(s2 alphaEquals s1))
   }
 
   test("StmBuild:NotEquals:DifferentInitData") {
@@ -604,8 +597,8 @@ class ExprTests extends AnyFunSuite {
       Map(),
       Map()
     )().tchk()
-    assert(s1 != s2)
-    assert(s2 != s1)
+    assert(!(s1 alphaEquals s2))
+    assert(!(s2 alphaEquals s1))
   }
 
   test("StmBuild:NotEquals:DifferentAccumulatorDelay") {
@@ -632,8 +625,8 @@ class ExprTests extends AnyFunSuite {
       ),
       Map()
     )().tchk()
-    assert(s1 != s2)
-    assert(s2 != s1)
+    assert(!(s1 alphaEquals s2))
+    assert(!(s2 alphaEquals s1))
   }
 
   test("StmBuild:NotEquals:DifferentProducerDelay") {
@@ -660,8 +653,8 @@ class ExprTests extends AnyFunSuite {
         p -> (p, True, C(1)())
       )
     )().tchk()
-    assert(s1 != s2)
-    assert(s2 != s1)
+    assert(!(s1 alphaEquals s2))
+    assert(!(s2 alphaEquals s1))
   }
 
   test("StmBuild:RenameVars") {
@@ -684,7 +677,7 @@ class ExprTests extends AnyFunSuite {
       Map()
     )()
     val renamed = original.renameVars
-    assert(original == renamed)
+    assert(original alphaEquals renamed)
     assert(
       original.namesDefinedHere.intersect(renamed.namesDefinedHere).isEmpty
     )
@@ -725,7 +718,7 @@ class ExprTests extends AnyFunSuite {
       ),
       Map()
     )()
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     // The new stream must use the exact parameter `outCtr`, not a fresh one
     assert(actual.initOrStm(outCtr) == expectedOutCtrSeed)
     assert(actual.nextOrReady(outCtr) == expectedOutCtrNext)

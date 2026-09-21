@@ -1018,6 +1018,11 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
           Seq(),
           Seq(s2, delay)
         ).tchk()
+        // Instruct the optimizer not to delete these shift registers
+        val sink = Tuple(
+          pipe1Vars.map(v => VecAccess(v, SmartDiff(delay, C(1)())())()) ++
+            pipe2Vars.map(v => VecAccess(v, SmartDiff(delay, C(1)())())()): _*
+        )().tchk().lower
         Call(
           Param("StmDrop", -1)(Missing),
           Seq(),
@@ -1033,7 +1038,9 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
                 p1 -> (s1Extended, True, C(0)()),
                 p2 -> (s2Extended, True, C(0)())
               )
-            )(),
+            )()
+              .annotateWithName("StmMapDotCascaded")
+              .annotate(SinkAnnotation(sink)),
             totDelay
           )
         ).tchk().lower
@@ -1602,13 +1609,17 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
   }
 }
 
-case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
+case class StmDelay(
+    stm: Expr,
+    delay: Expr,
+    head: Expr = Undefined(Missing)
+)(typ: Type = Missing)
     extends ResolvedSyntaxSugar(stm, delay)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): StmDelay = {
     newChildren match {
-      case Seq(s, d) => StmDelay(s, d)(typ)
-      case _         => throw new BadRebuildError(this, newChildren)
+      case Seq(s, d, h) => StmDelay(s, d, h)(typ)
+      case _            => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -1617,30 +1628,35 @@ case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): StmDelay = {
     val stm = this.stm.tchk(context, constValues)
-    stm.typ match {
-      case TyStm(TyData(_), _) => ()
+    val elemTyp = stm.typ match {
+      case TyStm(TyData(t), _) => t
       case typ =>
         throw new TypeError(
           s"Input to $className has type $typ."
-            + s" Expected a nno-nested stream."
+            + s" Expected a non-nested stream."
         )
     }
     val delay = this.delay.tchk(context, constValues).expectUInt()
-    this.rebuild(stm.typ, Seq(stm, delay))
+    val head = this.head match {
+      case Undefined(Missing) => Undefined(elemTyp)
+      case head =>
+        head.tchk(context, constValues).expectType(elemTyp, constValues)
+    }
+    this.rebuild(stm.typ, Seq(stm, delay, head))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val stm = this.stm.lower
     val delay = this.delay.lower
+    val head = this.head.lower
     val TyStm(elemTyp, n) = stm.typ
     val p = Param("p")(TyStm(elemTyp, -1))
-    val buf = Param("buf")(TyVec(elemTyp, delay))
+    val buf = Param("delay_buf")(TyVec(elemTyp, delay))
     StmBuild(
       n,
       SafeSum(delay, 1)().tchk().lower,
-      // TODO: Add optional parameter for initial value
-      Undefined(elemTyp),
+      head,
       Mux(
         delay === C(0)(),
         StmData(p)(),
@@ -1649,7 +1665,7 @@ case class StmDelay(stm: Expr, delay: Expr)(typ: Type = Missing)
       True,
       Map[Param, (Expr, Expr, Expr)](
         buf -> (
-          Undefined(buf.typ),
+          VecCst(delay, head)().tchk().lower,
           VecShiftLeft(buf, StmData(p)())().tchk().lower,
           Tuple()()
         )
@@ -1937,16 +1953,21 @@ case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
     val s = this.s.lower
     val TyStm(TyData(elemTyp), n) = s.typ
     val z = this.z.lower
+    val TyVec(_, winWidth) = z.typ
     val p = Param("s")(TyStm(elemTyp, -1))
-    val buf = Param("buf")(z.typ)
+    val buf = Param("slide_buf")(TyVec(elemTyp, SmartDiff(winWidth, 1)()))
     StmBuild(
       n,
       C(1)(),
       z,
-      VecShiftLeft(buf, StmData(p)())().tchk().lower,
+      VecAppend(buf, StmData(p)())().tchk().lower,
       True,
       Map[Param, (Expr, Expr, Expr)](
-        buf -> (z, VecShiftLeft(buf, StmData(p)())().tchk().lower, C(1)())
+        buf -> (
+          VecDrop(z, C(1)())().tchk().lower,
+          VecShiftLeft(buf, StmData(p)())().tchk().lower,
+          C(1)()
+        )
       ),
       Map[Param, (Expr, Expr, Expr)](
         p -> (s, True, 0)

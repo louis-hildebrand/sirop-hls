@@ -187,6 +187,16 @@ case class Call(
           case (Seq(), Seq(v, k)) => VecDrop(v, k)()
           case _                  => error(f)
         }
+      case f @ Param("VecTakeRight", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(v, k)) => VecTakeRight(v, k)()
+          case _                  => error(f)
+        }
+      case f @ Param("VecDropRight", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(v, k)) => VecDropRight(v, k)()
+          case _                  => error(f)
+        }
       // Stream operators --------------------------------------------------
       case f @ Param("Stm2Vec", -1) =>
         combinedArgs match {
@@ -291,6 +301,8 @@ case class Call(
             mhir.sugar.handshake.StmSlide(s, w, stride)()
           case (Seq(), Seq(s, w)) if !handshake =>
             mhir.sugar.nohandshake.StmSlide(s, w)()
+          case (Seq(), Seq(s, w, head)) if !handshake =>
+            mhir.sugar.nohandshake.StmSlide(s, w, head)()
           case _ => error(f)
         }
       case f @ Param("StmSlideStartingWith", -1) =>
@@ -348,8 +360,9 @@ case class Call(
         }
       case f @ Param("StmDelay", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s, d)) => StmDelay(s, d)()
-          case _                  => error(f)
+          case (Seq(), Seq(s, d))       => StmDelay(s, d)()
+          case (Seq(), Seq(s, d, head)) => StmDelay(s, d, head)()
+          case _                        => error(f)
         }
       case _ =>
         combinedArgs match {

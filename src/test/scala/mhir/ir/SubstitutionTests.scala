@@ -43,7 +43,7 @@ class SubstitutionTests extends AnyFunSuite {
     )()
 
     val actual2 = original.subPreserveType(subs)
-    assert(actual2 == expected)
+    assert(actual2 alphaEquals expected)
     assert(actual2.typ != Missing)
   }
 
@@ -101,7 +101,7 @@ class SubstitutionTests extends AnyFunSuite {
     )()
 
     val actual2 = original.subPreserveType(subs)
-    assert(actual2 == expected)
+    assert(actual2 alphaEquals expected)
     assert(actual2.typ != Missing)
   }
 
@@ -150,11 +150,11 @@ class SubstitutionTests extends AnyFunSuite {
     )().tchk()
 
     val actual1 = stm.subPreserveType(subs)
-    assert(actual1 == expected)
+    assert(actual1 alphaEquals expected)
     assert(actual1.typ == expected.typ)
 
     val actual2 = stm.subAndEraseType(subs)
-    assert(actual2 == expected)
+    assert(actual2 alphaEquals expected)
     assert(actual2.typ == Missing)
   }
 
@@ -195,9 +195,9 @@ class SubstitutionTests extends AnyFunSuite {
       )()
     }
     val actual1 = stm.subPreserveType(subs)
-    assert(actual1 == expected)
+    assert(actual1 alphaEquals expected)
     val actual2 = stm.subAndEraseType(subs)
-    assert(actual2 == expected)
+    assert(actual2 alphaEquals expected)
   }
 
   test("Substitute:LetStm:VariableCapture") {
@@ -212,10 +212,10 @@ class SubstitutionTests extends AnyFunSuite {
     }
 
     val actual0 = e.subPreserveType(subs)
-    assert(actual0 == expected)
+    assert(actual0 alphaEquals expected)
 
     val actual1 = e.subAndEraseType(subs)
-    assert(actual1 == expected)
+    assert(actual1 alphaEquals expected)
   }
 
   test("Substitute:LetStm:SubBoundVar") {
@@ -228,10 +228,10 @@ class SubstitutionTests extends AnyFunSuite {
     val expected = LetStm(1, x, z, StmConcat(x, y))()
 
     val actual0 = e.subPreserveType(subs)
-    assert(actual0 == expected)
+    assert(actual0 alphaEquals expected)
 
     val actual1 = e.subAndEraseType(subs)
-    assert(actual1 == expected)
+    assert(actual1 alphaEquals expected)
   }
 
   test("Substitute:LetStm:Big") {
@@ -319,10 +319,10 @@ class SubstitutionTests extends AnyFunSuite {
     val expected = LetStm(C(10)(U8), x, s0, s1)().tchk()
 
     val actual0 = original.subPreserveType(n -> C(10)(U8))
-    assert(actual0 == expected)
+    assert(actual0 alphaEquals expected)
 
     val actual1 = original.subAndEraseType(n -> C(10)(U8))
-    assert(actual1 == expected)
+    assert(actual1 alphaEquals expected)
   }
 
   test("SubstituteInType0") {
@@ -346,7 +346,7 @@ class SubstitutionTests extends AnyFunSuite {
         VecBuild(IntCst(42)() * IntCst(2)(), U8 ::+ (i => i))(),
         IntCst(42)() + IntCst(1)()
       )()
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     val expectedTypeAfterSub = TyTuple(TyVec(U8, C(84)()), U8)
     assert(actual.typ == expectedTypeAfterSub)
   }
@@ -389,7 +389,7 @@ class SubstitutionTests extends AnyFunSuite {
       ),
       Map()
     )()
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     val expectedStmType = TyStm(U8, m + k)
     assert(actual.typ == expectedStmType)
     val expectedVecType = TyVec(U8, m + k)
@@ -407,7 +407,7 @@ class SubstitutionTests extends AnyFunSuite {
       val v = Param("v")(TyVec(U8, 42))
       Function(v, v)()
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     assert(actual.param.typ == TyVec(U8, 42))
     assert(actual.body.typ == TyVec(U8, 42))
   }
@@ -440,7 +440,7 @@ class SubstitutionTests extends AnyFunSuite {
         Map[Param, (Expr, Expr, Expr)](s -> (s2, True, Tuple()()))
       )()
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
     val (_, (actualInputStm, _, _)) = actual.producers.toSeq.head
     assert(actualInputStm == s2)
     assert(actualInputStm.typ == TyStm(U8, 20))

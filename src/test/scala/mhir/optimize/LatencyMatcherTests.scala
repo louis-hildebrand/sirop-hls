@@ -14,10 +14,15 @@ class LatencyMatcherTests extends AnyFunSuite {
 
   private class Env(handshake: Boolean) {
     private val analysis = new LatencyAnalysis(handshake = handshake)
+    private val unusedDataRemover = UnusedDataRemover(enabled = true)
     val loggerStub = new LoggerStub(getClass.getName)
     private val logger = Logger(loggerStub)
-    val pass =
-      new EnabledLatencyMatcher(analysis, logger, handshake = handshake)
+    val pass = new EnabledLatencyMatcher(
+      analysis,
+      unusedDataRemover,
+      logger,
+      handshake = handshake
+    )
   }
 
   test("let s = ... in Dynamic(StmZip(s, s |> StmMap(+5) |> StmMap(*2)))") {
@@ -434,8 +439,8 @@ class LatencyMatcherTests extends AnyFunSuite {
     val expectedVal = StmLiteral(
       Seq(
         Undefined(TyTuple(U8, U8)),
-        Tuple(Undefined(U8), Undefined(U8))(),
-        Tuple(Undefined(U8), Undefined(U8))(),
+        Undefined(TyTuple(U8, U8)),
+        Undefined(TyTuple(U8, U8)),
         Tuple(Undefined(U8), C(42)(U8))(),
         Tuple(Undefined(U8), C(43)(U8))(),
         Tuple(Undefined(U8), C(44)(U8))()
@@ -650,8 +655,8 @@ class LatencyMatcherTests extends AnyFunSuite {
     val expectedVal = StmLiteral(
       Seq(
         Undefined(TyTuple(U16, U16, U16)),
-        Tuple(Undefined(U16), Undefined(U16), Undefined(U16))(),
-        Tuple(Undefined(U16), Undefined(U16), Undefined(U16))()
+        Undefined(TyTuple(U16, U16, U16)),
+        Undefined(TyTuple(U16, U16, U16))
       ),
       (0 until n)
         .map(_ + 42)

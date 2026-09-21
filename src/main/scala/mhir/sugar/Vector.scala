@@ -95,7 +95,8 @@ case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     val n = this.n.lower
     val z = this.z.lower
     val delta = this.delta.lower
-    VecBuild(n, z.typ ::+ (i => Sum(z, Prod(i, delta)())()))().tchk()
+    val i = Param("i")(z.typ)
+    VecBuild(n, Function(i, Sum(z, Prod(i, delta)())())())().tchk()
   }
 }
 
@@ -701,6 +702,39 @@ case class VecTake(
   }
 }
 
+case class VecDropRight(v: Expr, k: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(v, k)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, k) => VecDropRight(v, k)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val newK = k.tchk(context, constValues).expectUInt()
+    val newV = v.tchk(context, constValues)
+    newV.typ match {
+      case TyVec(t, n) =>
+        val newLen = SmartDiff(n, newK)().tchk()
+        this.rebuild(TyVec(t, newLen), Seq(newV, newK))
+      case t =>
+        throw new TypeError(
+          s"Argument of $className has type $t. Expected a vector."
+        )
+    }
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    VecTake(this.v, SmartDiff(VecLength(this.v)(), this.k)())().tchk().lower
+  }
+}
+
 case class VecDrop(
     vec: Expr /* Vec<A; n> */,
     k: Expr /* Int */
@@ -732,11 +766,46 @@ case class VecDrop(
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val v = this.vec.lower
     val k = this.k.lower
     val TyVec(_, n) = this.vec.typ
     val newLen = SmartDiff(n, k)().tchk().lower
-    VecBuild(newLen, U32 ::+ (i => VecAccess(vec, k + i)()))().tchk().lower
+    VecBuild(
+      newLen,
+      // Need to use this.vec instead of the lowered version to avoid a type error
+      U32 ::+ (i => VecAccess(this.vec, SmartSum(k, i)())())
+    )().tchk().lower
+  }
+}
+
+case class VecTakeRight(v: Expr, k: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(v, k)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(v, k) => VecTakeRight(v, k)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val v = this.v.tchk(context, constValues)
+    val elemTyp = v.typ match {
+      case TyVec(elemTyp, _) => elemTyp
+      case typ =>
+        throw new TypeError(
+          s"input of $className has type $typ. Expected a vector."
+        )
+    }
+    val k = this.k.tchk(context, constValues).expectUInt()
+    this.rebuild(TyVec(elemTyp, k), Seq(v, k))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    VecDrop(this.v, SmartDiff(VecLength(this.v)(), this.k)())().tchk().lower
   }
 }
 
@@ -788,9 +857,10 @@ case class VecShiftLeft(
           .tchk()
           .lower
       case _ =>
+        val i = Param("i")(n.typ)
         VecBuild(
           n,
-          U32 ::+ (i => Mux((i + 1) === n, e, VecAccess(v, i + 1)())())
+          Function(i, Mux((i + 1) === n, e, VecAccess(v, i + 1)())())()
         )().tchk().lower
     }
   }

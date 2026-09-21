@@ -1,0 +1,7 @@
+accelerator[no_handshake] delay = (s: Stm[u8, 4]) => s.StmDelay(2, 42:u8)
+
+assert {
+    s = [42:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
+}
+yields [1:u8, 2:u8, 3:u8, 4:u8]s
+with prefix x => x == 42:u8

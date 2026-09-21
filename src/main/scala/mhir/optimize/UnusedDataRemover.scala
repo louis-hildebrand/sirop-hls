@@ -22,6 +22,10 @@ import org.slf4j.event.Level
 trait UnusedDataRemover {
 
   def removeUnusedData(e: Expr): Expr
+
+  def makeFunction(useStatus: UseStatus, inTyp: Type): Function
+
+  def makeInverseFunction(useStatus: UseStatus, originalTyp: Type): Function
 }
 
 object UnusedDataRemover {
@@ -43,6 +47,22 @@ object DisabledUnusedDataRemover extends UnusedDataRemover {
     }
     e
   }
+
+  override def makeFunction(
+      useStatus: UseStatus,
+      inTyp: Type
+  ): mhir.ir.Function = {
+    val x = Param("x")(inTyp)
+    Function(x, x)().tchk().asInstanceOf[Function]
+  }
+
+  override def makeInverseFunction(
+      useStatus: UseStatus,
+      originalTyp: Type
+  ): Function = {
+    val x = Param("x")(originalTyp)
+    Function(x, x)().tchk().asInstanceOf[Function]
+  }
 }
 
 object EnabledUnusedDataRemover extends UnusedDataRemover {
@@ -52,6 +72,81 @@ object EnabledUnusedDataRemover extends UnusedDataRemover {
   def removeUnusedData(e: Expr): Expr = {
     time("removing unused parts of sbuild data", Level.DEBUG) {
       doRemoveUnusedData(e)
+    }
+  }
+
+  override def makeFunction(
+      useStatus: UseStatus,
+      originalTyp: Type
+  ): mhir.ir.Function = {
+    val x = Param("x")(originalTyp)
+    Function(x, makeFunctionBody(useStatus, x))().tchk().asInstanceOf[Function]
+  }
+
+  override def makeInverseFunction(
+      useStatus: UseStatus,
+      originalTyp: Type
+  ): mhir.ir.Function = {
+    val prunedTyp = makeFunctionBody(useStatus, Param("temp")(originalTyp)).typ
+    assert(prunedTyp != Missing)
+    val x = Param("x")(prunedTyp)
+    val body = makeInverseFunctionBody(useStatus, x, originalTyp)
+    assert(body.typ == originalTyp)
+    Function(x, body)().tchk().asInstanceOf[Function]
+  }
+
+  private def makeFunctionBody(useStatus: UseStatus, x: Expr): Expr = {
+    useStatus match {
+      case AllUsed   => x
+      case AllUnused => Tuple()().tchk()
+      case SomeUnused(elems @ _*) =>
+        val newElems = elems.zipWithIndex
+          .flatMap({
+            case (AllUnused, _) => None
+            case (u, i) => Some(makeFunctionBody(u, TupleAccess(x, i)()))
+          })
+        if (newElems.length == 1) {
+          newElems.head.tchk()
+        } else {
+          Tuple(newElems: _*)().tchk()
+        }
+    }
+  }
+
+  private def makeInverseFunctionBody(
+      useStatus: UseStatus,
+      x: Expr,
+      originalTyp: Type
+  ): Expr = {
+    useStatus match {
+      case AllUsed   => x
+      case AllUnused => Undefined(originalTyp)
+      case SomeUnused(elems @ _*) =>
+        val TyTuple(typElems @ _*) = originalTyp
+        assert(typElems.length == elems.length)
+        val onlyOneUsed = elems.count(_ != AllUnused) == 1
+        if (onlyOneUsed) {
+          Tuple(
+            elems
+              .zip(typElems)
+              .map({
+                case (AllUnused, t) => Undefined(t)
+                case (u, t)         => makeInverseFunctionBody(u, x, t)
+              }): _*
+          )().tchk()
+        } else {
+          val (exprElems, _) = elems
+            .zip(typElems)
+            .foldLeft(Seq[Expr](), 0)({
+              case ((acc, nextIndex), (AllUnused, t)) =>
+                (acc :+ Undefined(t), nextIndex)
+              case ((acc, nextIndex), (u, t)) =>
+                val newElem =
+                  makeInverseFunctionBody(u, TupleAccess(x, nextIndex)(), t)
+                (acc :+ newElem, nextIndex + 1)
+            })
+          Tuple(exprElems: _*)().tchk()
+        }
     }
   }
 

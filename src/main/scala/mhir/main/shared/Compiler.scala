@@ -353,8 +353,14 @@ object Compiler {
         PartialEvalPass.partialEval(e)()
       } else {
         val latencyAnalysis = new LatencyAnalysis(handshake = prog.handshake)
-        val latencyMatcher =
-          EnabledLatencyMatcher(latencyAnalysis, handshake = prog.handshake)
+        // Unused data removal doesn't really matter in this case, since we're
+        // dealing with test inputs rather than the main program
+        val unusedDataRemover = UnusedDataRemover(enabled = false)
+        val latencyMatcher = EnabledLatencyMatcher(
+          latencyAnalysis,
+          unusedDataRemover,
+          handshake = prog.handshake
+        )
         val letBufShrinker = new StaticLetStmBufferShrinker(
           latencyAnalysis,
           handshake = prog.handshake,

@@ -2,7 +2,10 @@ package mhir.ir
 
 /** A declaration that could appear in a test suite.
   */
-sealed trait TestDecl
+sealed trait TestDecl {
+
+  def alphaEquals(that: TestDecl): Boolean
+}
 
 /** A constant declaration.
   *
@@ -11,7 +14,15 @@ sealed trait TestDecl
   * @param e
   *   the value of the constant.
   */
-case class ConstDecl(x: Param, e: Expr) extends TestDecl
+case class ConstDecl(x: Param, e: Expr) extends TestDecl {
+
+  override def alphaEquals(that: TestDecl): Boolean = {
+    that match {
+      case ConstDecl(x, e) => x == this.x && (e alphaEquals this.e)
+      case _               => false
+    }
+  }
+}
 
 /** The main accelerator declaration.
   *
@@ -29,7 +40,23 @@ case class AccelDecl(
     body: Expr,
     annotations: Map[String, Expr],
     annotationsByParam: Map[(String, Param), Expr]
-)
+) {
+
+  def alphaEquals(that: AccelDecl): Boolean = {
+    that match {
+      case AccelDecl(name, body, annotations, annotationsByParam) =>
+        name == this.name &&
+        (body alphaEquals this.body) &&
+        (annotations.keySet == this.annotations.keySet) &&
+        annotations
+          .forall({ case (x, e) => e alphaEquals this.annotations(x) }) &&
+        (annotationsByParam.keySet == this.annotationsByParam.keySet) &&
+        annotationsByParam
+          .forall({ case (x, e) => e alphaEquals this.annotationsByParam(x) })
+      case _ => false
+    }
+  }
+}
 
 /** One assertion in a user-defined test suite.
   *
@@ -47,4 +74,19 @@ case class Assertion(
     expectedOutput: Expr,
     ignore: Option[Expr],
     prefixCondition: Option[Expr]
-) extends TestDecl
+) extends TestDecl {
+
+  override def alphaEquals(that: TestDecl): Boolean = {
+    that match {
+      case Assertion(inputs, expectedOutput, ignore, prefixCondition) =>
+        (inputs.keySet == this.inputs.keySet) &&
+        inputs.forall({ case (x, e1) => e1 alphaEquals this.inputs(x) }) &&
+        (expectedOutput alphaEquals this.expectedOutput) &&
+        ((ignore.isEmpty && this.ignore.isEmpty) ||
+          (ignore.get alphaEquals this.ignore.get)) &&
+        ((prefixCondition.isEmpty && this.prefixCondition.isEmpty) ||
+          (prefixCondition.get alphaEquals this.prefixCondition.get))
+      case _ => false
+    }
+  }
+}

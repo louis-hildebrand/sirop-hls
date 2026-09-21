@@ -141,11 +141,11 @@ case class PatternFunction(p: Pattern, body: Expr)(typ: Type = Missing)
     PatternFunction(newP, body.subAndEraseType(newSubs))()
   }
 
-  override def equals(x: Any): Boolean = {
+  override def alphaEquals(x: Expr): Boolean = {
     x match {
       case that: PatternFunction if this.p == that.p =>
         // Skip the substitutions, which may be slow
-        this.body == that.body
+        this.body alphaEquals that.body
       case that: PatternFunction =>
         implicit val c: Canonicalizer = NoOpCanonicalizer
         PatternFunction.zip(this.p, that.p) match {
@@ -158,39 +158,14 @@ case class PatternFunction(p: Pattern, body: Expr)(typ: Type = Missing)
             val thatSubs =
               pairs.map({ case (_, y) => y }).zip(newParams).toMap[Expr, Expr]
             val thatRenamed = that.body.subAndEraseType(thatSubs)
-            thisRenamed == thatRenamed
+            thisRenamed alphaEquals thatRenamed
         }
       case _ => false
     }
   }
-
-  override lazy val hashCode: Int = {
-    // This implementation should be correct, but it may cause excessive
-    // collisions when dealing with nested functions. For example,
-    // x => y => x - y and x => y => y - x will be assigned the same hash code.
-    implicit val c: Canonicalizer = NoOpCanonicalizer
-    val renamings = this.p.params.zipWithIndex
-      .map({ case (x, i) => x -> PatternFunction.hashCodeParam(i, x.typ) })
-      .toMap
-    (
-      this.p.rename(renamings),
-      this.body.subAndEraseType(renamings.toMap[Expr, Expr])
-    ).hashCode
-  }
 }
 
 object PatternFunction {
-
-  private def freshenPattern(p: Pattern): (Pattern, Map[Param, Param]) = {
-    p match {
-      case ParamPattern(x) =>
-        val y = x.freshCopy
-        (ParamPattern(y), Map(x -> y))
-      case TuplePattern(elems @ _*) =>
-        val (patterns, renamings) = elems.map(freshenPattern).unzip
-        (TuplePattern(patterns: _*), renamings.flatten.toMap)
-    }
-  }
 
   private def zip(p1: Pattern, p2: Pattern): Option[Seq[(Param, Param)]] = {
     (p1, p2) match {
@@ -208,10 +183,6 @@ object PatternFunction {
       case _ =>
         None
     }
-  }
-
-  private def hashCodeParam(i: Int, typ: Type): Param = {
-    Param("_PatternFunctionHashCode", i + 1)(typ)
   }
 }
 
@@ -346,15 +317,11 @@ case class Let(x: Param, v: Expr, in: Expr)(typ: Type = Missing)
     FunCall(Function(this.x, this.in)(), this.v)()
   }
 
-  override def equals(obj: Any): Boolean = {
+  override def alphaEquals(obj: Expr): Boolean = {
     obj match {
-      case that: Let => this.asFunCall() == that.asFunCall()
+      case that: Let => this.asFunCall() alphaEquals that.asFunCall()
       case _         => false
     }
-  }
-
-  override def hashCode(): Int = {
-    this.asFunCall().hashCode()
   }
 }
 

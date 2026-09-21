@@ -7,6 +7,8 @@ Functions for testing the Sirop compiler's ability to run Sirop test suites.
 from pathlib import Path
 import subprocess
 
+from colorama import Fore, Style
+
 from helpers import assert_equals, TestFailed
 import constants as c
 
@@ -102,8 +104,8 @@ def run(src: Path, cli_args: list[str], save: bool) -> bool:
                 expected_actual_output_file,
                 save=save,
             )
-        print("OK")
+        print(Fore.GREEN + "OK" + Style.RESET_ALL)
         return True
     except TestFailed as e:
-        print(str(e))
+        print(Fore.RED + str(e) + Style.RESET_ALL)
         return False

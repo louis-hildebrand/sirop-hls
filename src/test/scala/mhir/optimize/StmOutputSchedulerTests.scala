@@ -25,7 +25,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
     val e = (x(U8) + y(U8)).tchk().lower
     val actual = pass.schedule(e)
     val expected = InProducer(e)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   /** Simple example where computation is split between producer and consumer.
@@ -41,7 +41,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
         Map(tmp0 -> Prod(x(U8), y(U8))(), tmp1 -> z(U8))
       )
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   /** Constants should be inlined instead of being sent from producer to
@@ -63,7 +63,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
         Map(tmp -> Prod(C(3)(U8), x(U8))())
       )
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   /** Expressions sent from producer to consumer should be deduplicated.
@@ -87,7 +87,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
         )
       )
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("VecBuild") {
@@ -110,7 +110,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
         )
       )
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("NestedVecBuild") {
@@ -156,7 +156,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
         )
       )
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("FunCall:AllInProducer") {
@@ -166,7 +166,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
     )().tchk().lower
     val actual = pass.schedule(e)
     val expected = InProducer(e)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("FunCall:ArgInProducerBodyInConsumer") {
@@ -196,7 +196,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
         )
       )
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("FunCall:ArgInConsumer") {
@@ -213,7 +213,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
         Map(tmp -> Prod(x(U8), y(U8))())
       )
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   /** It's no good to move all the computation to the consumer and nothing in
@@ -228,7 +228,7 @@ class StmOutputSchedulerTests extends AnyFunSuite {
     )
     val actual = scheduler.schedule(e)
     val expected = InProducer(e)
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 
   test("MoveZeroDelayToConsumer:truncate18( (x +` y *` z) >> 15 )") {
@@ -244,6 +244,6 @@ class StmOutputSchedulerTests extends AnyFunSuite {
         Map(tmp -> Sum(x(i44), Prod(y(i44), z(i44))())())
       )
     }
-    assert(actual == expected)
+    assert(actual alphaEquals expected)
   }
 }

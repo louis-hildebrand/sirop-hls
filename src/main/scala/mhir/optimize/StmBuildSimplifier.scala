@@ -20,6 +20,7 @@ sealed trait StmBuildSimplifier {
   protected def partialEvalStmBuild(
       s: StmBuild
   )(implicit facts: FactSet): StmBuild = {
+    val newAnnotations = s.annotations.map(_.map(PE.partialEval))
     StmBuild(
       PE.partialEval(s.n),
       PE.partialEval(s.delay),
@@ -39,7 +40,7 @@ sealed trait StmBuildSimplifier {
         val newDelay = PE.partialEval(delay)
         x -> (s, newReady, newDelay)
       })
-    )(annotations = s.annotations).tchk().asInstanceOf[StmBuild]
+    )(annotations = newAnnotations).tchk().asInstanceOf[StmBuild]
   }
 }
 

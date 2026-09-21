@@ -12,7 +12,7 @@ class TypeTests extends AnyFunSuite {
   test("AnnotatedFunction:TypedBody") {
     val f = U8 ::+ (_ => IntCst(-1)(I32))
     val expected = Function(Param("_")(U8), IntCst(-1)(I32))()
-    assert(f == expected)
+    assert(f alphaEquals expected)
     assert(f.typ == TyArrow(U8, I32))
   }
 
@@ -23,7 +23,7 @@ class TypeTests extends AnyFunSuite {
       val i = Param("i")()
       Function(i, VecAccess(v, i)())()
     }
-    assert(f == expected)
+    assert(f alphaEquals expected)
   }
 
   test("U8 -> I8") {
