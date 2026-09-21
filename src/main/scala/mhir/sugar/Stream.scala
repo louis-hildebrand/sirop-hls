@@ -1953,16 +1953,21 @@ case class StmSlideStartingWith(s: Expr, z: Expr)(typ: Type = Missing)
     val s = this.s.lower
     val TyStm(TyData(elemTyp), n) = s.typ
     val z = this.z.lower
+    val TyVec(_, winWidth) = z.typ
     val p = Param("s")(TyStm(elemTyp, -1))
-    val buf = Param("slide_buf")(z.typ)
+    val buf = Param("slide_buf")(TyVec(elemTyp, SmartDiff(winWidth, 1)()))
     StmBuild(
       n,
       C(1)(),
       z,
-      VecShiftLeft(buf, StmData(p)())().tchk().lower,
+      VecAppend(buf, StmData(p)())().tchk().lower,
       True,
       Map[Param, (Expr, Expr, Expr)](
-        buf -> (z, VecShiftLeft(buf, StmData(p)())().tchk().lower, C(1)())
+        buf -> (
+          VecDrop(z, C(1)())().tchk().lower,
+          VecShiftLeft(buf, StmData(p)())().tchk().lower,
+          C(1)()
+        )
       ),
       Map[Param, (Expr, Expr, Expr)](
         p -> (s, True, 0)

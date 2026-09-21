@@ -55,24 +55,24 @@ case class StmSlide(input: Expr, winSize: Expr /* Int */ )(
     val winSize = this.winSize.lower
     val TyStm(_, myLen) = this.typ
     val TyStm(t, _) = input.typ
-    val s = Param("s")(TyStm(t, -1))
-    val v = Param("slide_buf")(TyVec(t, winSize))
+    val p = Param("p")(TyStm(t, -1))
+    val v = Param("slide_buf")(TyVec(t, SmartDiff(winSize, 1)()))
     val lowered = StmBuild(
       myLen,
       winSize,
-      Undefined(v.typ),
-      VecShiftLeft(v, StmData(s)())().tchk().lower,
+      Undefined(Missing),
+      VecAppend(v, StmData(p)())().tchk().lower,
       True,
       Map[Param, (Expr, Expr, Expr)](
         // Vector for the window
         v -> (
-          Undefined(TyVec(t, winSize)),
-          VecShiftLeft(v, StmData(s)())().tchk().lower,
+          Undefined(Missing),
+          VecShiftLeft(v, StmData(p)())().tchk().lower,
           Tuple()()
         )
       ),
       Map[Param, (Expr, Expr, Expr)](
-        s -> (input, True, C(0)())
+        p -> (input, True, C(0)())
       )
     )().annotate(NoInputsAfterLastOut).annotateWithName(this.className)
     lowered.tchk()
