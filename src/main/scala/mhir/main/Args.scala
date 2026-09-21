@@ -45,6 +45,7 @@ object Args {
     var vhdlFmax: Option[Int] = None
     var vhdlVirtualPins: Option[Boolean] = None
     var vhdlAppendQsf = Seq[String]()
+    var vhdlAbsorbOutReg: Option[Boolean] = None
     var prettyPrintDest: Option[String] = None
     var prettyPrintLoweredDest: Option[String] = None
     var timeReportFile: Option[String] = None
@@ -170,6 +171,8 @@ object Args {
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
+        case "--out:vhdl:absorb-out-reg" =>
+          vhdlAbsorbOutReg = Some(true)
         case "--out:pp" =>
           mutArgs.drop(1).headOption match {
             case Some(path) =>
@@ -370,6 +373,11 @@ object Args {
               "--out:vhdl:run-sim is only valid when --out:vhdl is also given"
             )
           }
+          if (vhdlAbsorbOutReg.isDefined) {
+            throw new BadArgsException(
+              "--out:vhdl:absorb-out-reg is only valid when --out:vhdl is also given"
+            )
+          }
           None
       }
       val ppTarget = prettyPrintDest.map({
@@ -452,7 +460,11 @@ object Args {
           case Some(b) => opt3.copy(virtualPins = b)
           case None    => opt3
         }
-        opt4
+        val opt5 = vhdlAbsorbOutReg match {
+          case Some(b) => opt4.copy(absorbOutReg = b)
+          case None    => opt4
+        }
+        opt5
       },
       optFlags = OptimizerOptions(
         simplifyStmBuild = simplifyStmBuild,

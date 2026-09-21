@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
+import mhir.matchers.ShiftLeft
 import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.sugar._
 import mhir.typecheck._

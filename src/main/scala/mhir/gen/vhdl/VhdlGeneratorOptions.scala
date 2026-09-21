@@ -36,7 +36,8 @@ case class VhdlGeneratorOptions(
     device: String = VhdlGeneratorOptions.DEFAULT_DEVICE,
     fmax: Int = VhdlGeneratorOptions.DEFAULT_FMAX,
     virtualPins: Boolean = true,
-    appendQsf: Seq[String] = Seq()
+    appendQsf: Seq[String] = Seq(),
+    absorbOutReg: Boolean = false
 ) {
 
   def reservedKeywords: Set[String] = {
