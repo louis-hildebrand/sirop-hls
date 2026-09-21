@@ -301,6 +301,8 @@ case class Call(
             mhir.sugar.handshake.StmSlide(s, w, stride)()
           case (Seq(), Seq(s, w)) if !handshake =>
             mhir.sugar.nohandshake.StmSlide(s, w)()
+          case (Seq(), Seq(s, w, head)) if !handshake =>
+            mhir.sugar.nohandshake.StmSlide(s, w, head)()
           case _ => error(f)
         }
       case f @ Param("StmSlideStartingWith", -1) =>
