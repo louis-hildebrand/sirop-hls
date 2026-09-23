@@ -12,7 +12,7 @@ Similarly to projects like [HLS4ML](https://fastmachinelearning.org/hls4ml/intro
 Traditional hardware description languages give you a lot of control over the final product, but they are quite low-level and verbose.
 Sirop is a higher-level language; it lets you express your algorithm much more concisely.
 
-The Sirop compiler can also perform certain optimizations that are not allowed in synthesis tools like Quartus.
+The Sirop compiler can also perform certain helpful transformations that are not allowed in synthesis tools like Quartus.
 For example, the Sirop compiler can insert registers to balance the latency across different paths.
 This makes it easier to focus on the high-level computations rather than low-level details like the latency along each path.
 
