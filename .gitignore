@@ -76,3 +76,4 @@ metals.sbt
 /src/test/vhdl/
 /src/test/verilog/
 /src/test/resources/generated_benchmarks/
+/docs/bin/

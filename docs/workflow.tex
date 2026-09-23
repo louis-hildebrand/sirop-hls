@@ -1,0 +1,68 @@
+\documentclass[border={5pt 0pt}]{standalone}
+
+\usepackage{tikz}
+\usetikzlibrary{positioning, shapes.geometric, backgrounds}
+
+\usepackage{xcolor}
+\definecolor{fgcolor}{HTML}{f0f6fc}
+\definecolor{bgcolor}{HTML}{0d1117}
+\definecolor{myblue}{HTML}{1d597f}
+\definecolor{myorange}{HTML}{b27b43}
+\definecolor{mygreen}{HTML}{699963}
+
+\begin{document}
+
+\pagecolor{bgcolor}
+
+\begin{tikzpicture}[
+    scale=0.5,
+    node distance=0.8em and 1.2em,
+    arrow/.style={->, fgcolor, very thick},
+    flowchartnode/.style={draw, fgcolor, very thick, align=center},
+    hiprocess/.style={process, fill=Goldenrod!90!red},
+    process/.style={flowchartnode, rectangle, fill=myblue, minimum height=1.6em, minimum width=5.5em},
+    decision/.style={flowchartnode, diamond, aspect=1.8, fill=myorange},
+    endpoint/.style={flowchartnode, ellipse, fill=mygreen},
+    io/.style={flowchartnode, trapezium, trapezium left angle=70, trapezium right angle=110}
+]
+    \scriptsize
+    \node[process, align=center]                (write-sirop)       {Write};
+    \node[io, right=of write-sirop]             (sirop-files)       {.sirop};
+    \node[process, below=of sirop-files]        (run-sirop-tests)   {Test};
+    \node[process, right=of run-sirop-tests]    (sirop-compile)     {Compile};
+    \node[process, right=of sirop-compile]      (run-vsim)          {Simulate};
+    \node[process, right=of run-vsim]           (synth)             {Synthesize};
+    \node[endpoint, right=of synth]             (end)               {:D};
+    \node[decision, below=of run-sirop-tests]   (sirop-tests-pass)  {OK?};
+    \node[decision, below=of run-vsim]          (vsim-pass)         {OK?};
+    \node[decision, below=of synth]             (synth-pass)        {OK?};
+    \node[io, above=of run-vsim]                (vhdl-files)        {.vhd};
+    \coordinate[below=of sirop-tests-pass]      (try-again);
+
+    \begin{scope}[on background layer]
+        \draw[transparent] (sirop-compile.east) to coordinate[midway] (midway) (run-vsim.west);
+        \coordinate[above=6em of midway] (barrier-north);
+        \coordinate[below=6em of midway] (barrier-south);
+        \draw[gray, very thick, densely dashed] (barrier-north) to node[at start, right, yshift=-5pt] {Traditional RTL workflow $\longrightarrow$} (barrier-south);
+    \end{scope}
+
+    \draw[arrow] (write-sirop)      to (sirop-files);
+    \draw[arrow] (sirop-files)      to (run-sirop-tests);
+    \draw[arrow] (run-sirop-tests)  to (sirop-tests-pass);
+    \draw[arrow] (sirop-compile)    |- (vhdl-files);
+    \draw[arrow] (vhdl-files)       to (run-vsim);
+    \draw[arrow] (run-vsim)         to (vsim-pass);
+    \draw[arrow] (synth)            to (synth-pass);
+
+    \draw[transparent] (run-vsim) to coordinate[midway] (sim-to-synth) (synth);
+    \draw[transparent] (synth) to coordinate[midway] (synth-to-end) (end);
+    \draw[arrow] (sirop-tests-pass) -| node[at start, above] {Y} (sirop-compile);
+    \draw[arrow] (vsim-pass)        -| node[at start, above] {Y} (sim-to-synth) to (synth);
+    \draw[arrow] (synth-pass)       -| node[at start, above] {Y} (synth-to-end) to (end);
+
+    \draw[arrow] (sirop-tests-pass) |- node[at start, right, yshift=-1pt] {N} (try-again) -| (write-sirop);
+    \draw[arrow] (vsim-pass)        |- node[at start, right, yshift=-1pt] {N} (try-again) -| (write-sirop);
+    \draw[arrow] (synth-pass)       |- node[at start, right, yshift=-1pt] {N} (try-again) -| (write-sirop);
+\end{tikzpicture}
+
+\end{document}

@@ -1,21 +1,65 @@
 # Sirop
 
 Sirop is a language and compiler for generating streaming accelerators.
-Its goal is to convert high-level code (e.g., for image processing or machine learning) into resource-efficient VHDL.
+Similarly to projects like [HLS4ML](https://fastmachinelearning.org/hls4ml/intro/introduction.html) and [Altera HLS IP Gen](https://www.altera.com/products/development-tools/hls_ip_gen_compiler), the goal is to convert high-level code into VHDL that can be synthesized and run on an FPGA.
+
+<img src="./docs/workflow.svg" alt="Flowchart showing the workflow for using Sirop" width="100%" />
+
+### How does Sirop relate to...
+
+#### ... hardware description languages (e.g., [VHDL](https://en.wikipedia.org/wiki/VHDL), [Verilog](https://en.wikipedia.org/wiki/Verilog))?
+
+Traditional hardware description languages give you a lot of control over the final product, but they are quite low-level and verbose.
+Sirop is a higher-level language; it lets you express your algorithm much more concisely.
+
+The Sirop compiler can also perform certain optimizations that are not allowed in synthesis tools like Quartus.
+For example, the Sirop compiler can insert registers to balance the latency across different paths.
+This makes it easier to focus on the high-level computations rather than low-level details like the latency along each path.
+The Sirop compiler can also fuse two pipeline stages into one.
+This lets the programmer break down their problem into small steps without sacrificing latency or resource-efficiency.
+Conversely, the compiler can split a single stage into two to improve the maximum clock frequency.
+
+#### ... C-based HLS (e.g., [Altera HLS IP Gen](https://www.altera.com/products/development-tools/hls_ip_gen_compiler), [Vitis HLS](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vitis/vitis-hls.html))?
+
+C and C++ are widely known and their programming model make a lot of sense when working with a CPU.
+However, they are a much less natural fit for programming FPGAs.
+Sirop is a custom language designed with FPGAs in mind.
+
+_Avoiding code that is a poor fit for FPGAs._
+Sirop provides a set of "parallel patterns" from the functional programming paradigm: `map`, `reduce`, `zip`, etc.
+Each of these has a natural implementation in RTL.
+Programs written with these building blocks therefore tend to be more resource-efficient than corresponding C++ programs compiled with something like Intel HLS.
+
+_Representing FPGA-specific concepts._
+When programming an FPGA, you'll come across certain concepts that do not exist (or are much less prominent) in software.
+For example, when processing a sequence of data, you need to decide how much _spatial parallelism_ you want.
+More spatial parallelism means processing more data per clock cycle (i.e., higher throughput), but it requires more hardware resources.
+A plain `for` loop in C++ doesn't tell the compiler how much spatial parallelism you want; you need to communicate that via tool-specific pragmas.
+In Sirop, the level of spatial parallelism is clearly represented in the type system.
+
+See [the LCTES '26 conference paper](https://doi.org/10.1145/3814943.3816175) for more details.
+
+#### ... domain-specific languages (e.g., [HLS4ML](https://fastmachinelearning.org/hls4ml/intro/introduction.html))?
+
+Domain-specific languages are very convenient in their target domain, but not very useful in other cases.
+Sirop aims to be more general.
 
 ## Installing
 
-The [Releases tab](https://github.com/louis-hildebrand/sirop-hls/releases) has executable .jar files.
+The Sirop compiler is provided as an executable .jar file; see the [Releases tab](https://github.com/louis-hildebrand/sirop-hls/releases).
 Download the .jar file and run it with
 
 ```sh
 java -jar sirop.jar --version
 ```
 
-For convenience, you could define an alias like
+For convenience, you could define a function like
 
 ```sh
-alias sirop='java -jar /absolute/path/to/sirop.jar'
+function sirop {
+    java -jar /absolute/path/to/sirop.jar "$@"
+}
+export -f sirop
 ```
 
 and then run
@@ -24,7 +68,7 @@ and then run
 sirop --version
 ```
 
-To quickly see what an expression evaluates to, try the REPL:
+To quickly see what an expression evaluates to, try the [REPL](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop):
 
 ```sh
 $ sirop
@@ -46,14 +90,16 @@ sirop --help
 
 A Vim plugin providing basic syntax highlighting can be found at [github.com/louis-hildebrand/sirop-vim](https://github.com/louis-hildebrand/sirop-vim).
 
-## Introduction
+## Introduction to the Language
 
 Sirop is built on the idea of processing _vectors_ and _streams_ of data.
 A _vector_ is a sequence whose elements can all be accessed at once.
 A _stream_ is a sequence whose elements can only be accessed one at a time, with no way of accessing previous values or skipping upcoming values.
 In software terms, a stream is a bit like an iterator.
 In hardware terms, a stream is an inherently sequential sequence which produces at most one element per clock cycle.
+Streams encode pipeline parallelism.
 Vectors, by contrast, can be used in combinational circuits.
+They encode spatial parallelism.
 
 Programs transform vectors and streams using "parallel patterns" from the functional programming paradigm.
 For example, many languages have a higher-order function called `map` that applies a function to each element of a collection.
@@ -66,7 +112,7 @@ For example, many languages have a higher-order function called `map` that appli
 
 In Sirop, you can transform each element of a vector using `VecMap`:
 
-```
+```c++
 > [1:u8, 2:u8, 3:u8, 4:u8]v.VecMap(x => x + 5)
 [6:u8, 7:u8, 8:u8, 9:u8]v
 ```
@@ -74,7 +120,7 @@ In Sirop, you can transform each element of a vector using `VecMap`:
 This will result in four adders being instantiated to process all the vector's elements in parallel.
 Similarly, you can transform each element of a stream using `StmMap`:
 
-```
+```c++
 > [1:u8, 2:u8, 3:u8, 4:u8]s.StmMap(x => x + 5)
 [6:u8, 7:u8, 8:u8, 9:u8]s
 ```
@@ -82,7 +128,7 @@ Similarly, you can transform each element of a stream using `StmMap`:
 In this case, only one adder will be needed because the stream yields just one element per clock cycle.
 It's also possible to partially parallelize this code by representing the input as a stream of vectors:
 
-```
+```c++
 > [[1:u8, 2:u8]v, [3:u8, 4:u8]v]s.StmMap(v => v.VecMap(x => x + 5))
 [[6:u8, 7:u8]v, [8:u8, 9:u8]v]s
 ```
@@ -95,7 +141,7 @@ This idea of using types to represent the level of spatial parallelism appears i
 As a simple example, consider the [dot product](https://en.wikipedia.org/wiki/Dot_product) of two streams.
 This can be expressed as follows in Sirop:
 
-```
+```c++
 // u and v are streams of 16-bit unsigned integers, each with length 4
 accelerator dot = (u: Stm[u16, 4]) => (v: Stm[u16, 4]) =>
     // EXAMPLE: u = [1:u16, 2:u16, 3:u16, 4:u16]s
