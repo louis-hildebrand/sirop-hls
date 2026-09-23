@@ -3,19 +3,13 @@
 \usepackage{tikz}
 \usetikzlibrary{positioning, shapes.geometric, backgrounds}
 
-\usepackage{xcolor}
-\definecolor{fgcolor}{HTML}{f0f6fc}
-\definecolor{bgcolor}{HTML}{0d1117}
-\definecolor{myblue}{HTML}{1d597f}
-\definecolor{myorange}{HTML}{b27b43}
-\definecolor{mygreen}{HTML}{699963}
+\input{colors.tex}
 
 \begin{document}
 
 \pagecolor{bgcolor}
 
 \begin{tikzpicture}[
-    scale=0.5,
     node distance=0.8em and 1.2em,
     arrow/.style={->, fgcolor, very thick},
     flowchartnode/.style={draw, fgcolor, very thick, align=center},
@@ -43,7 +37,7 @@
         \draw[transparent] (sirop-compile.east) to coordinate[midway] (midway) (run-vsim.west);
         \coordinate[above=6em of midway] (barrier-north);
         \coordinate[below=6em of midway] (barrier-south);
-        \draw[gray, very thick, densely dashed] (barrier-north) to node[at start, right, yshift=-5pt] {Traditional RTL workflow $\longrightarrow$} (barrier-south);
+        \draw[gray, very thick, densely dashed] (barrier-north) to node[at start, right, yshift=-1pt, align=left, anchor=north west] {Traditional RTL workflow \\ $\longrightarrow$} (barrier-south);
     \end{scope}
 
     \draw[arrow] (write-sirop)      to (sirop-files);

@@ -15,9 +15,14 @@ Sirop is a higher-level language; it lets you express your algorithm much more c
 The Sirop compiler can also perform certain optimizations that are not allowed in synthesis tools like Quartus.
 For example, the Sirop compiler can insert registers to balance the latency across different paths.
 This makes it easier to focus on the high-level computations rather than low-level details like the latency along each path.
+
+<img src="./docs/latency-matching.svg" alt="Diagram showing the effect of latency matching" width="100%" />
+
 The Sirop compiler can also fuse two pipeline stages into one.
 This lets the programmer break down their problem into small steps without sacrificing latency or resource-efficiency.
 Conversely, the compiler can split a single stage into two to improve the maximum clock frequency.
+
+<img src="./docs/fusion-fission.svg" alt="Diagram showing the effects of fusion and fission" width="100%" />
 
 #### ... C-based HLS (e.g., [Altera HLS IP Gen](https://www.altera.com/products/development-tools/hls_ip_gen_compiler), [Vitis HLS](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vitis/vitis-hls.html))?
 
@@ -110,30 +115,30 @@ For example, many languages have a higher-order function called `map` that appli
 [ 6, 7, 8, 9 ]
 ```
 
-In Sirop, you can transform each element of a vector using `VecMap`:
+In Sirop, you can transform each element of a vector using `VecMap`.
+This will result in four adders being instantiated to process all the vector's elements in parallel.
 
 ```c++
 > [1:u8, 2:u8, 3:u8, 4:u8]v.VecMap(x => x + 5)
 [6:u8, 7:u8, 8:u8, 9:u8]v
 ```
 
-This will result in four adders being instantiated to process all the vector's elements in parallel.
-Similarly, you can transform each element of a stream using `StmMap`:
+Similarly, you can transform each element of a stream using `StmMap`.
+In this case, only one adder will be needed because the stream yields just one element per clock cycle.
 
 ```c++
 > [1:u8, 2:u8, 3:u8, 4:u8]s.StmMap(x => x + 5)
 [6:u8, 7:u8, 8:u8, 9:u8]s
 ```
 
-In this case, only one adder will be needed because the stream yields just one element per clock cycle.
-It's also possible to partially parallelize this code by representing the input as a stream of vectors:
+It's also possible to partially parallelize this code by representing the input as a stream of vectors.
+Here, the stream will yield two elements per cycle and there will be two adders to process them.
 
 ```c++
 > [[1:u8, 2:u8]v, [3:u8, 4:u8]v]s.StmMap(v => v.VecMap(x => x + 5))
 [[6:u8, 7:u8]v, [8:u8, 9:u8]v]s
 ```
 
-Here, the stream will yield two elements per cycle and there will be two adders to process them.
 This idea of using types to represent the level of spatial parallelism appears in prior works, including [Lift-HLS](https://doi.org/10.1145/3315454.3329957), [Aetherling](https://doi.org/10.1145/3385412.3385983), and [SHIR](https://doi.org/10.1145/3501768).
 
 ## Example: Dot Product

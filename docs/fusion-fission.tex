@@ -1,0 +1,52 @@
+\documentclass[border={5pt 0pt}]{standalone}
+
+\input{colors.tex}
+\input{tikz.tex}
+
+\usepackage{pifont}
+\newcommand{\mycheckmark}{\ding{52}}
+\newcommand{\mycrossmark}{\ding{56}}
+
+\usepackage{bm}
+
+\begin{document}
+
+\pagecolor{bgcolor}
+
+\begin{tikzpicture}
+    % Before fusion
+    \coordinate (start);
+    \node[mycloud, right=of start] (f) {$f$};
+    \pic[right=0.5 of f] (reg-f) {register};
+    \node[mycloud, right=of reg-f] (g) {$g$};
+    \pic[right=0.5 of g] (reg-g) {register};
+    \coordinate[right=of reg-g] (end);
+    \node[draw=fgcolor, densely dotted, very thick, fit=(f) (reg-f), rounded corners, inner sep=1em] (entity-f) {};
+    \node[draw=fgcolor, densely dotted, very thick, fit=(g) (reg-g), rounded corners, inner sep=1em] (entity-g) {};
+
+    \draw[arrow] (start) to (f);
+    \draw[arrow] (f) to (reg-f);
+    \draw[arrow] (reg-f) to (g);
+    \draw[arrow] (g) to (reg-g);
+    \draw[arrow] (reg-g) to (end);
+
+    % After fusion
+    \coordinate[right=of end] (start);
+    \node[mycloud, aspect=2, inner sep=0, right=of start] (fg) {$g \circ f$};
+    \pic[right=0.5 of fg] (reg-fg) {register};
+    \coordinate[right=of reg-fg] (end);
+    \node[draw=fgcolor, densely dotted, very thick, fit=(fg) (reg-fg), rounded corners, inner sep=1em] (entity-fg) {};
+
+    \draw[arrow] (start) to (fg);
+    \draw[arrow] (fg) to (reg-fg);
+    \draw[arrow] (reg-fg) to (end);
+
+    % Separator + arrows back and forth
+    \draw[arrow, myblue] ([xshift=5pt, yshift=5pt] entity-g.north east) to[bend left=30] coordinate[midway] (vrule-top) ([xshift=-5pt, yshift=5pt] entity-fg.north west);
+    \draw[arrow, myblue] ([xshift=-5pt, yshift=-5pt] entity-fg.south west) to[bend left=30] coordinate[midway] (vrule-bot) ([xshift=5pt, yshift=-5pt] entity-g.south east);
+    \draw[arrow, -, myblue, densely dotted] ([xshift=0pt, yshift=-5pt] vrule-bot) to ([xshift=0pt, yshift=5pt] vrule-top);
+    \node[below=5pt of vrule-top, fill=bgcolor, text=fgcolor] {\textbf{Fusion}};
+    \node[above=5pt of vrule-bot, fill=bgcolor, text=fgcolor] {\textbf{Fission}};
+\end{tikzpicture}
+
+\end{document}

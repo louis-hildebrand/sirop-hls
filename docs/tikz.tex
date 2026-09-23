@@ -1,0 +1,21 @@
+\usepackage{tikz}
+\usetikzlibrary{fit, positioning, shapes.geometric, shapes.symbols, backgrounds}
+
+\newlength{\vhdlregh}\setlength{\vhdlregh}{2em}
+\newlength{\vhdlregw}\setlength{\vhdlregw}{1em}
+
+\tikzset{
+    text=fgcolor,
+    arrow/.style={ ->, draw=fgcolor, very thick },
+    % Register
+    regbox/.style={ rectangle, very thick, draw=fgcolor, fill=mygray, minimum width=\vhdlregw, minimum height=\vhdlregh },
+    regwedge/.style={ isosceles triangle, isosceles triangle apex angle=80, draw=fgcolor, very thick, anchor=right corner, scale=0.33 },
+    register/.pic={
+        \node[regbox] () {#1};
+        \node[above right=0.1em and 0.05em of .south west, regwedge] (-wedge) {};
+    },
+    % Adder, multiplier, etc.
+    adder/.style={ circle, draw=fgcolor, very thick },
+    % Cloud (for combinational logic)
+    mycloud/.style={ cloud, draw=fgcolor, very thick, inner sep=2pt, minimum width=0.8cm, minimum height=0.8cm },
+}

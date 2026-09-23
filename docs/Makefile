@@ -1,8 +1,10 @@
-workflow.svg: bin/workflow.pdf
-	pdftocairo bin/workflow.pdf -svg -o workflow.svg
+TEX_UTILS := colors.tex tikz.tex
 
-bin/workflow.pdf: workflow.tex
-	latexmk workflow.tex -pdf -outdir=./bin/
+%.svg: bin/%.pdf
+	pdftocairo $< -svg -o $@
+
+bin/%.pdf: %.tex $(TEX_UTILS)
+	latexmk $< -pdf -outdir=./bin/
 
 .PHONY: clean
 clean:
