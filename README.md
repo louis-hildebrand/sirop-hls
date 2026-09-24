@@ -144,14 +144,14 @@ This idea of using types to represent the level of spatial parallelism appears i
 ## Dynamic and Static Scheduling
 
 The Sirop compiler supports two "scheduling" modes.
-By default, each pipeline stage is connected to the following stage by a _handshake protocol_.
+By default, each pipeline stage is connected to the following stage by a latency-insensitive _handshake protocol_.
 The data flowing from producer to consumer is accompanied by a `valid` bit that is high whenever the data is valid.
 The consumer sends back a `ready` bit that is high whenever it is ready to receive the data.
 If `ready` is low, the producer should hold its current output and not move to the next element in the stream.
 
 <div float="left">
-    <img src="./docs/handshake.svg" alt="Block diagram explaining the handshake protocol" width="50%" />
-    <img src="./docs/handshake-timing.svg" alt="Block diagram explaining the handshake protocol" width="50%" />
+    <img src="./docs/handshake.svg" alt="Block diagram explaining the handshake protocol" width="49%" />
+    <img src="./docs/handshake-timing.svg" alt="Block diagram explaining the handshake protocol" width="49%" />
 </div>
 
 The handshake protocol can be disabled as shown below, in the FIR filter example.
@@ -159,8 +159,8 @@ In this case, there is no way for a consumer to exert backpressure.
 It is still possible to have a `valid` bit in the stream payload itself; see the FIR filter example.
 
 <div float="left">
-    <img src="./docs/no-handshake.svg" alt="Block diagram illustrating static scheduling" width="50%" />
-    <img src="./docs/no-handshake-timing.svg" alt="Timing diagram illustrating static scheduling" width="50%" />
+    <img src="./docs/no-handshake.svg" alt="Block diagram illustrating static scheduling" width="49%" />
+    <img src="./docs/no-handshake-timing.svg" alt="Timing diagram illustrating static scheduling" width="49%" />
 </div>
 
 ## Example with Dynamic Scheduling: Dot Product
