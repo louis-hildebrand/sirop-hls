@@ -12,7 +12,7 @@ Similarly to projects like [HLS4ML](https://fastmachinelearning.org/hls4ml/intro
 Traditional hardware description languages give you a lot of control over the final product, but they are quite low-level and verbose.
 Sirop is a higher-level language; it lets you express your algorithm much more concisely.
 
-The Sirop compiler can also perform certain helpful transformations that are not allowed in synthesis tools like Quartus.
+The Sirop compiler can also perform certain helpful transformations that synthesis tools like Quartus are not allowed to perform.
 For example, the Sirop compiler can insert registers to balance the latency across different paths.
 This makes it easier to focus on the high-level computations rather than low-level details like the latency along each path.
 
@@ -141,7 +141,19 @@ Here, the stream will yield two elements per cycle and there will be two adders 
 
 This idea of using types to represent the level of spatial parallelism appears in prior works, including [Lift-HLS](https://doi.org/10.1145/3315454.3329957), [Aetherling](https://doi.org/10.1145/3385412.3385983), and [SHIR](https://doi.org/10.1145/3501768).
 
-## Example: Dot Product
+## Dynamic and Static Scheduling
+
+The Sirop compiler supports two "scheduling" modes.
+By default, each pipeline stage is connected to the following stage by a _handshake protocol_.
+The data flowing from producer to consumer is accompanied by a `valid` bit that is high whenever the data is valid.
+The consumer sends back a `ready` bit that is high whenever it is ready to receive the data.
+If `ready` is low, the producer should hold its current output and not move to the next element in the stream.
+
+The handshake protocol can be disabled as shown below, in the FIR filter example.
+In this case, there is no way for a consumer to exert backpressure.
+It is still possible to have a `valid` bit in the stream payload itself, as shown in the FIR filter example below.
+
+## Example with Dynamic Scheduling: Dot Product
 
 As a simple example, consider the [dot product](https://en.wikipedia.org/wiki/Dot_product) of two streams.
 This can be expressed as follows in Sirop:
@@ -161,7 +173,7 @@ accelerator dot = (u: Stm[u16, 4]) => (v: Stm[u16, 4]) =>
 assert {
     // when the inputs are...
     u = [1:u16, 2:u16, 3:u16, 4:u16]s,
-    v = [5:u16, 6:u16, 7:u16, 8:u16]s
+    v = [5:u16, 6:u16, 7:u16, 8:u16]s.StmMap(x => x) // add some delay for demonstration
 }
 // ... then we expect the following output
 yields [70:u16]s
@@ -177,18 +189,24 @@ $ sirop -i dot.sirop --out:test
 [INFO ] 1/1 test passed!
 ```
 
-If you had accidentally used addition instead of multiplication in `StmMap`, the test would fail:
+If you had accidentally used addition instead of multiplication in `StmMap`, the test would fail.
+The compiler can dump the expected and actual outputs to files so you can compare them (e.g., with `diff`).
 
 ```sh
-$ sed -i 's/x \* y/x + y/g' dot.sirop && \
-> sirop -i dot.sirop --out:test ; \
-> sed -i 's/x + y/x \* y/g' dot.sirop
+$ sed -i 's/x \* y/x + y/g' dot.sirop
+$ sirop -i dot.sirop --out:test:actual actual.txt --out:test:expected expected.txt
 [WARN ] test 0: WRONG OUTPUT
 TestError: 1/1 test failed.
+$ diff expected.txt actual.txt
+3c3
+<   70:u16
+---
+>   36:u16
+$ sed -i 's/x + y/x * y/g' dot.sirop
 ```
 
 The Sirop compiler can also generate a cycle-by-cycle trace of the execution of the program.
-For example, running the following (with the working dot product program):
+For example, running the following (with the working dot product program) generates a series of images in `./trace`.
 
 ```sh
 # Disable fusion to show each pipeline stage (zip, map, sum).
@@ -196,21 +214,36 @@ For example, running the following (with the working dot product program):
 $ sirop -i dot.sirop --out:trace ./trace --opt:no-fuse
 ```
 
-generates a series of images in `./trace`.
 
 > [!IMPORTANT]
 > The images are generated using Graphviz, which must be installed separately.
 > See https://graphviz.org/download/.
 
-![Time step 0 of the dot product trace](./docs/dot-trace/step_0.svg)
-![Time step 1 of the dot product trace](./docs/dot-trace/step_1.svg)
-![Time step 2 of the dot product trace](./docs/dot-trace/step_2.svg)
-![Time step 3 of the dot product trace](./docs/dot-trace/step_3.svg)
-![Time step 4 of the dot product trace](./docs/dot-trace/step_4.svg)
-![Time step 5 of the dot product trace](./docs/dot-trace/step_5.svg)
-![Time step 6 of the dot product trace](./docs/dot-trace/step_6.svg)
-![Time step 7 of the dot product trace](./docs/dot-trace/step_7.svg)
-![Time step 8 of the dot product trace](./docs/dot-trace/step_8.svg)
+> [!NOTE]
+> The arrows in the diagrams show the handshake protocol in action.
+> - A green double-headed arrow represents a successful data transfer.
+> - A dashed arrow from producer to consumer shows that the producer has valid data, but the consumer is not ready to receive it yet.
+> - A line without any arrowheads shows that the producer does not have valid data.
+>
+> Notice how `u` must wait one clock cycle for the data from `v` to arrive.
+> The node corresponding to `StmZip` is exerting back-pressure (i.e., its `ready` signal is lowered).
+
+<div float="left">
+    <img src="./docs/dot-trace/step_0.svg" alt="Time step 0 of the dot product trace" width="33%" />
+    <img src="./docs/dot-trace/step_1.svg" alt="Time step 1 of the dot product trace" width="33%" />
+    <img src="./docs/dot-trace/step_2.svg" alt="Time step 2 of the dot product trace" width="33%" />
+</div>
+<div float="left">
+    <img src="./docs/dot-trace/step_3.svg" alt="Time step 3 of the dot product trace" width="33%" />
+    <img src="./docs/dot-trace/step_4.svg" alt="Time step 4 of the dot product trace" width="33%" />
+    <img src="./docs/dot-trace/step_5.svg" alt="Time step 5 of the dot product trace" width="33%" />
+</div>
+<div float="left">
+    <img src="./docs/dot-trace/step_6.svg" alt="Time step 6 of the dot product trace" width="33%" />
+    <img src="./docs/dot-trace/step_7.svg" alt="Time step 7 of the dot product trace" width="33%" />
+    <img src="./docs/dot-trace/step_8.svg" alt="Time step 8 of the dot product trace" width="33%" />
+</div>
+<img src="./docs/dot-trace/step_9.svg" alt="Time step 9 of the dot product trace" width="33%" />
 
 ### Generating VHDL and Running Simulation
 
@@ -222,16 +255,119 @@ It can also generate a testbench to check that the generated VHDL entity behaves
 > The relevant commands (`vcom`, `vsim`, etc.) must be on your `PATH`.
 > Furthermore, you may need a license to run `vsim`.
 
+> [!NOTE]
+> To change the compilation target, use the `--out:vhdl:family` and `--out:vhdl:device` flags.
+> Run `sirop --help` for more details.
+
 ```sh
-$ sirop -i dot.sirop --out:vhdl ./hdl --out:vhdl:run-sim
+$ sirop -i dot.sirop --out:vhdl vhdl_project_dir --out:vhdl:run-sim
 [INFO ] VHDL testbench passed!
 ```
 
 At this point, you have VHDL code that can be synthesized with Quartus, simulated with your own testbench in Questa, etc.
 
-### More Examples
+## Example with Static Scheduling: FIR Filter
 
-More example programs can be found in [src/main/resources/mhir/main/stored/](./src/main/resources/mhir/main/stored) and [src/e2e/resources/](./src/main/resources).
+Now consider the following example, which implements an [FIR filter](https://en.wikipedia.org/wiki/Finite_impulse_response) without backpressure.
+
+```c++
+// ===== MAIN CODE =============================================================
+
+// Length of test inputs
+const T: u32 = 24
+// Number of taps
+const DEPTH: u32 = 3
+// FIR filter coefficients
+const COEFFS: Vec[i18, DEPTH] = [3:i18, 5:i18, 7:i18]v
+// Number of pipeline registers to enable in the DSPs
+const PIPELINE: u32 = 2
+
+accelerator[
+    // Disable the handshake protocol, i.e., use static scheduling
+    no_handshake,
+    // Until we start receiving the real data, the valid bit should be 0.
+    // If the Sirop compiler needs to increase the latency of this stream
+    // (e.g., for latency matching), it must ensure the valid bit remains 0.
+    head(s)=(undefined:i18, false)
+]
+fir = (s: Stm[(i18, bool), T]) =>
+    // ----- Compute "data" part of output -------------------------------------
+    let data =
+        s
+        // Take just the "data" part of the input stream
+        .StmMap( @(data, valid) => data )
+        // Get sliding windows of size 3
+        .StmSlide(3)
+        // Take dot product between each window and the coefficients.
+        // StmMapDot is specifically defined to facilitate the use of the DSPs
+        // in "systolic" mode.
+        .StmMapDot(StmCst(T-(DEPTH-1), COEFFS), PIPELINE)
+        // StmMapDot produces wider outputs for compatibility with DSPs.
+        // Truncate the outputs back to 18 bits.
+        .StmMap( x => truncate18(x) )
+    in
+    // ----- Compute output "valid" bit ----------------------------------------
+    // Consistently set the "head" to false, so that the initial value of each
+    // pipeline register will be false
+    let valid =
+        s
+        // Take just the "valid" bit from the input stream
+        .StmMap( @(data, valid) => valid, /*head=*/false)
+        // Get sliding windows of size 3
+        .StmSlide(3, /*head=*/false)
+        // Output is valid if all elements in the window are valid
+        .StmMap( window => window.VecAll(), /*head=*/false)
+    in
+    // ----- Pair the output "data" with the output "valid" --------------------
+    StmZip(data, valid, /*head=*/(undefined:i18, false))
+
+// ===== TESTING ===============================================================
+
+assert {
+    // Square wave with amplitude 42 and period 8
+    s = [
+        // Maybe the first few cycles will have invalid data
+        (undefined:i18, false),
+        (undefined:i18, false)
+    ]s ++ [
+        (-42:i18, true), (-42:i18, true), (-42:i18, true), (-42:i18, true),
+        (+42:i18, true), (+42:i18, true), (+42:i18, true), (+42:i18, true),
+        (-42:i18, true), (-42:i18, true), (-42:i18, true), (-42:i18, true),
+        (+42:i18, true), (+42:i18, true), (+42:i18, true), (+42:i18, false),
+        (-42:i18, true), (-42:i18, true), (-42:i18, true), (-42:i18, true),
+        (+42:i18, true), (+42:i18, true), (+42:i18, true), (+42:i18, true)
+    ]s
+}
+yields [
+    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
+    (+630:i18, true), (+630:i18, true),  (+42:i18, true),  (-378:i18, true),
+    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
+    (+630:i18, true), (+630:i18, false), (+42:i18, false), (-378:i18, false),
+    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
+    (+630:i18, true), (+630:i18, true)
+]s
+// The FIR filter will have some latency N.
+// For the first N clock cycles, the output "valid" bit must be 0.
+with prefix /* which satisfies the predicate... */ @(_, valid) => valid == false
+```
+
+Test, compile, and simulate the design using the following command.
+
+> [!NOTE]
+> To change the compilation target, use the `--out:vhdl:family` and `--out:vhdl:device` flags.
+> Run `sirop --help` for more details.
+
+```c++
+$ sirop -i fir.sirop --out:test --out:vhdl vhdl_project_dir/ --out:vhdl:run-sim
+[INFO ] the design has a latency of 5 cycles
+[INFO ] test 0: PASSED
+[INFO ] 1/1 test passed!
+[INFO ] VHDL testbench passed!
+```
+
+## More Examples
+
+More example programs can be found in [src/main/resources/mhir/main/stored/](./src/main/resources/mhir/main/stored) and [src/e2e/resources/](./src/e2e/resources).
 
 ## Development
 

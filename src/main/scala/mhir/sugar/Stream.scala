@@ -1614,7 +1614,7 @@ case class StmDelay(
     delay: Expr,
     head: Expr = Undefined(Missing)
 )(typ: Type = Missing)
-    extends ResolvedSyntaxSugar(stm, delay)(typ) {
+    extends ResolvedSyntaxSugar(stm, delay, head)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): StmDelay = {
     newChildren match {

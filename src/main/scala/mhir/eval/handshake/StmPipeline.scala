@@ -4,6 +4,7 @@ package handshake
 import mhir.canonicalize._
 import mhir.eval._
 import mhir.ir._
+import mhir.optimize.LetStmSimplifier
 import mhir.sugar.{ExprLowering, StmLiteralUtilsImplicit}
 import mhir.typecheck.TypeCheck
 
@@ -48,7 +49,8 @@ private[eval] class StmPipeline(
       reachedFixpoint = false
     )
     newPipe.nodes = this.nodes.map({ case (id, node) =>
-      id -> node.step(newPipe)
+      val newNode = node.step(newPipe)
+      id -> newNode
     })
     newPipe.reachedFixpoint = newPipe.sameState(this)
     newPipe
@@ -99,12 +101,11 @@ private[eval] object StmPipeline {
       inputs
         .map({ case (x, e) =>
           val loweredX = x.tchk().lower.asInstanceOf[Param]
-          // Evaluate the input because we may be in no_handshake mode, but
-          // inputs are always evaluated with the handshake protocol (because
-          // it's less restrictive for the programmer and I don't want to have
-          // to do latency matching for the inputs)
-          val evaluatedE = mhir.eval.eval(e)
-          loweredX -> TestInput(evaluatedE, x.name)(evaluatedE.typ)
+          val loweredE = e.tchk().lower
+          // Get rid of unnecessary letstm in the inputs to avoid cluttering
+          // up the trace
+          val simplifiedE = LetStmSimplifier().simplifyAll(loweredE)
+          loweredX -> TestInput(simplifiedE, x.name)(simplifiedE.typ)
         })
         .toMap[Expr, Expr]
     )

@@ -1,0 +1,78 @@
+// ===== MAIN CODE =============================================================
+
+// Length of test inputs
+const T: u32 = 24
+// Number of taps
+const DEPTH: u32 = 3
+// FIR filter coefficients
+const COEFFS: Vec[i18, DEPTH] = [3:i18, 5:i18, 7:i18]v
+// Number of pipeline registers to enable in the DSPs
+const PIPELINE: u32 = 2
+
+accelerator[
+    // Disable the handshake protocol, i.e., use static scheduling
+    no_handshake,
+    // Until we start receiving the real data, the valid bit should be 0.
+    // If the Sirop compiler needs to increase the latency of this stream
+    // (e.g., for latency matching), it must ensure the valid bit remains 0.
+    head(s)=(undefined:i18, false)
+]
+fir = (s: Stm[(i18, bool), T]) =>
+    // ----- Compute "data" part of output -------------------------------------
+    let data =
+        s
+        // Take just the "data" part of the input stream
+        .StmMap( @(data, valid) => data )
+        // Get sliding windows of size 3
+        .StmSlide(3)
+        // Take dot product between each sliced window and the coefficients.
+        // StmMapDot is specifically defined to facilitate the use of the DSPs
+        // in "systolic" mode.
+        .StmMapDot(StmCst(T-(DEPTH-1), COEFFS), PIPELINE)
+        // StmMapDot produces wider outputs for compatibility with DSPs.
+        // Truncate the outputs back to 18 bits.
+        .StmMap( x => truncate18(x) )
+    in
+    // ----- Compute output "valid" bit ----------------------------------------
+    // Consistently set the "head" to false, so that the initial value of each
+    // pipeline register will be false
+    let valid =
+        s
+        // Take just the "valid" bit from the input stream
+        .StmMap( @(data, valid) => valid, /*head=*/false)
+        // Get sliding windows of size 3
+        .StmSlide(3, /*head=*/false)
+        // Output is valid if all elements in the window are valid
+        .StmMap( window => window.VecAll(), /*head=*/false)
+    in
+    // ----- Pair the output "data" with the output "valid" --------------------
+    StmZip(data, valid, /*head=*/(undefined:i18, false))
+
+// ===== TESTING ===============================================================
+
+assert {
+    // Square wave with amplitude 42 and period 8
+    s = [
+        // Maybe the first few cycles will have invalid data
+        (undefined:i18, false),
+        (undefined:i18, false)
+    ]s ++ [
+        (-42:i18, true), (-42:i18, true), (-42:i18, true), (-42:i18, true),
+        (+42:i18, true), (+42:i18, true), (+42:i18, true), (+42:i18, true),
+        (-42:i18, true), (-42:i18, true), (-42:i18, true), (-42:i18, true),
+        (+42:i18, true), (+42:i18, true), (+42:i18, true), (+42:i18, false),
+        (-42:i18, true), (-42:i18, true), (-42:i18, true), (-42:i18, true),
+        (+42:i18, true), (+42:i18, true), (+42:i18, true), (+42:i18, true)
+    ]s
+}
+yields [
+    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
+    (+630:i18, true), (+630:i18, true),  (+42:i18, true),  (-378:i18, true),
+    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
+    (+630:i18, true), (+630:i18, false), (+42:i18, false), (-378:i18, false),
+    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
+    (+630:i18, true), (+630:i18, true)
+]s
+// The FIR filter will have some latency N.
+// For the first N clock cycles, the output "valid" bit must be 0.
+with prefix /* which satisfies the predicate... */ @(_, valid) => valid == false

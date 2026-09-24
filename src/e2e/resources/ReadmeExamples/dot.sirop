@@ -1,0 +1,18 @@
+// u and v are streams of 16-bit unsigned integers, each with length 4
+accelerator dot = (u: Stm[u16, 4]) => (v: Stm[u16, 4]) =>
+    // EXAMPLE: u = [1:u16, 2:u16, 3:u16, 4:u16]s
+    // EXAMPLE: v = [5:u16, 6:u16, 7:u16, 8:u16]s
+    StmZip(u, v)
+    // EXAMPLE: [(1:u16, 5:u16), (2:u16, 6:u16), (3:u16, 7:u16), (4:u16, 8:u16)]s
+    .StmMap( @(x, y) => x * y )
+    // EXAMPLE: [5:u16, 12:u16, 21:u16, 32:u16]s
+    .StmSum()
+    // EXAMPLE: [70:u16]s
+
+assert {
+    // when the inputs are...
+    u = [1:u16, 2:u16, 3:u16, 4:u16]s,
+    v = [5:u16, 6:u16, 7:u16, 8:u16]s.StmMap(x => x) // add some delay for demonstration
+}
+// ... then we expect the following output
+yields [70:u16]s

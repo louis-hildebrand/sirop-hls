@@ -1,4 +1,4 @@
-\documentclass[border={5pt 0pt}]{standalone}
+\documentclass[border={0pt 0pt}]{standalone}
 
 \input{colors.tex}
 \input{tikz.tex}
@@ -18,19 +18,19 @@
     \coordinate (before-start);
     \coordinate[above=of before-start] (before-start-above);
     \coordinate[below=of before-start] (before-start-below);
-    \coordinate[right=2 of before-start-below] (before-start-below);
+    \coordinate[right=1.5 of before-start-below] (before-start-below);
     \node[left=0pt of before-start-above] {$x$};
     \node[left=0pt of before-start-below] {$y$};
-    \coordinate[right=2 of before-start-below] (before-below);
-    \coordinate[right=4 of before-start-above] (before-above);
+    \coordinate[right=3.5 of before-start-below] (before-below);
+    \coordinate[right=5 of before-start-above] (before-above);
     \draw[transparent] (before-above.east) to coordinate[midway] (midway) (before-below.east);
     \node[adder, right=of midway] (before-zip) {$\boldsymbol{+}$};
     \node[right=of before-zip] (before-end) {$z$};
 
-    \draw[arrow, -] (before-start-above) to node[at start, above, anchor=south west] {(3-cycle delay)} (before-above);
-    \draw[arrow, -] (before-start-below) to node[at start, above, anchor=south west] {(1-cycle delay)} (before-below);
-    \draw[arrow, out=0, in=135, looseness=1.5] (before-above) to (before-zip);
-    \draw[arrow, out=0, in=225, looseness=1.5] (before-below.east) to (before-zip);
+    \draw[arrow, -] (before-start-above) to node[at end, left=2em, fill=bgcolor] {(3-cycle delay)} (before-above);
+    \draw[arrow, -] (before-start-below) to node[at end, left=2em, fill=bgcolor] {(1-cycle delay)} (before-below);
+    \draw[arrow, out=0, in=135, looseness=1.5] (before-above) to node[at start, below right] {$x'$} (before-zip);
+    \draw[arrow, out=0, in=225, looseness=1.5] (before-below.east) to node[at start, above right] {$y'$} (before-zip);
     \draw[arrow] (before-zip) to (before-end);
 
     % After latency matching
@@ -39,51 +39,65 @@
     \coordinate[below=of after-start] (after-start-below);
     \node[left=0pt of after-start-above] {$x$};
     \node[left=0pt of after-start-below] {$y$};
-    \coordinate[right=4 of after-start-above] (after-above);
-    \coordinate[right=4 of after-start-below] (after-below);
+    \coordinate[right=5 of after-start-above] (after-above);
+    \coordinate[right=5 of after-start-below] (after-below);
     \draw[transparent] (after-above.east) to coordinate[midway] (midway) (after-below.east);
     \node[adder, right=of midway] (after-zip) {$\boldsymbol{+}$};
     \pic[left=0pt of after-below] (reg-2) {register};
     \pic[left=1em of reg-2] (reg-1) {register};
     \node[right=of after-zip] (after-end) {$z$};
 
-    \draw[arrow, -] (after-start-above) to node[at start, above, anchor=south west] {(3-cycle delay)} (after-above);
-    \draw[arrow] (after-start-below) to node[at start, above, anchor=south west] {(1-cycle delay)} (reg-1);
-    \draw[arrow, out=0, in=135, looseness=1.5] (after-above) to (after-zip);
+    \draw[arrow, -] (after-start-above) to node[at start, right=2em, fill=bgcolor] {(3-cycle delay)} (after-above);
+    \draw[arrow] (after-start-below) to node[at start, right=2em, fill=bgcolor] {(1-cycle delay)} (reg-1);
+    \draw[arrow, out=0, in=135, looseness=1.5] (after-above) to node[at start, below right] {$x'$} (after-zip);
     \draw[arrow] (reg-1) to (reg-2);
     \draw[arrow, out=0, in=225, looseness=1.5] (reg-2) to node[at start, above right] {$y'$} (after-zip);
     \draw[arrow] (after-zip) to (after-end);
 
-    \newlength{\yzero} \setlength{\yzero}{-8.0em}
-    \newlength{\xzero}
-    \newlength{\xsep} \setlength{\xsep}{0.5em}
     \begin{scope}[
         timing/xunit=2.5em,
         timing/yunit=0.8\baselineskip,
         timing/slope=0.05,
     ]
+        \newlength{\xsep} \setlength{\xsep}{2.5em}
+        \coordinate[below right=5em and 1em of current bounding box.south west] (before-timing-north-west);
+        \coordinate[below right=5em and 1em of current bounding box.south] (after-timing-north-west);
+
         % "Before" timing diagram
-        \setlength{\xzero}{0.5em}
-        \node[anchor=south east, text depth=2pt, inner sep=0pt] at (\xzero, \yzero-1\baselineskip) {$x$};
-        \node[anchor=south east, text depth=2pt, inner sep=0pt] at (\xzero, \yzero-2\baselineskip) {$y$};
-        \node[anchor=south east, text depth=2pt, inner sep=0pt] at (\xzero, \yzero-3\baselineskip) {$z$};
-        \timing[draw=fgcolor] at (\xzero+\xsep, \yzero-0\baselineskip) { c cc   cc                  cc   cc     cc   cc   c };
-        \timing[draw=fgcolor] at (\xzero+\xsep, \yzero-1\baselineskip) { u U    U                   D{1} D{2}   D{3} D{4} u };
-        \timing[draw=fgcolor] at (\xzero+\xsep, \yzero-2\baselineskip) { u D{3} D{-1}               D{7} D{1}   U    U    u };
-        \timing[draw=fgcolor] at (\xzero+\xsep, \yzero-3\baselineskip) { u U    U     {[fill=myred] D{8} D{3} } U    U    u };
+        \begin{scope}[
+            shift=(before-timing-north-west),
+        ]
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -0\baselineskip) {\texttt{clk}};
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -1\baselineskip) {$x$};
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -2\baselineskip) {$y$};
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -3\baselineskip) {$x'$};
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -4\baselineskip) {$y'$};
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -5\baselineskip) {$z$};
+            \timing[draw=fgcolor] at (\xsep, -0\baselineskip) { c cc   cc    cc                  cc   cc     cc   cc   c };
+            \timing[draw=fgcolor] at (\xsep, -1\baselineskip) { u D{1} D{2}  D{3}                D{4} U      U    U    u };
+            \timing[draw=fgcolor] at (\xsep, -2\baselineskip) { u D{3} D{-1} D{7}                D{1} U      U    U    u };
+            \timing[draw=fgcolor] at (\xsep, -3\baselineskip) { u U    U     U                   D{1} D{2}   D{3} D{4} u };
+            \timing[draw=fgcolor] at (\xsep, -4\baselineskip) { u U    D{3}  D{-1}               D{7} D{1}   U    U    u };
+            \timing[draw=fgcolor] at (\xsep, -5\baselineskip) { u U    U     U     {[fill=myred] D{8} D{3} } U    U    u };
+        \end{scope}
+
         % "After" timing diagram
-        % TODO: figure out how to use relative positioning with tikz-timing?
-        \setlength{\xzero}{23em}
-        \setlength{\xsep}{1.25em}
-        \node[anchor=south west, text depth=2pt, inner sep=0pt] at (\xzero, \yzero-1\baselineskip) {$x$};
-        \node[anchor=south west, text depth=2pt, inner sep=0pt] at (\xzero, \yzero-2\baselineskip) {$y$};
-        \node[anchor=south west, text depth=2pt, inner sep=0pt] at (\xzero, \yzero-3\baselineskip) {$y'$};
-        \node[anchor=south west, text depth=2pt, inner sep=0pt] at (\xzero, \yzero-4\baselineskip) {$z$};
-        \timing[draw=fgcolor] at (\xzero+\xsep, \yzero-0\baselineskip) { c cc   cc                    cc   cc    cc    cc     c };
-        \timing[draw=fgcolor] at (\xzero+\xsep, \yzero-1\baselineskip) { u U    U                     D{1} D{2}  D{3}  D{4}   u };
-        \timing[draw=fgcolor] at (\xzero+\xsep, \yzero-2\baselineskip) { u D{3} D{-1}                 D{7} D{1}  U     U      u };
-        \timing[draw=fgcolor] at (\xzero+\xsep, \yzero-3\baselineskip) { u U    U                     D{3} D{-1} D{7}  D{1}   u };
-        \timing[draw=fgcolor] at (\xzero+\xsep, \yzero-4\baselineskip) { u U    U     {[fill=mygreen] D{4} D{1}  D{10} D{5} } u };
+        \begin{scope}[
+            shift=(after-timing-north-west),
+        ]
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -0\baselineskip) {\texttt{clk}};
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -1\baselineskip) {$x$};
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -2\baselineskip) {$y$};
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -3\baselineskip) {$x'$};
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -4\baselineskip) {$y'$};
+            \node[anchor=south west, text depth=2pt, inner sep=0pt] at (0, -5\baselineskip) {$z$};
+            \timing[draw=fgcolor] at (\xsep, -0\baselineskip) { c cc   cc    cc                   cc    cc    cc   cc     c };
+            \timing[draw=fgcolor] at (\xsep, -1\baselineskip) { u D{1} D{2}  D{3}                 D{4}  U     U    U      u };
+            \timing[draw=fgcolor] at (\xsep, -2\baselineskip) { u D{3} D{-1} D{7}                 D{1}  U     U    U      u };
+            \timing[draw=fgcolor] at (\xsep, -3\baselineskip) { u U    U     U                    D{1} D{2}  D{3}  D{4}   u };
+            \timing[draw=fgcolor] at (\xsep, -4\baselineskip) { u U    U     U                    D{3} D{-1} D{7}  D{1}   u };
+            \timing[draw=fgcolor] at (\xsep, -5\baselineskip) { u U    U     U    {[fill=mygreen] D{4} D{1}  D{10} D{5} } u };
+        \end{scope}
     \end{scope}
 
     % Separator
