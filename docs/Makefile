@@ -1,4 +1,7 @@
-TEX_UTILS := colors.tex tikz.tex
+TEX_UTILS := $(wildcard utils/*.tex)
+ALL_SVGS := $(patsubst %.tex, %.svg, $(wildcard *.tex))
+
+all: $(ALL_SVGS)
 
 %.svg: bin/%.pdf
 	pdftocairo $< -svg -o $@
