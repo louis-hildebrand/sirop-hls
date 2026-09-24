@@ -1,0 +1,23 @@
+\documentclass[border={0pt 0pt}]{standalone}
+
+\input{colors.tex}
+\input{tikz.tex}
+
+\pagecolor{bgcolor}
+
+\begin{document}
+
+\begin{tikzpicture}
+    \node[draw=fgcolor, very thick, densely dotted, rounded corners, inner sep=1em, minimum height=6em] (producer) {Producer};
+
+    \node[right=2 of producer, draw=fgcolor, very thick, densely dotted, rounded corners, inner sep=1em, minimum height=6em] (consumer) {Consumer};
+
+    \coordinate[above=0em of producer.east] (pdata);
+    \coordinate[above=0em of consumer.west] (cdata);
+
+    \draw[transparent] (pdata) to coordinate[midway] (data-midway) (cdata);
+    \pic at (data-midway) {bitwidth=$n$/above};
+    \draw[->, fgcolor, ultra thick] (pdata) to node[midway, below] {\texttt{data}} (cdata);
+\end{tikzpicture}
+
+\end{document}

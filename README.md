@@ -149,9 +149,19 @@ The data flowing from producer to consumer is accompanied by a `valid` bit that 
 The consumer sends back a `ready` bit that is high whenever it is ready to receive the data.
 If `ready` is low, the producer should hold its current output and not move to the next element in the stream.
 
+<div float="left">
+    <img src="./docs/handshake.svg" alt="Block diagram explaining the handshake protocol" width="50%" />
+    <img src="./docs/handshake_timing.svg" alt="Block diagram explaining the handshake protocol" width="50%" />
+</div>
+
 The handshake protocol can be disabled as shown below, in the FIR filter example.
 In this case, there is no way for a consumer to exert backpressure.
-It is still possible to have a `valid` bit in the stream payload itself, as shown in the FIR filter example below.
+It is still possible to have a `valid` bit in the stream payload itself; see the FIR filter example.
+
+<div float="left">
+    <img src="./docs/no_handshake.svg" alt="Block diagram illustrating static scheduling" width="50%" />
+    <img src="./docs/no_handshake_timing.svg" alt="Timing diagram illustrating static scheduling" width="50%" />
+</div>
 
 ## Example with Dynamic Scheduling: Dot Product
 

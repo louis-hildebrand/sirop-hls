@@ -1,0 +1,51 @@
+\documentclass[border={0pt 0pt}, varwidth]{standalone}
+
+\input{colors.tex}
+\input{tikz.tex}
+
+\pagecolor{bgcolor}
+
+\begin{document}
+
+\begin{center}
+    \begin{tikztimingtable}[%
+        timing/dslope=0.25,
+        timing/lslope=0.25,
+        timing/.style={x=4ex,y=1.5ex},
+        x=4ex,
+        timing/rowdist=2.25ex,
+        timing/name/.style={font=\sffamily\footnotesize},
+        timing/coldist=0.25,
+        draw=fgcolor
+    ]
+        \texttt{clock} & 16{c} \\
+        \texttt{data}  & 1u 1D{1} 1U 1D{2} 1U 2D{3}    1D{4} 1u \\
+        \texttt{valid} & 1l 1H    1L 1H    1L 1H    1H 1H    1l \\
+        \texttt{ready} & 1l 1H    1H 1H    1L 1L    1H 1H    1l \\
+        \extracode
+        \begin{pgfonlayer}{background}
+            \begin{scope}[semitransparent,very thick]
+                \vertlines[mygreen, densely dashed]{1.5, 3.5, 6.5, 7.5}
+                \vertlines[myred, densely dotted]{0.5, 2.5, 4.5, 5.5}
+            \end{scope}
+        \end{pgfonlayer}
+    \end{tikztimingtable}
+
+    \begin{tikzpicture}
+        \centering
+        \coordinate (teal-start) at (0.5, 0);
+        \coordinate[right=2em of teal-start] (teal-end);
+        \draw[mygreen, densely dashed, very thick] (teal-start) to (teal-end);
+        \node[right=0em of teal-end, gray] (teal-label) {data transfer};
+
+        \coordinate[right=2em of teal-label] (red-start);
+        \coordinate[right=2em of red-start] (red-end);
+        \draw[myred, densely dotted, very thick] (red-start) to (red-end);
+        \node[right=0em of red-end, gray] (red-label) {stall};
+
+        \node[draw=mygray, very thick, rounded corners, fit=(teal-start) (teal-end) (teal-label) (red-start) (red-end) (red-label)] (legend) {};
+    \end{tikzpicture}
+\end{center}
+
+\end{document}
+

@@ -15,6 +15,14 @@
         \node[regbox] () {#1};
         \node[above right=0.1em and 0.05em of .south west, regwedge] (-wedge) {};
     },
+    % Wire bitwidth marker
+    pics/bitwidth/.style args={#1/#2}{code = {
+        \coordinate (-middle);
+        \coordinate[above left=4pt of -middle] (-start);
+        \coordinate[below right=4pt of -middle] (-end);
+        \draw[fgcolor, thick] (-start) to (-end);
+        \node[#2=1pt of -middle] {{\footnotesize #1}};
+    }},
     % Adder, multiplier, etc.
     adder/.style={ circle, draw=fgcolor, very thick },
     % Cloud (for combinational logic)
