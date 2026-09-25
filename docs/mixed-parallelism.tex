@@ -1,0 +1,50 @@
+\documentclass[border={0pt 0pt}]{standalone}
+
+\input{utils/font.tex}
+\input{utils/colors.tex}
+\input{utils/tikz.tex}
+
+\usepackage{bm}
+
+\pagecolor{bgcolor}
+
+\begin{document}
+
+\begin{tikzpicture}
+    \node (input0) {$x[0]$};
+    \node[below=of input0] (input1) {$x[1]$};
+    \foreach \i in {0,1} {
+        \node[adder, right=of input\i] (adder\i) {$\boldmath{+}$};
+        \node[above left=0.5 of adder\i] (five\i) {5};
+        \pic[right=0.5 of adder\i] (reg\i) {register};
+        \node[right=0.5 of reg\i] (output\i) {$y[\i]$};
+    }
+
+    \node[draw=fgcolor, very thick, densely dotted, rounded corners, fit=(five0) (adder0) (five0) (adder1)] (vecmap) {};
+    \node[above=0pt of vecmap] (vecmap-label) {\texttt{VecMap}};
+    \node[draw=fgcolor, very thick, densely dotted, rounded corners, fit=(vecmap) (vecmap-label) (reg0) (reg1)] (stmmap) {};
+    \node[above=0pt of stmmap] {\texttt{StmMap}};
+
+    \foreach \i in {0,1} {
+        \draw[arrow] (input\i) to (adder\i);
+        \draw[arrow] (five\i) to (adder\i);
+        \draw[arrow] (adder\i) to (reg\i);
+        \draw[arrow] (reg\i) to (output\i);
+    };
+\end{tikzpicture}
+
+\hspace{2em}
+
+\begin{tikztimingtable}[
+    draw=fgcolor,
+    timing/xunit=1.5em,
+    timing/dslope=0.1,
+]
+    \texttt{clock} & 8{c} \\
+    $x[0]$ & 1u 1D{1} 1D{3} 1U    1u \\
+    $x[1]$ & 1u 1D{2} 1D{4} 1U    1u \\
+    $y[0]$ & 1u 1U    1D{6} 1D{8} 1u \\
+    $y[1]$ & 1u 1U    1D{7} 1D{9} 1u \\
+\end{tikztimingtable}
+
+\end{document}

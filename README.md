@@ -123,6 +123,8 @@ This will result in four adders being instantiated to process all the vector's e
 [6:u8, 7:u8, 8:u8, 9:u8]v
 ```
 
+<img src="./docs/spatial-parallelism.svg" alt="Diagram showing VecMap" width="33%" />
+
 Similarly, you can transform each element of a stream using `StmMap`.
 In this case, only one adder will be needed because the stream yields just one element per clock cycle.
 
@@ -131,8 +133,12 @@ In this case, only one adder will be needed because the stream yields just one e
 [6:u8, 7:u8, 8:u8, 9:u8]s
 ```
 
-It's also possible to partially parallelize this code by representing the input as a stream of vectors.
+<img src="./docs/pipeline-parallelism.svg" alt="Diagram showing StmMap" width="67%" />
+
+It is also possible to partially parallelize this code by representing the input as a stream of vectors.
 Here, the stream will yield two elements per cycle and there will be two adders to process them.
+
+<img src="./docs/mixed-parallelism.svg" alt="Diagram showing VecMap inside StmMap" width="67%" />
 
 ```c++
 > [[1:u8, 2:u8]v, [3:u8, 4:u8]v]s.StmMap(v => v.VecMap(x => x + 5))
