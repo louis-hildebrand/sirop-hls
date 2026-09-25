@@ -18,6 +18,7 @@ import colorama
 
 from helpers import assert_equals, TestFailed
 import constants as c
+import test_pretty_print as pp
 import test_test as stest
 import test_vhdl as vhdl
 import test_vsim as vsim
@@ -67,6 +68,8 @@ def look_for_unused_files() -> None:
             if stest.uses_file(f):
                 continue
             if vsim.uses_file(f):
+                continue
+            if pp.uses_file(f):
                 continue
             print(f"File {f.relative_to(c.ROOT)} is not used for testing")
             error_count += 1
@@ -334,6 +337,11 @@ def main(test_sources: list[Path], skip_vsim: bool, save: bool) -> None:
         if (stderr_file := test.with_suffix(".stderr.txt")).is_file():
             ran = True
             ok = test_plain(stderr_file, cli_args=cli_args, save=save)
+            if not ok:
+                error_count += 1
+        if pp.can_run(test):
+            ran = True
+            ok = pp.run(test, cli_args=cli_args, save=save)
             if not ok:
                 error_count += 1
         if vhdl.can_run(test):

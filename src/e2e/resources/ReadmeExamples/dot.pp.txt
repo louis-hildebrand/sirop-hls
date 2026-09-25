@@ -1,0 +1,21 @@
+(u : Stm[u16, 4]) =>
+  (v : Stm[u16, 4]) =>
+    sbuild(1:u1)(sdata(p1) *` sdata(p2) +%` acc, i ==` 3:u3) {
+      (acc: u16) = {
+        init: 0:u16,
+        next: sdata(p1) *` sdata(p2) +%` acc
+      },
+      (i: u3) = {
+        init: 0:u3,
+        next: 1:u3 +` i
+      }
+    } {
+      (p1: Stm[u16, -1] @ 0:u0) = {
+        stm: u,
+        ready: true
+      },
+      (p2: Stm[u16, -1] @ 0:u0) = {
+        stm: v,
+        ready: true
+      }
+    }
