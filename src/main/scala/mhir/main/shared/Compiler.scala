@@ -2,7 +2,7 @@ package mhir.main.shared
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
-import mhir.debug.{DotPrinter, Tracer}
+import mhir.debug.{DotPrinter, NameSimplifier, Tracer}
 import mhir.delay.{
   DiscardAccumulatorDelays,
   DiscardAccumulatorDelaysUsingPrefixAnalysis,
@@ -101,12 +101,23 @@ object Compiler {
       SemanticAnalyzer.check(synthesizable)
       SemanticAnalyzer.checkForWarnings(synthesizable)
     }
-    val (finalProgram, optimTime) =
+    val (optimizedProgram, optimTime) =
       optimize(
         synthesizable,
         options.optFlags,
         handshake = lowered.handshake
       )
+    val finalProgram = if (options.simplifyNames) {
+      time("simplifying variable names", Level.DEBUG) {
+        val newBody = NameSimplifier.simplify(optimizedProgram.body)
+        optimizedProgram.copy(accel =
+          optimizedProgram.accel.copy(body = newBody)
+        )
+      }
+    } else {
+      logger.debug("skipping name simplification")
+      optimizedProgram
+    }
     val latency = {
       val (inputs, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
       val analysis = new LatencyAnalysis(handshake = finalProgram.handshake)

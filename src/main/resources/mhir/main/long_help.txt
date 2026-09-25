@@ -21,6 +21,12 @@ Source Arguments:
                                 arbitrarily many times.
 
 Output Arguments:
+  --simplify-names                 simplify the variable names in the final
+                                   program. The compiler appends unique numeric
+                                   IDs to variables to avoid name collisions;
+                                   this transformation removes those where
+                                   possible.
+
   --out:eval                       evaluate the program and print its value
   --out:eval:max-invalid-steps N   maximum number of invalid sbuild outputs when
                                    evaluating. A negative value disables the

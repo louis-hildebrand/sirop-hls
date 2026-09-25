@@ -38,6 +38,7 @@ object Args {
     var input: Option[String] = None
     var constOverrides = Map[String, String]()
     // Output args
+    var simplifyNames: Boolean = false
     var vhdlDir: Option[String] = None
     var runVhdlSim: Option[Boolean] = None
     var vhdlFamily: Option[String] = None
@@ -127,6 +128,8 @@ object Args {
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
         // Output args
+        case "--simplify-names" =>
+          simplifyNames = true
         case "--out:vhdl" =>
           mutArgs.drop(1).headOption match {
             case Some(dirName) =>
@@ -493,7 +496,8 @@ object Args {
           assumeThroughputsMatch || src.exists(_.isInstanceOf[AetherlingSource])
         )
       ),
-      logLevel = Some(logLevel)
+      logLevel = Some(logLevel),
+      simplifyNames = simplifyNames
     )
     new Args(src = src, options = options)
   }
