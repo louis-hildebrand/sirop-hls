@@ -1,19 +1,19 @@
-// Output type: Stm[Vec[u32, 3:u2], 280:u9] -> Stm[u32, 1:u1]
-(I : Stm[Vec[u32, 3:u2], 280:u9]) =>
-  let n1: Stm[Vec[u32, 3:u2], 280:u9] = I in
-  let n6: Stm[Vec[u32, 1:u1], 280:u9] = (
+// Output type: Stm[Vec[u32, 3], 280] -> Stm[u32, 1]
+(I : Stm[Vec[u32, 3], 280]) =>
+  let n1: Stm[Vec[u32, 3], 280] = I in
+  let n6: Stm[Vec[u32, 1], 280] = (
     StmMap(
       n1,
-      (I : Vec[u32, 3:u2]) => VecReduce(I, (I : (u32, u32)) => I.0 +%` I.1)
+      (I : Vec[u32, 3]) => VecReduce(I, (I : (u32, u32)) => I.0 +%` I.1)
     )
   ) in
-  let n9: Stm[Vec[u32, 1:u1], 1:u1] = (
+  let n9: Stm[Vec[u32, 1], 1] = (
     StmReduce(
       n6,
-      (I : Vec[(u32, u32), 1:u1]) => VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
+      (I : Vec[(u32, u32), 1]) => VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
     )
   ) in
-  let n10: Stm[u32, 1:u1] = ReshapeSeq[Stm[u32, 1:u1]](n9) in
-  let n11: Stm[u32, 1:u1] = n10 in
-  let n12: Stm[u32, 1:u1] = n11 in
+  let n10: Stm[u32, 1] = ReshapeSeq[Stm[u32, 1]](n9) in
+  let n11: Stm[u32, 1] = n10 in
+  let n12: Stm[u32, 1] = n11 in
   n12

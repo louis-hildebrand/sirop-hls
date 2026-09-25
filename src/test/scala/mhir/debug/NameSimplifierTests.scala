@@ -70,7 +70,7 @@ class NameSimplifierTests extends AnyFunSuite {
     val simplified = NS.simplify(original)
     assert(simplified alphaEquals original)
     val expectedStr =
-      "letstm[1:u1] x: Stm[u8, 5:u3] = x_1 in letstm[1:u1] y: Stm[i32, 5:u3] = y_2 in StmZip(x, y, undefined:(u8, i32))"
+      "letstm[1:u1] x: Stm[u8, 5] = x_1 in letstm[1:u1] y: Stm[i32, 5] = y_2 in StmZip(x, y, undefined:(u8, i32))"
     assert(simplified.toString() == expectedStr)
   }
 
@@ -87,8 +87,8 @@ class NameSimplifierTests extends AnyFunSuite {
     val simplified = NS.simplify(original)
     assert(simplified alphaEquals original)
     val expectedStr =
-      """letstm[1:u1] x: Stm[u8, 5:u3] = x_1 in
-        |letstm[1:u1] x: Stm[u8, 5:u3] = letstm[1:u1] x: Stm[u8, 5:u3] = x in x in
+      """letstm[1:u1] x: Stm[u8, 5] = x_1 in
+        |letstm[1:u1] x: Stm[u8, 5] = letstm[1:u1] x: Stm[u8, 5] = x in x in
         |StmZip(x, x, undefined:(u8, u8))
         |""".stripMargin.stripTrailing
     val actualStr = ExprPrinter.displayMultiLine(simplified, maxWidth = 100)
@@ -114,8 +114,8 @@ class NameSimplifierTests extends AnyFunSuite {
     assert(simplified alphaEquals original)
     // You can still rename the first param
     val expectedStr =
-      """letstm[1:u1] x: Stm[u8, 5:u3] = x_1 in
-        |letstm[1:u1] x_2: Stm[u8, 5:u3] = letstm[1:u1] x: Stm[u8, 5:u3] = x in x in
+      """letstm[1:u1] x: Stm[u8, 5] = x_1 in
+        |letstm[1:u1] x_2: Stm[u8, 5] = letstm[1:u1] x: Stm[u8, 5] = x in x in
         |StmZip(x, x_2, undefined:(u8, u8))
         |""".stripMargin.stripTrailing
     val actualStr = ExprPrinter.displayMultiLine(simplified, maxWidth = 100)

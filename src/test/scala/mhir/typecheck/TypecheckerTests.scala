@@ -973,7 +973,7 @@ class TypecheckerTests extends AnyFunSuite {
       ex.getMessage
         .contains(
           "invalid expected output in assertion:" +
-            " accelerator produces Stm[u8, 4:u3] but assertion expects Stm[Vec[u8, 1:u1], 4:u3]"
+            " accelerator produces Stm[u8, 4] but assertion expects Stm[Vec[u8, 1], 4]"
         )
     )
   }
@@ -992,7 +992,7 @@ class TypecheckerTests extends AnyFunSuite {
       ex.getMessage
         .contains(
           "invalid expected output in assertion:" +
-            " accelerator produces Stm[u8, 4:u3] but assertion expects Stm[u8, 5:u3]"
+            " accelerator produces Stm[u8, 4] but assertion expects Stm[u8, 5]"
         )
     )
   }
@@ -1015,7 +1015,7 @@ class TypecheckerTests extends AnyFunSuite {
       ex.getMessage
         .contains(
           "invalid expected output in assertion:" +
-            " accelerator produces Stm[u8, N] but assertion expects Stm[u8, 5:u3] (note that N = 4:u32)"
+            " accelerator produces Stm[u8, N] but assertion expects Stm[u8, 5] (note that N = 4:u32)"
         )
     )
   }
@@ -1034,7 +1034,7 @@ class TypecheckerTests extends AnyFunSuite {
       ex.getMessage
         .contains(
           "invalid 'ignoring' stream in assertion:" +
-            " accelerator produces Stm[u8, 4:u3] but 'ignoring' stream has type Stm[u16, 4:u3]"
+            " accelerator produces Stm[u8, 4] but 'ignoring' stream has type Stm[u16, 4]"
         )
     )
   }
@@ -1053,7 +1053,7 @@ class TypecheckerTests extends AnyFunSuite {
       ex.getMessage
         .contains(
           "invalid 'ignoring' stream in assertion:" +
-            " accelerator produces Stm[u8, 4:u3] but 'ignoring' stream has type Stm[u8, 3:u2]"
+            " accelerator produces Stm[u8, 4] but 'ignoring' stream has type Stm[u8, 3]"
         )
     )
   }
@@ -1103,7 +1103,7 @@ class TypecheckerTests extends AnyFunSuite {
     val ex = intercept[TypeError](prog.tchk())
     assert(
       ex.getMessage.contains(
-        "invalid inputs in assertion: parameter 's' has type Stm[Vec[u8, 1:u1], 3:u2] but assertion provides Stm[u8, 3:u2]"
+        "invalid inputs in assertion: parameter 's' has type Stm[Vec[u8, 1], 3] but assertion provides Stm[u8, 3]"
       )
     )
   }
@@ -1119,7 +1119,7 @@ class TypecheckerTests extends AnyFunSuite {
     val ex = intercept[TypeError](prog.tchk())
     assert(
       ex.getMessage.contains(
-        "invalid inputs in assertion: parameter 's' has type Stm[u8, 3:u2] but assertion provides Stm[u8, 4:u3]"
+        "invalid inputs in assertion: parameter 's' has type Stm[u8, 3] but assertion provides Stm[u8, 4]"
       )
     )
   }
@@ -1139,7 +1139,7 @@ class TypecheckerTests extends AnyFunSuite {
     val ex = intercept[TypeError](prog.tchk())
     assert(
       ex.getMessage.contains(
-        "invalid inputs in assertion: parameter 's' has type Stm[u8, N] but assertion provides Stm[u8, 4:u3] (note that N = 3:u32)"
+        "invalid inputs in assertion: parameter 's' has type Stm[u8, N] but assertion provides Stm[u8, 4] (note that N = 3:u32)"
       )
     )
   }

@@ -1,4 +1,4 @@
-// Output type: Stm[u16, 1024:u11] -> Stm[u16, 1024:u11]
+// Output type: Stm[u16, 1024] -> Stm[u16, 1024]
 let module0: u16 -> (u16, (u16, u16)) = (
   (I : u16) =>
     let n3: u16 = 0:u16 in
@@ -504,26 +504,26 @@ let module16: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     (n518, n517)
 ) in
 let module17: (u16, (u16, u16)) -> u16 = (I : (u16, (u16, u16))) => let n522: (u16, u16) = I.1 in n522.0 in
-(I : Stm[u16, 1024:u11]) =>
-  let n1: Stm[u16, 1024:u11] = I in
-  let n8: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n1, module0) in
-  let n40: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n8, module1) in
-  let n72: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n40, module2) in
-  let n104: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n72, module3) in
-  let n136: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n104, module4) in
-  let n168: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n136, module5) in
-  let n200: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n168, module6) in
-  let n232: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n200, module7) in
-  let n264: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n232, module8) in
-  let n296: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n264, module9) in
-  let n328: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n296, module10) in
-  let n360: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n328, module11) in
-  let n392: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n360, module12) in
-  let n424: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n392, module13) in
-  let n456: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n424, module14) in
-  let n488: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n456, module15) in
-  let n520: Stm[(u16, (u16, u16)), 1024:u11] = StmMap(n488, module16) in
-  let n524: Stm[u16, 1024:u11] = StmMap(n520, module17) in
-  let n525: Stm[u16, 1024:u11] = n524 in
-  let n526: Stm[u16, 1024:u11] = n525 in
+(I : Stm[u16, 1024]) =>
+  let n1: Stm[u16, 1024] = I in
+  let n8: Stm[(u16, (u16, u16)), 1024] = StmMap(n1, module0) in
+  let n40: Stm[(u16, (u16, u16)), 1024] = StmMap(n8, module1) in
+  let n72: Stm[(u16, (u16, u16)), 1024] = StmMap(n40, module2) in
+  let n104: Stm[(u16, (u16, u16)), 1024] = StmMap(n72, module3) in
+  let n136: Stm[(u16, (u16, u16)), 1024] = StmMap(n104, module4) in
+  let n168: Stm[(u16, (u16, u16)), 1024] = StmMap(n136, module5) in
+  let n200: Stm[(u16, (u16, u16)), 1024] = StmMap(n168, module6) in
+  let n232: Stm[(u16, (u16, u16)), 1024] = StmMap(n200, module7) in
+  let n264: Stm[(u16, (u16, u16)), 1024] = StmMap(n232, module8) in
+  let n296: Stm[(u16, (u16, u16)), 1024] = StmMap(n264, module9) in
+  let n328: Stm[(u16, (u16, u16)), 1024] = StmMap(n296, module10) in
+  let n360: Stm[(u16, (u16, u16)), 1024] = StmMap(n328, module11) in
+  let n392: Stm[(u16, (u16, u16)), 1024] = StmMap(n360, module12) in
+  let n424: Stm[(u16, (u16, u16)), 1024] = StmMap(n392, module13) in
+  let n456: Stm[(u16, (u16, u16)), 1024] = StmMap(n424, module14) in
+  let n488: Stm[(u16, (u16, u16)), 1024] = StmMap(n456, module15) in
+  let n520: Stm[(u16, (u16, u16)), 1024] = StmMap(n488, module16) in
+  let n524: Stm[u16, 1024] = StmMap(n520, module17) in
+  let n525: Stm[u16, 1024] = n524 in
+  let n526: Stm[u16, 1024] = n525 in
   n526

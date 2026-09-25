@@ -21,7 +21,7 @@ class ExprPrinterTests extends AnyFunSuite {
 
   test("undefined:Vec[i16, 42:u6]") {
     val e = Undefined(TyVec(I16, 42))
-    val expected = "undefined:Vec[i16, 42:u6]"
+    val expected = "undefined:Vec[i16, 42]"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.displayMultiLine(e, maxWidth = 120) == expected)
   }
@@ -289,12 +289,12 @@ class ExprPrinterTests extends AnyFunSuite {
     )()
 
     val expectedOneLine =
-      s"(x : Stm[u32, 999:u10]) => (y : Vec[i32, 888:u10]) => (x, y, 1:u32, 2:u32, 3:u32)"
+      s"(x : Stm[u32, 999]) => (y : Vec[i32, 888]) => (x, y, 1:u32, 2:u32, 3:u32)"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
-      s"""(x : Stm[u32, 999:u10]) =>
-         |  (y : Vec[i32, 888:u10]) =>
+      s"""(x : Stm[u32, 999]) =>
+         |  (y : Vec[i32, 888]) =>
          |    (x, y, 1:u32, 2:u32, 3:u32)
          |""".stripMargin.stripTrailing
     assert(ExprPrinter.display(e, maxWidth = 35) == expectedMultiLine)
@@ -624,7 +624,7 @@ class ExprPrinterTests extends AnyFunSuite {
     )()
 
     val expectedOneLine =
-      s"sbuild(42:u8)(sign(sdata(s)) +` j, true) { (j: i9) = { init: -10:i9, next: 2:i9 +` j } } { (s: Stm[u8, -1:i1]) = { stm: sbuild(42:u8)(i, true) { (i: u8) = { init: 0:u8, next: 1:u8 +` i } } {}, ready: true } }"
+      s"sbuild(42:u8)(sign(sdata(s)) +` j, true) { (j: i9) = { init: -10:i9, next: 2:i9 +` j } } { (s: Stm[u8, -1]) = { stm: sbuild(42:u8)(i, true) { (i: u8) = { init: 0:u8, next: 1:u8 +` i } } {}, ready: true } }"
     assert(ExprPrinter.displayOneLine(e) == expectedOneLine)
 
     val expectedMultiLine =
@@ -634,7 +634,7 @@ class ExprPrinterTests extends AnyFunSuite {
          |    next: 2:i9 +` j
          |  }
          |} {
-         |  (s: Stm[u8, -1:i1]) = {
+         |  (s: Stm[u8, -1]) = {
          |    stm: sbuild(42:u8)(i, true) { (i: u8) = { init: 0:u8, next: 1:u8 +` i } } {},
          |    ready: true
          |  }
@@ -692,7 +692,7 @@ class ExprPrinterTests extends AnyFunSuite {
     )().tchk()
 
     val expectedOneLine =
-      "sbuild(42:u6 @ 1:u1)((0:u8, 0:i16), (i, sdata(p)), true) { (i: u8 @ 1:u1) = { init: 0:u8, next: i +` 1:u8 } } { (p: Stm[i16, -1:i1] @ 0:u0) = { stm: input, ready: true } }"
+      "sbuild(42:u6 @ 1:u1)((0:u8, 0:i16), (i, sdata(p)), true) { (i: u8 @ 1:u1) = { init: 0:u8, next: i +` 1:u8 } } { (p: Stm[i16, -1] @ 0:u0) = { stm: input, ready: true } }"
     val actualOneLine = ExprPrinter.displayOneLine(s)
     assert(actualOneLine == expectedOneLine)
 
@@ -703,7 +703,7 @@ class ExprPrinterTests extends AnyFunSuite {
          |    next: i +` 1:u8
          |  }
          |} {
-         |  (p: Stm[i16, -1:i1] @ 0:u0) = {
+         |  (p: Stm[i16, -1] @ 0:u0) = {
          |    stm: input,
          |    ready: true
          |  }
@@ -769,7 +769,7 @@ class ExprPrinterTests extends AnyFunSuite {
 
   test("[]v") {
     val e = VecLiteral()(TyVec((U8, TyBool), 0))
-    val expected = "[]v:Vec[(u8, bool), 0:u0]"
+    val expected = "[]v:Vec[(u8, bool), 0]"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.displayMultiLine(e) == expected)
   }
@@ -795,7 +795,7 @@ class ExprPrinterTests extends AnyFunSuite {
 
   test("[]s") {
     val e = StmLiteral()(TyStm((U8, TyBool), 0))
-    val expected = "[]s:Stm[(u8, bool), 0:u0]"
+    val expected = "[]s:Stm[(u8, bool), 0]"
     assert(ExprPrinter.displayOneLine(e) == expected)
     assert(ExprPrinter.displayMultiLine(e) == expected)
   }

@@ -62,7 +62,7 @@ class ParserPrinterConsistencyTests extends AnyFunSuite {
   }
 
   testFunCallLike("bits")
-  testFunCallLike("interpret_as:[(Vec[(u8, i8), 4:u3], bool)]")
+  testFunCallLike("interpret_as:[(Vec[(u8, i8), 4], bool)]")
 
   testSource("zeros:[(i16, bool)]()")
   testSource("ones:[(i16, bool)]()")
@@ -85,7 +85,7 @@ class ParserPrinterConsistencyTests extends AnyFunSuite {
   testType("()")
   testType("(u8,)")
   testType("((i32, bool), bool, i16)")
-  testType("Vec[(u8, bool), 42:u6]")
-  testType("Stm[(u8, bool), 42:u6]")
+  testType("Vec[(u8, bool), 42]")
+  testType("Stm[(u8, bool), 42]")
   testType("u8 -> (u8 -> u8) -> u8")
 }

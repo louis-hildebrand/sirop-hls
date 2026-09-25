@@ -2,6 +2,7 @@ package mhir.ir
 
 import mhir.canonicalize._
 import mhir.sugar._
+import mhir.typecheck.TypeCheck
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypeTests extends AnyFunSuite {
@@ -42,6 +43,26 @@ class TypeTests extends AnyFunSuite {
     val t = (U8 ->: U16) ->: U16 ->: TyTuple(TyBool, I32)
     val expected = "(u8 -> u16) -> u16 -> (bool, i32)"
     assert(t.toString == expected)
+  }
+
+  test("ToString:ConstantLengthStream") {
+    val actual = TyStm((I16, TyBool), C(42)(U8)).toString
+    val expected =
+      "Stm[(i16, bool), 42]" // NOTICE: no type annotation on the length
+    assert(actual == expected)
+  }
+
+  test("ToString:ConstantLengthVector") {
+    val actual = TyVec(U8, C(99)(U16)).toString
+    val expected = "Vec[u8, 99]" // NOTICE: no type annotation on the length
+    assert(actual == expected)
+  }
+
+  test("ToString:NonConstantLength") {
+    val actual =
+      TyStm(I16, Sum(C(1)(U8), C(1)(U8))().tchk())(NoOpCanonicalizer).toString
+    val expected = "Stm[i16, 1:u8 +` 1:u8]"
+    assert(actual == expected)
   }
 
   test("IsCompatibleWith:Int") {

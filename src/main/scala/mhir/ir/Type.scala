@@ -481,7 +481,12 @@ class TyVec(val t: Type, val n: Expr) extends Type {
   }
 
   override def toString: String = {
-    s"Vec[$t, $n]"
+    val nStr = this.n match {
+      // Omit IntCst type annotation in this case
+      case IntCst(n) => n.toString
+      case n         => n.toString
+    }
+    s"Vec[$t, $nStr]"
   }
 }
 
@@ -525,7 +530,12 @@ class TyStm(val t: Type, val n: Expr) extends Type {
   }
 
   override def toString: String = {
-    s"Stm[$t, $n]"
+    val nStr = this.n match {
+      // Omit IntCst type annotation in this case
+      case IntCst(n) => n.toString
+      case n         => n.toString
+    }
+    s"Stm[$t, $nStr]"
   }
 }
 
@@ -540,12 +550,6 @@ object TyStm {
   }
 
   def unapply(t: TyStm): Option[(Type, Expr)] = Some(t.t, t.n)
-}
-
-/** The type of an option (like Scala's [[scala.Option]]).
-  */
-object TyOption {
-  def apply(t: Type): Type = TyTuple(t, TyBool)
 }
 
 /** Destructor for data types (as defined by [[Type.isData]]).

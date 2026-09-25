@@ -1,31 +1,29 @@
-// Output type: Stm[Vec[u16, 5:u3], 168:u8] -> Stm[Vec[u16, 5:u3], 168:u8] -> Stm[u16, 1:u1]
+// Output type: Stm[Vec[u16, 5], 168] -> Stm[Vec[u16, 5], 168] -> Stm[u16, 1]
 let module0: u16 -> u16 -> u16 = (I0 : u16) => (I1 : u16) => let n10: (u16, u16) = (I0, I1) in n10.0 *%` n10.1 in
-(I0 : Stm[Vec[u16, 5:u3], 168:u8]) =>
-  (I1 : Stm[Vec[u16, 5:u3], 168:u8]) =>
-    let n1: Stm[Vec[u16, 5:u3], 168:u8] = I0 in
-    let n3: Stm[Vec[u16, 5:u3], 168:u8] = I1 in
-    let n4: Stm[Vec[u16, 5:u3], 168:u8] = (
+(I0 : Stm[Vec[u16, 5], 168]) =>
+  (I1 : Stm[Vec[u16, 5], 168]) =>
+    let n1: Stm[Vec[u16, 5], 168] = I0 in
+    let n3: Stm[Vec[u16, 5], 168] = I1 in
+    let n4: Stm[Vec[u16, 5], 168] = (
       StmMap2(
         n1,
         n3,
-        (I0 : Vec[u16, 5:u3]) =>
-          (I1 : Vec[u16, 5:u3]) => VecMap2(I0, I1, module0)
+        (I0 : Vec[u16, 5]) => (I1 : Vec[u16, 5]) => VecMap2(I0, I1, module0)
       )
     ) in
-    let n16: Stm[Vec[u16, 1:u1], 168:u8] = (
+    let n16: Stm[Vec[u16, 1], 168] = (
       StmMap(
         n4,
-        (I : Vec[u16, 5:u3]) => VecReduce(I, (I : (u16, u16)) => I.0 +%` I.1)
+        (I : Vec[u16, 5]) => VecReduce(I, (I : (u16, u16)) => I.0 +%` I.1)
       )
     ) in
-    let n19: Stm[Vec[u16, 1:u1], 1:u1] = (
+    let n19: Stm[Vec[u16, 1], 1] = (
       StmReduce(
         n16,
-        (I : Vec[(u16, u16), 1:u1]) =>
-          VecMap(I, (I : (u16, u16)) => I.0 +%` I.1)
+        (I : Vec[(u16, u16), 1]) => VecMap(I, (I : (u16, u16)) => I.0 +%` I.1)
       )
     ) in
-    let n20: Stm[u16, 1:u1] = ReshapeSeq[Stm[u16, 1:u1]](n19) in
-    let n21: Stm[u16, 1:u1] = n20 in
-    let n22: Stm[u16, 1:u1] = n21 in
+    let n20: Stm[u16, 1] = ReshapeSeq[Stm[u16, 1]](n19) in
+    let n21: Stm[u16, 1] = n20 in
+    let n22: Stm[u16, 1] = n21 in
     n22

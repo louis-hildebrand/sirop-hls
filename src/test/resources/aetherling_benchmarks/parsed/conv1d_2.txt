@@ -1,21 +1,21 @@
-// Output type: Stm[Vec[i8, 2:u2], 8:u4] -> Stm[Vec[Vec[i8, 1:u1], 2:u2], 8:u4]
+// Output type: Stm[Vec[i8, 2], 8] -> Stm[Vec[Vec[i8, 1], 2], 8]
 let module0: i8 -> i8 -> i8 = (I0 : i8) => (I1 : i8) => let n35: (i8, i8) = (I0, I1) in n35.0 *%` n35.1 in
-let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
-  (I : Vec[i8, 3:u2]) =>
-    let n45: Vec[i8, 3:u2] = [-1:i8, 0:i8, 1:i8]v in
-    let n32: Vec[i8, 3:u2] = VecMap2(I, n45, module0) in
+let module1: Vec[i8, 3] -> Vec[i8, 1] = (
+  (I : Vec[i8, 3]) =>
+    let n45: Vec[i8, 3] = [-1:i8, 0:i8, 1:i8]v in
+    let n32: Vec[i8, 3] = VecMap2(I, n45, module0) in
     VecReduce(n32, (I : (i8, i8)) => I.0 +%` I.1)
 ) in
-(I : Stm[Vec[i8, 2:u2], 8:u4]) =>
-  let n1: Stm[Vec[i8, 2:u2], 8:u4] = I in
-  let n2: Stm[Vec[i8, 2:u2], 8:u4] = StmVecShiftRightGarbage(n1, 1:u1) in
-  let n3: Stm[Vec[i8, 2:u2], 8:u4] = StmVecShiftRightGarbage(n2, 1:u1) in
-  let n4: Stm[Vec[Vec[i8, 2:u2], 2:u2], 8:u4] = (
+(I : Stm[Vec[i8, 2], 8]) =>
+  let n1: Stm[Vec[i8, 2], 8] = I in
+  let n2: Stm[Vec[i8, 2], 8] = StmVecShiftRightGarbage(n1, 1:u1) in
+  let n3: Stm[Vec[i8, 2], 8] = StmVecShiftRightGarbage(n2, 1:u1) in
+  let n4: Stm[Vec[Vec[i8, 2], 2], 8] = (
     StmMap2(
       n3,
       n2,
-      (I0 : Vec[i8, 2:u2]) =>
-        (I1 : Vec[i8, 2:u2]) =>
+      (I0 : Vec[i8, 2]) =>
+        (I1 : Vec[i8, 2]) =>
           VecMap2(
             I0,
             I1,
@@ -26,32 +26,24 @@ let module1: Vec[i8, 3:u2] -> Vec[i8, 1:u1] = (
           )
     )
   ) in
-  let n11: Stm[Vec[Vec[i8, 3:u3], 2:u2], 8:u4] = (
+  let n11: Stm[Vec[Vec[i8, 3], 2], 8] = (
     StmMap2(
       n4,
       n1,
-      (I0 : Vec[Vec[i8, 2:u2], 2:u2]) =>
-        (I1 : Vec[i8, 2:u2]) =>
-          VecMap2(
-            I0,
-            I1,
-            (I0 : Vec[i8, 2:u2]) => (I1 : i8) => VecAppend(I0, I1)
-          )
+      (I0 : Vec[Vec[i8, 2], 2]) =>
+        (I1 : Vec[i8, 2]) =>
+          VecMap2(I0, I1, (I0 : Vec[i8, 2]) => (I1 : i8) => VecAppend(I0, I1))
     )
   ) in
-  let n20: Stm[Vec[Vec[Vec[i8, 3:u3], 1:u1], 2:u2], 8:u4] = StmMap(n11, (I : Vec[Vec[i8, 3:u3], 2:u2]) => VecSplit(I, 1:u1)) in
-  let n27: Stm[Vec[Vec[i8, 3:u3], 2:u2], 8:u4] = (
+  let n20: Stm[Vec[Vec[Vec[i8, 3], 1], 2], 8] = StmMap(n11, (I : Vec[Vec[i8, 3], 2]) => VecSplit(I, 1:u1)) in
+  let n27: Stm[Vec[Vec[i8, 3], 2], 8] = (
     StmMap(
       n20,
-      (I : Vec[Vec[Vec[i8, 3:u3], 1:u1], 2:u2]) =>
-        VecMap(
-          I,
-          (I : Vec[Vec[i8, 3:u3], 1:u1]) =>
-            ((I : Vec[i8, 3:u3]) => I)(I[0:u0])
-        )
+      (I : Vec[Vec[Vec[i8, 3], 1], 2]) =>
+        VecMap(I, (I : Vec[Vec[i8, 3], 1]) => ((I : Vec[i8, 3]) => I)(I[0:u0]))
     )
   ) in
-  let n41: Stm[Vec[Vec[i8, 1:u1], 2:u2], 8:u4] = StmMap(n27, (I : Vec[Vec[i8, 3:u3], 2:u2]) => VecMap(I, module1)) in
-  let n42: Stm[Vec[Vec[i8, 1:u1], 2:u2], 8:u4] = n41 in
-  let n43: Stm[Vec[Vec[i8, 1:u1], 2:u2], 8:u4] = n42 in
+  let n41: Stm[Vec[Vec[i8, 1], 2], 8] = StmMap(n27, (I : Vec[Vec[i8, 3], 2]) => VecMap(I, module1)) in
+  let n42: Stm[Vec[Vec[i8, 1], 2], 8] = n41 in
+  let n43: Stm[Vec[Vec[i8, 1], 2], 8] = n42 in
   n43

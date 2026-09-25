@@ -1,4 +1,4 @@
-// Output type: Stm[Vec[u16, 4:u3], 256:u9] -> Stm[Vec[u16, 4:u3], 256:u9]
+// Output type: Stm[Vec[u16, 4], 256] -> Stm[Vec[u16, 4], 256]
 let module0: u16 -> (u16, (u16, u16)) = (
   (I : u16) =>
     let n4: u16 = 0:u16 in
@@ -504,26 +504,26 @@ let module16: (u16, (u16, u16)) -> (u16, (u16, u16)) = (
     (n551, n550)
 ) in
 let module17: (u16, (u16, u16)) -> u16 = (I : (u16, (u16, u16))) => let n557: (u16, u16) = I.1 in n557.0 in
-(I : Stm[Vec[u16, 4:u3], 256:u9]) =>
-  let n1: Stm[Vec[u16, 4:u3], 256:u9] = I in
-  let n10: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n1, (I : Vec[u16, 4:u3]) => VecMap(I, module0)) in
-  let n44: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n10, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module1)) in
-  let n78: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n44, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module2)) in
-  let n112: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n78, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module3)) in
-  let n146: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n112, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module4)) in
-  let n180: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n146, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module5)) in
-  let n214: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n180, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module6)) in
-  let n248: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n214, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module7)) in
-  let n282: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n248, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module8)) in
-  let n316: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n282, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module9)) in
-  let n350: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n316, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module10)) in
-  let n384: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n350, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module11)) in
-  let n418: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n384, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module12)) in
-  let n452: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n418, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module13)) in
-  let n486: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n452, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module14)) in
-  let n520: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n486, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module15)) in
-  let n554: Stm[Vec[(u16, (u16, u16)), 4:u3], 256:u9] = StmMap(n520, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module16)) in
-  let n560: Stm[Vec[u16, 4:u3], 256:u9] = StmMap(n554, (I : Vec[(u16, (u16, u16)), 4:u3]) => VecMap(I, module17)) in
-  let n561: Stm[Vec[u16, 4:u3], 256:u9] = n560 in
-  let n562: Stm[Vec[u16, 4:u3], 256:u9] = n561 in
+(I : Stm[Vec[u16, 4], 256]) =>
+  let n1: Stm[Vec[u16, 4], 256] = I in
+  let n10: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n1, (I : Vec[u16, 4]) => VecMap(I, module0)) in
+  let n44: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n10, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module1)) in
+  let n78: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n44, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module2)) in
+  let n112: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n78, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module3)) in
+  let n146: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n112, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module4)) in
+  let n180: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n146, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module5)) in
+  let n214: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n180, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module6)) in
+  let n248: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n214, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module7)) in
+  let n282: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n248, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module8)) in
+  let n316: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n282, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module9)) in
+  let n350: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n316, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module10)) in
+  let n384: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n350, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module11)) in
+  let n418: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n384, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module12)) in
+  let n452: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n418, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module13)) in
+  let n486: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n452, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module14)) in
+  let n520: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n486, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module15)) in
+  let n554: Stm[Vec[(u16, (u16, u16)), 4], 256] = StmMap(n520, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module16)) in
+  let n560: Stm[Vec[u16, 4], 256] = StmMap(n554, (I : Vec[(u16, (u16, u16)), 4]) => VecMap(I, module17)) in
+  let n561: Stm[Vec[u16, 4], 256] = n560 in
+  let n562: Stm[Vec[u16, 4], 256] = n561 in
   n562
