@@ -168,7 +168,7 @@ def test_plain(expected_stderr_file: Path, cli_args: list[str], save: bool) -> b
         return False
     source_path = expected_stderr_file.with_suffix("").with_suffix(".sirop")
     if source_path not in c.MISSING_FILES:
-        cli_args = cli_args + ["-i", source_path.as_posix()]
+        cli_args = cli_args + [source_path.as_posix()]
     cli_args = ["java", "-jar", c.JAR.as_posix()] + cli_args
     result = subprocess.run(
         cli_args,
@@ -208,7 +208,7 @@ def test_eval(eval_output: Path, cli_args: list[str], save: bool) -> bool:
     result = subprocess.run(
         [
             "java", "-jar", c.JAR.as_posix(),
-            "-i", source_path.as_posix(),
+            source_path.as_posix(),
             "--out:eval",
         ] + cli_args,
         encoding="utf-8",

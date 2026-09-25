@@ -84,7 +84,7 @@ def run(src: Path, cli_args: list[str], save: bool) -> bool:
     result = subprocess.run(
         [
             "java", "-jar", c.JAR.as_posix(),
-            "-i", src.as_posix(),
+            src.as_posix(),
             "--out:vhdl", vhdl_dir.as_posix(),
             "--overwrite",
         ] + cli_args,

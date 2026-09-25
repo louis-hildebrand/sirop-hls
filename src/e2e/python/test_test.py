@@ -51,7 +51,7 @@ def run(src: Path, cli_args: list[str], save: bool) -> bool:
     # Invoke compiler
     args = [
         "java", "-jar", c.JAR.as_posix(),
-        "-i", src.as_posix(),
+        src.as_posix(),
         "--out:test",
         "--overwrite",
     ]

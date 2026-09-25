@@ -78,14 +78,15 @@ object Args {
       var numToDrop = 1
       mutArgs.head match {
         // Input args
-        case "-s" =>
-          mutArgs.drop(1).headOption match {
-            case Some(lang) =>
-              sourceLang = lang
-              numToDrop = 2
-            case None =>
-              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+        case positionalArg if !positionalArg.startsWith("-") =>
+          input match {
+            case Some(_) =>
+              throw new BadArgsException(
+                s"at most one input file is allowed, but more than one was given"
+              )
+            case None => ()
           }
+          input = Some(positionalArg)
         case "-i" =>
           mutArgs.drop(1).headOption match {
             case Some(in) =>
@@ -97,6 +98,14 @@ object Args {
                 case None => ()
               }
               input = Some(in)
+              numToDrop = 2
+            case None =>
+              throw new BadArgsException(s"missing value for ${mutArgs.head}")
+          }
+        case "-s" =>
+          mutArgs.drop(1).headOption match {
+            case Some(lang) =>
+              sourceLang = lang
               numToDrop = 2
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
@@ -515,7 +524,7 @@ object Args {
 
   private[main] def printShortUsage(): Unit = {
     println(
-      s"Usage: sirop -s (sirop|aetherling|stored) [-i INPUT] [OPTION]... [-h|--help] [--version]"
+      s"Usage: sirop [[-i] INPUT] [OPTION]... [-h|--help] [--version]"
     )
   }
 
