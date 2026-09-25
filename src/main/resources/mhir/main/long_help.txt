@@ -21,16 +21,22 @@ Source Arguments:
                                 arbitrarily many times.
 
 Output Arguments:
+  --overwrite                      what to do if the output file or directory
+                                   already exists: if true then delete it, if
+                                   false then raise an error
+  -q,--quiet                       reduce the number of log messages
+  -v,--verbose                     increase the number of log messages
   --simplify-names                 simplify the variable names in the final
                                    program. The compiler appends unique numeric
                                    IDs to variables to avoid name collisions;
                                    this transformation removes those where
                                    possible.
 
-  --out:eval                       evaluate the program and print its value
-  --out:eval:max-invalid-steps N   maximum number of invalid sbuild outputs when
-                                   evaluating. A negative value disables the
-                                   limit.
+  --out:test                       run the tests and print the results
+  --out:test:expected FILE         where to write the expected outputs
+  --out:test:actual FILE           where to write the actual outputs
+  --out:test:actual:show-physical  include the physical prefix when printing
+                                   the actual outputs
 
   --out:trace DIR                  generate a trace in the given directory. The
                                    trace shows the state of the accelerator at
@@ -38,12 +44,6 @@ Output Arguments:
   --out:trace:test TEST            the zero-based index of the test case from
                                    which to get the inputs to the accelerator
                                    when generating the trace
-
-  --out:test                       run the tests and print the results
-  --out:test:expected FILE         where to write the expected outputs
-  --out:test:actual FILE           where to write the actual outputs
-  --out:test:actual:show-physical  include the physical prefix when printing
-                                   the actual outputs
 
   --out:vhdl DIR                   emit VHDL code in the given directory
   --out:vhdl:run-sim               run the VHDL testbench after codegen
@@ -64,14 +64,13 @@ Output Arguments:
   --out:pp:lowered (FILE|-)        pretty-print the program after lowering but
                                    before optimization
 
+  --out:eval                       evaluate the program and print its value
+  --out:eval:max-invalid-steps N   maximum number of invalid sbuild outputs when
+                                   evaluating. A negative value disables the
+                                   limit.
+
   --out:ctime FILE                 write a report of the compile time to the
                                    given directory
-
-  --overwrite                      what to do if the output file or directory
-                                   already exists: if true then delete it, if
-                                   false then raise an error
-  -q,--quiet                       reduce the number of log messages
-  -v,--verbose                     increase the number of log messages
 
 Optimization Flags:
   --opt:no-simplify-sbuild        skip basic sbuild simplifications
