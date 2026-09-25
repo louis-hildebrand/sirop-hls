@@ -99,25 +99,49 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
   private class Shrinker {
 
     // Note that the order of the bindings matters!
-    var bindings: Seq[(Param, Expr)] = Seq[(Param, Expr)]()
+    var bindings: Seq[(Param, Expr)] = Seq()
 
     def runAndMutateBindings(stm: StmBuild): StmBuild = {
       val shiftRegisters = stm.accumulators
         .collect({ case ShiftLeft(x, shift) => x -> shift })
         .toSet
+      val maxIndexByVar = {
+        val candidates = shiftRegisters.map({ case (x, _) => x })
+        val finder = new VecAccessFinder(candidates)
+        finder.run(stm.nextData)
+        finder.run(stm.valid)
+        stm.producers
+          .map({ case (_, (_, ready, _)) => ready })
+          .foreach(finder.run(_))
+        stm.accumulators
+          .map({ case (x, (_, next, _)) => x -> next })
+          .foreach({ case (x, e) => finder.run(e, ignore = x) })
+        finder.maxIndexByVar
+      }
+      val maxIndexInSinkByVar = {
+        val candidates = maxIndexByVar.keySet
+        val finder = new VecAccessFinder(candidates)
+        stm.sinkAnnotation.foreach(sink => finder.run(sink))
+        finder.maxIndexByVar
+      }
       // TODO: do this in a single pass, rather than one pass per variable
       val shiftRegisterUses = shiftRegisters
         .flatMap({ case (v, ShiftLeft(len, input)) =>
-          stm.indicesUsed(v) match {
-            case (VecUses.Indices(indices), VecUses.Indices(indicesInSink))
-                if indices.nonEmpty || indicesInSink.nonEmpty =>
-              val maxIndex = (indices ++ indicesInSink).max
+          (maxIndexByVar.get(v), maxIndexInSinkByVar.get(v)) match {
+            case (Some(maxIndexInBody), Some(maxIndexInSink)) =>
+              val maxIndex = math.max(maxIndexInBody, maxIndexInSink)
               val delayCost = delayCostModel.rawCost(
                 input,
                 varCosts = stm.namesDefinedHere.map(_ -> 0L).toMap
               )
-              val canOmitOneMore =
-                delayCost == 0 && !indicesInSink.contains(maxIndex)
+              val canOmitOneMore = (
+                // Don't omit one more if it will increase the combinational delay
+                delayCost == 0
+                // Don't omit one more if the last index is specified as a
+                // sink; the sink annotation is meant to signal that the
+                // given index of the shift register should be preserved.
+                  && maxIndex != maxIndexInSink
+              )
               val isConstant = input.freeVars.isEmpty
               // We have a situation like
               //                     |
@@ -140,7 +164,7 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
                 //   +---+---+---+
                 //     |   |   |
                 //     v   v   v
-                indices.max + 1
+                maxIndex + 1
               } else {
                 // But if the input has no combinational delay, why not go even further?
                 //              |
@@ -150,7 +174,7 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
                 //   +---+---+  |
                 //     |   |    |
                 //     v   v    v
-                indices.max
+                maxIndex
               }
               if (newLen < len) {
                 Some(v -> newLen)
@@ -328,6 +352,36 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
         }),
         (stm.producers -- producersToCopy) ++ producersToAdd
       )(annotations = stm.annotations).tchk().asInstanceOf[StmBuild]
+    }
+  }
+
+  private object VecAccessFinder {
+    private val dummy: Param = Param("dummy")()
+  }
+
+  private class VecAccessFinder(candidates: Iterable[Param]) {
+
+    /** Maximum index accessed in each vector-valued variable.
+      *
+      * If the index is negative, it means no uses have been found yet. If a
+      * variable is removed from the map, it means the whole vector is needed.
+      */
+    val maxIndexByVar: scala.collection.mutable.Map[Param, Long] =
+      scala.collection.mutable.Map(candidates.map(_ -> -1L).toSeq: _*)
+
+    def run(e: Expr, ignore: Param = VecAccessFinder.dummy): Unit = {
+      if (this.maxIndexByVar.isEmpty) {
+        return
+      }
+      e match {
+        case VecAccess(v: Param, IntCst(i)) if v != ignore =>
+          maxIndexByVar.get(v) match {
+            case Some(j) => maxIndexByVar(v) = math.max(i, j)
+            case None    => ()
+          }
+        case v: Param if v != ignore => maxIndexByVar.remove(v)
+        case e                       => e.children.foreach(this.run(_, ignore))
+      }
     }
   }
 }
