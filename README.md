@@ -138,12 +138,12 @@ In this case, only one adder will be needed because the stream yields just one e
 It is also possible to partially parallelize this code by representing the input as a stream of vectors.
 Here, the stream will yield two elements per cycle and there will be two adders to process them.
 
-<img src="./docs/mixed-parallelism.svg" alt="Diagram showing VecMap inside StmMap" width="67%" />
-
 ```c++
 > [[1:u8, 2:u8]v, [3:u8, 4:u8]v]s.StmMap(v => v.VecMap(x => x + 5))
 [[6:u8, 7:u8]v, [8:u8, 9:u8]v]s
 ```
+
+<img src="./docs/mixed-parallelism.svg" alt="Diagram showing VecMap inside StmMap" width="67%" />
 
 This idea of using types to represent the level of spatial parallelism appears in prior works, including [Lift-HLS](https://doi.org/10.1145/3315454.3329957), [Aetherling](https://doi.org/10.1145/3385412.3385983), and [SHIR](https://doi.org/10.1145/3501768).
 
