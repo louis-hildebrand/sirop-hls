@@ -364,6 +364,16 @@ case class Call(
           case (Seq(), Seq(s, d, head)) => StmDelay(s, d, head)()
           case _                        => error(f)
         }
+      case f @ Param("StmVecTranspose", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(s)) => StmVecTranspose(s)()
+          case _               => error(f)
+        }
+      case f @ Param("VecStmTranspose", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(s)) => VecStmTranspose(s)()
+          case _               => error(f)
+        }
       case _ =>
         combinedArgs match {
           case (Seq(), Seq(x)) => FunCall(this.callee, x)()

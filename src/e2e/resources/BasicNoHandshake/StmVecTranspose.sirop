@@ -1,0 +1,15 @@
+accelerator[no_handshake, go=go]
+transpose = (go: Stm[bool, 4]) => (s: Stm[Vec[i8, 3], 4]) =>
+    s
+    .StmVecTranspose()
+    .VecMap( s => s.StmSum() )
+    .VecStmTranspose()
+
+assert {
+    go = [true, true, true, true]s,
+    s = [[ 1:i8,  2:i8,  3:i8]v,
+         [ 9:i8,  8:i8,  7:i8]v,
+         [-1:i8, -9:i8, -8:i8]v,
+         [ 2:i8, -4:i8, -3:i8]v]s
+}
+yields [[11:i8, -3:i8, -1:i8]v]s
