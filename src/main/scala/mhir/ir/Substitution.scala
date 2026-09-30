@@ -46,7 +46,6 @@ private[ir] trait Substitution {
       //       runtime here.
       val skip = subs.isEmpty ||
         this.expr.freeVars
-          .union(this.expr.freeVarsInTypes)
           .intersect(
             subs
               .map({ case (lhs, _) => lhs.freeVars })
@@ -265,8 +264,13 @@ private[ir] trait Substitution {
                 )()
               case e: SyntaxSugar =>
                 e.sugarSubAndEraseType(subs)
-              case Undefined(typ) =>
-                Undefined(typ.substitute(subs))
+              // These expressions may carry type information that cannot be derived
+              // from the syntax alone, so be careful not to discard it.
+              case Undefined(typ)        => Undefined(typ.substitute(subs))
+              case x: Param              => x.rebuild(x.typ.substitute(subs))
+              case v @ VecLiteral(Seq()) => v.rebuild(v.typ.substitute(subs))
+              case s @ StmLiteral(Seq(), Seq()) =>
+                s.rebuild(s.typ.substitute(subs))
               case e =>
                 e.rebuildAndEraseType(
                   e.children.map(e => e.subAndEraseType(subs))

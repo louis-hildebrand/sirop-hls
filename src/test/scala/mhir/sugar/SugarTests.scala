@@ -187,6 +187,27 @@ class SugarTests extends AnyFunSuite {
     assert(actual2.typ != Missing)
   }
 
+  test("PatternFunction:SubstituteInType") {
+    val n = Param("N")(U32)
+    val m = Param("M")(U32)
+    val x = Param("x")(TyVec(U8, n))
+    val y = Param("y")(TyVec(U8, Sum(m, C(1)(U32))()))
+    val original = PatternFunction(
+      TuplePattern(ParamPattern(x), ParamPattern(y)),
+      Sum(VecAccess(x, C(0)())(), VecAccess(y, C(0)())())()
+    )().tchk()
+    val subs = Map[Expr, Expr](n -> C(4)(U32), m -> C(5)(U32))
+
+    val actual1 = original.subAndEraseType(subs).asInstanceOf[PatternFunction]
+    assert(actual1 alphaEquals original)
+    assert(actual1.freeVars.isEmpty)
+
+    val actual2 = original.subPreserveType(subs).asInstanceOf[PatternFunction]
+    assert(actual2 alphaEquals original)
+    assert(actual2.freeVars.isEmpty)
+    assert(actual2.p.typ == TyTuple(TyVec(U8, 4), TyVec(U8, 6)))
+  }
+
   test("PatternFunction:Display:(x: u16, y: u16)") {
     val x = Param("x", -1)(U16)
     val y = Param("y", -1)(U16)

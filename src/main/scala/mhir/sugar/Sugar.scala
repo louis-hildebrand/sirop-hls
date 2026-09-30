@@ -81,7 +81,7 @@ case class PatternFunction(p: Pattern, body: Expr)(typ: Type = Missing)
   }
 
   override lazy val freeVars: Set[Param] = {
-    this.body.freeVars.diff(this.p.params.toSet)
+    this.p.typ.freeVars ++ this.body.freeVars.diff(this.p.params.toSet)
   }
 
   override def sugarSubAndKeepType(
@@ -91,15 +91,18 @@ case class PatternFunction(p: Pattern, body: Expr)(typ: Type = Missing)
     val wouldCapture = subs.exists({ case (_, rhs) =>
       rhs.freeVars.intersect(patParams).nonEmpty
     })
-    val (newP, patSubs) = if (wouldCapture) {
-      val patSubs = p.params
-        .map({ x =>
-          x -> x.freshCopy.rebuild(x.typ.substitute(subs)).asInstanceOf[Param]
-        })
-        .toMap[Param, Param]
-      (p.rename(patSubs), patSubs)
-    } else {
-      (p, Map[Param, Param]())
+    val (newP, patSubs) = {
+      val p1 = this.p.subPreserveType(subs).asInstanceOf[Pattern]
+      if (wouldCapture) {
+        val patSubs = p1.params
+          .map({ x =>
+            x -> x.freshCopy.rebuild(x.typ.substitute(subs)).asInstanceOf[Param]
+          })
+          .toMap[Param, Param]
+        (p1.rename(patSubs), patSubs)
+      } else {
+        (p1, Map[Param, Param]())
+      }
     }
     val newSubs =
       subs
@@ -121,15 +124,18 @@ case class PatternFunction(p: Pattern, body: Expr)(typ: Type = Missing)
     val wouldCapture = subs.exists({ case (_, rhs) =>
       rhs.freeVars.intersect(patParams).nonEmpty
     })
-    val (newP, patSubs) = if (wouldCapture) {
-      val patSubs = p.params
-        .map({ x =>
-          x -> x.freshCopy.rebuild(x.typ.substitute(subs)).asInstanceOf[Param]
-        })
-        .toMap[Param, Param]
-      (p.rename(patSubs), patSubs)
-    } else {
-      (p, Map[Param, Param]())
+    val (newP, patSubs) = {
+      val p1 = this.p.subAndEraseType(subs).asInstanceOf[Pattern]
+      if (wouldCapture) {
+        val patSubs = p1.params
+          .map({ x =>
+            x -> x.freshCopy.rebuild(x.typ.substitute(subs)).asInstanceOf[Param]
+          })
+          .toMap[Param, Param]
+        (p1.rename(patSubs), patSubs)
+      } else {
+        (p1, Map[Param, Param]())
+      }
     }
     val newSubs =
       subs

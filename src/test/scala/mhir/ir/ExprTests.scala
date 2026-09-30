@@ -8,7 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class ExprTests extends AnyFunSuite {
 
-  test("FreeVars:Function") {
+  test("FreeVars:Function:1") {
     val x = Param("x")(U8)
     val y = Param("y")(U8)
 
@@ -17,6 +17,21 @@ class ExprTests extends AnyFunSuite {
 
     val e = f(x)
     assert(e.freeVars == Set(x, y))
+  }
+
+  test("FreeVars:Function:2") {
+    val n = Param("n")(U8)
+    val m = Param("m")(U8)
+    val v = Param("v")(TyVec(U8, Sum(n, m)()))
+    val f = Function(n, v)().tchk()
+    assert(f.freeVars == Set(v, m))
+  }
+
+  test("FreeVars:Function:3") {
+    val x1 = Param("x", -1)(U8)
+    val x2 = Param("x", -1)(TyVec(U8, x1))
+    val f = Function(x2, C(42)(U8))().tchk()
+    assert(f.freeVars == Set(x1))
   }
 
   private val x = Param("x")(U8)

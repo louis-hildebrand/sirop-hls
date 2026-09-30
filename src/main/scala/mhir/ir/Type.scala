@@ -109,7 +109,7 @@ sealed trait Type {
     */
   def freeVars: Set[Param] = {
     this match {
-      case Missing | TyBool | _: TyAnyInt | _: TyFix => Set()
+      case Missing | TyBool | _: TyAnyInt | _: TyFix => Set.empty
       case TyArrow(t1, t2) =>
         t1.freeVars ++ t2.freeVars
       case TyTuple(ts @ _*) =>

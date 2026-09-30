@@ -59,10 +59,10 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
     */
   lazy val freeVars: Set[Param] = {
     this match {
-      case x: Param       => Set(x)
-      case Function(x, e) => e.freeVars - x
+      case x: Param       => x.typ.freeVars + x
+      case Function(x, e) => x.typ.freeVars ++ (e.freeVars - x)
       case LetStm(bufSize, x, in, out) =>
-        bufSize.freeVars ++ in.freeVars ++ (out.freeVars - x)
+        bufSize.freeVars ++ x.typ.freeVars ++ in.freeVars ++ (out.freeVars - x)
       case stm: StmBuild =>
         (
           // Free variables in the stream length and seeds are definitely free,
@@ -70,11 +70,11 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
           stm.n.freeVars
             ++ stm.delay.freeVars
             ++ stm.initData.freeVars
-            ++ stm.accumulators.flatMap({ case (_, (init, _, delay)) =>
-              init.freeVars ++ delay.freeVars
+            ++ stm.accumulators.flatMap({ case (x, (init, _, delay)) =>
+              x.typ.freeVars ++ init.freeVars ++ delay.freeVars
             })
-            ++ stm.producers.flatMap({ case (_, (stm, _, delay)) =>
-              stm.freeVars ++ delay.freeVars
+            ++ stm.producers.flatMap({ case (x, (stm, _, delay)) =>
+              x.typ.freeVars ++ stm.freeVars ++ delay.freeVars
             })
             // There may be bound variables in the output and "next" functions
             ++ (
@@ -87,46 +87,9 @@ sealed abstract class Expr(val children: Expr*)(val typ: Type) {
                 })
             ).diff(stm.namesDefinedHere)
         )
-      case e if e.children.isEmpty => Set.empty
-      case e                       => e.children.map(_.freeVars).reduce(_ ++ _)
+      case e =>
+        e.children.map(_.freeVars).foldLeft(e.typ.freeVars)(_ ++ _)
     }
-  }
-
-  /** Finds all the free variables in the type annotations of this expression.
-    */
-  lazy val freeVarsInTypes: Set[Param] = {
-    val childFVs = this match {
-      case Function(x, e) => e.freeVarsInTypes - x
-      case LetStm(bufSize, x, in, out) =>
-        bufSize.freeVarsInTypes ++ in.freeVarsInTypes ++ (out.freeVarsInTypes - x)
-      case stm: StmBuild =>
-        (
-          // Free variables in the stream length and seeds are definitely free,
-          // even if they are bound by the stream
-          stm.n.freeVarsInTypes
-            ++ stm.delay.freeVarsInTypes
-            ++ stm.initData.freeVarsInTypes
-            ++ stm.accumulators
-              .flatMap({ case (_, (init, _, delay)) =>
-                init.freeVarsInTypes ++ delay.freeVarsInTypes
-              })
-            ++ stm.producers
-              .flatMap({ case (_, (stm, _, delay)) =>
-                stm.freeVarsInTypes ++ delay.freeVarsInTypes
-              })
-            // There may be bound variables in the output and "next" functions
-            ++ (
-              stm.nextData.freeVarsInTypes ++ stm.valid.freeVarsInTypes
-                ++ stm.accumulators
-                  .flatMap({ case (_, (_, next, _)) => next.freeVarsInTypes })
-                ++ stm.producers
-                  .flatMap({ case (_, (_, ready, _)) => ready.freeVarsInTypes })
-            ).diff(stm.namesDefinedHere)
-        )
-      case e if e.children.isEmpty => Set.empty
-      case e => e.children.map(_.freeVarsInTypes).reduce(_ ++ _)
-    }
-    childFVs ++ this.typ.freeVars
   }
 
   /** Reconstruct this expression with new children or a new type annotation.
