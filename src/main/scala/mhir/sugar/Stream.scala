@@ -910,13 +910,15 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
         if (!c.sameLen(n, n2, constValues)) {
           throw new TypeError(
             s"Second stream in $className has length $n2."
-              + s" Expected a stream of length $n."
+              + s" Expected a stream of length $n.",
+            TypeChecker.relevantBindingsE(constValues, n, n2)
           )
         }
         if (!c.sameLen(m, m2, constValues)) {
           throw new TypeError(
             s"Second stream in $className contains vectors of length $m2."
-              + s" Expected vectors of length $m."
+              + s" Expected vectors of length $m.",
+            TypeChecker.relevantBindingsE(constValues, m, m2)
           )
         }
         t
@@ -935,12 +937,14 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
     }
     if (!ReshapeData.canReshape(elemTyp1, outElemTyp, constValues)) {
       throw new TypeError(
-        s"Elements of type $elemTyp1 in first stream cannot be reshaped to $outElemTyp."
+        s"Elements of type $elemTyp1 in first stream cannot be reshaped to $outElemTyp.",
+        TypeChecker.relevantBindings(constValues, elemTyp1, outElemTyp)
       )
     }
     if (!ReshapeData.canReshape(elemTyp2, outElemTyp, constValues)) {
       throw new TypeError(
-        s"Elements of type $elemTyp2 in second stream cannot be reshaped to $outElemTyp."
+        s"Elements of type $elemTyp2 in second stream cannot be reshaped to $outElemTyp.",
+        TypeChecker.relevantBindings(constValues, elemTyp2, outElemTyp)
       )
     }
     // Note that the output length will be greater than the input length if m == 0.
@@ -1089,13 +1093,15 @@ case class StmMapDot(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
         if (!c.sameLen(n, n2, constValues)) {
           throw new TypeError(
             s"Second stream in $className has length $n2."
-              + s" Expected a stream of length $n."
+              + s" Expected a stream of length $n.",
+            TypeChecker.relevantBindingsE(constValues, n, n2)
           )
         }
         if (!c.sameLen(m, m2, constValues)) {
           throw new TypeError(
             s"Second stream in $className contains vectors of length $m2."
-              + s" Expected vectors of length $m."
+              + s" Expected vectors of length $m.",
+            TypeChecker.relevantBindingsE(constValues, m, m2)
           )
         }
         t
@@ -1114,12 +1120,14 @@ case class StmMapDot(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
     }
     if (!ReshapeData.canReshape(elemTyp1, outElemTyp, constValues)) {
       throw new TypeError(
-        s"Elements of type $elemTyp1 in first stream cannot be reshaped to $outElemTyp."
+        s"Elements of type $elemTyp1 in first stream cannot be reshaped to $outElemTyp.",
+        TypeChecker.relevantBindings(constValues, elemTyp1, outElemTyp)
       )
     }
     if (!ReshapeData.canReshape(elemTyp2, outElemTyp, constValues)) {
       throw new TypeError(
-        s"Elements of type $elemTyp2 in second stream cannot be reshaped to $outElemTyp."
+        s"Elements of type $elemTyp2 in second stream cannot be reshaped to $outElemTyp.",
+        TypeChecker.relevantBindings(constValues, elemTyp2, outElemTyp)
       )
     }
     this.rebuild(TyStm(outElemTyp, n), Seq(s1, s2, delay))
@@ -1713,7 +1721,8 @@ case class StmZip(
     }
     if (!c.sameLen(n1, n2, constValues)) {
       throw new TypeError(
-        s"lengths of inputs to $className differ: $n1 and $n2."
+        s"lengths of inputs to $className differ: $n1 and $n2.",
+        TypeChecker.relevantBindingsE(constValues, n1, n2)
       )
     }
     val newHead = this.head match {

@@ -1010,6 +1010,16 @@ object TypeChecker {
     constValues.filterKeys(x => freeVarsInTypes.contains(x))
   }
 
+  def relevantBindingsE(
+      constValues: Map[Param, Expr],
+      expr: Expr*
+  ): Map[Param, Expr] = {
+    val freeVarsInTypes = expr.foldLeft(Set[Param]())({ case (acc, e) =>
+      acc.union(e.freeVars)
+    })
+    constValues.filterKeys(x => freeVarsInTypes.contains(x))
+  }
+
   def wrapTopLevelFunction(inputs: Seq[Param], body: Expr): Expr = {
     implicit val c: Canonicalizer = NoOpCanonicalizer
     inputs.foldRight(body)({ case (x, acc) => Function(x, acc)().tchk() })
