@@ -176,9 +176,21 @@ class VectorTests extends AnyFunSuite {
     assert(mhir.eval.eval(v) == expected)
   }
 
-  test("VecRange") {
+  test("VecRange:u8") {
     val v = VecRange(3, C(2)(U8), C(4)(U8))().tchk().lower
     val expected = VecLiteral(C(2)(U8), C(6)(U8), C(10)(U8))().tchk()
+    assert(mhir.eval.eval(v) == expected)
+  }
+
+  test("VecRange:i8") {
+    val v = VecRange(5, C(-2)(I8), C(3)(I8))().tchk().lower
+    val expected = VecLiteral(
+      C(-2)(I8),
+      C(1)(I8),
+      C(4)(I8),
+      C(7)(I8),
+      C(10)(I8)
+    )().tchk()
     assert(mhir.eval.eval(v) == expected)
   }
 

@@ -95,8 +95,18 @@ case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     val n = this.n.lower
     val z = this.z.lower
     val delta = this.delta.lower
-    val i = Param("i")(z.typ)
-    VecBuild(n, Function(i, Sum(z, Prod(i, delta)())())())().tchk()
+    val iTyp = z.typ.asInstanceOf[TyAnyInt] match {
+      case u: TyUInt => u
+      case TySInt(w) => TyUInt(w - 1)
+    }
+    val i = Param("i")(iTyp)
+    VecBuild(
+      n,
+      Function(
+        i,
+        Sum(z, Prod(ReshapeData(i, delta.typ)().tchk().lower, delta)())()
+      )()
+    )().tchk()
   }
 }
 
