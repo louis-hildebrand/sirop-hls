@@ -4,7 +4,7 @@ package ir
 import mhir.canonicalize._
 import mhir.gen.CodegenError
 import mhir.ir._
-import mhir.matchers.ShiftLeft
+import mhir.matchers.ShiftLeftSelf
 import mhir.optimize._
 import mhir.sugar.{ExprLowering, VecCst, VecDrop, VecDropRight, VecShiftLeft}
 import mhir.typecheck._
@@ -302,7 +302,7 @@ object FlattenPipeline {
                   case (VecBuild(_, Function(_, False)), zDelay)
                       if zDelay == delay =>
                     (zShift, (zInit, zNext, zDelay)) match {
-                      case ShiftLeft(_, ShiftLeft(length, input)) =>
+                      case ShiftLeftSelf(_, ShiftLeftSelf(length, input)) =>
                         val TyVec(elemTyp, _) = zShift.typ
                         val newLen = C(length + 1)()
                         val newZ = Param(zShift.prefix)(TyVec(elemTyp, newLen))
