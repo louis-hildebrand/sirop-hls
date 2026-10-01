@@ -1,6 +1,8 @@
 package mhir.matchers
 
+import mhir.canonicalize.standardCanonicalizer
 import mhir.ir._
+import mhir.typecheck.TypeCheck
 
 // TODO: generalize to non-static lengths
 case class ShiftLeftSelf(length: Long, input: Expr)
@@ -15,7 +17,8 @@ object ShiftLeftSelf {
       case (x0, (_, ShiftLeft(len, x1, input), _)) if x1 == x0 =>
         Some(x0 -> ShiftLeftSelf(len, input))
       // vbuild(1) { i => input }
-      // TODO: move this to ShiftLeft rather than ShiftLeftSelf? Or just unwrap vectors whose length is 1?
+      // TODO: move this to ShiftLeft rather than ShiftLeftSelf?
+      //       Or just have the sbuild accumulator simplifier unwrap vectors whose length is 1?
       case (x0, (_, VecBuild(IntCst(1), Function(i, input)), _))
           if !input.freeVars.contains(i) =>
         Some(x0 -> ShiftLeftSelf(1, input))
@@ -24,14 +27,28 @@ object ShiftLeftSelf {
   }
 }
 
-case class ShiftLeft(length: Long, vec: Expr, input: Expr)
+object MapShiftLeft {
+
+  def unapply(e: Expr): Option[(Seq[Param], Long, Expr, Expr)] = {
+    e match {
+      case ShiftLeft(n, vec, input) =>
+        Some((List.empty, n, vec, input))
+      case VecBuild(
+            _,
+            Function(i0, MapShiftLeft(params, len, VecAccess(vec, i1), input))
+          ) if i1 == i0 && !vec.freeVars.contains(i0) =>
+        Some((i0 +: params, len, vec, input))
+      case _ => None
+    }
+  }
+}
 
 object ShiftLeft {
 
   def unapply(e: Expr): Option[(Long, Expr, Expr)] = {
     e match {
       // vbuild(n) { i =>
-      //   if (i == n - 1) {
+      //   if (i == n - 1) then {
       //     input
       //   } else {
       //     vec[1 + i]
@@ -47,8 +64,86 @@ object ShiftLeft {
                 VecAccess(vec, Sum(IntCst(1), i2))
               )
             )
-          ) if i1 == i0 && i2 == i0 && nMinusOne == n - 1 =>
+          )
+          if i1 == i0 && i2 == i0 && nMinusOne == n - 1 &&
+            !vec.freeVars.contains(i0) =>
         Some((n, vec, input))
+      // vbuild(n) { i =>
+      //   truncate(
+      //     if (i == n - 1) then {
+      //       input
+      //     } else {
+      //       pad(vec[1 + i])
+      //   )
+      // }
+      case VecBuild(
+            IntCst(n),
+            Function(
+              i0,
+              TruncateTo(
+                Mux(
+                  Equal(i1, IntCst(nMinusOne)),
+                  input,
+                  PadTo(VecAccess(vec, Sum(IntCst(1), i2)), _)
+                ),
+                truncWidth
+              )
+            )
+          )
+          if i1 == i0 && i2 == i0 && nMinusOne == n - 1 &&
+            !vec.freeVars.contains(i0) =>
+        Some((n, vec, TruncateTo(input, truncWidth)().tchk()))
+      // vbuild(n) { i =>
+      //   unsign(
+      //     if (i == n - 1) then {
+      //       input
+      //     } else {
+      //       sign(vec[1 + i])
+      //   )
+      // }
+      case VecBuild(
+            IntCst(n),
+            Function(
+              i0,
+              ToUnsigned(
+                Mux(
+                  Equal(i1, IntCst(nMinusOne)),
+                  input,
+                  ToSigned(VecAccess(vec, Sum(IntCst(1), i2)))
+                )
+              )
+            )
+          )
+          if i1 == i0 && i2 == i0 && nMinusOne == n - 1 &&
+            !vec.freeVars.contains(i0) =>
+        Some((n, vec, ToUnsigned(input)().tchk()))
+      // vbuild(n) { i =>
+      //   unsign(truncate(
+      //     if (i == n - 1) then {
+      //       input
+      //     } else {
+      //       sign(pad(vec[1 + i]))
+      //   ))
+      // }
+      case VecBuild(
+            IntCst(n),
+            Function(
+              i0,
+              ToUnsigned(
+                TruncateTo(
+                  Mux(
+                    Equal(i1, IntCst(nMinusOne)),
+                    input,
+                    PadTo(ToSigned(VecAccess(vec, Sum(IntCst(1), i2))), _)
+                  ),
+                  truncWidth
+                )
+              )
+            )
+          )
+          if i1 == i0 && i2 == i0 && nMinusOne == n - 1 &&
+            !vec.freeVars.contains(i0) =>
+        Some((n, vec, ToUnsigned(TruncateTo(input, truncWidth)())().tchk()))
       // vbuild(n) { i =>
       //   (i != n - 1 && vec[1 + i]) || (i == n - 1 && input)
       // }
@@ -69,7 +164,8 @@ object ShiftLeft {
             && i2 == i0
             && i3 == i0
             && nMinusOne == n - 1
-            && nMinusOneAgain == n - 1 =>
+            && nMinusOneAgain == n - 1
+            && !vec.freeVars.contains(i0) =>
         Some((n, vec, input))
       case _ => None
     }
