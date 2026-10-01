@@ -2,7 +2,7 @@ package mhir.optimize
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.matchers.ShiftLeft
+import mhir.matchers.ShiftLeftSelf
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar._
 import mhir.typecheck.TypeCheck
@@ -99,12 +99,12 @@ object StmAccRemovalPass {
         case Some(child) =>
           (child, stm.accumulators(child)) match {
             // TODO: this match syntax is kind of gross. Can I simplify?
-            case ShiftLeft(
+            case ShiftLeftSelf(
                   _,
-                  ShiftLeft(childLen, VecAccess(parent: Param, IntCst(src)))
+                  ShiftLeftSelf(childLen, VecAccess(parent: Param, IntCst(src)))
                 ) if stm.accumulators.contains(parent) && parent != child =>
               (parent, stm.accumulators(parent)) match {
-                case ShiftLeft(_, ShiftLeft(parentLen, parentInput)) =>
+                case ShiftLeftSelf(_, ShiftLeftSelf(parentLen, parentInput)) =>
                   // TODO: can I combine these two branches?
                   if (src >= childLen) {
                     // child is completely inside parent
@@ -287,9 +287,9 @@ object StmAccRemovalPass {
 
   private def mergeShiftRegistersWithSameInput(original: StmBuild): StmBuild = {
     val shiftRegisters = original.accumulators
-      .collect({ case ShiftLeft(x, shift) => x -> shift })
+      .collect({ case ShiftLeftSelf(x, shift) => x -> shift })
     val groups = shiftRegisters
-      .map({ case (x, ShiftLeft(_, input)) => x -> input })
+      .map({ case (x, ShiftLeftSelf(_, input)) => x -> input })
       .groupBy({ case (x, input) =>
         val (_, _, delay) = original.accumulators(x)
         (input, delay)
@@ -306,7 +306,7 @@ object StmAccRemovalPass {
         xs
           .filterNot(_ == representative)
           .map({ x =>
-            val ShiftLeft(xLen, _) = shiftRegisters(x)
+            val ShiftLeftSelf(xLen, _) = shiftRegisters(x)
             (x, xLen)
           })
           .filter({ case (x, xLen) =>

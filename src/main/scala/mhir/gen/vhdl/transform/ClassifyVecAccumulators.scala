@@ -4,6 +4,7 @@ package transform
 import mhir.canonicalize._
 import mhir.gen.vhdl.ir._
 import mhir.ir._
+import mhir.matchers.ShiftLeft
 import mhir.typecheck._
 
 object ClassifyVecAccumulators {
@@ -96,22 +97,10 @@ private object VecShiftLeft {
             x0,
             ExprAccumulator(
               init,
-              ExprIntermediate(
-                VecBuild(
-                  IntCst(n),
-                  Function(
-                    i0,
-                    Mux(
-                      Equal(i1, IntCst(nMinusOne)),
-                      e,
-                      VecAccess(x1, Sum(IntCst(1), i2))
-                    )
-                  )
-                )
-              )
+              ExprIntermediate(ShiftLeft(n, x1, input))
             )
-          ) if x1 == x0 && i1 == i0 && i2 == i0 && nMinusOne == n - 1 =>
-        Some((x0, n, init, e))
+          ) if x1 == x0 =>
+        Some((x0, n, init, input))
       case (
             x,
             ExprAccumulator(
