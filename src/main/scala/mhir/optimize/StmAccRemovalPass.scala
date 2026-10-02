@@ -2,7 +2,7 @@ package mhir.optimize
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.matchers.ShiftLeftSelf
+import mhir.matchers.{MapShiftLeft, ShiftLeftSelf, VecAccesses, NestedVecCst}
 import mhir.optimize.{PartialEvalPass => PE}
 import mhir.sugar._
 import mhir.typecheck.TypeCheck
@@ -97,43 +97,49 @@ object StmAccRemovalPass {
       childCandidate match {
         case None => stm
         case Some(child) =>
-          (child, stm.accumulators(child)) match {
-            // TODO: this match syntax is kind of gross. Can I simplify?
-            case ShiftLeftSelf(
-                  _,
-                  ShiftLeftSelf(childLen, VecAccess(parent: Param, IntCst(src)))
-                ) if stm.accumulators.contains(parent) && parent != child =>
-              (parent, stm.accumulators(parent)) match {
-                case ShiftLeftSelf(_, ShiftLeftSelf(parentLen, parentInput)) =>
-                  // TODO: can I combine these two branches?
-                  if (src >= childLen) {
-                    // child is completely inside parent
-                    val newStm = mergeChainedShiftRegisterInside(
-                      stm,
-                      child,
-                      childLen,
-                      parent,
-                      src
-                    )
-                    newStm match {
-                      case Some(s) => merge(s, visited)
-                      case None    => merge(stm, visited + child)
-                    }
-                  } else {
-                    // child extends past index 0 of parent; make one big shift register to replace both
-                    val newStm = mergeChainedShiftRegistersOutside(
-                      stm,
-                      child,
-                      childLen,
-                      parent,
-                      parentLen,
-                      parentInput,
-                      src
-                    )
-                    newStm match {
-                      case Some(s) => merge(s, visited)
-                      case None    => merge(stm, visited + child)
-                    }
+          val (_, childNext, _) = stm.accumulators(child)
+          childNext match {
+            // CONDITION: The "child" vector must be a shift register.
+            case MapShiftLeft(childParams, childLen, vec, input)
+                if vec.forall(_ == child) =>
+              // CONDITION: The "child" must be reading from some other vector (the "parent").
+              input match {
+                case VecAccesses(parent: Param, indices)
+                    if stm.accumulators.contains(parent) && parent != child =>
+                  // CONDITION: The "parent" vector must be a shift register.
+                  val (_, parentNext, _) = stm.accumulators(parent)
+                  parentNext match {
+                    case MapShiftLeft(parentParams, parentLen, vec, parentInput)
+                        if vec.forall(_ == parent) &&
+                          indices.length > parentParams.length =>
+                      // CONDITION: the "src" index must be an integer literal
+                      // TODO: Lift this restriction on the "src" index?
+                      val indicesBeforeSrc = indices.take(parentParams.length)
+                      val src = indices(parentParams.length)
+                      val indicesAfterSrc =
+                        indices.drop(parentParams.length + 1)
+                      src match {
+                        case IntCst(src) =>
+                          val newStm = mergeChainedShiftRegisters(
+                            stm,
+                            child,
+                            childLen,
+                            childParams,
+                            parent,
+                            parentLen,
+                            parentParams,
+                            parentInput,
+                            indicesBeforeSrc,
+                            src,
+                            indicesAfterSrc
+                          )
+                          newStm match {
+                            case Some(newStm) => merge(newStm, visited)
+                            case _            => merge(stm, visited + child)
+                          }
+                        case _ => merge(stm, visited + child)
+                      }
+                    case _ => merge(stm, visited + child)
                   }
                 case _ => merge(stm, visited + child)
               }
@@ -148,140 +154,185 @@ object StmAccRemovalPass {
     )
   }
 
-  private def mergeChainedShiftRegisterInside(
-      stm: StmBuild,
-      child: Param,
-      childLen: Long,
-      parent: Param,
-      src: Long
-  ): Option[StmBuild] = {
-    val (childInit, _, childDelay) = stm.accumulators(child)
-    val (parentInit, _, parentDelay) = stm.accumulators(parent)
-    // The part of the parent's initial value that the child's initial value should match
-    val overlapInitFromParent = PartialEvalPass.partialEval(
-      // Discard from the left until the length matches childLen
-      VecTakeRight(
-        // Discard everything after and including index `src`
-        VecTake(parentInit, C(src)())(),
-        C(childLen)()
-      )().tchk().lower
-    )
-    assert(overlapInitFromParent.typ == childInit.typ)
-    val sameInit = (
-      childInit.isInstanceOf[Undefined]
-        || parentInit.isInstanceOf[Undefined]
-        || (
-          // It's fine to use alphaEquals here because we know we're dealing
-          // with vectors, not sbuild
-          (overlapInitFromParent alphaEquals childInit)
-            && parentDelay == childDelay
+  private def combineInitAndDelay(
+      childInit: Expr,
+      childDelay: Expr,
+      parentInit: Expr,
+      parentDelay: Expr,
+      combinedTyp: Type
+  ): Option[(Expr, Expr)] = {
+    val bothUndefined = childInit.isInstanceOf[Undefined] &&
+      parentInit.isInstanceOf[Undefined]
+    if (bothUndefined) {
+      return Some((Undefined(Missing), Tuple()()))
+    }
+
+    (childInit, parentInit) match {
+      case (NestedVecCst(k1), NestedVecCst(k2))
+          if k1 == k2 && childDelay == parentDelay =>
+        return Some((makeNestedVecCst(k1, combinedTyp), childDelay))
+      case _ => ()
+    }
+
+    None
+  }
+
+  private def makeNestedVecCst(k: Expr, targetTyp: Type): Expr = {
+    targetTyp match {
+      case t if t == k.typ => k
+      case TyVec(elemTyp, len) =>
+        val i = Param("i")(U32)
+        VecBuild(len, Function(i, makeNestedVecCst(k, elemTyp))())()
+      case t =>
+        throw new AssertionError(
+          s"wrong type in makeNestedVecCst: $t" +
+            " (expected a possibly nested vector with element type ${k.typ})"
         )
-    )
-    if (sameInit) {
-      val i = Param("i")(TyAnyInt.tightest(0, childLen - 1))
-      val newChild = PartialEvalPass.partialEval(
-        VecBuild(
-          C(childLen)(),
-          Function(
-            i,
-            // child[childLen-1] is a duplicate of parent[src-1]
-            // child[childLen-2] is a duplicate of parent[src-2]
-            // ...
-            // child[childLen-childLen] is a duplicate of parent[src-childLen]
-            VecAccess(parent, SafeSum(i, C(src - childLen)())())()
-          )()
-        )().tchk().lower
-      )
-      Some(
-        stm
-          .replaceVars(Map(child -> newChild))
-          .tchk()
-          .asInstanceOf[StmBuild]
-      )
-    } else {
-      None
     }
   }
 
-  private def mergeChainedShiftRegistersOutside(
+  private def mergeChainedShiftRegisters(
       stm: StmBuild,
       child: Param,
       childLen: Long,
+      childParams: Seq[Param],
       parent: Param,
       parentLen: Long,
+      parentParams: Seq[Param],
       parentInput: Expr,
-      src: Long
+      indicesBeforeSrc: Seq[Expr],
+      src: Long,
+      indicesAfterSrc: Seq[Expr]
   ): Option[StmBuild] = {
-    val TyVec(elemTyp, _) = parent.typ
-    val (childInit, _, childDelay) = stm.accumulators(child)
-    val (parentInit, _, parentDelay) = stm.accumulators(parent)
-    // Initial value in the overlapping region
-    // TODO: skip this calculation if one of them are undefined or src == 0? Maybe move this to a method?
-    val overlapInitFromChild = PartialEvalPass.partialEval(
-      VecTakeRight(childInit, C(src)())().tchk().lower
-    )
-    val overlapInitFromParent = PartialEvalPass.partialEval(
-      VecTake(parentInit, C(src)())().tchk().lower
-    )
-    val sameInitInOverlap = (
-      // TODO: is simplification possible if childInit is undefined but parentInit is a concrete value, or vice-versa?
-      //       Need to think carefully about the semantics of a missing delay annotation.
-      //       Maybe the programmer has assumed the input latency is exactly a certain value;
-      //       in that case, shift register merging might change the behaviour.
-      //       If it turns out to be important for performance to merge in this case,
-      //       maybe I can add a compiler flag or accelerator annotation to let the compiler assume strict latency insensitivity.
-      src == 0 // no overlap at all
-        || (childInit.isInstanceOf[Undefined]
-          && parentInit.isInstanceOf[Undefined])
-        // It's fine to use alphaEquals here because we know we're dealing
-        // with vectors, not sbuild
-        || ((overlapInitFromParent alphaEquals overlapInitFromChild)
-          && childDelay == parentDelay)
-    )
-    if (sameInitInOverlap) {
-      val combinedLen = {
-        // src == 0: combinedLen = childLen + parentLen
-        // src == 1: combinedLen = childLen + parentLen - 1
-        // etc.
-        childLen + parentLen - src
+    val overlapLen = math.min(childLen, src)
+    val deltaLen = childLen - overlapLen
+    val combinedLen = parentLen + deltaLen
+    def combineTyp(parentTyp: Type, dimensionsToUnwrap: Int): Type = {
+      if (dimensionsToUnwrap <= 0) {
+        val TyVec(elemTyp, _) = parentTyp
+        TyVec(elemTyp, C(combinedLen)())
+      } else {
+        val TyVec(innerTyp, len) = parentTyp
+        val updatedInnerTyp = combineTyp(innerTyp, dimensionsToUnwrap - 1)
+        TyVec(updatedInnerTyp, len)
       }
-      val combined = parent.freshCopy
-        .rebuild(TyVec(elemTyp, C(combinedLen)()))
-        .asInstanceOf[Param]
-      val combinedDelay = parentInit match {
-        case _: Undefined => childDelay
-        case _            => parentDelay
-      }
-      val combinedInit = PartialEvalPass.partialEval(
-        VecConcat(childInit, VecDrop(parentInit, C(src)())())()
-          .tchk()
-          .lower
-      )
-      val combinedNext = PartialEvalPass.partialEval(
-        VecShiftLeft(combined, parentInput)().tchk().lower
-      )
-      val newChild = PartialEvalPass.partialEval(
-        VecTake(combined, C(childLen)())().tchk().lower
-      )
-      val newParent = PartialEvalPass.partialEval(
-        VecTakeRight(combined, C(parentLen)())().tchk().lower
-      )
-      val result = stm
-        .addAccumulator(
-          combined,
-          combinedInit,
-          combinedNext,
-          combinedDelay
-        )
-        .replaceVars(
-          Map(
-            child -> newChild,
-            parent -> newParent
+    }
+    val combinedTyp =
+      combineTyp(parent.typ, dimensionsToUnwrap = parentParams.length)
+    val combinedParam = Param(parent.prefix)(combinedTyp)
+    // CONDITION: The initial values of the "child" and "parent" vectors
+    //            must be the same in the overlapping region.
+    val (childInit, _, childDelay) =
+      stm.accumulators(child)
+    val (parentInit, _, parentDelay) =
+      stm.accumulators(parent)
+    val combinedInitAndDelay = combineInitAndDelay(
+      childInit,
+      childDelay,
+      parentInit,
+      parentDelay,
+      combinedTyp
+    )
+    combinedInitAndDelay match {
+      case None => None
+      case Some((combinedInit, combinedDelay)) =>
+        @tailrec
+        def getVecLengths(
+            typ: Type,
+            n: Int,
+            acc: Seq[Expr] = Seq()
+        ): Seq[Expr] = {
+          assert(n >= 0)
+          n match {
+            case 0 => acc
+            case n =>
+              val TyVec(elemTyp, len) = typ
+              getVecLengths(elemTyp, n - 1, len +: acc)
+          }
+        }
+        // TODO: deduplicate this code
+        val parentLengths = getVecLengths(parent.typ, parentParams.length)
+        val combinedNext = {
+          val inputOfShiftLeft = parentParams.foldLeft[Expr](combinedParam)({
+            case (acc, i) => VecAccess(acc, i)().tchk()
+          })
+          val combinedShift = PartialEvalPass.partialEval(
+            VecShiftLeft(inputOfShiftLeft, parentInput)().tchk().lower
           )
+          // IMPORTANT: `parentInput` may refer to variables in `parentParams`.
+          // Therefore, we need to use the same params; we cannot just add the required number of
+          // VecMap calls.
+          assert(parentParams.length == parentLengths.length)
+          parentParams.reverse
+            .zip(parentLengths)
+            .foldLeft(combinedShift)({ case (v, (i, len)) =>
+              VecBuild(len, Function(i, v)())().tchk()
+            })
+        }
+        val newParent = {
+          val inputOfTake = parentParams.foldLeft[Expr](combinedParam)({
+            case (acc, i) => VecAccess(acc, i)().tchk()
+          })
+          val takeRight = PartialEvalPass.partialEval(
+            VecTakeRight(inputOfTake, C(parentLen)())().tchk().lower
+          )
+          // IMPORTANT: `parentInput` may refer to variables in `parentParams`.
+          // Therefore, we need to use the same params; we cannot just add the required number of
+          // VecMap calls.
+          assert(parentParams.length == parentLengths.length)
+          parentParams.reverse
+            .zip(parentLengths)
+            .foldLeft(takeRight)({ case (v, (i, len)) =>
+              VecBuild(len, Function(i, v)())().tchk()
+            })
+        }
+        val newChild = {
+          val innermostParam = Param("i")(U32)
+          val childStartIndex = src + deltaLen - childLen
+          // val inputOfTake = indicesToParent.foldLeft[Expr](combinedParam)({ case (acc, i) =>
+          //   VecAccess(acc, i)().tchk()
+          // })
+          // val take = PartialEvalPass.partialEval(
+          //   VecTakeRight(VecTake(inputOfTake, C(src + deltaLen)())(), C(childLen)())().tchk().lower
+          // )
+          var childBody: Expr = combinedParam
+          childBody = indicesBeforeSrc.foldLeft[Expr](childBody)({
+            case (acc, i) =>
+              VecAccess(acc, i)().tchk()
+          })
+          childBody = VecAccess(
+            childBody,
+            Sum(C(childStartIndex)(innermostParam.typ), innermostParam)()
+          )().tchk()
+          childBody = indicesAfterSrc.foldLeft(childBody)({ case (acc, i) =>
+            VecAccess(acc, i)().tchk()
+          })
+          val innermostVec =
+            VecBuild(C(childLen)(), Function(innermostParam, childBody)())()
+              .tchk()
+          val childLengths = getVecLengths(child.typ, childParams.length)
+          childParams.reverse
+            .zip(childLengths)
+            .foldLeft(innermostVec)({ case (v, (i, len)) =>
+              VecBuild(len, Function(i, v)())().tchk()
+            })
+        }
+        // TODO: Specifically apply the (vbuild(n) { f })[i] ~~> f[i] rule (just one pass)
+        //       rather than doing full partial evaluation (with fixpoint iteration and everything)?
+        Some(
+          PartialEvalPass
+            .partialEval(
+              stm
+                .addAccumulator(
+                  combinedParam,
+                  combinedInit,
+                  combinedNext,
+                  combinedDelay
+                )
+                .replaceVars(Map(child -> newChild, parent -> newParent))
+            )
+            .asInstanceOf[StmBuild]
         )
-      Some(result)
-    } else {
-      None
     }
   }
 

@@ -82,7 +82,7 @@ class SiropFunSuite extends AnyFunSuite {
       start: Long,
       elemTyp: TyAnyInt = U8,
       prefixLen: Int = 2,
-      prefixStart: Long = 150
+      prefixStart: Long = 30
   ): StmLiteral = {
     StmLiteral(
       (0 until prefixLen).map(prefixStart + _).map(C(_)(elemTyp)),

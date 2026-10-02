@@ -7,21 +7,14 @@ import mhir.typecheck.TypeCheck
 // TODO: generalize to non-static lengths
 case class ShiftLeftSelf(length: Long, input: Expr)
 
-// TODO: this is very similar to code in mhir.gen (ClassifyVecAccumulators); try to deduplicate this code
 object ShiftLeftSelf {
 
   def unapply(
       acc: (Param, (Expr, Expr, Expr))
   ): Option[(Param, ShiftLeftSelf)] = {
     acc match {
-      case (x0, (_, ShiftLeft(len, x1, input), _)) if x1 == x0 =>
+      case (x0, (_, ShiftLeft(len, x1, input), _)) if x1.forall(_ == x0) =>
         Some(x0 -> ShiftLeftSelf(len, input))
-      // vbuild(1) { i => input }
-      // TODO: move this to ShiftLeft rather than ShiftLeftSelf?
-      //       Or just have the sbuild accumulator simplifier unwrap vectors whose length is 1?
-      case (x0, (_, VecBuild(IntCst(1), Function(i, input)), _))
-          if !input.freeVars.contains(i) =>
-        Some(x0 -> ShiftLeftSelf(1, input))
       case _ => None
     }
   }
@@ -29,15 +22,21 @@ object ShiftLeftSelf {
 
 object MapShiftLeft {
 
-  def unapply(e: Expr): Option[(Seq[Param], Long, Expr, Expr)] = {
+  def unapply(e: Expr): Option[(Seq[Param], Long, Option[Expr], Expr)] = {
     e match {
       case ShiftLeft(n, vec, input) =>
         Some((List.empty, n, vec, input))
       case VecBuild(
             _,
-            Function(i0, MapShiftLeft(params, len, VecAccess(vec, i1), input))
-          ) if i1 == i0 && !vec.freeVars.contains(i0) =>
-        Some((i0 +: params, len, vec, input))
+            Function(i0, MapShiftLeft(params, len, vec, input))
+          ) =>
+        vec match {
+          case None => Some((i0 +: params, len, None, input))
+          case Some(VecAccess(vec, i1))
+              if i1 == i0 && !vec.freeVars.contains(i0) =>
+            Some((i0 +: params, len, Some(vec), input))
+          case _ => None
+        }
       case _ => None
     }
   }
@@ -45,7 +44,7 @@ object MapShiftLeft {
 
 object ShiftLeft {
 
-  def unapply(e: Expr): Option[(Long, Expr, Expr)] = {
+  def unapply(e: Expr): Option[(Long, Option[Expr], Expr)] = {
     e match {
       // vbuild(n) { i =>
       //   if (i == n - 1) then {
@@ -67,7 +66,7 @@ object ShiftLeft {
           )
           if i1 == i0 && i2 == i0 && nMinusOne == n - 1 &&
             !vec.freeVars.contains(i0) =>
-        Some((n, vec, input))
+        Some((n, Some(vec), input))
       // vbuild(n) { i =>
       //   truncate(
       //     if (i == n - 1) then {
@@ -92,7 +91,7 @@ object ShiftLeft {
           )
           if i1 == i0 && i2 == i0 && nMinusOne == n - 1 &&
             !vec.freeVars.contains(i0) =>
-        Some((n, vec, TruncateTo(input, truncWidth)().tchk()))
+        Some((n, Some(vec), TruncateTo(input, truncWidth)().tchk()))
       // vbuild(n) { i =>
       //   unsign(
       //     if (i == n - 1) then {
@@ -116,7 +115,7 @@ object ShiftLeft {
           )
           if i1 == i0 && i2 == i0 && nMinusOne == n - 1 &&
             !vec.freeVars.contains(i0) =>
-        Some((n, vec, ToUnsigned(input)().tchk()))
+        Some((n, Some(vec), ToUnsigned(input)().tchk()))
       // vbuild(n) { i =>
       //   unsign(truncate(
       //     if (i == n - 1) then {
@@ -143,7 +142,13 @@ object ShiftLeft {
           )
           if i1 == i0 && i2 == i0 && nMinusOne == n - 1 &&
             !vec.freeVars.contains(i0) =>
-        Some((n, vec, ToUnsigned(TruncateTo(input, truncWidth)())().tchk()))
+        Some(
+          (n, Some(vec), ToUnsigned(TruncateTo(input, truncWidth)())().tchk())
+        )
+      // vbuild(n) { _ => input }
+      case VecBuild(IntCst(1), Function(i, input)) =>
+        val inputWithoutI = input.subPreserveType(i -> C(0)(i.typ))
+        Some((1, None, inputWithoutI))
       // vbuild(n) { i =>
       //   (i != n - 1 && vec[1 + i]) || (i == n - 1 && input)
       // }
@@ -166,7 +171,7 @@ object ShiftLeft {
             && nMinusOne == n - 1
             && nMinusOneAgain == n - 1
             && !vec.freeVars.contains(i0) =>
-        Some((n, vec, input))
+        Some((n, Some(vec), input))
       case _ => None
     }
   }

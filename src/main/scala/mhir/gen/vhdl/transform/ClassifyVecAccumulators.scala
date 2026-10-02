@@ -99,7 +99,7 @@ private object VecShiftLeft {
               init,
               ExprIntermediate(ShiftLeft(n, x1, input))
             )
-          ) if x1 == x0 =>
+          ) if x1.forall(_ == x0) =>
         Some((x0, n, init, input))
       case (
             x,
