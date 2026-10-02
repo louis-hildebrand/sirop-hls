@@ -66,6 +66,7 @@ metals.sbt
 # Docs
 build/
 bin/
+/docs/source/figures/utils/colors.tex
 
 # Custom
 /img/
