@@ -1,3 +1,7 @@
-sphinx ~= 9.1
-myst-parser ~= 5.1       # For parsing markdown documents
-sphinx-book-theme ~= 1.2 # Website theme
+# The Sphinx framework
+# Stick to version 8.2 because that's the latest one available at https://github.com/ammaraskar/sphinx-action
+sphinx == 8.2
+# Markdown parser
+myst-parser == 5.1
+# Website theme
+sphinx-book-theme == 1.2
