@@ -1,14 +1,20 @@
-TEX_UTILS := $(wildcard utils/*.tex)
-ALL_SVGS := $(patsubst %.tex, %.svg, $(wildcard *.tex))
+# Minimal makefile for Sphinx documentation
+#
 
-all: $(ALL_SVGS)
+# You can set these variables from the command line, and also
+# from the environment for the first two.
+SPHINXOPTS    ?=
+SPHINXBUILD   ?= sphinx-build
+SOURCEDIR     = source
+BUILDDIR      = build
 
-%.svg: bin/%.pdf
-	pdftocairo $< -svg -o $@
+# Put it first so that "make" without argument is like "make help".
+help:
+	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-bin/%.pdf: %.tex $(TEX_UTILS)
-	latexmk $< -pdf -outdir=./bin/
+.PHONY: help Makefile
 
-.PHONY: clean
-clean:
-	rm -rf bin/
+# Catch-all target: route all unknown targets to Sphinx using the new
+# "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
+%: Makefile
+	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

@@ -43,41 +43,71 @@ fi
 set -e
 cd "$(git rev-parse --show-toplevel)"
 
-scalafmt --check --exclude ./lib,./src/test/aetherling,./src/test/shir || {
-    echo "Some files are mis-formatted. Please format them using scalafmt."
-    exit 1
-}
-
-sbt 'testQuick * -- -l mhir.testing.HardwareTest -l org.scalatest.tags.Slow' || {
-    echo "Unit tests failed."
-    exit 1
-}
-
-# I don't want to have to check out the Quartus license for each and every
-# commit, so just skip the vsim-related tests here
-./src/e2e/python/run.py --skip-vsim || {
-    echo "End-to-end tests failed."
-    exit 1
-}
-
-if ! git diff --staged --quiet ./src/test/python; then
-    if [ -e .venv/bin/activate ]; then
-        . .venv/bin/activate
-    fi
-    cd ./src/test/python
-    pyright .
-    pylint .
-    cd - >/dev/null
+if [ -z "${SKIP_SCALAFMT:-}" ]; then
+    echo "Running scalafmt (skip by defining SKIP_SCALAFMT)..."
+    scalafmt --check --quiet --exclude ./lib,./src/test/aetherling,./src/test/shir || {
+        echo "Some files are mis-formatted. Please format them using scalafmt."
+        exit 1
+    }
+    echo ""
 fi
 
-if ! git diff --staged --quiet ./src/e2e/python; then
-    if [ -e .venv/bin/activate ]; then
-        . .venv/bin/activate
-    fi
-    cd ./src/e2e/python
-    pyright .
-    pylint . --rcfile ../../test/python/.pylintrc
+if [ -z "${SKIP_SBT_TESTS:-}" ]; then
+    echo "Running unit tests with sbt (skip by defining SKIP_SBT_TESTS)..."
+    sbt 'testQuick * -- -l mhir.testing.HardwareTest -l org.scalatest.tags.Slow' || {
+        echo "Unit tests failed."
+        exit 1
+    }
+    echo ""
+fi
+
+if [ -e .venv/bin/activate ]; then
+    . .venv/bin/activate
+fi
+
+if [ -z "${SKIP_E2E_TESTS:-}" ]; then
+    echo "Running end-to-end tests (skip by defining SKIP_E2E_TESTS)..."
+    # I don't want to have to check out the Quartus license for each and every
+    # commit, so just skip the vsim-related tests here
+    ./src/e2e/python/run.py --skip-vsim || {
+        echo "End-to-end tests failed."
+        exit 1
+    }
+    echo ""
+fi
+
+if [ -z "${SKIP_SRC_TEST_PYTHON:-}" ]; then
+    # It seems we need to be in the right directory for pyright to accept the relative imports
+    cd ./src/test/python
+    echo "Checking Python code in $(pwd) (skip by defining SKIP_SRC_TEST_PYTHON)..."
+    pyright . --project .pyrightconfig.json
+    pylint  . --rcfile  ../../../.pylintrc
     cd - >/dev/null
+    echo ""
+fi
+
+if [ -z "${SKIP_SRC_E2E_PYTHON:-}" ]; then
+    # It seems we need to be in the right directory for pyright to accept the relative imports
+    cd ./src/e2e/python
+    echo "Checking Python code in $(pwd) (skip by defining SKIP_SRC_E2E_PYTHON)..."
+    pyright . --project .pyrightconfig.json
+    pylint  . --rcfile  ../../../.pylintrc
+    cd - >/dev/null
+    echo ""
+fi
+
+if [ -z "${SKIP_DOCS:-}" ]; then
+    echo "Testing documentation website..."
+    cd docs
+    make html >/dev/null || {
+        echo "Command 'make html' failed"
+        exit 1
+    }
+    make linkcheck || {
+        echo "Command 'make linkcheck' failed"
+        exit 1
+    }
+    cd - > /dev/null
 fi
 
 # If there are whitespace errors, print the offending file names and fail.

@@ -1,0 +1,13 @@
+# Linter and type checker
+pylint ~= 3.3
+pyright ~= 1.1
+
+# Used by the Python test and e2e scripts
+bitstring ~= 4.4
+colorama ~= 0.4.6
+matplotlib ~= 3.10
+
+# Documentation
+sphinx ~= 9.1
+myst-parser ~= 5.1 # for parsing markdown documents
+sphinx-book-theme ~= 1.2.0
