@@ -3,7 +3,7 @@
 Sirop is a language and compiler for generating streaming accelerators.
 Similarly to projects like [HLS4ML](https://fastmachinelearning.org/hls4ml/intro/introduction.html) and [Altera HLS IP Gen](https://www.altera.com/products/development-tools/hls_ip_gen_compiler), the goal is to convert high-level code into VHDL that can be synthesized and run on an FPGA.
 
-<img src="./docs/workflow.svg" alt="Flowchart showing the workflow for using Sirop" width="100%" />
+<img src="./docs/figures/workflow.svg" alt="Flowchart showing the workflow for using Sirop" width="100%" />
 
 ### How does Sirop relate to...
 
@@ -16,13 +16,13 @@ The Sirop compiler can also perform certain helpful transformations that synthes
 For example, the Sirop compiler can insert registers to balance the latency across different paths.
 This makes it easier to focus on the high-level computations rather than low-level details like the latency along each path.
 
-<img src="./docs/latency-matching.svg" alt="Diagram showing the effect of latency matching" width="100%" />
+<img src="./docs/figures/latency-matching.svg" alt="Diagram showing the effect of latency matching" width="100%" />
 
 The Sirop compiler can also fuse two pipeline stages into one.
 This lets the programmer break down their problem into small steps without sacrificing latency or resource-efficiency.
 Conversely, the compiler can split a single stage into two to improve the maximum clock frequency.
 
-<img src="./docs/fusion-fission.svg" alt="Diagram showing the effects of fusion and fission" width="100%" />
+<img src="./docs/figures/fusion-fission.svg" alt="Diagram showing the effects of fusion and fission" width="100%" />
 
 #### ... C-based HLS (e.g., [Altera HLS IP Gen](https://www.altera.com/products/development-tools/hls_ip_gen_compiler), [Vitis HLS](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vitis/vitis-hls.html))?
 
@@ -123,7 +123,7 @@ This will result in four adders being instantiated to process all the vector's e
 [6:u8, 7:u8, 8:u8, 9:u8]v
 ```
 
-<img src="./docs/spatial-parallelism.svg" alt="Diagram showing VecMap" width="33%" />
+<img src="./docs/figures/spatial-parallelism.svg" alt="Diagram showing VecMap" width="33%" />
 
 Similarly, you can transform each element of a stream using `StmMap`.
 In this case, only one adder will be needed because the stream yields just one element per clock cycle.
@@ -133,7 +133,7 @@ In this case, only one adder will be needed because the stream yields just one e
 [6:u8, 7:u8, 8:u8, 9:u8]s
 ```
 
-<img src="./docs/pipeline-parallelism.svg" alt="Diagram showing StmMap" width="67%" />
+<img src="./docs/figures/pipeline-parallelism.svg" alt="Diagram showing StmMap" width="67%" />
 
 It is also possible to partially parallelize this code by representing the input as a stream of vectors.
 Here, the stream will yield two elements per cycle and there will be two adders to process them.
@@ -143,7 +143,7 @@ Here, the stream will yield two elements per cycle and there will be two adders 
 [[6:u8, 7:u8]v, [8:u8, 9:u8]v]s
 ```
 
-<img src="./docs/mixed-parallelism.svg" alt="Diagram showing VecMap inside StmMap" width="67%" />
+<img src="./docs/figures/mixed-parallelism.svg" alt="Diagram showing VecMap inside StmMap" width="67%" />
 
 This idea of using types to represent the level of spatial parallelism appears in prior works, including [Lift-HLS](https://doi.org/10.1145/3315454.3329957), [Aetherling](https://doi.org/10.1145/3385412.3385983), and [SHIR](https://doi.org/10.1145/3501768).
 
@@ -156,8 +156,8 @@ The consumer sends back a `ready` bit that is high whenever it is ready to recei
 If `ready` is low, the producer should hold its current output and not move to the next element in the stream.
 
 <div float="left">
-    <img src="./docs/handshake.svg" alt="Block diagram explaining the handshake protocol" width="49%" />
-    <img src="./docs/handshake-timing.svg" alt="Block diagram explaining the handshake protocol" width="49%" />
+    <img src="./docs/figures/handshake.svg" alt="Block diagram explaining the handshake protocol" width="49%" />
+    <img src="./docs/figures/handshake-timing.svg" alt="Block diagram explaining the handshake protocol" width="49%" />
 </div>
 
 The handshake protocol can be disabled as shown below, in the FIR filter example.
@@ -165,8 +165,8 @@ In this case, there is no way for a consumer to exert backpressure.
 It is still possible to have a `valid` bit in the stream payload itself; see the FIR filter example.
 
 <div float="left">
-    <img src="./docs/no-handshake.svg" alt="Block diagram illustrating static scheduling" width="49%" />
-    <img src="./docs/no-handshake-timing.svg" alt="Timing diagram illustrating static scheduling" width="49%" />
+    <img src="./docs/figures/no-handshake.svg" alt="Block diagram illustrating static scheduling" width="49%" />
+    <img src="./docs/figures/no-handshake-timing.svg" alt="Timing diagram illustrating static scheduling" width="49%" />
 </div>
 
 ## Example with Dynamic Scheduling: Dot Product
@@ -245,21 +245,21 @@ $ sirop -i dot.sirop --out:trace ./trace --opt:no-fuse
 > The node corresponding to `StmZip` is exerting back-pressure (i.e., its `ready` signal is lowered).
 
 <div float="left">
-    <img src="./docs/dot-trace/step_0.svg" alt="Time step 0 of the dot product trace" width="33%" />
-    <img src="./docs/dot-trace/step_1.svg" alt="Time step 1 of the dot product trace" width="33%" />
-    <img src="./docs/dot-trace/step_2.svg" alt="Time step 2 of the dot product trace" width="33%" />
+    <img src="./docs/figures/dot-trace/step_0.svg" alt="Time step 0 of the dot product trace" width="33%" />
+    <img src="./docs/figures/dot-trace/step_1.svg" alt="Time step 1 of the dot product trace" width="33%" />
+    <img src="./docs/figures/dot-trace/step_2.svg" alt="Time step 2 of the dot product trace" width="33%" />
 </div>
 <div float="left">
-    <img src="./docs/dot-trace/step_3.svg" alt="Time step 3 of the dot product trace" width="33%" />
-    <img src="./docs/dot-trace/step_4.svg" alt="Time step 4 of the dot product trace" width="33%" />
-    <img src="./docs/dot-trace/step_5.svg" alt="Time step 5 of the dot product trace" width="33%" />
+    <img src="./docs/figures/dot-trace/step_3.svg" alt="Time step 3 of the dot product trace" width="33%" />
+    <img src="./docs/figures/dot-trace/step_4.svg" alt="Time step 4 of the dot product trace" width="33%" />
+    <img src="./docs/figures/dot-trace/step_5.svg" alt="Time step 5 of the dot product trace" width="33%" />
 </div>
 <div float="left">
-    <img src="./docs/dot-trace/step_6.svg" alt="Time step 6 of the dot product trace" width="33%" />
-    <img src="./docs/dot-trace/step_7.svg" alt="Time step 7 of the dot product trace" width="33%" />
-    <img src="./docs/dot-trace/step_8.svg" alt="Time step 8 of the dot product trace" width="33%" />
+    <img src="./docs/figures/dot-trace/step_6.svg" alt="Time step 6 of the dot product trace" width="33%" />
+    <img src="./docs/figures/dot-trace/step_7.svg" alt="Time step 7 of the dot product trace" width="33%" />
+    <img src="./docs/figures/dot-trace/step_8.svg" alt="Time step 8 of the dot product trace" width="33%" />
 </div>
-<img src="./docs/dot-trace/step_9.svg" alt="Time step 9 of the dot product trace" width="33%" />
+<img src="./docs/figures/dot-trace/step_9.svg" alt="Time step 9 of the dot product trace" width="33%" />
 
 ### Generating VHDL and Running Simulation
 

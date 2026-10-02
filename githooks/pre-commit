@@ -96,5 +96,19 @@ if [ -z "${SKIP_SRC_E2E_PYTHON:-}" ]; then
     echo ""
 fi
 
+if [ -z "${SKIP_DOCS:-}" ]; then
+    echo "Testing documentation website..."
+    cd docs
+    make html >/dev/null || {
+        echo "Command 'make html' failed"
+        exit 1
+    }
+    make linkcheck || {
+        echo "Command 'make linkcheck' failed"
+        exit 1
+    }
+    cd - > /dev/null
+fi
+
 # If there are whitespace errors, print the offending file names and fail.
 exec git diff-index --check --cached $against --

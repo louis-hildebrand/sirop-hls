@@ -63,6 +63,10 @@ metals.sbt
 # Obsidian
 .obsidian/
 
+# Docs
+build/
+bin/
+
 # Custom
 /img/
 .venv/
@@ -76,4 +80,3 @@ metals.sbt
 /src/test/vhdl/
 /src/test/verilog/
 /src/test/resources/generated_benchmarks/
-/docs/bin/
