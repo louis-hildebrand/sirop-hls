@@ -7,7 +7,7 @@ import mhir.typecheck.TypeCheck
 // TODO: generalize to non-static lengths
 case class ShiftLeftSelf(length: Long, input: Expr)
 
-// TODO: this is very similar to code in mhir.gen (ClassifyVecAccumulators); try to deduplicate this code
+@deprecated("See if you can use MapShiftLeft instead for greater generality")
 object ShiftLeftSelf {
 
   def unapply(

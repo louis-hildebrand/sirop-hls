@@ -279,9 +279,10 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     // Just change the delay of b
     val (bInit, bNext, _) = original1.accumulators(b)
     val original2 = original1
-      .copy(accumulators =
-        original1.accumulators + (b -> (bInit, bNext, C(2)()))
-      )(typ = Missing, annotations = original1.annotations)
+      .copy(accumulators = original1.accumulators + (b -> (bInit, bNext, C(2)())))(
+        typ = Missing,
+        annotations = original1.annotations
+      )
       .tchk()
       .asInstanceOf[StmBuild]
     val simplified2 = StmAccRemovalPass.deduplicateVars(original2)
@@ -835,6 +836,86 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     assert(simplified.accumulators.size == 1)
   }
 
+  test("DeduplicateShiftRegisters:Outside:NestedChild") {
+    val input = Param("input", -1)(TyStm(I8, 12))
+    val original = makeSbuild(
+      """sbuild(12 @ 1)(undefined, (v1, v2), true) {
+        |  (v1: Vec[i8, 4]) = {
+        |    init: undefined,
+        |    next: v1.VecShiftLeft(sdata(p))
+        |  },
+        |  (v2: Vec[Vec[i8, 2], 3]) = {
+        |    init: undefined,
+        |    next: v2.VecMap( row => row.VecShiftLeft(v1[1]) )
+        |  }
+        |} {
+        |  (p: Stm[i8, -1] @ 0) = {
+        |    stm: input,
+        |    ready: true
+        |  }
+        |}
+        |""".stripMargin.stripTrailing,
+      context = Map(input -> input.typ)
+    )
+    val simplified = StmAccRemovalPass.deduplicateVars(original)
+
+    // Same behaviour
+    assertSameVal(
+      simplified,
+      original,
+      handshake = false,
+      inputs = Map(input -> counterWithPrefix(12, -6, elemTyp = I8))
+    )
+
+    // Successful simplification: one accumulator was removed
+    assert(original.accumulators.size == 2)
+    assert(simplified.accumulators.size == 1)
+    val (v, _) = simplified.accumulators.head
+    assert(v.typ == TyVec(I8, 5))
+  }
+
+  test("DeduplicateShiftRegisters:Outside:NestedChildAndParent") {
+    val input = Param("input", -1)(TyStm(I8, 12))
+    val original = makeSbuild(
+      """sbuild(12 @ 1)(undefined, (v1, v2), true) {
+        |  (v1: Vec[Vec[i8, 4], 3]) = {
+        |    init: undefined,
+        |    next: v1
+        |          .VecZip(VecRange(3, 0:i8, 1:i8))
+        |          .VecMap( @(v, i) => v.VecShiftLeft(sdata(p) + i) )
+        |  },
+        |  (v2: Vec[Vec[i8, 2], 3]) = {
+        |    init: undefined,
+        |    next: v2
+        |          .VecZip(v1)
+        |          .VecMap( @(v2, v1) => v2.VecShiftLeft(v1[0]) )
+        |  }
+        |} {
+        |  (p: Stm[i8, -1] @ 0) = {
+        |    stm: input,
+        |    ready: true
+        |  }
+        |}
+        |""".stripMargin.stripTrailing,
+      context = Map(input -> input.typ)
+    )
+    val simplified = StmAccRemovalPass.deduplicateVars(original)
+
+    // Same behaviour
+    assertSameVal(
+      simplified,
+      original,
+      handshake = false,
+      inputs = Map(input -> counterWithPrefix(12, -6, elemTyp = I8))
+    )
+
+    // Successful simplification: one accumulator was removed
+    assert(original.accumulators.size == 2)
+    assert(simplified.accumulators.size == 1)
+    val (v, _) = simplified.accumulators.head
+    assert(v.typ == TyVec(TyVec(I8, 6), 3))
+  }
+
   test("DeduplicateShiftRegisters:Outside:DifferentInit") {
     val input = Param("input", -1)(TyStm(U8, 12))
     val original = makeSbuild(
@@ -1362,5 +1443,10 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     assume(!TODO)
     val (v, _) = simplified.accumulators.head
     assert(v.typ == TyVec(U8, 9))
+  }
+
+  test("DeduplicateShiftRegisters:NestedVectors:Length1") {
+    // TODO: what if the outer vector has length 1? Will the optimizer then fail to recognize the inner shift register?
+    ???
   }
 }
