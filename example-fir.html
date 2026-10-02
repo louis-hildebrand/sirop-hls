@@ -1,0 +1,482 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Example with Static Scheduling: FIR Filter &#8212; Sirop  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'example-fir';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Example with Dynamic Scheduling: Dot Product" href="example-dot.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Sirop  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="language-intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="related-projects.html">Related Projects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example-dot.html">Example with Dynamic Scheduling: Dot Product</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Example with Static Scheduling: FIR Filter</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/louis-hildebrand/sirop-hls" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="Source repository"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/example-fir.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Example with Static Scheduling: FIR Filter</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="example-with-static-scheduling-fir-filter">
+<h1>Example with Static Scheduling: FIR Filter<a class="headerlink" href="#example-with-static-scheduling-fir-filter" title="Link to this heading">#</a></h1>
+<p>Now consider the following example, which implements an <a class="reference external" href="https://en.wikipedia.org/wiki/Finite_impulse_response">FIR filter</a> without backpressure.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">//</span> <span class="o">=====</span> <span class="n">MAIN</span> <span class="n">CODE</span> <span class="o">=============================================================</span>
+
+<span class="o">//</span> <span class="n">Length</span> <span class="n">of</span> <span class="n">test</span> <span class="n">inputs</span>
+<span class="n">const</span> <span class="n">T</span><span class="p">:</span> <span class="n">u32</span> <span class="o">=</span> <span class="mi">24</span>
+<span class="o">//</span> <span class="n">Number</span> <span class="n">of</span> <span class="n">taps</span>
+<span class="n">const</span> <span class="n">DEPTH</span><span class="p">:</span> <span class="n">u32</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="o">//</span> <span class="n">FIR</span> <span class="nb">filter</span> <span class="n">coefficients</span>
+<span class="n">const</span> <span class="n">COEFFS</span><span class="p">:</span> <span class="n">Vec</span><span class="p">[</span><span class="n">i18</span><span class="p">,</span> <span class="n">DEPTH</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="mi">5</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="mi">7</span><span class="p">:</span><span class="n">i18</span><span class="p">]</span><span class="n">v</span>
+<span class="o">//</span> <span class="n">Number</span> <span class="n">of</span> <span class="n">pipeline</span> <span class="n">registers</span> <span class="n">to</span> <span class="n">enable</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">DSPs</span>
+<span class="n">const</span> <span class="n">PIPELINE</span><span class="p">:</span> <span class="n">u32</span> <span class="o">=</span> <span class="mi">2</span>
+
+<span class="n">accelerator</span><span class="p">[</span>
+    <span class="o">//</span> <span class="n">Disable</span> <span class="n">the</span> <span class="n">handshake</span> <span class="n">protocol</span><span class="p">,</span> <span class="n">i</span><span class="o">.</span><span class="n">e</span><span class="o">.</span><span class="p">,</span> <span class="n">use</span> <span class="n">static</span> <span class="n">scheduling</span>
+    <span class="n">no_handshake</span><span class="p">,</span>
+    <span class="o">//</span> <span class="n">Until</span> <span class="n">we</span> <span class="n">start</span> <span class="n">receiving</span> <span class="n">the</span> <span class="n">real</span> <span class="n">data</span><span class="p">,</span> <span class="n">the</span> <span class="n">valid</span> <span class="n">bit</span> <span class="n">should</span> <span class="n">be</span> <span class="mf">0.</span>
+    <span class="o">//</span> <span class="n">If</span> <span class="n">the</span> <span class="n">Sirop</span> <span class="n">compiler</span> <span class="n">needs</span> <span class="n">to</span> <span class="n">increase</span> <span class="n">the</span> <span class="n">latency</span> <span class="n">of</span> <span class="n">this</span> <span class="n">stream</span>
+    <span class="o">//</span> <span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">g</span><span class="o">.</span><span class="p">,</span> <span class="k">for</span> <span class="n">latency</span> <span class="n">matching</span><span class="p">),</span> <span class="n">it</span> <span class="n">must</span> <span class="n">ensure</span> <span class="n">the</span> <span class="n">valid</span> <span class="n">bit</span> <span class="n">remains</span> <span class="mf">0.</span>
+    <span class="n">head</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">=</span><span class="p">(</span><span class="n">undefined</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">false</span><span class="p">)</span>
+<span class="p">]</span>
+<span class="n">fir</span> <span class="o">=</span> <span class="p">(</span><span class="n">s</span><span class="p">:</span> <span class="n">Stm</span><span class="p">[(</span><span class="n">i18</span><span class="p">,</span> <span class="nb">bool</span><span class="p">),</span> <span class="n">T</span><span class="p">])</span> <span class="o">=&gt;</span>
+    <span class="o">//</span> <span class="o">-----</span> <span class="n">Compute</span> <span class="s2">&quot;data&quot;</span> <span class="n">part</span> <span class="n">of</span> <span class="n">output</span> <span class="o">-------------------------------------</span>
+    <span class="n">let</span> <span class="n">data</span> <span class="o">=</span>
+        <span class="n">s</span>
+        <span class="o">//</span> <span class="n">Take</span> <span class="n">just</span> <span class="n">the</span> <span class="s2">&quot;data&quot;</span> <span class="n">part</span> <span class="n">of</span> <span class="n">the</span> <span class="nb">input</span> <span class="n">stream</span>
+        <span class="o">.</span><span class="n">StmMap</span><span class="p">(</span> <span class="o">@</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">valid</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="n">data</span> <span class="p">)</span>
+        <span class="o">//</span> <span class="n">Get</span> <span class="n">sliding</span> <span class="n">windows</span> <span class="n">of</span> <span class="n">size</span> <span class="mi">3</span>
+        <span class="o">.</span><span class="n">StmSlide</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="o">//</span> <span class="n">Take</span> <span class="n">dot</span> <span class="n">product</span> <span class="n">between</span> <span class="n">each</span> <span class="n">window</span> <span class="ow">and</span> <span class="n">the</span> <span class="n">coefficients</span><span class="o">.</span>
+        <span class="o">//</span> <span class="n">StmMapDot</span> <span class="ow">is</span> <span class="n">specifically</span> <span class="n">defined</span> <span class="n">to</span> <span class="n">facilitate</span> <span class="n">the</span> <span class="n">use</span> <span class="n">of</span> <span class="n">the</span> <span class="n">DSPs</span>
+        <span class="o">//</span> <span class="ow">in</span> <span class="s2">&quot;systolic&quot;</span> <span class="n">mode</span><span class="o">.</span>
+        <span class="o">.</span><span class="n">StmMapDot</span><span class="p">(</span><span class="n">StmCst</span><span class="p">(</span><span class="n">T</span><span class="o">-</span><span class="p">(</span><span class="n">DEPTH</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">COEFFS</span><span class="p">),</span> <span class="n">PIPELINE</span><span class="p">)</span>
+        <span class="o">//</span> <span class="n">StmMapDot</span> <span class="n">produces</span> <span class="n">wider</span> <span class="n">outputs</span> <span class="k">for</span> <span class="n">compatibility</span> <span class="k">with</span> <span class="n">DSPs</span><span class="o">.</span>
+        <span class="o">//</span> <span class="n">Truncate</span> <span class="n">the</span> <span class="n">outputs</span> <span class="n">back</span> <span class="n">to</span> <span class="mi">18</span> <span class="n">bits</span><span class="o">.</span>
+        <span class="o">.</span><span class="n">StmMap</span><span class="p">(</span> <span class="n">x</span> <span class="o">=&gt;</span> <span class="n">truncate18</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">)</span>
+    <span class="ow">in</span>
+    <span class="o">//</span> <span class="o">-----</span> <span class="n">Compute</span> <span class="n">output</span> <span class="s2">&quot;valid&quot;</span> <span class="n">bit</span> <span class="o">----------------------------------------</span>
+    <span class="o">//</span> <span class="n">Consistently</span> <span class="nb">set</span> <span class="n">the</span> <span class="s2">&quot;head&quot;</span> <span class="n">to</span> <span class="n">false</span><span class="p">,</span> <span class="n">so</span> <span class="n">that</span> <span class="n">the</span> <span class="n">initial</span> <span class="n">value</span> <span class="n">of</span> <span class="n">each</span>
+    <span class="o">//</span> <span class="n">pipeline</span> <span class="n">register</span> <span class="n">will</span> <span class="n">be</span> <span class="n">false</span>
+    <span class="n">let</span> <span class="n">valid</span> <span class="o">=</span>
+        <span class="n">s</span>
+        <span class="o">//</span> <span class="n">Take</span> <span class="n">just</span> <span class="n">the</span> <span class="s2">&quot;valid&quot;</span> <span class="n">bit</span> <span class="kn">from</span><span class="w"> </span><span class="nn">the</span> <span class="nb">input</span> <span class="n">stream</span>
+        <span class="o">.</span><span class="n">StmMap</span><span class="p">(</span> <span class="o">@</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">valid</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="n">valid</span><span class="p">,</span> <span class="o">/*</span><span class="n">head</span><span class="o">=*/</span><span class="n">false</span><span class="p">)</span>
+        <span class="o">//</span> <span class="n">Get</span> <span class="n">sliding</span> <span class="n">windows</span> <span class="n">of</span> <span class="n">size</span> <span class="mi">3</span>
+        <span class="o">.</span><span class="n">StmSlide</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="o">/*</span><span class="n">head</span><span class="o">=*/</span><span class="n">false</span><span class="p">)</span>
+        <span class="o">//</span> <span class="n">Output</span> <span class="ow">is</span> <span class="n">valid</span> <span class="k">if</span> <span class="nb">all</span> <span class="n">elements</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">window</span> <span class="n">are</span> <span class="n">valid</span>
+        <span class="o">.</span><span class="n">StmMap</span><span class="p">(</span> <span class="n">window</span> <span class="o">=&gt;</span> <span class="n">window</span><span class="o">.</span><span class="n">VecAll</span><span class="p">(),</span> <span class="o">/*</span><span class="n">head</span><span class="o">=*/</span><span class="n">false</span><span class="p">)</span>
+    <span class="ow">in</span>
+    <span class="o">//</span> <span class="o">-----</span> <span class="n">Pair</span> <span class="n">the</span> <span class="n">output</span> <span class="s2">&quot;data&quot;</span> <span class="k">with</span> <span class="n">the</span> <span class="n">output</span> <span class="s2">&quot;valid&quot;</span> <span class="o">--------------------</span>
+    <span class="n">StmZip</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">valid</span><span class="p">,</span> <span class="o">/*</span><span class="n">head</span><span class="o">=*/</span><span class="p">(</span><span class="n">undefined</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">false</span><span class="p">))</span>
+
+<span class="o">//</span> <span class="o">=====</span> <span class="n">TESTING</span> <span class="o">===============================================================</span>
+
+<span class="k">assert</span> <span class="p">{</span>
+    <span class="o">//</span> <span class="n">Square</span> <span class="n">wave</span> <span class="k">with</span> <span class="n">amplitude</span> <span class="mi">42</span> <span class="ow">and</span> <span class="n">period</span> <span class="mi">8</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="o">//</span> <span class="n">Maybe</span> <span class="n">the</span> <span class="n">first</span> <span class="n">few</span> <span class="n">cycles</span> <span class="n">will</span> <span class="n">have</span> <span class="n">invalid</span> <span class="n">data</span>
+        <span class="p">(</span><span class="n">undefined</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">false</span><span class="p">),</span>
+        <span class="p">(</span><span class="n">undefined</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">false</span><span class="p">)</span>
+    <span class="p">]</span><span class="n">s</span> <span class="o">++</span> <span class="p">[</span>
+        <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>
+        <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>
+        <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>
+        <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">false</span><span class="p">),</span>
+        <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>
+        <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">)</span>
+    <span class="p">]</span><span class="n">s</span>
+<span class="p">}</span>
+<span class="n">yields</span> <span class="p">[</span>
+    <span class="p">(</span><span class="o">-</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>  <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>  <span class="p">(</span><span class="o">+</span><span class="mi">378</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>
+    <span class="p">(</span><span class="o">+</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>  <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>  <span class="p">(</span><span class="o">-</span><span class="mi">378</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>
+    <span class="p">(</span><span class="o">-</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>  <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>  <span class="p">(</span><span class="o">+</span><span class="mi">378</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>
+    <span class="p">(</span><span class="o">+</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">false</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">false</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">378</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">false</span><span class="p">),</span>
+    <span class="p">(</span><span class="o">-</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>  <span class="p">(</span><span class="o">-</span><span class="mi">42</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>  <span class="p">(</span><span class="o">+</span><span class="mi">378</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span>
+    <span class="p">(</span><span class="o">+</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">),</span> <span class="p">(</span><span class="o">+</span><span class="mi">630</span><span class="p">:</span><span class="n">i18</span><span class="p">,</span> <span class="n">true</span><span class="p">)</span>
+<span class="p">]</span><span class="n">s</span>
+<span class="o">//</span> <span class="n">The</span> <span class="n">FIR</span> <span class="nb">filter</span> <span class="n">will</span> <span class="n">have</span> <span class="n">some</span> <span class="n">latency</span> <span class="n">N</span><span class="o">.</span>
+<span class="o">//</span> <span class="n">For</span> <span class="n">the</span> <span class="n">first</span> <span class="n">N</span> <span class="n">clock</span> <span class="n">cycles</span><span class="p">,</span> <span class="n">the</span> <span class="n">output</span> <span class="s2">&quot;valid&quot;</span> <span class="n">bit</span> <span class="n">must</span> <span class="n">be</span> <span class="mf">0.</span>
+<span class="k">with</span> <span class="n">prefix</span> <span class="o">/*</span> <span class="n">which</span> <span class="n">satisfies</span> <span class="n">the</span> <span class="n">predicate</span><span class="o">...</span> <span class="o">*/</span> <span class="o">@</span><span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">valid</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="n">valid</span> <span class="o">==</span> <span class="n">false</span>
+</pre></div>
+</div>
+<p>Test, compile, and simulate the design using the following command.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To change the compilation target, use the <code class="docutils literal notranslate"><span class="pre">--out:vhdl:family</span></code> and <code class="docutils literal notranslate"><span class="pre">--out:vhdl:device</span></code> flags.
+Run <code class="docutils literal notranslate"><span class="pre">sirop</span> <span class="pre">--help</span></code> for more details.</p>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ sirop -i fir.sirop --out:test --out:vhdl vhdl_project_dir/ --out:vhdl:run-sim
+[INFO ] the design has a latency of 5 cycles
+[INFO ] test 0: PASSED
+[INFO ] 1/1 test passed!
+[INFO ] VHDL testbench passed!
+</pre></div>
+</div>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="example-dot.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Example with Dynamic Scheduling: Dot Product</p>
+      </div>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Louis Hildebrand
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Louis Hildebrand.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
