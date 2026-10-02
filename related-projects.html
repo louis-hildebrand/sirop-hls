@@ -327,11 +327,13 @@ Sirop is a higher-level language; it lets you express your algorithm much more c
 <p>The Sirop compiler can also perform certain helpful transformations that synthesis tools like Quartus are not allowed to perform.
 For example, the Sirop compiler can insert registers to balance the latency across different paths.
 This makes it easier to focus on the high-level computations rather than low-level details like the latency along each path.</p>
-<p><img alt="Diagram showing the effect of latency matching" src="_images/latency-matching.svg" /></p>
+<img alt="Diagram showing the effect of latency matching" class="only-dark" src="_images/latency-matching.svg" />
+<img alt="Diagram showing the effect of latency matching" class="only-light" src="_images/latency-matching1.svg" />
 <p>The Sirop compiler can also fuse two pipeline stages into one.
 This lets the programmer break down their problem into small steps without sacrificing latency or resource-efficiency.
 Conversely, the compiler can split a single stage into two to improve the maximum clock frequency.</p>
-<p><img alt="Diagram showing the effects of fusion and fission" src="_images/fusion-fission.svg" /></p>
+<img alt="Diagram showing the effects of fusion and fission" class="only-dark" src="_images/fusion-fission.svg" />
+<img alt="Diagram showing the effects of fusion and fission" class="only-light" src="_images/fusion-fission1.svg" />
 </section>
 <section id="c-based-hls-e-g-altera-hls-ip-gen-vitis-hls">
 <h2>C-Based HLS (e.g., <a class="reference external" href="https://www.altera.com/products/development-tools/hls_ip_gen_compiler">Altera HLS IP Gen</a>, <a class="reference external" href="https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vitis/vitis-hls.html">Vitis HLS</a>)<a class="headerlink" href="#c-based-hls-e-g-altera-hls-ip-gen-vitis-hls" title="Link to this heading">#</a></h2>

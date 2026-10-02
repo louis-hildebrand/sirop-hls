@@ -26,7 +26,14 @@ This will result in four adders being instantiated to process all the vector's e
 [6:u8, 7:u8, 8:u8, 9:u8]v
 ```
 
-![Diagram showing `VecMap`](figures/spatial-parallelism.*)
+```{image} figures/dark/spatial-parallelism.*
+:alt: Diagram showing `VecMap`
+:class: only-dark
+```
+```{image} figures/light/spatial-parallelism.*
+:alt: Diagram showing `VecMap`
+:class: only-light
+```
 
 Similarly, you can transform each element of a stream using `StmMap`.
 In this case, only one adder will be needed because the stream yields just one element per clock cycle.
@@ -36,7 +43,14 @@ In this case, only one adder will be needed because the stream yields just one e
 [6:u8, 7:u8, 8:u8, 9:u8]s
 ```
 
-![Diagram showing `StmMap`](figures/pipeline-parallelism.*)
+```{image} figures/dark/pipeline-parallelism.*
+:alt: Diagram showing `StmMap`
+:class: only-dark
+```
+```{image} figures/light/pipeline-parallelism.*
+:alt: Diagram showing `StmMap`
+:class: only-light
+```
 
 It is also possible to partially parallelize this code by representing the input as a stream of vectors.
 Here, the stream will yield two elements per cycle and there will be two adders to process them.
@@ -46,7 +60,14 @@ Here, the stream will yield two elements per cycle and there will be two adders 
 [[6:u8, 7:u8]v, [8:u8, 9:u8]v]s
 ```
 
-![Diagram showing `VecMap` inside `StmMap`](figures/mixed-parallelism.*)
+```{image} figures/dark/mixed-parallelism.*
+:alt: Diagram showing `VecMap` inside `StmMap`
+:class: only-dark
+```
+```{image} figures/light/mixed-parallelism.*
+:alt: Diagram showing `VecMap` inside `StmMap`
+:class: only-light
+```
 
 This idea of using types to represent the level of spatial parallelism appears in prior works, including [Lift-HLS](https://doi.org/10.1145/3315454.3329957), [Aetherling](https://doi.org/10.1145/3385412.3385983), and [SHIR](https://doi.org/10.1145/3501768).
 
@@ -58,12 +79,42 @@ The data flowing from producer to consumer is accompanied by a `valid` bit that 
 The consumer sends back a `ready` bit that is high whenever it is ready to receive the data.
 If `ready` is low, the producer should hold its current output and not move to the next element in the stream.
 
-![Block diagram explaining the handshake protocol](figures/handshake.*)
-![Timing diagram explaining the handshake protocol](figures/handshake-timing.*)
+```{image} figures/dark/handshake.*
+:alt: Block diagram explaining the handshake protocol
+:class: only-dark
+```
+```{image} figures/light/handshake.*
+:alt: Block diagram explaining the handshake protocol
+:class: only-light
+```
+
+```{image} figures/dark/handshake-timing.*
+:class: Timing diagram explaining the handshake protocol
+:class: only-dark
+```
+```{image} figures/light/handshake-timing.*
+:class: Timing diagram explaining the handshake protocol
+:class: only-light
+```
 
 The handshake protocol can be disabled as shown below, in the FIR filter example.
 In this case, there is no way for a consumer to exert backpressure.
 It is still possible to have a `valid` bit in the stream payload itself; see the FIR filter example.
 
-![Block diagram explaining static scheduling](figures/no-handshake.*)
-![Timing diagram explaining static scheduling](figures/no-handshake-timing.*)
+```{image} figures/dark/no-handshake.*
+:alt: Block diagram explaining static scheduling
+:class: only-dark
+```
+```{image} figures/light/no-handshake.*
+:alt: Block diagram explaining static scheduling
+:class: only-light
+```
+
+```{image} figures/dark/no-handshake-timing.*
+:alt: Timing diagram explaining static scheduling
+:class: only-dark
+```
+```{image} figures/light/no-handshake-timing.*
+:alt: Timing diagram explaining static scheduling
+:class: only-light
+```
