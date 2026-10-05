@@ -14,8 +14,29 @@ jobs:
     - uses: actions/checkout@v4
       with:
         persist-credentials: false
+    - name: Install LaTeX
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y latexmk texlive-latex-extra
+    - uses: actions/setup-python@v7
+      with:
+        python-version: '3.14'
+    - name: Install Python dependencies
+      run: |
+        pwd
+        python3 -m venv .venv
+        source .venv/bin/activate
+        pip install -r requirements.txt
     - name: Build HTML
-      uses: ammaraskar/sphinx-action@8.2.3
+      run: |
+        source .venv/bin/activate
+        cd docs
+        pwd
+        make html || {
+          status="$?"
+          find source/figures/ -name '*.log' -exec cat {} \+
+          exit "$status"
+        }
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:

@@ -22,4 +22,4 @@ light/bin/%.pdf: %.tex $(TEX_UTILS)
 
 .PHONY: clean
 clean:
-	rm -rf dark/bin/ light/bin/
+	rm -rf dark/ light/
