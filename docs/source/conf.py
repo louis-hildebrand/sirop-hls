@@ -30,6 +30,8 @@ linkcheck_ignore = [
     'https://doi.org/10.1145/3814943.3816175',
 ]
 
+highlight_language = 'none'
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
@@ -38,4 +40,3 @@ html_theme_options = {
     'repository_url': 'https://github.com/louis-hildebrand/sirop-hls',
     'use_repository_button': True,
 }
-html_static_path = ['_static']

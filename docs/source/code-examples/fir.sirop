@@ -1,8 +1,3 @@
-# Example with Static Scheduling: FIR Filter
-
-Now consider the following example, which implements an [FIR filter](https://en.wikipedia.org/wiki/Finite_impulse_response) without backpressure.
-
-```
 // ===== MAIN CODE =============================================================
 
 // Length of test inputs
@@ -81,19 +76,3 @@ yields [
 // The FIR filter will have some latency N.
 // For the first N clock cycles, the output "valid" bit must be 0.
 with prefix /* which satisfies the predicate... */ @(_, valid) => valid == false
-```
-
-Test, compile, and simulate the design using the following command.
-
-```{note}
-To change the compilation target, use the `--out:vhdl:family` and `--out:vhdl:device` flags.
-Run `sirop --help` for more details.
-```
-
-```
-$ sirop -i fir.sirop --out:test --out:vhdl vhdl_project_dir/ --out:vhdl:run-sim
-[INFO ] the design has a latency of 5 cycles
-[INFO ] test 0: PASSED
-[INFO ] 1/1 test passed!
-[INFO ] VHDL testbench passed!
-```
