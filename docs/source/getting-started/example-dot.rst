@@ -4,7 +4,7 @@ Example with Dynamic Scheduling: Dot Product
 As a simple example, consider the `dot product <https://en.wikipedia.org/wiki/Dot_product>`__ of two streams.
 This can be expressed as follows in Sirop:
 
-.. literalinclude:: code-examples/dot.sirop
+.. literalinclude:: /code-examples/dot.sirop
     :linenos:
 
 Testing and Debugging
@@ -50,34 +50,34 @@ For example, running the following (with the working dot product program) genera
     Notice how `u` must wait one clock cycle for the data from `v` to arrive.
     The node corresponding to `StmZip` is exerting back-pressure (i.e., its `ready` signal is lowered).
 
-.. image:: figures/dot-trace/step_0.svg
+.. image:: /figures/dot-trace/step_0.svg
     :alt: Time step 0 of the dot product trace
     :width: 30%
-.. image:: figures/dot-trace/step_1.svg
+.. image:: /figures/dot-trace/step_1.svg
     :alt: Time step 1 of the dot product trace
     :width: 30%
-.. image:: figures/dot-trace/step_2.svg
+.. image:: /figures/dot-trace/step_2.svg
     :alt: Time step 2 of the dot product trace
     :width: 30%
-.. image:: figures/dot-trace/step_3.svg
+.. image:: /figures/dot-trace/step_3.svg
     :alt: Time step 3 of the dot product trace
     :width: 30%
-.. image:: figures/dot-trace/step_4.svg
+.. image:: /figures/dot-trace/step_4.svg
     :alt: Time step 4 of the dot product trace
     :width: 30%
-.. image:: figures/dot-trace/step_5.svg
+.. image:: /figures/dot-trace/step_5.svg
     :alt: Time step 5 of the dot product trace
     :width: 30%
-.. image:: figures/dot-trace/step_6.svg
+.. image:: /figures/dot-trace/step_6.svg
     :alt: Time step 6 of the dot product trace
     :width: 30%
-.. image:: figures/dot-trace/step_7.svg
+.. image:: /figures/dot-trace/step_7.svg
     :alt: Time step 7 of the dot product trace
     :width: 30%
-.. image:: figures/dot-trace/step_8.svg
+.. image:: /figures/dot-trace/step_8.svg
     :alt: Time step 8 of the dot product trace
     :width: 30%
-.. image:: figures/dot-trace/step_9.svg
+.. image:: /figures/dot-trace/step_9.svg
     :alt: Time step 9 of the dot product trace
     :width: 30%
 

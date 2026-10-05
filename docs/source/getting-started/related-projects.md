@@ -9,11 +9,11 @@ The Sirop compiler can also perform certain helpful transformations that synthes
 For example, the Sirop compiler can insert registers to balance the latency across different paths.
 This makes it easier to focus on the high-level computations rather than low-level details like the latency along each path.
 
-```{image} figures/dark/latency-matching.*
+```{image} /figures/dark/latency-matching.*
 :alt: Diagram showing the effect of latency matching
 :class: only-dark
 ```
-```{image} figures/light/latency-matching.*
+```{image} /figures/light/latency-matching.*
 :alt: Diagram showing the effect of latency matching
 :class: only-light
 ```
@@ -22,11 +22,11 @@ The Sirop compiler can also fuse two pipeline stages into one.
 This lets the programmer break down their problem into small steps without sacrificing latency or resource-efficiency.
 Conversely, the compiler can split a single stage into two to improve the maximum clock frequency.
 
-```{image} figures/dark/fusion-fission.*
+```{image} /figures/dark/fusion-fission.*
 :alt: Diagram showing the effects of fusion and fission
 :class: only-dark
 ```
-```{image} figures/light/fusion-fission.*
+```{image} /figures/light/fusion-fission.*
 :alt: Diagram showing the effects of fusion and fission
 :class: only-light
 ```

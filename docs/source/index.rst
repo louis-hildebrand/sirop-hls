@@ -20,12 +20,14 @@ For example, a `dot product <https://en.wikipedia.org/wiki/Dot_product>`__ can b
     :maxdepth: 2
     :caption: Getting Started
 
-    install
-    language-intro
-    related-projects
-    example-dot
-    example-fir
+    getting-started/install
+    getting-started/language-intro
+    getting-started/related-projects
+    getting-started/example-dot
+    getting-started/example-fir
 
 .. toctree::
     :maxdepth: 2
     :caption: Reference
+
+    reference/stream-builtins

@@ -26,11 +26,11 @@ This will result in four adders being instantiated to process all the vector's e
 [6:u8, 7:u8, 8:u8, 9:u8]v
 ```
 
-```{image} figures/dark/spatial-parallelism.*
+```{image} /figures/dark/spatial-parallelism.*
 :alt: Diagram showing `VecMap`
 :class: only-dark
 ```
-```{image} figures/light/spatial-parallelism.*
+```{image} /figures/light/spatial-parallelism.*
 :alt: Diagram showing `VecMap`
 :class: only-light
 ```
@@ -43,11 +43,11 @@ In this case, only one adder will be needed because the stream yields just one e
 [6:u8, 7:u8, 8:u8, 9:u8]s
 ```
 
-```{image} figures/dark/pipeline-parallelism.*
+```{image} /figures/dark/pipeline-parallelism.*
 :alt: Diagram showing `StmMap`
 :class: only-dark
 ```
-```{image} figures/light/pipeline-parallelism.*
+```{image} /figures/light/pipeline-parallelism.*
 :alt: Diagram showing `StmMap`
 :class: only-light
 ```
@@ -60,11 +60,11 @@ Here, the stream will yield two elements per cycle and there will be two adders 
 [[6:u8, 7:u8]v, [8:u8, 9:u8]v]s
 ```
 
-```{image} figures/dark/mixed-parallelism.*
+```{image} /figures/dark/mixed-parallelism.*
 :alt: Diagram showing `VecMap` inside `StmMap`
 :class: only-dark
 ```
-```{image} figures/light/mixed-parallelism.*
+```{image} /figures/light/mixed-parallelism.*
 :alt: Diagram showing `VecMap` inside `StmMap`
 :class: only-light
 ```
@@ -79,20 +79,20 @@ The data flowing from producer to consumer is accompanied by a `valid` bit that 
 The consumer sends back a `ready` bit that is high whenever it is ready to receive the data.
 If `ready` is low, the producer should hold its current output and not move to the next element in the stream.
 
-```{image} figures/dark/handshake.*
+```{image} /figures/dark/handshake.*
 :alt: Block diagram explaining the handshake protocol
 :class: only-dark
 ```
-```{image} figures/light/handshake.*
+```{image} /figures/light/handshake.*
 :alt: Block diagram explaining the handshake protocol
 :class: only-light
 ```
 
-```{image} figures/dark/handshake-timing.*
+```{image} /figures/dark/handshake-timing.*
 :class: Timing diagram explaining the handshake protocol
 :class: only-dark
 ```
-```{image} figures/light/handshake-timing.*
+```{image} /figures/light/handshake-timing.*
 :class: Timing diagram explaining the handshake protocol
 :class: only-light
 ```
@@ -101,20 +101,20 @@ The handshake protocol can be disabled as shown below, in the FIR filter example
 In this case, there is no way for a consumer to exert backpressure.
 It is still possible to have a `valid` bit in the stream payload itself; see the FIR filter example.
 
-```{image} figures/dark/no-handshake.*
+```{image} /figures/dark/no-handshake.*
 :alt: Block diagram explaining static scheduling
 :class: only-dark
 ```
-```{image} figures/light/no-handshake.*
+```{image} /figures/light/no-handshake.*
 :alt: Block diagram explaining static scheduling
 :class: only-light
 ```
 
-```{image} figures/dark/no-handshake-timing.*
+```{image} /figures/dark/no-handshake-timing.*
 :alt: Timing diagram explaining static scheduling
 :class: only-dark
 ```
-```{image} figures/light/no-handshake-timing.*
+```{image} /figures/light/no-handshake-timing.*
 :alt: Timing diagram explaining static scheduling
 :class: only-light
 ```
