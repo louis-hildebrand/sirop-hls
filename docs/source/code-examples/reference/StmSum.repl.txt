@@ -1,0 +1,6 @@
+> __handshake = false
+> __show_prefix = false
+> ([undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmSum()
+[10:u8]s
+> ([undefined:i16]s ++ [-9:i16, -8:i16, -7:i16]s).StmSum()
+[-24:i16]s

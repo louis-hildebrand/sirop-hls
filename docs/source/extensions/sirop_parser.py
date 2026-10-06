@@ -24,9 +24,7 @@ def signature(src: str) -> tuple[str, list[str], str, str]:
         comment = src[index_of_extras+len("::"):].strip()
     except ValueError:
         (out_typ, comment) = (src, "")
-    result = (name, params, out_typ, comment)
-    print(result)
-    return result
+    return (name, params, out_typ, comment)
 
 
 def ident(src: str) -> tuple[str, str]:

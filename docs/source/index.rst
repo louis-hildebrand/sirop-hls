@@ -30,4 +30,5 @@ For example, a `dot product <https://en.wikipedia.org/wiki/Dot_product>`__ can b
     :maxdepth: 2
     :caption: Reference
 
-    reference/stream-builtins
+    reference/types
+    reference/streams

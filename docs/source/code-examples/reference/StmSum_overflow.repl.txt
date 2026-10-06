@@ -1,0 +1,6 @@
+> __handshake = false
+> __show_prefix = false
+> [255:u8, 1:u8]s.StmSum()
+[0:u8]s
+> [255:u8, 1:u8]s.StmMap(x => pad9(x)).StmSum()
+[256:u9]s
