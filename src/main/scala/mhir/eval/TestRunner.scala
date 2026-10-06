@@ -27,7 +27,7 @@ object TestRunner {
       prog: Program,
       expectedPath: Option[Path],
       actualPath: Option[Path],
-      showPhysical: Boolean,
+      showPhysicalPrefix: Boolean,
       overwrite: Boolean
   ): Unit = {
     expectedPath.foreach(checkIfFileExists(_, overwrite))
@@ -46,7 +46,7 @@ object TestRunner {
           val runner = new TestRunner(
             testIdx = i,
             handshake = prog.handshake,
-            showPhysical = showPhysical
+            showPhysical = showPhysicalPrefix
           )
           runner.run(
             a,

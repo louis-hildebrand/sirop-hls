@@ -40,7 +40,7 @@ object Repl {
     val writer = terminal.writer()
     val state = ReplState(
       handshake = true,
-      showPhysical = false,
+      showPrefix = false,
       ctrlCCount = 0,
       variables = Map()
     )
@@ -170,7 +170,7 @@ object Repl {
       lowered
     }
     val result = mhir.eval.eval(optimized, handshake = state.handshake)
-    if (state.showPhysical) {
+    if (state.showPrefix) {
       result
     } else {
       result.dropPhysicalPrefix
@@ -194,17 +194,17 @@ object Repl {
             state.copy(handshake = false)
           case v =>
             throw new TypeError(
-              s"value of __handshake evaluated to $v." +
+              s"value of $setting evaluated to $v." +
                 s" Expected true or false."
             )
         }
-      case "__show_physical" =>
+      case "__show_prefix" | "__show_physical" =>
         eval(newValue, state) match {
-          case True  => state.copy(showPhysical = true)
-          case False => state.copy(showPhysical = false)
+          case True  => state.copy(showPrefix = true)
+          case False => state.copy(showPrefix = false)
           case v =>
             throw new TypeError(
-              s"value of __show_physical evaluated to $v." +
+              s"value of $setting evaluated to $v." +
                 s" Expected true or false."
             )
         }

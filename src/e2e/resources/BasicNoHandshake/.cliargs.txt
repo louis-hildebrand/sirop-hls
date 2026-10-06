@@ -1,1 +1,1 @@
---out:test:actual:show-physical
+--out:test:actual:show-prefix
