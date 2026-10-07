@@ -866,15 +866,15 @@ class TypecheckerTests extends AnyFunSuite {
         |const M: u32 = 5
         |const V: Vec[u8, M] = vbuild(M) { (i: u8) => i }
         |const Z: u8 = V.VecReduce( (x) => x.0 + x.1 )[0]
-        |assert { s = StmRange(N, Z, 1:u8) } yields StmRange(N, Z + 5:u8, 1:u8)
+        |assert { s = StmCount(N, Z, 1:u8) } yields StmCount(N, Z + 5:u8, 1:u8)
         |
         |const V2: Vec[u8, N] = vbuild(N) { (i: u8) => i }
         |const Z2: u8 = V2.VecReduce( (x) => x.0 + x.1 )[0]
         |const DELTA2: u8 = 2
         |assert {
-        |  s = StmRange(N, Z2, DELTA2)
+        |  s = StmCount(N, Z2, DELTA2)
         |}
-        |yields StmRange(N, Z2 + 5:u8, DELTA2)
+        |yields StmCount(N, Z2 + 5:u8, DELTA2)
         |ignoring StmConcat([ones:[u8]()]s, StmCst(9, zeros:[u8]()))
         |with prefix x => true
         |""".stripMargin
@@ -899,7 +899,7 @@ class TypecheckerTests extends AnyFunSuite {
       """accelerator top = (s: Stm[u8, 3]) => s.StmMap( (x) => x + K )
         |
         |const K: u8 = 5
-        |assert { s = StmRange(3, 0:u8, 1:u8) } yields [K, K + 1:u8, K + 2:u8]s
+        |assert { s = StmCount(3, 0:u8, 1:u8) } yields [K, K + 1:u8, K + 2:u8]s
         |""".stripMargin
     val prog = Parser.parse(src)
     val ex = intercept[NameError](prog.tchk())
@@ -963,7 +963,7 @@ class TypecheckerTests extends AnyFunSuite {
     // Even for VHDL simulation, the testbench might not compile if it tries to
     // convert the output to a type that's not defined in the main VHDL code.
     val src =
-      """accelerator top = StmRange(4, 0:u8, 1:u8)
+      """accelerator top = StmCount(4, 0:u8, 1:u8)
         |
         |assert {} yields [[0:u8]v, [1:u8]v, [2:u8]v, [3:u8]v]s
         |""".stripMargin
@@ -982,7 +982,7 @@ class TypecheckerTests extends AnyFunSuite {
     // Although the bitwidth is the same here, using the wrong type could still
     // cause problems.
     val src =
-      """accelerator top = StmRange(4, 0:u8, 1:u8)
+      """accelerator top = StmCount(4, 0:u8, 1:u8)
         |
         |assert {} yields [0:u8, 1:u8, 2:u8, 3:u8, 4:u8]s
         |""".stripMargin
@@ -1005,7 +1005,7 @@ class TypecheckerTests extends AnyFunSuite {
         |const Z: u8 = 0
         |const DELTA: u8 = 1
         |
-        |accelerator top = StmRange(N, Z, DELTA)
+        |accelerator top = StmCount(N, Z, DELTA)
         |
         |assert {} yields [0:u8, 1:u8, 2:u8, 3:u8, 4:u8]s
         |""".stripMargin
@@ -1022,7 +1022,7 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("TestSuite:Error:WrongIgnoringType") {
     val src =
-      """accelerator top = StmRange(4, 0:u8, 1:u8)
+      """accelerator top = StmCount(4, 0:u8, 1:u8)
         |
         |assert {}
         |yields [0:u8, 1:u8, 2:u8, 3:u8]s
@@ -1041,7 +1041,7 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("TestSuite:Error:WrongIgnoringLength") {
     val src =
-      """accelerator top = StmRange(4, 0:u8, 1:u8)
+      """accelerator top = StmCount(4, 0:u8, 1:u8)
         |
         |assert {}
         |yields [0:u8, 1:u8, 2:u8, 3:u8]s
@@ -1060,7 +1060,7 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("TestSuite:Error:WrongPrefixConditionInput") {
     val src =
-      """accelerator top = StmRange(3, 0:u8, 1:u8)
+      """accelerator top = StmCount(3, 0:u8, 1:u8)
         |
         |assert yields [0:u8, 1:u8, 2:u8]s
         |with prefix (x: bool) => x
@@ -1077,7 +1077,7 @@ class TypecheckerTests extends AnyFunSuite {
 
   test("TestSuite:Error:WrongPrefixConditionOutput") {
     val src =
-      """accelerator top = StmRange(3, 0:u8, 1:u8)
+      """accelerator top = StmCount(3, 0:u8, 1:u8)
         |
         |assert yields [0:u8, 1:u8, 2:u8]s
         |with prefix x => x

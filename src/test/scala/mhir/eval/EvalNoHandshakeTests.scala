@@ -10,8 +10,8 @@ class EvalNoHandshakeTests extends AnyFunSuite {
 
   test("DelayMismatch") {
     val n = 5
-    val a = StmRange(n, C(0)(U8), C(1)(U8))().tchk().lower
-    val b = StmRange(n, C(-2)(I8), C(1)(I8))().tchk().lower
+    val a = StmCount(n, C(0)(U8), C(1)(U8))().tchk().lower
+    val b = StmCount(n, C(-2)(I8), C(1)(I8))().tchk().lower
     val original =
       SimpleZip(a, SimpleMap(b, x => Sum(x, C(-5)(I8))()))
         .tchk()
@@ -50,7 +50,7 @@ class EvalNoHandshakeTests extends AnyFunSuite {
         )
       )().tchk()
     }
-    val inputs = Map(s -> StmRange(n, C(2)(U16), C(3)(U16))())
+    val inputs = Map(s -> StmCount(n, C(2)(U16), C(3)(U16))())
     val actual = mhir.eval.eval(original, handshake = false, inputs = inputs)
     val expected = StmLiteral(
       Seq(C(6)(U16), Undefined(U16)),
@@ -174,7 +174,7 @@ class EvalNoHandshakeTests extends AnyFunSuite {
         True,
         Map(),
         Map(
-          p -> (StmRange(4, C(0)(U8), C(1)(U8))(), True, Tuple()())
+          p -> (StmCount(4, C(0)(U8), C(1)(U8))(), True, Tuple()())
         )
       )().annotateWithName("StmBar").tchk()
     }
@@ -195,7 +195,7 @@ class EvalNoHandshakeTests extends AnyFunSuite {
         True,
         Map(),
         Map(
-          p -> (StmRange(4, C(0)(U8), C(1)(U8))(), True, Undefined(U8))
+          p -> (StmCount(4, C(0)(U8), C(1)(U8))(), True, Undefined(U8))
         )
       )().annotateWithName("StmFoo").tchk()
     }

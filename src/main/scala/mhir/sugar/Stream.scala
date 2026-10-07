@@ -504,31 +504,7 @@ case class StmCst(n: Expr, k: Expr)(typ: Type = Missing)
   }
 }
 
-case class StmCount(n: Expr)(typ: Type = Missing)
-    extends ResolvedSyntaxSugar(n)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCount = {
-    newChildren match {
-      case Seq(n) => StmCount(n)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
-    }
-  }
-
-  override def typecheck(
-      context: Map[Param, Type],
-      constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): StmCount = {
-    val newN = n.tchk(context, constValues).expectUInt()
-    this.rebuild(TyStm(newN.typ, newN), Seq(newN))
-  }
-
-  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    requireType()
-    val n = this.n.lower
-    StmRange(n, IntCst(0)(n.typ), IntCst(1)(n.typ))().tchk().lower
-  }
-}
-
-/** An arbitrary counter, a bit like Python's <code>range()</code>.
+/** A counter with custom initial value and step.
   *
   * @param n
   *   Length of the stream.
@@ -540,11 +516,15 @@ case class StmCount(n: Expr)(typ: Type = Missing)
   *   The stream of length <code>n</code> with elements <code>[z, z + delta, z +
   *   2 * delta, ...]</code>.
   */
-case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
+case class StmCount(
+    n: Expr,
+    z: Expr = Tuple()(),
+    delta: Expr = Tuple()()
+)(typ: Type = Missing)
     extends ResolvedSyntaxSugar(n, z, delta)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmRange = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmCount = {
     newChildren match {
-      case Seq(n, z, delta) => StmRange(n, z, delta)(typ)
+      case Seq(n, z, delta) => StmCount(n, z, delta)(typ)
       case _                => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -552,13 +532,45 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): StmRange = {
+  )(implicit c: Canonicalizer): StmCount = {
     val newN = n.tchk(context, constValues).expectUInt()
-    val newZ = z.tchk(context, constValues).expectAnyInt()
-    val newDelta = delta
-      .tchk(context, constValues)
-      .expectType(newZ.typ, constValues)
-    this.rebuild(TyStm(newZ.typ, newN), Seq(newN, newZ, newDelta))
+    val checkedInit = z.tchk(context, constValues)
+    val checkedDelta = delta.tchk(context, constValues)
+    val (finalInit, finalDelta) = (checkedInit.typ, checkedDelta.typ) match {
+      case (TyTuple(), TyTuple()) =>
+        newN.typ match {
+          case TyUInt(0) =>
+            throw new TypeError(
+              "cannot create a counter with element type u0. Please choose a wider type."
+            )
+          case t => (C(0)(t), C(1)(t))
+        }
+      case (TyTuple(), t: TyAnyInt) =>
+        (C(0)(t), checkedDelta)
+      case (t: TyAnyInt, TyTuple()) =>
+        if (!t.contains(1)) {
+          throw new TypeError(
+            s"cannot create a counter with element type $t. Please choose a wider type."
+          )
+        }
+        (checkedInit, C(1)(t))
+      case (t1: TyAnyInt, t2: TyAnyInt) =>
+        if (!t1.equalsGivenConstants(t2, constValues)) {
+          throw new TypeError(
+            s"init and delta have different types: $t1 vs $t2.",
+            TypeChecker.relevantBindings(constValues, t1, t2)
+          )
+        }
+        (checkedInit, checkedDelta)
+      case (_: TyAnyInt, t) =>
+        throw new TypeError(s"wrong type for delta in StmCount: $t")
+      case (t, _) =>
+        throw new TypeError(s"wrong type for init in StmCount: $t")
+    }
+    this.rebuild(
+      TyStm(finalInit.typ, newN),
+      Seq(newN, finalInit, finalDelta)
+    )
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -585,7 +597,7 @@ case class StmRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
   * This is equivalent to, but possibly more resource-efficient than, the
   * following:
   * {{{
-  *   StmRange(n * m, z, delta) |> StmSplit(m) |> StmMap(Stm2Vec)
+  *   StmCount(n * m, z, delta) |> StmSplit(m) |> StmMap(Stm2Vec)
   * }}}
   *
   * @param n

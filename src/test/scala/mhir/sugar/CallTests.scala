@@ -88,9 +88,9 @@ class CallTests extends AnyFunSuite {
     assert(actual.typ == expected.typ)
   }
 
-  test("StmRange") {
-    val actual = call("StmRange", C(8)(U8), C(7)(U8), C(6)(U8)).tchk()
-    val expected = StmRange(C(8)(U8), C(7)(U8), C(6)(U8))()
+  test("StmCount") {
+    val actual = call("StmCount", C(8)(U8), C(7)(U8), C(6)(U8)).tchk()
+    val expected = StmCount(C(8)(U8), C(7)(U8), C(6)(U8))()
     assert(actual == expected)
   }
 }

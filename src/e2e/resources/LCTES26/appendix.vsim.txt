@@ -1,1 +1,2 @@
+[WARN ] StmRange is deprecated. Please use StmCount instead.
 [INFO ] VHDL testbench passed!

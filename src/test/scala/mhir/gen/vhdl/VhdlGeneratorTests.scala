@@ -290,9 +290,9 @@ class VhdlGeneratorTests extends AnyFunSuite {
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
   }
 
-  test("StmRange(10, -2, 3)") {
+  test("StmCount(10, -2, 3)") {
     val s =
-      StmRange(10, C(-2)(I8), C(3)(I8))().tchk().lower.asInstanceOf[StmBuild]
+      StmCount(10, C(-2)(I8), C(3)(I8))().tchk().lower.asInstanceOf[StmBuild]
     val inputs = Seq(Seq(), Seq())
     val options = VhdlGeneratorOptions(outName = Some("result"))
     assert(VhdlTestRunner.testExpr(s, inputs, options) == TestPassed)
@@ -1173,7 +1173,7 @@ class VhdlGeneratorTests extends AnyFunSuite {
         ),
         Map[Param, (Expr, Expr, Expr)](
           s -> (
-            StmRange(n, C(42)(U8), C(3)(U8))(),
+            StmCount(n, C(42)(U8), C(3)(U8))(),
             True,
             Tuple()()
           )

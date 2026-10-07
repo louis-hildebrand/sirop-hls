@@ -39,7 +39,7 @@ const Z1: u16 = 1
 const DELTA1: u16 = 1
 assert {
     original = {
-        StmRange(N, Z1, DELTA1)
+        StmCount(N, Z1, DELTA1)
         .StmMap((i: u16) =>
             vbuild(M) { (j: u16) =>
                 i*i + j
@@ -48,7 +48,7 @@ assert {
     }
 }
 yields {
-    StmRange(N, Z1, DELTA1)
+    StmCount(N, Z1, DELTA1)
     .StmMap((i: u16) =>
         vbuild(M) { (j: u16) =>
             i*i + j + 5:u16

@@ -480,7 +480,7 @@ object AetherlingParser {
       val (typ, suffix7) = parseTyp(suffix6)
       val suffix8 = expect(suffix7, " ")
       val (_, suffix9) = parseNat(suffix8)
-      (StmRange(n, C(0)(typ), C(delta)(typ))(), suffix9)
+      (StmCount(n, C(0)(typ), C(delta)(typ))(), suffix9)
     } else if (code.startsWith("Counter_tsN ")) {
       val suffix0 = expect(code, "Counter_tsN ")
       val (no, suffix1) = parseNat(suffix0)
@@ -955,7 +955,7 @@ object AetherlingParser {
   ): Expr = {
     (ns, is) match {
       case (Seq(_), Seq(_)) =>
-        StmRange(nProd, C(0)(typ), C(delta)(typ))()
+        StmCount(nProd, C(0)(typ), C(delta)(typ))()
       case (n +: ns, _ +: is) =>
         val innerCount = makeNestedStmCounter(nProd * n, ns, is, delta, typ)
         StmSplit(innerCount, n)()

@@ -735,12 +735,12 @@ class ExprPrinterTests extends AnyFunSuite {
     )()
 
     val expectedOneLine =
-      s"letstm[1] s1 = StmCount($n:u8) in letstm[1] s2 = StmCst($n:u8, true) in StmZip(StmZip(s1, s2, (0:u8, 0:u8)), StmZip(s2, s1, undefined), undefined)"
+      s"letstm[1] s1 = StmCount($n:u8, (), ()) in letstm[1] s2 = StmCst($n:u8, true) in StmZip(StmZip(s1, s2, (0:u8, 0:u8)), StmZip(s2, s1, undefined), undefined)"
     val actualOneLine = ExprPrinter.displayOneLine(let)
     assert(actualOneLine == expectedOneLine)
 
     val expectedMultiLine =
-      s"""letstm[1] s1 = StmCount($n:u8) in
+      s"""letstm[1] s1 = StmCount($n:u8, (), ()) in
          |letstm[1] s2 = StmCst($n:u8, true) in
          |StmZip(StmZip(s1, s2, (0:u8, 0:u8)), StmZip(s2, s1, undefined), undefined)
          |""".stripMargin.stripTrailing

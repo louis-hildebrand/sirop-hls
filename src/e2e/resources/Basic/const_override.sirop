@@ -8,6 +8,6 @@ const Z: u8 = 0:u8
 const DELTA: u8 = 1:u8
 
 assert {
-    s = StmRange(N, Z, DELTA)
+    s = StmCount(N, Z, DELTA)
 }
-yields StmRange(N, Z + K, DELTA)
+yields StmCount(N, Z + K, DELTA)

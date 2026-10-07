@@ -445,7 +445,7 @@ let module6: Stm[Vec[Stm[u32, 3], 3], 1] -> Stm[Stm[(bool, bool), 1], 1] -> Stm[
 ) in
 let module7: Stm[Vec[Stm[Vec[Stm[u32, 3], 3], 1], 1], 16] -> Stm[Vec[Stm[Stm[(u32, (u32, u32)), 1], 1], 1], 16] = (
   (I : Stm[Vec[Stm[Vec[Stm[u32, 3], 3], 1], 1], 16]) =>
-    let n92: Stm[Stm[u32, 16], 1] = StmSplit(StmRange(16:u5, 0:u32, 1:u32), 16:u5) in
+    let n92: Stm[Stm[u32, 16], 1] = StmSplit(StmCount(16:u5, 0:u32, 1:u32), 16:u5) in
     let n100: Stm[Stm[bool, 16], 1] = StmMap(n92, (I : Stm[u32, 16]) => StmMap(I, module0)) in
     let n112: Stm[Stm[bool, 16], 1] = StmMap(n92, (I : Stm[u32, 16]) => StmMap(I, module1)) in
     let n113: Stm[Stm[(bool, bool), 16], 1] = (

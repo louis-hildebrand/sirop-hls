@@ -68,12 +68,12 @@ case class VecCst(n: Expr, k: Expr)(typ: Type = Missing)
   }
 }
 
-case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
+case class VecCount(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     extends ResolvedSyntaxSugar(n, z, delta)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecRange = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecCount = {
     newChildren match {
-      case Seq(n, z, delta) => VecRange(n, z, delta)(typ)
+      case Seq(n, z, delta) => VecCount(n, z, delta)(typ)
       case _                => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -81,7 +81,7 @@ case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): VecRange = {
+  )(implicit c: Canonicalizer): VecCount = {
     val n = this.n.tchk(context, constValues).expectUInt()
     val z = this.z.tchk(context, constValues).expectAnyInt()
     val delta = this.delta

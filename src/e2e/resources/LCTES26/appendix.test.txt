@@ -1,2 +1,3 @@
+[WARN ] StmRange is deprecated. Please use StmCount instead.
 [INFO ] test 0: PASSED
 [INFO ] 1/1 test passed!

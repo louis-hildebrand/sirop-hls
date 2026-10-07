@@ -15,8 +15,8 @@ accelerator top =
     .StmMap( x => truncate18(x) )
 
 assert {
-    s1 = StmRange(N, 2:u18, 1:u18),
-    s2 = StmRange(N, 2:u18, 1:u18)
+    s1 = StmCount(N, 2:u18, 1:u18),
+    s2 = StmCount(N, 2:u18, 1:u18)
 }
 yields [
     2 * ( 2:u18*2  +  3:u18*3  +  4:u18*4  +  5:u18*5  +  6:u18*6),
@@ -34,8 +34,8 @@ yields [
 ]s
 
 assert {
-    s1 = StmRange(N, 42:i19, -1:i19).StmMap( x => unsign(x) ),
-    s2 = StmRange(N, 1:u18, 2:u18)
+    s1 = StmCount(N, 42:i19, -1:i19).StmMap( x => unsign(x) ),
+    s2 = StmCount(N, 1:u18, 2:u18)
 }
 yields [
     2 * (42:u18*1  + 41:u18*3  + 40:u18*5  + 39:u18*7  + 38:u18*9),

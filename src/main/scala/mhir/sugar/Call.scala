@@ -1,5 +1,6 @@
 package mhir.sugar
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.typecheck._
 
@@ -162,9 +163,15 @@ case class Call(
           case (Seq(), Seq(n, c)) => VecCst(n, c)()
           case _                  => error(f)
         }
-      case f @ Param("VecRange", -1) =>
+      case f @ Param("VecCount", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(n, z, delta)) => VecRange(n, z, delta)()
+          case (Seq(), Seq(n, z, delta)) => VecCount(n, z, delta)()
+          case _                         => error(f)
+        }
+      case f @ Param("VecRange", -1) =>
+        Call.logger.warn(s"$f is deprecated. Please use VecCount instead.")
+        combinedArgs match {
+          case (Seq(), Seq(n, z, delta)) => VecCount(n, z, delta)()
           case _                         => error(f)
         }
       case f @ Param("VecReverse", -1) =>
@@ -283,9 +290,17 @@ case class Call(
           case (Seq(), Seq(n, c)) => StmCst(n, c)()
           case _                  => error(f)
         }
-      case f @ Param("StmRange", -1) =>
+      case f @ Param("StmCount", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(n, z, delta)) => StmRange(n, z, delta)()
+          case (Seq(), Seq(n))              => StmCount(n)()
+          case (Seq(), Seq(n, init))        => StmCount(n, init)()
+          case (Seq(), Seq(n, init, delta)) => StmCount(n, init, delta)()
+          case _                            => error(f)
+        }
+      case f @ Param("StmRange", -1) =>
+        Call.logger.warn(s"$f is deprecated. Please use StmCount instead.")
+        combinedArgs match {
+          case (Seq(), Seq(n, z, delta)) => StmCount(n, z, delta)()
           case _                         => error(f)
         }
       case f @ Param("StmCount2D", -1) =>
@@ -428,4 +443,8 @@ case class Call(
     }
     ExprPrinter.displayFunCallMultiLine(lhs, this.args, maxWidth)
   }
+}
+
+object Call {
+  private val logger: Logger = Logger(getClass.getName)
 }

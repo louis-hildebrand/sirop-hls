@@ -7,10 +7,10 @@ import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class VectorTests extends AnyFunSuite {
-  test("VecBuild:StmRange") {
+  test("VecBuild:StmCount") {
     val n = 3
     val m = 4
-    val e = VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))().tchk().lower
+    val e = VecBuild(n, U32 ::+ (i => StmCount(m, i, i)()))().tchk().lower
     val expected = StmLiteral(
       (0 until m).map(j =>
         VecLiteral((0 until n).map(i => IntCst(i + j * i)()): _*)()
@@ -25,7 +25,7 @@ class VectorTests extends AnyFunSuite {
     val m = 4
     val s = Param("s")(TyStm(U32, m))
     val e = VecBuild(n, U32 ::+ (_ => s))().tchk().lower
-    val sVal = StmRange(m, C(999)(U32), C(10)(U32))().tchk()
+    val sVal = StmCount(m, C(999)(U32), C(10)(U32))().tchk()
     val expected = StmLiteral(
       (0 until m).map(t =>
         VecLiteral((0 until n).map(_ => IntCst(999 + 10 * t)()): _*)()
@@ -35,13 +35,13 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("NestedVecBuild:StmRange") {
+  test("NestedVecBuild:StmCount") {
     val n = 3
     val m = 4
     val k = 5
     val e = VecBuild(
       n,
-      U32 ::+ (i => VecBuild(m, U32 ::+ (j => StmRange(k, i, j)()))())
+      U32 ::+ (i => VecBuild(m, U32 ::+ (j => StmCount(k, i, j)()))())
     )().tchk().lower
     val expected = StmLiteral(
       (0 until k).map(t =>
@@ -62,7 +62,7 @@ class VectorTests extends AnyFunSuite {
     val e =
       VecBuild(
         n,
-        U32 ::+ (i => StmZip(StmCount(m)(), StmRange(m, i, i)())())
+        U32 ::+ (i => StmZip(StmCount(m)(), StmCount(m, i, i)())())
       )().tchk().lower
     val expected = StmLiteral(
       (0 until m).map(j =>
@@ -113,7 +113,7 @@ class VectorTests extends AnyFunSuite {
       LetStm(
         1,
         s,
-        StmRange(m, C(0)(U8), i)(),
+        StmCount(m, C(0)(U8), i)(),
         StmZip(StmCount(C(m)(U8))(), s)()
       )()
     val e = VecBuild(n, Function(i, let)())().tchk().lower
@@ -132,7 +132,7 @@ class VectorTests extends AnyFunSuite {
   test("VecBuild:VecBuild(2, i => if (i == 0) then stm0 else stm1)") {
     val n = 8
     val s0 = StmCount(C(n)(U8))().tchk()
-    val s1 = StmRange(n, C(42)(U8), C(2)(U8))().tchk()
+    val s1 = StmCount(n, C(42)(U8), C(2)(U8))().tchk()
     val original =
       VecBuild(2, U8 ::+ (i => Mux(i === 0, s0, s1)()))().tchk().lower
     val expected = StmLiteral(
@@ -147,7 +147,7 @@ class VectorTests extends AnyFunSuite {
     val m = 4
     val idx = Param("idx")(U32)
     val e = VecAccess(
-      VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))(),
+      VecBuild(n, U32 ::+ (i => StmCount(m, i, i)()))(),
       idx
     )().tchk().lower
     for (idxVal <- 0 until n) {
@@ -176,14 +176,14 @@ class VectorTests extends AnyFunSuite {
     assert(mhir.eval.eval(v) == expected)
   }
 
-  test("VecRange:u8") {
-    val v = VecRange(3, C(2)(U8), C(4)(U8))().tchk().lower
+  test("VecCount:u8") {
+    val v = VecCount(3, C(2)(U8), C(4)(U8))().tchk().lower
     val expected = VecLiteral(C(2)(U8), C(6)(U8), C(10)(U8))().tchk()
     assert(mhir.eval.eval(v) == expected)
   }
 
-  test("VecRange:i8") {
-    val v = VecRange(5, C(-2)(I8), C(3)(I8))().tchk().lower
+  test("VecCount:i8") {
+    val v = VecCount(5, C(-2)(I8), C(3)(I8))().tchk().lower
     val expected = VecLiteral(
       C(-2)(I8),
       C(1)(I8),
@@ -195,7 +195,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecSlice:[1:4:3]") {
-    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(16, C(0)(U8), C(1)(U8))().tchk().lower
     val u33 = TyUInt(33)
     val e = VecSlice(input, C(1)(u33), C(4)(u33), C(3)(u33))()
     val actual = mhir.eval.eval(e)
@@ -204,7 +204,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecSlice:[3:5:0]") {
-    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(16, C(0)(U8), C(1)(U8))().tchk().lower
     val e = VecSlice(input, 5, 3, 0)()
     val actual = mhir.eval.eval(e)
     val expected = VecLiteral((0 until 3).map(_ => C(5)(U8)): _*)().tchk()
@@ -212,7 +212,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecSlice:[2:3:]") {
-    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(16, C(0)(U8), C(1)(U8))().tchk().lower
     val e = VecSlice(input, C(2)(), C(3)(), Tuple()())()
     val actual = mhir.eval.eval(e)
     val expected = VecLiteral(Seq(2, 3, 4).map(C(_)(U8)): _*)().tchk()
@@ -226,7 +226,7 @@ class VectorTests extends AnyFunSuite {
       val actual = mhir.eval.eval(e)
       assert(actual == VecLiteral()(TyVec(U8, 0)))
     }
-    val input = VecRange(4, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(4, C(0)(U8), C(1)(U8))().tchk().lower
     for (step <- -5 to -1) {
       test(s"VecSlice:[$start::$step]") {
         val e = VecSlice(input, start, Tuple()(), step)().tchk().lower
@@ -248,13 +248,13 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecSlice:[::0]") {
-    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(16, C(0)(U8), C(1)(U8))().tchk().lower
     val e = VecSlice(input, Tuple()(), Tuple()(), C(0)())().tchk()
     assert(mhir.eval.eval(e) == Undefined(e.typ))
   }
 
   test("VecSlice:[2::]") {
-    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(16, C(0)(U8), C(1)(U8))().tchk().lower
     val e = VecSlice(input, Tuple()(), Tuple()(), C(2)())()
     val actual = mhir.eval.eval(e)
     val expected =
@@ -263,7 +263,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecSlice:[:4:2]") {
-    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(16, C(0)(U8), C(1)(U8))().tchk().lower
     val e = VecSlice(input, Tuple()(), C(4)(), C(2)())()
     val actual = mhir.eval.eval(e)
     val expected = VecLiteral(Seq(0, 2, 4, 6).map(C(_)(U8)): _*)().tchk()
@@ -271,7 +271,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecSlice:[:4:-1]") {
-    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(16, C(0)(U8), C(1)(U8))().tchk().lower
     val e = VecSlice(input, Tuple()(), C(3)(), C(-1)())()
     val actual = mhir.eval.eval(e)
     val expected = VecLiteral(Seq(15, 14, 13).map(C(_)(U8)): _*)().tchk()
@@ -279,7 +279,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecSlice:[:3:]") {
-    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(16, C(0)(U8), C(1)(U8))().tchk().lower
     val e = VecSlice(input, Tuple()(), C(3)(), Tuple()())()
     val actual = mhir.eval.eval(e)
     val expected = VecLiteral(Seq(0, 1, 2).map(C(_)(U8)): _*)().tchk()
@@ -287,7 +287,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecSlice:[::2]:InitialLength15") {
-    val input = VecRange(15, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(15, C(0)(U8), C(1)(U8))().tchk().lower
     val e = VecSlice(input, Tuple()(), Tuple()(), C(2)())()
     val actual = mhir.eval.eval(e)
     val expected =
@@ -296,7 +296,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecSlice:[::2]:InitialLength16") {
-    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(16, C(0)(U8), C(1)(U8))().tchk().lower
     val e = VecSlice(input, Tuple()(), Tuple()(), C(2)())()
     val actual = mhir.eval.eval(e)
     val expected =
@@ -305,7 +305,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecSlice:[::-1]") {
-    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(16, C(0)(U8), C(1)(U8))().tchk().lower
     val e = VecSlice(input, Tuple()(), Tuple()(), C(-1)())()
     val actual = mhir.eval.eval(e)
     val expected = VecLiteral((15 to 0 by -1).map(C(_)(U8)): _*)().tchk()
@@ -313,7 +313,7 @@ class VectorTests extends AnyFunSuite {
   }
 
   test("VecSlice:[::]") {
-    val input = VecRange(16, C(0)(U8), C(1)(U8))().tchk().lower
+    val input = VecCount(16, C(0)(U8), C(1)(U8))().tchk().lower
     val e = VecSlice(input, Tuple()(), Tuple()(), Tuple()())()
     val actual = mhir.eval.eval(e)
     val expected = mhir.eval.eval(input)
@@ -345,7 +345,7 @@ class VectorTests extends AnyFunSuite {
         n,
         VecBuild(
           m,
-          U32 ::+ (i => StmRange(k, i - 1, ReshapeData(i * 2, i33)())())
+          U32 ::+ (i => StmCount(k, i - 1, ReshapeData(i * 2, i33)())())
         )()
       )()
     val e = StmMap(
@@ -380,7 +380,7 @@ class VectorTests extends AnyFunSuite {
       n,
       VecBuild(
         m,
-        U32 ::+ (i => VecBuild(k, U32 ::+ (j => StmRange(p, i, j)()))())
+        U32 ::+ (i => VecBuild(k, U32 ::+ (j => StmCount(p, i, j)()))())
       )()
     )()
     val e = StmMap(
@@ -416,12 +416,12 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("VecMap:VecMap(VecCount(n), i => StmRange(m, i, 1))") {
+  test("VecMap:VecMap(VecCount(n), i => StmCount(m, i, 1))") {
     val n = 2
     val m = 3
     val e = VecMap(
       VecBuild(n, U32 ::+ (i => i))(),
-      U32 ::+ (i => StmRange(m, i, C(1)(U32))())
+      U32 ::+ (i => StmCount(m, i, C(1)(U32))())
     )().tchk().lower
     val expected = StmLiteral(
       (0 until m).map(t =>
@@ -612,7 +612,7 @@ class VectorTests extends AnyFunSuite {
 
   test("VecSum") {
     val n = 5
-    val input = VecRange(n, C(0)(U8), C(1)(U8))().tchk()
+    val input = VecCount(n, C(0)(U8), C(1)(U8))().tchk()
     val e = VecSum(input)().tchk().lower
     val actual = mhir.eval.eval(e)
     val expected = C((0 until n).sum)(U8)
@@ -647,7 +647,7 @@ class VectorTests extends AnyFunSuite {
     val m = 4
     val n = 3
     val s = StmCst(m, C(99)(U32))()
-    val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))()
+    val vs = VecBuild(n, U32 ::+ (i => StmCount(m, i, i)()))()
     val e = VecPrepend(vs, s)()
     val expected = StmLiteral(
       (0 until m).map(t =>
@@ -674,7 +674,7 @@ class VectorTests extends AnyFunSuite {
     val m = 4
     val n = 3
     val s = StmCst(m, C(99)(U32))()
-    val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))()
+    val vs = VecBuild(n, U32 ::+ (i => StmCount(m, i, i)()))()
     val e = VecAppend(vs, s)()
     val expected = StmLiteral(
       (0 until m).map(t =>
@@ -699,7 +699,7 @@ class VectorTests extends AnyFunSuite {
     val n = 5
     val m = 3
     val k = Param("k")(U32)
-    val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))()
+    val vs = VecBuild(n, U32 ::+ (i => StmCount(m, i, i)()))()
     val e = VecTake(vs, k)().tchk().lower
     for (kVal <- 1 to n) {
       val expected = StmLiteral(
@@ -724,7 +724,7 @@ class VectorTests extends AnyFunSuite {
     val n = 5
     val m = 3
     val k = Param("k")(U32)
-    val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))()
+    val vs = VecBuild(n, U32 ::+ (i => StmCount(m, i, i)()))()
     val e = VecDrop(vs, k)().tchk().lower
     for (kVal <- 1 to n) {
       val expected = StmLiteral(
@@ -784,7 +784,7 @@ class VectorTests extends AnyFunSuite {
     val m = 4
     val n = 3
     val s = StmCst(m, C(99)(U32))()
-    val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))()
+    val vs = VecBuild(n, U32 ::+ (i => StmCount(m, i, i)()))()
     val e = VecShiftLeft(vs, s)().tchk().lower
     val expected = StmLiteral(
       (0 until m).map(t =>
@@ -811,7 +811,7 @@ class VectorTests extends AnyFunSuite {
     val m = 4
     val n = 3
     val s = StmCst(m, C(99)(U32))()
-    val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i, i)()))()
+    val vs = VecBuild(n, U32 ::+ (i => StmCount(m, i, i)()))()
     val e = VecShiftRight(vs, s)().tchk().lower
     val expected = StmLiteral(
       (0 until m).map(t =>
@@ -865,7 +865,7 @@ class VectorTests extends AnyFunSuite {
     val m = 3
     val n1 = 4
     val n2 = 2
-    val vs1 = VecBuild(n1, U32 ::+ (i => StmRange(m, C(42)(U32), i)()))()
+    val vs1 = VecBuild(n1, U32 ::+ (i => StmCount(m, C(42)(U32), i)()))()
     val vs2 = VecBuild(n2, U32 ::+ (_ => StmCst(m, C(99)(U32))()))()
 
     val e1 = VecConcat(vs1, vs2)().tchk().lower
@@ -1060,7 +1060,7 @@ class VectorTests extends AnyFunSuite {
     val n = 4
     val m = 3
     val k = Param("k")(U32)
-    val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i + 1, i + 1)()))()
+    val vs = VecBuild(n, U32 ::+ (i => StmCount(m, i + 1, i + 1)()))()
     val e = VecRepeat(vs, k).tchk().lower
     for (kVal <- Seq(1, 2, 5)) {
       val expected = StmLiteral(
@@ -1087,7 +1087,7 @@ class VectorTests extends AnyFunSuite {
   test("VecReverse:Vec[Stm[Int]]") {
     val n = 3
     val m = 3
-    val vs = VecBuild(n, U32 ::+ (i => StmRange(m, i, i + 1)()))()
+    val vs = VecBuild(n, U32 ::+ (i => StmCount(m, i, i + 1)()))()
     val e = VecReverse(vs).tchk().lower
     val expected = StmLiteral(
       (0 until m).map(t =>
@@ -1115,7 +1115,7 @@ class VectorTests extends AnyFunSuite {
     val nm = 12
     val m = Param("m")(U32)
     val k = 3
-    val vs = VecBuild(nm, U32 ::+ (i => StmRange(k, C(0)(U32), i)()))()
+    val vs = VecBuild(nm, U32 ::+ (i => StmCount(k, C(0)(U32), i)()))()
     val e = VecSplit(vs, m)().tchk().lower
     for (mVal <- Seq(1, 2, 3, 4, 6, 12)) {
       val nVal = nm / mVal
@@ -1152,7 +1152,7 @@ class VectorTests extends AnyFunSuite {
     val k = 4
     val vs = VecBuild(
       n,
-      U32 ::+ (i => VecBuild(m, U32 ::+ (j => StmRange(k, i, j)()))())
+      U32 ::+ (i => VecBuild(m, U32 ::+ (j => StmCount(k, i, j)()))())
     )()
     val e = VecJoin(vs)()
     val expected = StmLiteral(

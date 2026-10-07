@@ -86,20 +86,62 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   }
 
   test("StmCountFrom") {
-    val s = StmRange(4, IntCst(3)(U8), IntCst(1)(U8))().tchk()
+    val s = StmCount(4, IntCst(3)(U8), IntCst(1)(U8))().tchk()
     assert(mhir.eval.eval(s) == StmLiteral(3, 4, 5, 6)())
   }
 
-  test("StmRange(4, 3, 2)") {
-    val s = StmRange(4, IntCst(3)(U8), IntCst(2)(U8))()
+  test("StmCount(4, 3, 2)") {
+    val s = StmCount(4, IntCst(3)(U8), IntCst(2)(U8))()
     assert(mhir.eval.eval(s) == StmLiteral.ints(3, 5, 7, 9))
     assert(mhir.eval.eval(s.tchk()) == StmLiteral.ints(3, 5, 7, 9))
   }
 
-  test("StmRange(3, 2, -3)") {
-    val s = StmRange(3, IntCst(2)(I8), IntCst(-3)(I8))()
+  test("StmCount(3, 2, -3)") {
+    val s = StmCount(3, IntCst(2)(I8), IntCst(-3)(I8))()
     assert(mhir.eval.eval(s) == StmLiteral.ints(2, -1, -4))
     assert(mhir.eval.eval(s.tchk()) == StmLiteral.ints(2, -1, -4))
+  }
+
+  test("StmCount(0)") {
+    val e = StmCount(C(0)(U0))()
+    val exc = intercept[TypeError](e.tchk())
+    assert(
+      exc.getMessage.contains(
+        "cannot create a counter with element type u0. Please choose a wider type."
+      )
+    )
+  }
+
+  test("StmCount(3, 0)") {
+    val e = StmCount(C(3)(U8), C(0)(U0))()
+    val exc = intercept[TypeError](e.tchk())
+    assert(
+      exc.getMessage.contains(
+        "cannot create a counter with element type u0. Please choose a wider type."
+      )
+    )
+  }
+
+  test("StmCount(3, -1)") {
+    val e = StmCount(C(3)(U8), C(-1)(TySInt(1)))()
+    val exc = intercept[TypeError](e.tchk())
+    assert(
+      exc.getMessage.contains(
+        "cannot create a counter with element type i1. Please choose a wider type."
+      )
+    )
+  }
+
+  test("StmCount(3, true, 1)") {
+    val e = StmCount(C(3)(U8), True, C(1)(U8))()
+    val exc = intercept[TypeError](e.tchk())
+    assert(exc.getMessage.contains("wrong type for init in StmCount: bool"))
+  }
+
+  test("StmCount(3, 0, true)") {
+    val e = StmCount(C(3)(U8), C(0)(U8), True)()
+    val exc = intercept[TypeError](e.tchk())
+    assert(exc.getMessage.contains("wrong type for delta in StmCount: bool"))
   }
 
   test("StmVecRange(4, 3, 1, 5)") {
@@ -170,7 +212,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmMap:1D-2D:StmCountFrom") {
     val s = StmMap(
       StmCount(IntCst(3)(U8))(),
-      Missing ::+ (n => StmRange(4, n, IntCst(1)(U8))())
+      Missing ::+ (n => StmCount(4, n, IntCst(1)(U8))())
     ).tchk()
     val expected = StmLiteral(
       Seq(
@@ -229,7 +271,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmMap:1D-2D:SingleElementStream") {
     val s = StmMap(
       StmCst(1, IntCst(99)(U8))(),
-      U8 ::+ (c => StmRange(5, c, IntCst(1)(U8))())
+      U8 ::+ (c => StmCount(5, c, IntCst(1)(U8))())
     ).tchk()
     val expected = StmLiteral(99, 100, 101, 102, 103)()
     assert(mhir.eval.eval(s) == expected)
@@ -714,7 +756,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val s =
       StmMap(a, TyStm(U8, m) ::+ (rowA => StmZip(rowA, b)())).tchk().lower
     val aVal = build2D(n, m, i => j => C(i + 2 * j)(U8)).tchk().lower
-    val bVal = StmRange(m, C(-1)(I32), C(2)(I32))().tchk().lower
+    val bVal = StmCount(m, C(-1)(I32), C(2)(I32))().tchk().lower
     val expected = {
       val aVals = (0 until n).map(i => (0 until m).map(j => i + 2 * j))
       val bVals = (0 until m).map(t => -1 + 2 * t)
@@ -764,7 +806,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmMap2:Prod") {
     val n = 6
     val s1 = StmCount(C(n)(U8))()
-    val s2 = StmRange(n, C(10)(U8), C(1)(U8))()
+    val s2 = StmCount(n, C(10)(U8), C(1)(U8))()
     val combined = StmMap2(s1, s2, TimesFunction(U8))()
     val expected = StmLiteral((0 until n).map(i => C(i * (10 + i))(U8)): _*)()
     val actual = mhir.eval.eval(combined)
@@ -799,7 +841,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val n = 3
     val m = 4
     val s1 = StmCount(C(n)(U8))().tchk()
-    val s2 = StmSplit(StmRange(n * m, C(10)(U8), C(1)(U8))(), m)().tchk()
+    val s2 = StmSplit(StmCount(n * m, C(10)(U8), C(1)(U8))(), m)().tchk()
     val combined = StmMap2(
       s1,
       s2,
@@ -821,7 +863,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmMap2:StmAppend") {
     val n = 3
     val m = 4
-    val s1 = StmSplit(StmRange(n * m, C(10)(U8), C(1)(U8))(), m)().tchk()
+    val s1 = StmSplit(StmCount(n * m, C(10)(U8), C(1)(U8))(), m)().tchk()
     val s2 = StmCount(C(n)(U8))().tchk()
     val combined = StmMap2(
       s1,
@@ -900,7 +942,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   test("StmAccess:1D") {
     val n = 3
     val i = Param("i")(U8)
-    val s = StmRange(n, C(5)(U8), C(2)(U8))()
+    val s = StmCount(n, C(5)(U8), C(2)(U8))()
     val access = StmAccess(s, i)().tchk().lower
 
     assert(mhir.eval.eval(Let(i, C(0)(U8), access)()) == StmLiteral(5)())
@@ -1017,7 +1059,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     // [2, 3, 4, 5]
     // i.e., 2x^3 + 3x^2 + 4x + 5
     // i.e., 5 + x*(4 + x*(3 + x*2))
-    val s = StmRange(C(4)(U16), C(2)(U16), C(1)(U16))()
+    val s = StmCount(C(4)(U16), C(2)(U16), C(1)(U16))()
     val x = C(10)(U16)
     val sum =
       StmReduce(s, Missing ::+ (a => a.__1 + x * a.__0))().tchk().lower
@@ -1439,7 +1481,7 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
     val n = 4
     val m = 3
     val vs =
-      VecBuild(C(n)(U32), U32 ::+ (i => StmRange(C(m)(U32), C(42)(U32), i)()))()
+      VecBuild(C(n)(U32), U32 ::+ (i => StmCount(C(m)(U32), C(42)(U32), i)()))()
     val e = Vec2Stm(vs)().tchk().lower
     val expected =
       StmLiteral(
