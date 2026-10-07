@@ -1891,8 +1891,9 @@ case class StmSplit(stm: Expr /* Stm<A; n> */, m: Expr /* Int */ )(
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    // Lowering must produce a flat stream, so leave it as-is
-    this.stm.lower
+    requireType()
+    val TyStm(_, n) = this.typ.lower
+    StmTake(this.stm.lower, n)().tchk().lower
   }
 }
 

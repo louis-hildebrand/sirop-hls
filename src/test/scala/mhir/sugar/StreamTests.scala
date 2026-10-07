@@ -2112,10 +2112,13 @@ class StreamTests extends AnyFunSuite with StreamTestHelpers {
   }
 
   test("StmSplit:1D-2D") {
-    val s = StmCount(6)()
+    val s = StmCount(7)()
 
     val expected = StmLiteral(0, 1, 2, 3, 4, 5)()
-    assert(mhir.eval.eval(StmSplit(s, 1)().tchk()) == expected)
+    assert(
+      mhir.eval.eval(StmSplit(s, 1)().tchk()) ==
+        StmLiteral((0 until 7).map(C(_)()): _*)()
+    )
     assert(mhir.eval.eval(StmSplit(s, 2)().tchk()) == expected)
     assert(mhir.eval.eval(StmSplit(s, 3)().tchk()) == expected)
     assert(mhir.eval.eval(StmSplit(s, 6)().tchk()) == expected)
