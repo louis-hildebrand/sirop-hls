@@ -5,28 +5,77 @@ As described in :doc:`/getting-started/language-intro`, a stream is an inherentl
 Each element in a stream is provided at a different clock cycle.
 It is not possible to read a stream out of order (skipping elements, rewinding, etc.).
 
-..
-    TODO: show timing diagram
-
-..
-    TODO: explain physical prefix
 .. _physical-logical-stream:
 
 Parts of a Stream
 -----------------
 
-..
-    TODO: explain latency matching?
+Sirop streams have two parts: a "physical prefix" and a "logical part."
+To see why, consider the following `timing diagram <https://en.wikipedia.org/wiki/Digital_timing_diagram>`__:
+
+.. image:: /figures/dark/physical-logical-stream.*
+    :class: only-dark
+    :scale: 250%
+.. image:: /figures/light/physical-logical-stream.*
+    :class: only-light
+    :scale: 250%
+
+What *logical* data does this stream carry?
+There is more than one possible interpretation:
+
+* If there is no latency, the data we care about is ``[1, 2, 3, 4, 5, ...]``.
+* If the latency is 1 clock cycle, the data we care about is ``[2, 3, 4, 5, ...]``. The preceding values (``[..., 1]``) should be ignored.
+* If the latency is 2 clock cycles, the data we care about is ``[3, 4, 5, ...]``. The preceding values (``[..., 1, 2]``) should be ignored.
+* etc.
+
+In Sirop, these interpretations are expressed as follows:
+
+* 0-cycle latency: ``[]s ++ [1, 2, 3, 4, 5]s`` (or, more commonly, just ``[1, 2, 3, 4, 5]s``)
+* 1-cycle latency: ``[1]s ++ [2, 3, 4, 5]s``
+* 2-cycle latency: ``[1, 2]s ++ [3, 4, 5]s``
+* etc.
+
+The part before the ``++`` is the "physical prefix."
+We will see these outputs if we observe a design running on a physical FPGA, but they are not part of the logical output we care about.
+The part after the ``++`` is the "logical part."
+
+Controlling the Physical Prefix
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Why even write down the physical prefix if we don't care about it?
+The answer is that, in some cases, we care about *some properties* of the physical prefix.
+For example, we might want the generated VHDL entity to produce a ``valid`` output bit.
+In the physical prefix, the ``valid`` bit must always be ``false``.
+In the logical part, the ``valid`` bit may be ``true`` or ``false``.
+
+.. literalinclude:: /code-examples/reference/square_with_valid_o.sirop
+
+Many of the built-in functions listed provide some way of controlling the physical prefix.
+For instance, as shown in the sample code above, :func:`StmMap` has a ``head`` parameter to set the initial value of the output register.
 
 ..
-    TODO: introduce syntax for stream literals
+    TODO: link to a page explaining the REPL?
 
-..
-    TODO: explain that compiler flattens all streams
+In the REPL, the physical prefix is hidden by default.
+If it's important to see the physical prefix, enable it by setting the special variable ``__show_prefix``.
+
+.. literalinclude:: /code-examples/reference/show_prefix.repl.txt
+
 .. _stream-flattening:
 
 Stream Flattening
 -----------------
+
+The Sirop compiler flattens nested streams.
+(There is only one time dimension, after all.)
+For example:
+
+.. literalinclude:: /code-examples/reference/stream_flattening.repl.txt
+
+Flattening happens *after* type checking.
+Therefore, if downstream functions require a flat stream, you should use :func:`StmJoin` to explicitly flatten.
+
+.. literalinclude:: /code-examples/reference/stream_flattening_error.repl.txt
 
 Built-In Stream Functions
 -------------------------
@@ -35,6 +84,7 @@ The following stream operators are provided as part of the Sirop language.
 
 ..
     TODO: add note explaining __handshake and __show_prefix at the beginning of each example?
+    Or add a section explaining this and link back to it in each "See also" list?
 
 Creating Streams
 ^^^^^^^^^^^^^^^^
@@ -60,11 +110,7 @@ Creating Streams
         .. literalinclude:: /code-examples/reference/StmCount2D.repl.txt
 
         .. NOTE::
-            The value printed in the REPL is :ref:`flattened <stream-flattening>`, as described earlier.
-            Nevertheless, the type checker sees the stream as nested.
-            If the rest of your code expects a non-nested stream, use :func:`StmJoin`.
-
-        .. literalinclude:: /code-examples/reference/StmCount2D_error.repl.txt
+            The REPL prints a 1-dimensional stream due to :ref:`stream flattening <stream-flattening>`.
 
 .. only:: not handshake
 
@@ -136,9 +182,6 @@ Combining Multiple Streams
     .. function:: StmZip(s1: Stm[A, n], s2: Stm[B, n], head: (A, B) = undefined): Stm[(A, B), n]
 
         Pair up the elements of two streams.
-
-        ..
-            TODO: simplify example so it fits on one line?
 
         .. literalinclude:: /code-examples/reference/StmZip.repl.txt
 
@@ -264,8 +307,12 @@ Nested Streams
 
     .. function:: StmJoin(s: Stm[Stm[T, m], n]): Stm[T, n*m]
 
-        ..
-            TODO: add description and examples
+        Removes the outermost level of nesting from the given stream.
+
+        .. literalinclude:: /code-examples/reference/StmJoin.repl.txt
+
+        .. NOTE::
+            The REPL prints 1-dimensional streams in each case due to :ref:`stream flattening <stream-flattening>`.
 
         **See also:**
 
@@ -275,8 +322,17 @@ Nested Streams
 
     .. function:: StmSplit(s: Stm[T, n], m: I): Stm[Stm[T, m], n/m] :: I is an integer type
 
-        ..
-            TODO: add description and examples
+        Increases the level of nesting in the given stream.
+
+        .. literalinclude:: /code-examples/reference/StmSplit.repl.txt
+
+        .. NOTE::
+            The REPL prints 1-dimensional streams in each case due to :ref:`stream flattening <stream-flattening>`.
+
+        .. WARNING::
+            If ``m`` does not divide ``n``, the output stream will be shorter than the input stream.
+
+        .. literalinclude:: /code-examples/reference/StmSplit_not_divisible.repl.txt
 
         **See also:**
 
@@ -319,25 +375,33 @@ Discarding Parts of a Stream
 
         * :func:`StmDrop`, for discarding elements from the beginning of a stream
 
-Using Specialized Digital Signal Processing Blocks
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Using Dedicated DSP Blocks
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 FPGAs generally have dedicated digital signal processing (DSP) blocks to perform multiplication and accumulation.
 The following stream operators are helpful for taking advantage of this functionality, especially the "systolic mode" on Agilex FPGAs (e.g., https://docs.altera.com/r/docs/683037/24.3.1/agilextm-7-variable-precision-dsp-blocks-user-guide/agilextm-7-variable-precision-dsp-blocks-overview).
 
+.. function:: StmMapDot(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n] :: I, J, and K are unsigned integer types
+              StmMapDot(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[i44, n] :: I and J are integer types, and K is an unsigned integer type
+
+    Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
+    This is defined so that the generated VHDL uses the DSPs in systolic mode.
+    ``delay`` is the number of internal registers to enable in the DSPs; increasing this number will increase latency and increase the maximum clock frequency.
+
+    .. literalinclude:: /code-examples/reference/StmMapDot.repl.txt
+
+.. function:: StmMapDotCascaded(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n] :: I and J are unsigned integer types, K is any integer type
+              StmMapDotCascaded(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n] :: I, J, and K are integer types
+
+    Like :func:`StmMapDot`, but the input should be cascaded (like the output from :func:`StmCascade`).
+    In other words, :func:`StmMapDot` is equivalent to :func:`StmCascade` followed by :func:`StmMapDotCascaded`.
+
+    In systolic mode, each input to the DSP chain must be delayed by one cycle relative to the previous input.
+    :func:`StmMapDotCascaded` behaves the same way.
+    :func:`StmMapDot` is more user-friendly, but :func:`StmMapDotCascaded` gives you more control in case you want to create the input cascade without :func:`StmCascade`.
+
 .. function:: StmCascade(s: Stm[Vec[T, m], n]): Stm[Vec[T, m], n]
 
-    ..
-        TODO: add description and examples
+    Delays each element of the vector by 1 cycle relative to the previous element.
 
-.. function:: StmMapDot(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[u44, n] :: I and J are unsigned integer types, K is any integer type
-              StmMapDot(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[i44, n] :: I, J, and K are integer types
-
-    ..
-        TODO: add description and examples
-
-.. function:: StmMapDotCascaded(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[u44, n] :: I and J are unsigned integer types, K is any integer type
-              StmMapDotCascaded(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[u44, n] :: I, J, and K are integer types
-
-    ..
-        TODO: add description and examples
+    .. literalinclude:: /code-examples/reference/StmCascade.repl.txt

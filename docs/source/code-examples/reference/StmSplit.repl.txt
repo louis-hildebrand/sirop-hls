@@ -1,0 +1,34 @@
+> __handshake = false
+> __show_prefix = false
+>
+> type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+Stm[u8, 6]
+> type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(2)
+Stm[Stm[u8, 2], 3]
+> type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3)
+Stm[Stm[u8, 3], 2]
+> [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3)
+[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+>
+> // Not convinced anything is going on?
+> // We can observe the difference using StmTake.
+> // Taking the first element (before splitting):
+> type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+Stm[u8, 6]
+> type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmTake(1)
+Stm[u8, 1]
+> [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmTake(1)
+[1:u8]s
+> // Taking the first row (after splitting):
+> type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3)
+Stm[Stm[u8, 3], 2]
+> type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3).StmTake(1)
+Stm[Stm[u8, 3], 1]
+> [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3).StmTake(1)
+[1:u8, 2:u8, 3:u8]s
+>
+> // What about three dimensions?
+> type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8, 8:u8]s
+Stm[u8, 8]
+> type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8, 8:u8]s.StmSplit(2).StmSplit(2)
+Stm[Stm[Stm[u8, 2], 2], 2]

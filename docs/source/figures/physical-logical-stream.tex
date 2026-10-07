@@ -1,0 +1,22 @@
+\documentclass[border={0pt 0pt}]{standalone}
+
+\input{utils/font.tex}
+\input{utils/colors.tex}
+\input{utils/tikz.tex}
+
+\usepackage{bm}
+
+\pagecolor{bgcolor}
+
+\begin{document}
+
+\begin{tikztimingtable}[
+    draw=fgcolor,
+    timing/xunit=1.5em,
+    timing/dslope=0.15,
+]
+    \texttt{clock} & 12{c} \\
+    $x$ & 1d{} 1D{1} 1D{2} 1D{3} 1D{4} 1D{5} 1d \\
+\end{tikztimingtable}
+
+\end{document}

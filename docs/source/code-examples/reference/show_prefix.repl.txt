@@ -1,0 +1,6 @@
+> __handshake = false
+> [0:u8]s ++ [1:u8, 2:u8, 3:u8]s
+[1:u8, 2:u8, 3:u8]s
+> __show_prefix = true
+> [0:u8]s ++ [1:u8, 2:u8, 3:u8]s
+[0:u8]s ++ [1:u8, 2:u8, 3:u8]s

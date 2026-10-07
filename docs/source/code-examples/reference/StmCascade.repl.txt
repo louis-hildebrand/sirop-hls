@@ -1,0 +1,15 @@
+> __handshake = false
+> __show_prefix = true
+>
+> [[1:u8, 2:u8, 3:u8]v, [4:u8, 5:u8, 6:u8]v, [7:u8, 8:u8, 9:u8]v]s.StmCascade()
+[
+  undefined:Vec[u8, 3],
+  undefined:Vec[u8, 3]
+]s ++ [
+  /* Values manually aligned for legibility */
+  [        1:u8, undefined:u8, undefined:u8]v,
+  [        4:u8,         2:u8, undefined:u8]v,
+  [        7:u8,         5:u8,         3:u8]v,
+  [undefined:u8,         8:u8,         6:u8]v,
+  [undefined:u8, undefined:u8,         9:u8]v
+]s

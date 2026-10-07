@@ -1,0 +1,34 @@
+> __handshake = false
+> __show_prefix = true
+>
+> type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
+Stm[Stm[u8, 3], 2]
+> type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
+Stm[u8, 6]
+> [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
+[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+>
+> // Not convinced anything is going on?
+> // We can observe the difference using StmTake.
+> // Taking the first row (before flattening):
+> type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
+Stm[Stm[u8, 3], 2]
+> type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
+Stm[Stm[u8, 3], 1]
+> [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
+[undefined:u8]s ++ [1:u8, 2:u8, 3:u8]s
+> // Taking the first element (after flattening):
+> type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
+Stm[u8, 6]
+> type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
+Stm[u8, 1]
+> [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
+[undefined:u8]s ++ [1:u8]s
+>
+> // What about 3 dimensions?
+> type [[[1:u8, 2:u8]s, [3:u8, 4:u8]s]s, [[5:u8, 6:u8]s, [7:u8, 8:u8]s]s]s
+Stm[Stm[Stm[u8, 2], 2], 2]
+> type [[[1:u8, 2:u8]s, [3:u8, 4:u8]s]s, [[5:u8, 6:u8]s, [7:u8, 8:u8]s]s]s.StmJoin()
+Stm[Stm[u8, 2], 4]
+> type [[[1:u8, 2:u8]s, [3:u8, 4:u8]s]s, [[5:u8, 6:u8]s, [7:u8, 8:u8]s]s]s.StmJoin().StmJoin()
+Stm[u8, 8]
