@@ -35,7 +35,7 @@ object Repl {
     val reader = LineReaderBuilder
       .builder()
       .terminal(terminal)
-      .completer(new StringsCompleter("exit"))
+      .completer(new StringsCompleter("exit", "type"))
       .build()
     val writer = terminal.writer()
     val state = ReplState(
@@ -110,18 +110,24 @@ object Repl {
         val result = eval(e, state)
         writer.println(ExprPrinter.display(result))
         (state, false)
+      case TypeOfStmt(e) =>
+        val checked = e.tchk(state.typingContext, state.env)
+        writer.println(checked.typ.toString)
+        (state, false)
       case ExitStmt =>
         (state, true)
-      case SetStmt(x, e) if x.name.startsWith("__") =>
-        (updateSetting(state, x.name, e), false)
       case SetStmt(x, e) =>
-        val result = eval(e, state)
-        val newX = {
-          assert(!x.hasType)
-          assert(result.hasType)
-          x.rebuild(result.typ).asInstanceOf[Param]
+        if (x.name.startsWith("__")) {
+          (updateSetting(state, x.name, e), false)
+        } else {
+          val result = eval(e, state)
+          val newX = {
+            assert(!x.hasType)
+            assert(result.hasType)
+            x.rebuild(result.typ).asInstanceOf[Param]
+          }
+          (state.addVar(newX, result), false)
         }
-        (state.addVar(newX, result), false)
     }
   }
 

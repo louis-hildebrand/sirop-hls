@@ -332,6 +332,10 @@ object Parser {
     tokens.headOption match {
       case Some(_: ExitToken) =>
         (ExitStmt, tokens.tail)
+      case Some(_: TypeToken) =>
+        val rest1 = tokens.tail
+        val (e, rest2) = parseExpr(rest1, constants)
+        (TypeOfStmt(e), rest2)
       case Some(IdentToken(x)) =>
         val rest1 = tokens.tail
         rest1.headOption match {

@@ -381,6 +381,17 @@ case class PrefixToken(loc: SourcePoint) extends Token {
   */
 object PrefixToken extends KeywordCategory("prefix")
 
+/** The keyword "type".
+  */
+case class TypeToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = TypeToken
+  override def original: String = "type"
+}
+
+/** Category of [[TypeToken]].
+  */
+object TypeToken extends KeywordCategory("type")
+
 // Keywords with natural number suffixes ---------------------------------------
 
 /** The letter "u" followed by a natural number.
