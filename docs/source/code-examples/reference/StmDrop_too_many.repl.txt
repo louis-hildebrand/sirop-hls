@@ -1,0 +1,8 @@
+> __handshake = false
+> __show_prefix = true
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(5)
+EvalError: length in StmDrop evaluated to undefined:u4
+> 4:u4 - 5:u4 // Output length is 4:u4 - 5:u4, which is undefined
+undefined:u4
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(4)
+[undefined:u8, 0:u8, 1:u8, 2:u8, 3:u8, 4:u8]s ++ []s

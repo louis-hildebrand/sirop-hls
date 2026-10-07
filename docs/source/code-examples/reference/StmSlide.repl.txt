@@ -1,0 +1,24 @@
+> __handshake = false
+> __show_prefix = true
+> ([42:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s).StmSlide(3)
+[
+  undefined:Vec[u8, 3],
+  [undefined:u8, undefined:u8, 42:u8]v,
+  [undefined:u8, 42:u8, 1:u8]v,
+  [42:u8, 1:u8, 2:u8]v
+]s ++ [
+  [1:u8, 2:u8, 3:u8]v,
+  [2:u8, 3:u8, 4:u8]v,
+  [3:u8, 4:u8, 5:u8]v
+]s
+> ([42:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s).StmSlide(3, 0:u8)
+[
+  [0:u8, 0:u8, 0:u8]v,
+  [0:u8, 0:u8, 42:u8]v,
+  [0:u8, 42:u8, 1:u8]v,
+  [42:u8, 1:u8, 2:u8]v
+]s ++ [
+  [1:u8, 2:u8, 3:u8]v,
+  [2:u8, 3:u8, 4:u8]v,
+  [3:u8, 4:u8, 5:u8]v
+]s

@@ -1,0 +1,22 @@
+> __handshake = false
+> __show_prefix = true
+> StmCount2D(3:u8, 4:u16).StmMap(@(x: u8, y: u16) => y)
+TypeError: input to StmMap has type Stm[Stm[(u8, u16), 4], 3]. Expected a non-nested stream.
+> StmCount2D(3:u8, 4:u16).StmJoin().StmMap(@(x: u8, y: u16) => y)
+[
+  undefined:u16,
+  undefined:u16
+]s ++ [
+  0:u16,
+  1:u16,
+  2:u16,
+  3:u16,
+  0:u16,
+  1:u16,
+  2:u16,
+  3:u16,
+  0:u16,
+  1:u16,
+  2:u16,
+  3:u16
+]s

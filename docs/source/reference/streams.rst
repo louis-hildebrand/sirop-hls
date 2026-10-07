@@ -6,32 +6,82 @@ Each element in a stream is provided at a different clock cycle.
 It is not possible to read a stream out of order (skipping elements, rewinding, etc.).
 
 ..
+    TODO: show timing diagram
+
+..
     TODO: explain physical prefix
+.. _physical-logical-stream:
+
+Parts of a Stream
+-----------------
+
+..
+    TODO: explain latency matching?
 
 ..
     TODO: introduce syntax for stream literals
 
 ..
     TODO: explain that compiler flattens all streams
+.. _stream-flattening:
 
+Stream Flattening
+-----------------
 
 Built-In Stream Functions
 -------------------------
 
 The following stream operators are provided as part of the Sirop language.
 
+..
+    TODO: add note explaining __handshake and __show_prefix at the beginning of each example?
+
+Creating Streams
+^^^^^^^^^^^^^^^^
+
 .. only:: not handshake
 
-    .. function:: StmCascade(s: Stm[Vec[T, m], n]): Stm[Vec[T, m], n]
+    .. function:: StmCount(n: I, init: J = 0, delta: J = 1): Stm[J, n] :: I is an unsigned integer type and J is any integer type
+
+        Creates a stream of ``n`` integers starting at ``init`` and increasing by ``delta``.
+
+        .. literalinclude:: /code-examples/reference/StmCount.repl.txt
+
+.. only:: not handshake
+
+    .. function:: StmCount2D(n: I, m: J): Stm[Stm[(I, J), m], n] :: I and J are unsigned integer types
+
+        Creates a nested stream such that the element at "row" ``i`` and "column" ``j`` is ``(i, j)``.
+        The types of ``i`` and ``j`` are the same as the lengths ``n`` and ``m``, respectively.
 
         ..
-            TODO: add description and examples
+            TODO: try to fit example on one line
+
+        .. literalinclude:: /code-examples/reference/StmCount2D.repl.txt
+
+        .. NOTE::
+            The value printed in the REPL is :ref:`flattened <stream-flattening>`, as described earlier.
+            Nevertheless, the type checker sees the stream as nested.
+            If the rest of your code expects a non-nested stream, use :func:`StmJoin`.
+
+        .. literalinclude:: /code-examples/reference/StmCount2D_error.repl.txt
+
+.. only:: not handshake
+
+    .. function:: StmCst(n: I, k: T): Stm[T, n] :: I is an unsigned integer type
+
+        Creates a stream of length ``n`` whose elements are all the constant ``k``.
+
+        .. literalinclude:: /code-examples/reference/StmCst.repl.txt
+
+Transforming Streams Elementwise
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. only:: handshake
 
     .. function:: StmMap(s: Stm[A, n], f: A -> B): Stm[B, n]
 
-        Applies a function ``f`` element-wise to a stream.
+        Applies function ``f`` elementwise to a stream.
 
         ::
 
@@ -39,81 +89,32 @@ The following stream operators are provided as part of the Sirop language.
             > [1:u8, 2:u8, 3:u8, 4:u8]s.StmMap(x => x + 5)
             [6:u8, 7:u8, 8:u8, 9:u8]s
 
-.. only:: not handshake
-
-    .. function:: StmMap(s: Stm[A, n], f: A -> B, head: B = undefined): Stm[B, n]
-
-        Applies a function ``f`` element-wise to stream ``s``.
-
-        ::
-
-            > __handshake = false
-            > __show_prefix = true
-            > ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmMap(x => x + 5)
-            [undefined:u8, 5:u8]s ++ [6:u8, 7:u8, 8:u8, 9:u8]s
-            > ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmMap(x => x + 5, 42:u8)
-            [42:u8, 5:u8]s ++ [6:u8, 7:u8, 8:u8, 9:u8]s
-
         **See also:**
 
         * :func:`StmMap2`, for simultaneous transformation over two streams
 
 .. only:: not handshake
 
-    .. function:: StmMapDot(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[u44, n] :: I and J are unsigned integer types, K is any integer type
-                  StmMapDot(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[i44, n] :: I, J, and K are integer types
+    .. function:: StmMap(s: Stm[A, n], f: A -> B, head: B = undefined): Stm[B, n]
 
-        ..
-            TODO: add description and examples
+        Applies function ``f`` elementwise to stream ``s``.
 
-.. only:: not handshake
+        .. literalinclude:: /code-examples/reference/StmMap.repl.txt
 
-    .. function:: StmMapDotCascaded(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[u44, n] :: I and J are unsigned integer types, K is any integer type
-                  StmMapDotCascaded(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[u44, n] :: I, J, and K are integer types
+        **See also:**
 
-        ..
-            TODO: add description and examples
-
-.. only:: not handshake
-
-    .. function:: StmSlide(s: Stm[T, n], w: I, head: T = undefined): Stm[Vec[T, w], n-w+1] :: I is an integer type
-
-        ..
-            TODO: add description and examples
-
-Stream Sources
-^^^^^^^^^^^^^^
-
-.. only:: not handshake
-
-    .. function:: StmCst(n: I, k: T): Stm[T, n] :: I is an integer type
-
-        ..
-            TODO: add description and examples
-
-.. only:: not handshake
-
-    .. function:: StmCount2D(n: I, m: J): Stm[Stm[(I, J), m], n]
-
-        ..
-            TODO: add description and examples
-
-.. only:: not handshake
-
-    .. function:: StmRange(n: I, z: J, d: J): Stm[J, n] :: I and J are integer types
-
-        ..
-            TODO: add description and examples
+        * :func:`StmMap2`, for simultaneous transformation over two streams
 
 Combining Multiple Streams
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. only:: not handshake
 
-    .. function:: StmConcat(s1: Stm[T, n], s2: Stm[T, m]): Stm[T, n+m]
+    .. function:: StmConcat(s1: Stm[T, n], s2: Stm[T, m], head: T = undefined): Stm[T, n+m]
 
-        ..
-            TODO: add description and examples
+        Concatenates two streams.
+
+        .. literalinclude:: /code-examples/reference/StmConcat.repl.txt
 
 .. only:: not handshake
 
@@ -124,32 +125,7 @@ Combining Multiple Streams
         ..
             TODO: simplify example so it fits on one line?
 
-        ::
-
-            > __handshake = false
-            > __show_prefix = true
-            > u = [0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
-            > v = [-1:i16]s ++ [-9:i16, -8:i16, -7:i16, -6:i16]s
-            > StmMap2(u, v, x => y => (x, y, x*y))
-            [
-              undefined:(u8, i16, i16),
-              (0:u8, -1:i16, 0:i16)
-            ]s ++ [
-              (1:u8, -9:i16, -9:i16),
-              (2:u8, -8:i16, -16:i16),
-              (3:u8, -7:i16, -21:i16),
-              (4:u8, -6:i16, -24:i16)
-            ]s
-            > StmMap2(u, v, x => y => (x, y, x*y), (0:u8, 0:i16, 0:i16))
-            [
-              (0:u8, 0:i16, 0:i16),
-              (0:u8, -1:i16, 0:i16)
-            ]s ++ [
-              (1:u8, -9:i16, -9:i16),
-              (2:u8, -8:i16, -16:i16),
-              (3:u8, -7:i16, -21:i16),
-              (4:u8, -6:i16, -24:i16)
-            ]s
+        .. literalinclude:: /code-examples/reference/StmMap2.repl.txt
 
         **See also**:
 
@@ -164,34 +140,23 @@ Combining Multiple Streams
         ..
             TODO: simplify example so it fits on one line?
 
-        ::
-
-            > __handshake = false
-            > __show_prefix = true
-            > u = [0:u8]s ++ [1:u8, 2:u8, 3:u8]s
-            > v = [-1:i16]s ++ [-9:i16, -8:i16, -7:i16]s
-            > u.StmZip(v)
-            [
-              undefined:(u8, i16),
-              (0:u8, -1:i16)
-            ]s ++ [
-              (1:u8, -9:i16),
-              (2:u8, -8:i16),
-              (3:u8, -7:i16)
-            ]s
-            > u.StmZip(v, (42:u8, 43:i16))
-            [
-              (42:u8, 43:i16),
-              (0:u8, -1:i16)
-            ]s ++ [
-              (1:u8, -9:i16),
-              (2:u8, -8:i16),
-              (3:u8, -7:i16)
-            ]s
+        .. literalinclude:: /code-examples/reference/StmZip.repl.txt
 
         **See also:**
 
-        * :func:`StmMap2`, which is more general.
+        * :func:`StmMap2`, which zips two streams with an arbitrary function.
+
+Sliding Windows
+^^^^^^^^^^^^^^^
+
+.. only:: not handshake
+
+    .. function:: StmSlide(s: Stm[T, n], w: I, head: T = undefined): Stm[Vec[T, w], n-w+1] :: I is an unsigned integer type
+
+        Produces a stream of sliding windows over stream ``s``.
+        Each window has size ``w``.
+
+        .. literalinclude:: /code-examples/reference/StmSlide.repl.txt
 
 Aggregation
 ^^^^^^^^^^^
@@ -200,7 +165,7 @@ Aggregation
 
     .. function:: StmAll(s: Stm[bool, n]): Stm[bool, 1]
 
-        Returns ``true`` if all elements of *the logical part of* the given stream are ``true``.
+        Returns ``true`` if all elements in the :ref:`logical part <physical-logical-stream>` of stream ``s`` are ``true``.
 
         .. literalinclude:: /code-examples/reference/StmAll.repl.txt
 
@@ -216,7 +181,7 @@ Aggregation
 
     .. function:: StmAny(s: Stm[bool, n]): Stm[bool, 1]
 
-        Returns ``true`` if any elements in *the logical part of* the given stream are ``true``.
+        Returns ``true`` if any elements in the :ref:`logical part <physical-logical-stream>` of stream ``s`` are ``true``.
 
         .. literalinclude:: /code-examples/reference/StmAny.repl.txt
 
@@ -232,22 +197,38 @@ Aggregation
 
     .. function:: StmFold(s: Stm[A, n], z: B, f: (B, A) -> B): Stm[B, 1]
 
-        ..
-            TODO: Write description with examples
+
+        Combines the elements in the :ref:`logical part <physical-logical-stream>` of stream ``s`` to a single element using function ``f`` and initial value ``z``.
+
+        For example, for a 3-element stream ``[x1, x2, x3]s``, the result will be ``[ f(f(f(z, x1), x2), x3) ]s``
+
+        .. literalinclude:: /code-examples/reference/StmFold.repl.txt
+
+        Unlike with :func:`StmReduce`, the input stream can be empty.
+
+        .. literalinclude:: /code-examples/reference/StmFold_empty.repl.txt
 
         **See also:**
 
         * :func:`StmAll`, which is a special case of :func:`StmFold` with logical AND
         * :func:`StmAny`, which is a special case of :func:`StmFold` with logical OR
-        * :func:`StmReduce`, for aggregation of non-empty streams without needing to specify an initial value
         * :func:`StmSum`, which is a special case of :func:`StmFold` with addition
+        * :func:`StmReduce`, for aggregation of non-empty streams without needing to specify an initial value
 
 .. only:: not handshake
 
     .. function:: StmReduce(s: Stm[T, n], f: (T, T)): Stm[T, 1]
 
-        ..
-            TODO: Write description with examples
+        Combines the elements in the :ref:`logical part <physical-logical-stream>` of stream ``s`` to a single element using function ``f``.
+
+        For example, for a 3-element stream ``[x1, x2, x3]s``, the result will be ``[ f(f(x1, x2), x3) ]s``
+
+        .. literalinclude:: /code-examples/reference/StmReduce.repl.txt
+
+        .. WARNING::
+            The input stream must be non-empty.
+
+        .. literalinclude:: /code-examples/reference/StmReduce_empty.repl.txt
 
         **See also:**
 
@@ -257,7 +238,7 @@ Aggregation
 
     .. function:: StmSum(s: Stm[I, n]): Stm[I, 1] :: I is an integer type
 
-        Returns the sum of the elements in *the logical part of* the given stream.
+        Returns the sum of the elements in the :ref:`logical part <physical-logical-stream>` of stream ``s``.
 
         .. literalinclude:: /code-examples/reference/StmSum.repl.txt
 
@@ -308,8 +289,14 @@ Discarding Parts of a Stream
 
     .. function:: StmDrop(s: Stm[T, n], k: I): Stm[T, n-k] :: I is an integer type
 
-        ..
-            TODO: add description and examples
+        Discards ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
+
+        .. literalinclude:: /code-examples/reference/StmDrop.repl.txt
+
+        .. WARNING::
+            It is an error to drop more than the available number of elements.
+
+        .. literalinclude:: /code-examples/reference/StmDrop_too_many.repl.txt
 
         **See also:**
 
@@ -319,9 +306,38 @@ Discarding Parts of a Stream
 
     .. function:: StmTake(s: Stm[T, n], k: I): Stm[T, k] :: I is an integer type
 
-        ..
-            TODO: add description and examples
+        Changes the length of stream ``s`` to ``k``.
+
+        .. literalinclude:: /code-examples/reference/StmTake.repl.txt
+
+        .. WARNING::
+            If the original stream length ``n`` is less than ``k``, the extra elements will be undefined.
+
+        .. literalinclude:: /code-examples/reference/StmTake_too_many.repl.txt
 
         **See also:**
 
         * :func:`StmDrop`, for discarding elements from the beginning of a stream
+
+Using Specialized Digital Signal Processing Blocks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+FPGAs generally have dedicated digital signal processing (DSP) blocks to perform multiplication and accumulation.
+The following stream operators are helpful for taking advantage of this functionality, especially the "systolic mode" on Agilex FPGAs (e.g., https://docs.altera.com/r/docs/683037/24.3.1/agilextm-7-variable-precision-dsp-blocks-user-guide/agilextm-7-variable-precision-dsp-blocks-overview).
+
+.. function:: StmCascade(s: Stm[Vec[T, m], n]): Stm[Vec[T, m], n]
+
+    ..
+        TODO: add description and examples
+
+.. function:: StmMapDot(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[u44, n] :: I and J are unsigned integer types, K is any integer type
+              StmMapDot(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[i44, n] :: I, J, and K are integer types
+
+    ..
+        TODO: add description and examples
+
+.. function:: StmMapDotCascaded(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[u44, n] :: I and J are unsigned integer types, K is any integer type
+              StmMapDotCascaded(s1: Stm[I, n], s2: Stm[J, n], delay: K): Stm[u44, n] :: I, J, and K are integer types
+
+    ..
+        TODO: add description and examples
