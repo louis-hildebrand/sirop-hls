@@ -4,7 +4,7 @@ let module1: Vec[i8, 3] -> Vec[i8, 1] = (
   (I : Vec[i8, 3]) =>
     let n38: Vec[i8, 3] = [-1:i8, 0:i8, 1:i8]v in
     let n26: Vec[i8, 3] = VecMap2(I, n38, module0) in
-    VecReduce(n26, (I : (i8, i8)) => I.0 +%` I.1)
+    VecReduceAetherling(n26, (I : (i8, i8)) => I.0 +%` I.1)
 ) in
 (I : Stm[Vec[i8, 1], 16]) =>
   let n1: Stm[Vec[i8, 1], 16] = I in

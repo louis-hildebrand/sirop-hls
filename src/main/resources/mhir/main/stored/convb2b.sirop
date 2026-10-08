@@ -18,7 +18,7 @@ top = (I: Stm[Stm[u32, 1920], 1080]) =>
             .StmMap( (window: Vec[Vec[u32, 3], 3]) =>
                 let zipped = VecZip(VecJoin(window), VecJoin(KERNEL1)) in
                 let products = VecMap(zipped, (x) => x.0 *% x.1) in
-                let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
+                let sum = VecReduce(products, (x) => x.0 +% x.1) in
                 sum >>> 4
             )
         )
@@ -30,7 +30,7 @@ top = (I: Stm[Stm[u32, 1920], 1080]) =>
             .StmMap( (window: Vec[Vec[u32, 2], 2]) =>
                 let zipped = VecZip(VecJoin(window), VecJoin(KERNEL2)) in
                 let products = VecMap(zipped, (x) => x.0 *% x.1) in
-                let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
+                let sum = VecReduce(products, (x) => x.0 +% x.1) in
                 sum >>> 3
             )
         )

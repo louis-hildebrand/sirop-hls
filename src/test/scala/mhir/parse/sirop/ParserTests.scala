@@ -1596,7 +1596,7 @@ class ParserTests extends AnyFunSuite {
         |
         |const M: u32 = 5
         |const V: Vec[u8, M] = vbuild(M) { (i: u8) => i }
-        |const Z: u8 = V.VecReduce( (x) => x.0 + x.1 )[0]
+        |const Z: u8 = V.VecReduce( (x) => x.0 + x.1 )
         |assert { s = StmCount(N, Z, 1:u8) } yields StmCount(N, Z + 5, 1:u8)
         |
         |const Z2: u8 = 9
@@ -1637,14 +1637,11 @@ class ParserTests extends AnyFunSuite {
           ConstDecl(
             z,
             ReshapeData(
-              VecAccess(
-                call(
-                  "VecReduce",
-                  v,
-                  Missing ::+ (x => SmartSum(x.__0, x.__1)())
-                ),
-                0
-              )(),
+              call(
+                "VecReduce",
+                v,
+                Missing ::+ (x => SmartSum(x.__0, x.__1)())
+              ),
               U8
             )()
           ),

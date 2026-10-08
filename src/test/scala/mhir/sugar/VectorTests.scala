@@ -2,7 +2,7 @@ package mhir.sugar
 
 import mhir.canonicalize._
 import mhir.ir._
-import mhir.sugar.handshake.{Stm2Vec, VecReduce}
+import mhir.sugar.handshake.{Stm2Vec, VecReduceAetherling}
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -460,36 +460,36 @@ class VectorTests extends AnyFunSuite {
 
   test("VecReduceHandshake:Vec[Int,3]:Sum") {
     val v = VecBuild(3, U32 ::+ (i => i + 1))()
-    val sum =
-      VecReduce(v, Missing ::+ (x => x.__0 + x.__1))().tchk().lower
-    assert(mhir.eval.eval(sum) == VecLiteral(C(6)())())
+    val sum = VecReduce(v, Missing ::+ (x => x.__0 + x.__1))()
+      .tchk()
+      .lower
+    assert(mhir.eval.eval(sum) == C(6)())
   }
 
   test("VecReduceNoHandshake:Vec[Int,3]:Sum") {
     val v = VecLiteral(C(1)(U16), C(2)(U16), C(3)(U16))().tchk()
-    val result = mhir.sugar.nohandshake
-      .VecReduce(v, Missing ::+ (x => x.__0 * 3 + x.__1))()
+    val result = VecReduce(v, Missing ::+ (x => x.__0 * 3 + x.__1))()
       .tchk()
       .lower
-    assert(mhir.eval.eval(result) == VecLiteral(C(18)())())
+    assert(mhir.eval.eval(result) == C(18)())
   }
 
-  test("VecReduce:Vec[Int,4]:HornersMethod") {
+  test("VecReduceAetherling:Vec[Int,4]:HornersMethod") {
     // [2, 3, 4, 5]
     // i.e., 2x^3 + 3x^2 + 4x + 5
     // i.e., 5 + x*(4 + x*(3 + x*2))
     val v = VecBuild(4, U32 ::+ (i => i + 2))()
     val x = C(10)(U32)
     val result =
-      VecReduce(v, (U32, U32) ::+ (a => a.__1 + x * a.__0))()
+      VecReduceAetherling(v, (U32, U32) ::+ (a => a.__1 + x * a.__0))()
         .tchk()
         .lower
-    assert(mhir.eval.eval(result) == VecLiteral(C(2345)())())
+    assert(mhir.eval.eval(result) == VecLiteral(2345)())
   }
 
-  test("VecReduceComb:Vec[Vec[Int,1],4]:Sum") {
+  test("VecReduceAetherling:Vec[Vec[Int,1],4]:Sum") {
     val v = Param("v")(TyVec(TyVec(U8, 1), 4))
-    val sum = VecReduce(
+    val sum = VecReduceAetherling(
       v,
       Missing ::+ (v => VecMap(v, Missing ::+ (x => x.__0 + x.__1))())
     )().tchk().lower
@@ -505,9 +505,9 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("VecReduceComb:Vec[Stm[Int,1],5]:Sum") {
+  test("VecReduceAetherling:Vec[Stm[Int,1],5]:Sum") {
     val v = Param("v")(TyVec(TyStm(U8, 1), 5))
-    val sum = VecReduce(
+    val sum = VecReduceAetherling(
       v,
       Missing ::+ (v => StmMap(v, Missing ::+ (x => x.__0 + x.__1)))
     )().tchk().lower
@@ -521,9 +521,9 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("VecReduceComb:Vec[Vec[Stm[Stm[Vec[Int,1],1],1],1],4]:Sum") {
+  test("VecReduceAetherling:Vec[Vec[Stm[Stm[Vec[Int,1],1],1],1],4]:Sum") {
     val v = Param("v")(TyVec(TyVec(TyStm(TyStm(TyVec(U8, 1), 1), 1), 1), 5))
-    val sum = VecReduce(
+    val sum = VecReduceAetherling(
       v,
       Missing ::+ (v =>
         VecMap(

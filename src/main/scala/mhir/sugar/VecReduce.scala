@@ -1,5 +1,4 @@
 package mhir.sugar
-package nohandshake
 
 import mhir.ir._
 import mhir.typecheck._
@@ -30,7 +29,7 @@ case class VecReduce(v: Expr, f: Expr)(typ: Type = Missing)
       .annotateFunc(TyTuple(elemTyp, elemTyp))
       .tchk(context, constValues)
       .expectType((elemTyp, elemTyp) ->: elemTyp, constValues)
-    this.rebuild(TyVec(elemTyp, 1), Seq(v, f))
+    this.rebuild(elemTyp, Seq(v, f))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -46,10 +45,9 @@ case class VecReduce(v: Expr, f: Expr)(typ: Type = Missing)
       throw new IllegalArgumentException("cannot reduce over empty vector")
     }
     val f = this.f.lower
-    val result = (0 until n.toInt)
+    (0 until n.toInt)
       .map(i => VecAccess(v, C(i)())())
       .reduce[Expr]({ case (e1, e2) => FunCall(f, Tuple(e1, e2)())() })
       .tchk()
-    VecBuild(C(1)(), U8 ::+ (_ => result))().tchk()
   }
 }

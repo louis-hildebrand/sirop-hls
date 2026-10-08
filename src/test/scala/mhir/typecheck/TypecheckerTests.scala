@@ -865,11 +865,11 @@ class TypecheckerTests extends AnyFunSuite {
         |
         |const M: u32 = 5
         |const V: Vec[u8, M] = vbuild(M) { (i: u8) => i }
-        |const Z: u8 = V.VecReduce( (x) => x.0 + x.1 )[0]
+        |const Z: u8 = V.VecReduce( (x) => x.0 + x.1 )
         |assert { s = StmCount(N, Z, 1:u8) } yields StmCount(N, Z + 5:u8, 1:u8)
         |
         |const V2: Vec[u8, N] = vbuild(N) { (i: u8) => i }
-        |const Z2: u8 = V2.VecReduce( (x) => x.0 + x.1 )[0]
+        |const Z2: u8 = V2.VecReduce( (x) => x.0 + x.1 )
         |const DELTA2: u8 = 2
         |assert {
         |  s = StmCount(N, Z2, DELTA2)

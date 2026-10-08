@@ -14,7 +14,7 @@ top = (I0 : Stm[Stm[Vec[u16, 16], 256/16:u9], 256]) =>
             .StmMap( (x) =>
                 VecZip(x.0, x.1)
                 .VecMap( (x) => x.0 *% x.1 )
-                .VecReduce( (x) => x.0 +% x.1 )[0]
+                .VecReduce( (x) => x.0 +% x.1 )
             )
             .StmReduce( (x) => x.0 +% x.1 )
         )

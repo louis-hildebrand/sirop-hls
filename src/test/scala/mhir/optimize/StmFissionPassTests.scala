@@ -4,7 +4,6 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.sugar._
-import mhir.sugar.handshake.VecReduce
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -142,7 +141,7 @@ class StmFissionPassTests extends AnyFunSuite {
     assert(optimizedDelayCost <= delay.FullCycleDelay)
   }
 
-  test("ProdReductionTree:VecReduceComb") {
+  test("ProdReductionTree:VecReduce") {
     val n = 8
     val m = 5
     val uint = U32

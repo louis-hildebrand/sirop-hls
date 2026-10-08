@@ -7,5 +7,5 @@ top = (I: Stm[i8, 16]) =>
     .StmMap( (window: Vec[i8, 3]) =>
         VecZip(window, KERNEL)
         .VecMap( (x) => x.0 *% x.1 )
-        .VecReduce( (x) => x.0 +% x.1 )[0]
+        .VecReduce( (x) => x.0 +% x.1 )
     )

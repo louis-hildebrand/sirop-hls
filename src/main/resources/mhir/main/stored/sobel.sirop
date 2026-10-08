@@ -44,7 +44,7 @@ top = (I: Stm[Stm[i32, 1920], 1080]) =>
                 ]v) in
                 let zipped = VecZip(flat_window, kernel) in
                 let products = VecMap(zipped, (x) => x.0 * x.1) in
-                let sum = VecReduce(products, (x) => x.0 + x.1)[0] in
+                let sum = VecReduce(products, (x) => x.0 + x.1) in
                 sum
             } in
             let gy = {
@@ -55,7 +55,7 @@ top = (I: Stm[Stm[i32, 1920], 1080]) =>
                 ]v) in
                 let zipped = VecZip(flat_window, kernel) in
                 let products = VecMap(zipped, (x) => x.0 * x.1) in
-                let sum = VecReduce(products, (x) => x.0 + x.1)[0] in
+                let sum = VecReduce(products, (x) => x.0 + x.1) in
                 sum
             } in
             (gx, gy)
