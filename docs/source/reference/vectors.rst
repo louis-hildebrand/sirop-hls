@@ -137,9 +137,6 @@ Aggregation
 
 .. function:: VecReduce(v: Vec[T, n], f: (T, T) -> T): Vec[T, 1]
 
-    ..
-        TODO: Change the return type so the signature is more consistent?
-
     Combines the elements in vector ``v`` to a single value using function ``f``.
 
     For example, for a 3-element vector ``[a, b, c]v``, the result will be ``f(f(a, b), c)``.
