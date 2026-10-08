@@ -120,7 +120,7 @@ case class Call(
         }
       case f @ Param("VecFold", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(v, z, f)) => VecFoldComb(v, z, f)()
+          case (Seq(), Seq(v, z, f)) => VecFold(v, z, f)()
           case _                     => error(f)
         }
       case f @ Param("VecAll", -1) =>

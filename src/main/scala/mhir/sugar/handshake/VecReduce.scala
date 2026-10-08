@@ -8,8 +8,8 @@ import scala.annotation.tailrec
 
 /** Combinational reduce over a vector
   *
-  * This is a bit like [[VecFoldComb]], but the first element of the vector is
-  * used as the initial value.
+  * This is a bit like [[VecFold]], but the first element of the vector is used
+  * as the initial value.
   *
   * This is meant to mirror the `reduce_s` primitive from
   * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]]. Therefore,

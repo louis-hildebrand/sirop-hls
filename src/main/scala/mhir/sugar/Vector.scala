@@ -447,15 +447,15 @@ case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
   * @param f
   *   the function to use for folding.
   */
-case class VecFoldComb(
+case class VecFold(
     v: Expr /* Vec<T1; n> */,
     z: Expr /* T2 */,
     f: Expr /* T2 -> T1 -> T2 */
 )(typ: Type = Missing) /* T2 */
     extends ResolvedSyntaxSugar(v, z, f)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecFoldComb = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecFold = {
     newChildren match {
-      case Seq(v, z, f) => VecFoldComb(v, z, f)(typ)
+      case Seq(v, z, f) => VecFold(v, z, f)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -463,7 +463,7 @@ case class VecFoldComb(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): VecFoldComb = {
+  )(implicit c: Canonicalizer): VecFold = {
     val v = this.v.tchk(context, constValues)
     val t1 = v.typ match {
       case TyVec(t, _) => t
@@ -475,8 +475,9 @@ case class VecFoldComb(
     val z = this.z.tchk(context, constValues)
     val t2 = z.typ
     val f = this.f
+      .annotateFunc(TyTuple(t2, t1))
       .tchk(context, constValues)
-      .expectType(t2 ->: t1 ->: t2, constValues)
+      .expectType((t2, t1) ->: t2, constValues)
     this.rebuild(t2, Seq(v, z, f))
   }
 
@@ -488,7 +489,9 @@ case class VecFoldComb(
     n match {
       case IntCst(n) =>
         (0 until n.toInt)
-          .foldLeft(z)({ case (acc, i) => f(acc)(VecAccess(v, C(i)())()) })
+          .foldLeft(z)({ case (acc, i) =>
+            f(Tuple(acc, VecAccess(v, C(i)())())())
+          })
           .tchk()
           .lower
       case e =>
@@ -527,10 +530,10 @@ case class VecAll(v: Expr)(typ: Type = Missing)
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    VecFoldComb(
+    VecFold(
       v,
       True,
-      TyBool ::+ (a => TyBool ::+ (b => And(a, b)()))
+      (TyBool, TyBool) ::+ (x => And(x.__0, x.__1)())
     )().tchk().lower
   }
 }
@@ -563,10 +566,10 @@ case class VecAny(v: Expr)(typ: Type = Missing)
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    VecFoldComb(
+    VecFold(
       v,
       False,
-      TyBool ::+ (a => TyBool ::+ (b => Or(a, b)()))
+      (TyBool, TyBool) ::+ (x => Or(x.__0, x.__1)())
     )().tchk().lower
   }
 }
@@ -600,10 +603,10 @@ case class VecSum(v: Expr)(typ: Type = Missing)
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val TyVec(typ, _) = this.v.typ
-    VecFoldComb(
+    VecFold(
       v,
       C(0)(typ),
-      typ ::+ (a => typ ::+ (b => WrappingSum(a, b)()))
+      (typ, typ) ::+ (x => WrappingSum(x.__0, x.__1)())
     )().tchk().lower
   }
 }

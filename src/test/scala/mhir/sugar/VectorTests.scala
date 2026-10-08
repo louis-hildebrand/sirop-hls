@@ -432,27 +432,29 @@ class VectorTests extends AnyFunSuite {
     assert(actual == expected)
   }
 
-  test("VecFoldComb:SumAndProd") {
+  test("VecFold:SumAndProd") {
     val v = VecBuild(4, U32 ::+ (i => i + 1))()
-    val sum =
-      VecFoldComb(
-        v,
-        Tuple(C(0)(U32), C(1)(U32))(),
-        (U32, U32) ::+ (acc => U32 ::+ (a => Tuple(acc.__0 + a, acc.__0 * a)()))
-      )().tchk().lower
+    val sum = VecFold(
+      v,
+      Tuple(C(0)(U32), C(1)(U32))(),
+      TyTuple(TyTuple(U32, U32), U32) ::+ (x =>
+        Tuple(x.__0.__0 + x.__1, x.__0.__1 * x.__1)()
+      )
+    )().tchk().lower
     assert(mhir.eval.eval(sum) == Tuple(C(10)(), C(24)())())
   }
 
-  test("VecFoldComb:HornersMethod") {
+  test("VecFold:HornersMethod") {
     // [2, 3, 4, 5]
     // i.e., 2x^3 + 3x^2 + 4x + 5
     // i.e., 5 + x*(4 + x*(3 + x*2))
     val v = VecBuild(4, U32 ::+ (i => i + 2))()
     val x = C(10)(U32)
-    val result =
-      VecFoldComb(v, C(0)(U32), U32 ::+ (acc => U32 ::+ (a => a + x * acc)))()
-        .tchk()
-        .lower
+    val result = VecFold(
+      v,
+      C(0)(U32),
+      (U32, U32) ::+ (y => y.__1 + x * y.__0)
+    )().tchk().lower
     assert(mhir.eval.eval(result) == C(2345)())
   }
 
@@ -622,11 +624,12 @@ class VectorTests extends AnyFunSuite {
   test("SumRows") {
     val v =
       VecBuild(3, U32 ::+ (i => VecBuild(2, U32 ::+ (j => i + j))()))()
-    val v2 =
-      VecMap(
-        v,
-        TyVec(U32, 2) ::+ (v => VecFoldComb(v, C(0)(U32), PlusFunction(U32))())
-      )()
+    val v2 = VecMap(
+      v,
+      TyVec(U32, 2) ::+ (v =>
+        VecFold(v, C(0)(U32), (U32, U32) ::+ (x => x.__0 + x.__1))()
+      )
+    )()
     assert(mhir.eval.eval(v2) == VecLiteral(1, 3, 5)())
   }
 
