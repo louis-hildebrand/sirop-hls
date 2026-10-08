@@ -165,6 +165,8 @@ case class Call(
         }
       case f @ Param("VecCount", -1) =>
         combinedArgs match {
+          case (Seq(), Seq(n))           => VecCount(n, Tuple()(), Tuple()())()
+          case (Seq(), Seq(n, z))        => VecCount(n, z, Tuple()())()
           case (Seq(), Seq(n, z, delta)) => VecCount(n, z, delta)()
           case _                         => error(f)
         }

@@ -82,12 +82,44 @@ case class VecCount(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): VecCount = {
-    val n = this.n.tchk(context, constValues).expectUInt()
-    val z = this.z.tchk(context, constValues).expectAnyInt()
-    val delta = this.delta
-      .tchk(context, constValues)
-      .expectType(z.typ, constValues)
-    this.rebuild(TyVec(z.typ, n), Seq(n, z, delta))
+    val newN = n.tchk(context, constValues).expectUInt()
+    val checkedInit = z.tchk(context, constValues)
+    val checkedDelta = delta.tchk(context, constValues)
+    val (finalInit, finalDelta) = (checkedInit.typ, checkedDelta.typ) match {
+      case (TyTuple(), TyTuple()) =>
+        newN.typ match {
+          case TyUInt(0) =>
+            throw new TypeError(
+              "cannot create a counter with element type u0. Please choose a wider type."
+            )
+          case t => (C(0)(t), C(1)(t))
+        }
+      case (TyTuple(), t: TyAnyInt) =>
+        (C(0)(t), checkedDelta)
+      case (t: TyAnyInt, TyTuple()) =>
+        if (!t.contains(1)) {
+          throw new TypeError(
+            s"cannot create a counter with element type $t. Please choose a wider type."
+          )
+        }
+        (checkedInit, C(1)(t))
+      case (t1: TyAnyInt, t2: TyAnyInt) =>
+        if (!t1.equalsGivenConstants(t2, constValues)) {
+          throw new TypeError(
+            s"init and delta have different types: $t1 vs $t2.",
+            TypeChecker.relevantBindings(constValues, t1, t2)
+          )
+        }
+        (checkedInit, checkedDelta)
+      case (_: TyAnyInt, t) =>
+        throw new TypeError(s"wrong type for delta in VecCount: $t")
+      case (t, _) =>
+        throw new TypeError(s"wrong type for init in VecCount: $t")
+    }
+    this.rebuild(
+      TyVec(finalInit.typ, newN),
+      Seq(newN, finalInit, finalDelta)
+    )
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
