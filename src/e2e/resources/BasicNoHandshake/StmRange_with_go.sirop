@@ -1,7 +1,7 @@
 const N: u32 = 4
 
 accelerator[no_handshake, go=go]
-count = (go: Stm[bool, N]) => StmRange(N, 1:u8, 2:u8)
+count = (go: Stm[bool, N]) => StmCount(N, 1:u8, 2:u8)
 
 assert {
     go = []s ++ [true, true, true, true]s

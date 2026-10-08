@@ -5,7 +5,8 @@ let module1: Stm[Vec[u16, 8], 32] -> Stm[u16, 1] = (
     let n21: Stm[Vec[u16, 1], 32] = (
       StmMap(
         I,
-        (I : Vec[u16, 8]) => VecReduce(I, (I : (u16, u16)) => I.0 +%` I.1)
+        (I : Vec[u16, 8]) =>
+          VecReduceAetherling(I, (I : (u16, u16)) => I.0 +%` I.1)
       )
     ) in
     let n24: Stm[Vec[u16, 1], 1] = (

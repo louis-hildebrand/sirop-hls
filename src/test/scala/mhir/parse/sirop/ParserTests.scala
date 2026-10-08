@@ -1379,9 +1379,9 @@ class ParserTests extends AnyFunSuite {
     assert(actual.asInstanceOf[Let].x.typ == expected.x.typ)
   }
 
-  test("StmRange") {
-    val src = "StmRange(100, 1:i32, -3:i32)"
-    val expected = call("StmRange", 100, C(1)(I32), C(-3)(I32))
+  test("StmCount") {
+    val src = "StmCount(100, 1:i32, -3:i32)"
+    val expected = call("StmCount", 100, C(1)(I32), C(-3)(I32))
     assert(Parser.parse(src).body == expected)
   }
 
@@ -1596,15 +1596,15 @@ class ParserTests extends AnyFunSuite {
         |
         |const M: u32 = 5
         |const V: Vec[u8, M] = vbuild(M) { (i: u8) => i }
-        |const Z: u8 = V.VecReduce( (x) => x.0 + x.1 )[0]
-        |assert { s = StmRange(N, Z, 1:u8) } yields StmRange(N, Z + 5, 1:u8)
+        |const Z: u8 = V.VecReduce( (x) => x.0 + x.1 )
+        |assert { s = StmCount(N, Z, 1:u8) } yields StmCount(N, Z + 5, 1:u8)
         |
         |const Z2: u8 = 9
         |const DELTA2: u8 = 2
         |assert {
-        |  s = StmRange(N, Z2, DELTA2)
+        |  s = StmCount(N, Z2, DELTA2)
         |}
-        |yields StmRange(N, Z2 + 5, DELTA2)
+        |yields StmCount(N, Z2 + 5, DELTA2)
         |ignoring StmConcat([ones:[u8]()]s, StmCst(9, zeros:[u8]()))
         |with prefix x => true
         |""".stripMargin
@@ -1637,28 +1637,25 @@ class ParserTests extends AnyFunSuite {
           ConstDecl(
             z,
             ReshapeData(
-              VecAccess(
-                call(
-                  "VecReduce",
-                  v,
-                  Missing ::+ (x => SmartSum(x.__0, x.__1)())
-                ),
-                0
-              )(),
+              call(
+                "VecReduce",
+                v,
+                Missing ::+ (x => SmartSum(x.__0, x.__1)())
+              ),
               U8
             )()
           ),
           Assertion(
-            Map(s -> call("StmRange", n, z, C(1)(U8))),
-            call("StmRange", n, SmartSum(z, C(5)())(), C(1)(U8)),
+            Map(s -> call("StmCount", n, z, C(1)(U8))),
+            call("StmCount", n, SmartSum(z, C(5)())(), C(1)(U8)),
             None,
             None
           ),
           ConstDecl(z2, ReshapeData(C(9)(), U8)()),
           ConstDecl(delta2, ReshapeData(C(2)(), U8)()),
           Assertion(
-            Map(s -> call("StmRange", n, z2, delta2)),
-            call("StmRange", n, SmartSum(z2, C(5)())(), delta2),
+            Map(s -> call("StmCount", n, z2, delta2)),
+            call("StmCount", n, SmartSum(z2, C(5)())(), delta2),
             Some(
               call(
                 "StmConcat",
@@ -1720,7 +1717,7 @@ class ParserTests extends AnyFunSuite {
 
   test("TestSuite:OK3") {
     val src =
-      """accelerator top = StmRange(5, -2:i16, 1:i16)
+      """accelerator top = StmCount(5, -2:i16, 1:i16)
         |
         |assert {} yields [-2:i16, -1:i16, 0:i16, 1:i16, 2:i16]s
         |""".stripMargin
@@ -1729,7 +1726,7 @@ class ParserTests extends AnyFunSuite {
       Seq(),
       AccelDecl(
         "top",
-        call("StmRange", 5, C(-2)(I16), C(1)(I16)),
+        call("StmCount", 5, C(-2)(I16), C(1)(I16)),
         Map(),
         Map()
       ),
@@ -1742,7 +1739,7 @@ class ParserTests extends AnyFunSuite {
 
   test("TestSuite:OK4") {
     val src =
-      """accelerator top = StmRange(5, -2:i16, 1:i16)
+      """accelerator top = StmCount(5, -2:i16, 1:i16)
         |
         |assert yields [-2:i16, -1:i16, 0:i16, 1:i16, 2:i16]s
         |""".stripMargin
@@ -1751,7 +1748,7 @@ class ParserTests extends AnyFunSuite {
       Seq(),
       AccelDecl(
         "top",
-        call("StmRange", 5, C(-2)(I16), C(1)(I16)),
+        call("StmCount", 5, C(-2)(I16), C(1)(I16)),
         Map(),
         Map()
       ),

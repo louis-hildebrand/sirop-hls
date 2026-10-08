@@ -1,0 +1,9 @@
+> __handshake = false
+> __show_prefix = true
+>
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmTake(2)
+[undefined:u8, 0:u8]s ++ [1:u8, 2:u8]s
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmTake(3)
+[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8]s
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmTake(4)
+[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s

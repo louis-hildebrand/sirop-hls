@@ -12,5 +12,5 @@ assert {
 yields [16:u16]s
 
 /* This case should fail. */
-assert { a = StmRange(N, 1:u16, 1:u16), b = StmRange(N, 5:u16, 1:u16) }
+assert { a = StmCount(N, 1:u16, 1:u16), b = StmCount(N, 5:u16, 1:u16) }
 yields [70:u16]s

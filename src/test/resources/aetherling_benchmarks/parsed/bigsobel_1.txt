@@ -42,7 +42,8 @@ let module0: Stm[Vec[Vec[i32, 3], 3], 1] -> Stm[Vec[i32, 1], 1] = (
         (I : Vec[Vec[i32, 3], 3]) =>
           VecMap(
             I,
-            (I : Vec[i32, 3]) => VecReduce(I, (I : (i32, i32)) => I.0 +%` I.1)
+            (I : Vec[i32, 3]) =>
+              VecReduceAetherling(I, (I : (i32, i32)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -50,7 +51,7 @@ let module0: Stm[Vec[Vec[i32, 3], 3], 1] -> Stm[Vec[i32, 1], 1] = (
       StmMap(
         n126,
         (I : Vec[Vec[i32, 1], 3]) =>
-          VecReduce(
+          VecReduceAetherling(
             I,
             (I : Vec[(i32, i32), 1]) =>
               VecMap(I, (I : (i32, i32)) => I.0 +%` I.1)
@@ -114,7 +115,8 @@ let module2: Stm[Vec[Vec[i32, 3], 3], 1] -> Stm[Vec[i32, 1], 1] = (
         (I : Vec[Vec[i32, 3], 3]) =>
           VecMap(
             I,
-            (I : Vec[i32, 3]) => VecReduce(I, (I : (i32, i32)) => I.0 +%` I.1)
+            (I : Vec[i32, 3]) =>
+              VecReduceAetherling(I, (I : (i32, i32)) => I.0 +%` I.1)
           )
       )
     ) in
@@ -122,7 +124,7 @@ let module2: Stm[Vec[Vec[i32, 3], 3], 1] -> Stm[Vec[i32, 1], 1] = (
       StmMap(
         n173,
         (I : Vec[Vec[i32, 1], 3]) =>
-          VecReduce(
+          VecReduceAetherling(
             I,
             (I : Vec[(i32, i32), 1]) =>
               VecMap(I, (I : (i32, i32)) => I.0 +%` I.1)

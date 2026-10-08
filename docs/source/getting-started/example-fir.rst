@@ -3,7 +3,7 @@ Example with Static Scheduling: FIR Filter
 
 Now consider the following example, which implements an `FIR filter <https://en.wikipedia.org/wiki/Finite_impulse_response>`__ without backpressure.
 
-.. literalinclude:: code-examples/fir.sirop
+.. literalinclude:: /code-examples/fir.sirop
     :linenos:
 
 Test, compile, and simulate the design using the following command.

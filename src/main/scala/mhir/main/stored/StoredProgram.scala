@@ -5,7 +5,7 @@ import mhir.ir._
 import mhir.parse.AetherlingParser
 import mhir.parse.sirop.Parser
 import mhir.sugar._
-import mhir.sugar.handshake.{StmMap2, StmReduce, VecReduce}
+import mhir.sugar.handshake.{StmMap2, StmReduce}
 import mhir.typecheck.TypeCheck
 
 import scala.annotation.tailrec
@@ -158,10 +158,7 @@ object StoredProgram {
           VecMap(
             v,
             TyVec(uint, 3) ::+ (v =>
-              VecAccess(
-                VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
-                0
-              )()
+              VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
             )
           )()
         )
@@ -169,10 +166,7 @@ object StoredProgram {
       colSums -> StmMap(
         rowSums,
         TyVec(uint, 3) ::+ (v =>
-          VecAccess(
-            VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
-            0
-          )()
+          VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
         )
       ),
       result -> StmMap(
@@ -270,10 +264,7 @@ object StoredProgram {
           VecMap(
             v,
             TyVec(uint, 2) ::+ (v =>
-              VecAccess(
-                VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
-                0
-              )()
+              VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
             )
           )()
         )
@@ -281,10 +272,7 @@ object StoredProgram {
       colSums -> StmMap(
         rowSums,
         TyVec(uint, 2) ::+ (v =>
-          VecAccess(
-            VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
-            0
-          )()
+          VecReduce(v, (uint, uint) ::+ (x => x.__0 +% x.__1))(),
         )
       ),
       result -> StmMap(colSums, uint ::+ (x => IntFixProd(x, kernelCoeff)()))
@@ -407,10 +395,7 @@ object StoredProgram {
       val sumVec = StmMap( // Stm[uint, w/p]
         multiplied,
         TyVec(uint, par) ::+ (v =>
-          VecAccess(
-            VecReduce(v, (uint, uint) ::+ (x => x.__0 + x.__1))(),
-            0
-          )()
+          VecReduce(v, (uint, uint) ::+ (x => x.__0 + x.__1))(),
         )
       )
       val sumStm = // Stm[uint, 1]

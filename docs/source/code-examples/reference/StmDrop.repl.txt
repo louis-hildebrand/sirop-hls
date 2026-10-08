@@ -1,0 +1,10 @@
+> __handshake = false
+> __show_prefix = true
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(2)
+[undefined:u8, 0:u8, 1:u8, 2:u8]s ++ [3:u8, 4:u8]s
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(1)
+[undefined:u8, 0:u8, 1:u8]s ++ [2:u8, 3:u8, 4:u8]s
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(0)
+[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(4)
+[undefined:u8, 0:u8, 1:u8, 2:u8, 3:u8, 4:u8]s ++ []s

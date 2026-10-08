@@ -278,6 +278,7 @@ object Lexer {
           case "ignoring"    => IgnoringToken(start)
           case "with"        => WithToken(start)
           case "prefix"      => PrefixToken(start)
+          case "type"        => TypeToken(start)
           case x if x.matches("u[0-9]+") =>
             val suffix = x.tail
             UIntToken(suffix.toInt)(start)

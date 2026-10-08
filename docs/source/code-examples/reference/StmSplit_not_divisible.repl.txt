@@ -1,0 +1,7 @@
+> __handshake = false
+> __show_prefix = true
+>
+> type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8]s.StmSplit(2)
+Stm[Stm[u8, 2], 3]
+> [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8]s.StmSplit(2)
+[undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s

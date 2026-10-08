@@ -25,9 +25,13 @@ target="./target/scala-2.12/sirop-$version.jar"
 mv ./target/scala-2.12/sirop.jar "$target"
 
 git tag -a "v$version" -m "Release v$version" -e
-git push origin "v$version"
 
 echo "$version-SNAPSHOT" > "$version_path"
 
 echo ""
 echo "Release JAR created at $target"
+
+echo ""
+echo "WHAT TO DO NOW"
+echo "1. Push the new tag: git push origin v$version"
+echo "2. Create release on GitHub: https://github.com/louis-hildebrand/sirop-hls/releases"

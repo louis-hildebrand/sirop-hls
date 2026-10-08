@@ -194,12 +194,12 @@ object Compiler {
             showReadyValidArrows = finalProgram.handshake
           )
             .dumpDot(trace, outDir, overwrite = overwrite)
-        case TestTarget(expectedPath, actualPath, showPhysical, overwrite) =>
+        case TestTarget(expectedPath, actualPath, showPrefix, overwrite) =>
           TestRunner.run(
             finalProgram,
             expectedPath = expectedPath,
             actualPath = actualPath,
-            showPhysical = showPhysical,
+            showPhysicalPrefix = showPrefix,
             overwrite = overwrite
           )
         case VhdlTarget(outDir, _, runSim) =>

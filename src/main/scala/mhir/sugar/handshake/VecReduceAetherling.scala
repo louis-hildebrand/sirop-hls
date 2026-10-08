@@ -8,23 +8,26 @@ import scala.annotation.tailrec
 
 /** Combinational reduce over a vector
   *
-  * This is a bit like [[VecFoldComb]], but the first element of the vector is
-  * used as the initial value.
+  * This is a bit like [[VecFold]], but the first element of the vector is used
+  * as the initial value.
   *
   * This is meant to mirror the `reduce_s` primitive from
   * [[https://dl.acm.org/doi/10.1145/3385412.3385983 Aetherling]]. Therefore,
   * strange expressions like `reduce_s (map_s (add I) I) I` must unfortunately
   * be supported.
   */
-case class VecReduce(
+case class VecReduceAetherling(
     v: Expr /* Vec<T; n> */,
     f: Expr /* (T, T) -> T */
 )(typ: Type = Missing) /* Vec<T; 1> */
     extends ResolvedSyntaxSugar(v, f)(typ) /* T */ {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecReduce = {
+  override def rebuild(
+      typ: Type,
+      newChildren: Seq[Expr]
+  ): VecReduceAetherling = {
     newChildren match {
-      case Seq(v, f) => VecReduce(v, f)(typ)
+      case Seq(v, f) => VecReduceAetherling(v, f)(typ)
       case _         => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -32,7 +35,7 @@ case class VecReduce(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): VecReduce = {
+  )(implicit c: Canonicalizer): VecReduceAetherling = {
     val v = this.v.tchk(context, constValues)
     // The type of the accumulator, but possibly wrapped in a bunch of vectors
     // and streams of length 1

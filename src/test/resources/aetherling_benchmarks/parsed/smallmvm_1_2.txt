@@ -2,7 +2,13 @@
 let module0: u8 -> u8 -> u8 = (I0 : u8) => (I1 : u8) => let n13: (u8, u8) = (I0, I1) in n13.0 *%` n13.1 in
 let module1: Stm[Vec[u8, 2], 2] -> Stm[u8, 1] = (
   (I : Stm[Vec[u8, 2], 2]) =>
-    let n21: Stm[Vec[u8, 1], 2] = StmMap(I, (I : Vec[u8, 2]) => VecReduce(I, (I : (u8, u8)) => I.0 +%` I.1)) in
+    let n21: Stm[Vec[u8, 1], 2] = (
+      StmMap(
+        I,
+        (I : Vec[u8, 2]) =>
+          VecReduceAetherling(I, (I : (u8, u8)) => I.0 +%` I.1)
+      )
+    ) in
     let n24: Stm[Vec[u8, 1], 1] = (
       StmReduce(
         n21,

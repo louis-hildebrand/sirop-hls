@@ -56,7 +56,7 @@ object Args {
     var runTests: Boolean = false
     var testExpectedPath: Option[String] = None
     var testActualPath: Option[String] = None
-    var testActualShowPhysical: Boolean = false
+    var testActualShowPhysicalPrefix: Boolean = false
     var maxInvalidSteps: Option[Int] = None
     var overwrite = false
     var mutArgs = args
@@ -273,8 +273,9 @@ object Args {
             case None =>
               throw new BadArgsException(s"missing value for ${mutArgs.head}")
           }
-        case "--out:test:actual:show-physical" =>
-          testActualShowPhysical = true
+        case "--out:test:actual:show-prefix" |
+            "--out:test:actual:show-physical" =>
+          testActualShowPhysicalPrefix = true
         case "--overwrite" =>
           overwrite = true
         case "-q" | "--quiet" =>
@@ -362,7 +363,7 @@ object Args {
           TestTarget(
             testExpectedPath.map(Path(_, base = os.pwd)),
             testActualPath.map(Path(_, base = os.pwd)),
-            showPhysical = testActualShowPhysical,
+            showPhysicalPrefix = testActualShowPhysicalPrefix,
             overwrite = overwrite
           )
         )

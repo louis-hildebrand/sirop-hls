@@ -1,0 +1,4 @@
+> __handshake = false
+> __show_prefix = false
+> ([]s:Stm[u8,0]).StmFold(42:u8, @(x, y) => x + y)
+[42:u8]s

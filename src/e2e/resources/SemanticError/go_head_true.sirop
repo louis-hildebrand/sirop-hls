@@ -1,6 +1,6 @@
 accelerator[no_handshake, go=my_go, head(my_go)=true]
 top = (s: Stm[u8, 4]) => (my_go: Stm[bool, 4]) =>
-    StmRange(4, 0:u8, 1:u8)
+    StmCount(4, 0:u8, 1:u8)
     .StmZip(s)
 
 assert {

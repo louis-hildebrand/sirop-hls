@@ -96,6 +96,16 @@ if [ -z "${SKIP_SRC_E2E_PYTHON:-}" ]; then
     echo ""
 fi
 
+if [ -z "${SKIP_DOCS_PYTHON:-}" ]; then
+    # It seems we need to be in the right directory for pyright to accept the relative imports
+    cd ./docs/source
+    echo "Checking Python code in $(pwd) (skip by defining SKIP_DOCS_PYTHON)..."
+    pyright . --project .pyrightconfig.json
+    pylint  . --rcfile  ../../.pylintrc
+    cd - >/dev/null
+    echo ""
+fi
+
 if [ -z "${SKIP_DOCS:-}" ]; then
     echo "Testing documentation website..."
     cd docs

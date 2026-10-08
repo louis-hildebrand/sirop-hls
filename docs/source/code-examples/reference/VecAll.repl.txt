@@ -1,0 +1,10 @@
+> [true, true, true]v.VecAll()
+true
+> [true, true, false]v.VecAll()
+false
+> [true, false, true]v.VecAll()
+false
+> [false, true, true]v.VecAll()
+false
+> [false, false, false]v.VecAll()
+false

@@ -1,0 +1,35 @@
+const N: u32 = 4
+
+// Return the square of the given u8.
+// The output valid bit will be set to false in case of overflow.
+accelerator[no_handshake] square = (s: Stm[(u8, bool), N]) =>
+    s
+    .StmMap(
+        @(data, valid) => (data*data, valid && data < 16),
+        /*head*/ (undefined:u8, false)
+    )
+
+assert {
+    s = [(undefined:u8, false)]s ++ [
+        (2:u8, true), // OK
+        (3:u8, true), // OK
+        (4:u8, true), // OK
+        (16:u8, true) // Will overflow!
+    ]s
+}
+yields [
+    ( 4:u8,             true),
+    ( 9:u8,             true),
+    (16:u8,             true),
+    ( 0:u8 /*ignored*/, false)
+]s
+// The "ignoring" clause specifies a bit mask to ignore parts of the output.
+// 1 means ignore.
+ignoring [
+    zeros:[(u8, bool)](),
+    zeros:[(u8, bool)](),
+    zeros:[(u8, bool)](),
+    (ones:[u8](), false)
+]s
+// All elements of the physical prefix must satisfy this predicate.
+with prefix @(_, valid) => valid == false

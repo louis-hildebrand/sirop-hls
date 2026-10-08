@@ -1,0 +1,9 @@
+> [1:u8, 2:u8, 3:u8, 4:u8]v.VecTake(5)
+[1:u8, 2:u8, 3:u8, 4:u8, undefined:u8]v
+>
+> // Taking 4 elements from a vector of length 2 (!!!)
+> [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]v.VecTake(2).VecTake(4)
+[1:u8, 2:u8, undefined:u8, undefined:u8]v
+> // Taking 4 directly would have been fine
+> [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]v.VecTake(4)
+[1:u8, 2:u8, 3:u8, 4:u8]v

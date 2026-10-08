@@ -1,5 +1,5 @@
 __handshake = false
-__show_physical = true
+__show_prefix = true
 ([]s:Stm[u8,0]).StmFold(42:u8, +)
 [1:u8, 2:u8]s.StmFold(42:u8, +)
 x = 3:i16

@@ -9,6 +9,6 @@ accelerator extend = (s: Stm[u8, 2*N]) =>
     every_second.StmConcat(StmCst(3, 42:u8))
 
 assert {
-    s = StmRange(2*N, 0:u8, 1:u8)
+    s = StmCount(2*N, 0:u8, 1:u8)
 }
 yields [1:u8, 3:u8, 5:u8, 7:u8, 9:u8, 42:u8, 42:u8, 42:u8]s

@@ -68,12 +68,12 @@ case class VecCst(n: Expr, k: Expr)(typ: Type = Missing)
   }
 }
 
-case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
+case class VecCount(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
     extends ResolvedSyntaxSugar(n, z, delta)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecRange = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecCount = {
     newChildren match {
-      case Seq(n, z, delta) => VecRange(n, z, delta)(typ)
+      case Seq(n, z, delta) => VecCount(n, z, delta)(typ)
       case _                => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -81,13 +81,45 @@ case class VecRange(n: Expr, z: Expr, delta: Expr)(typ: Type = Missing)
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): VecRange = {
-    val n = this.n.tchk(context, constValues).expectUInt()
-    val z = this.z.tchk(context, constValues).expectAnyInt()
-    val delta = this.delta
-      .tchk(context, constValues)
-      .expectType(z.typ, constValues)
-    this.rebuild(TyVec(z.typ, n), Seq(n, z, delta))
+  )(implicit c: Canonicalizer): VecCount = {
+    val newN = n.tchk(context, constValues).expectUInt()
+    val checkedInit = z.tchk(context, constValues)
+    val checkedDelta = delta.tchk(context, constValues)
+    val (finalInit, finalDelta) = (checkedInit.typ, checkedDelta.typ) match {
+      case (TyTuple(), TyTuple()) =>
+        newN.typ match {
+          case TyUInt(0) =>
+            throw new TypeError(
+              "cannot create a counter with element type u0. Please choose a wider type."
+            )
+          case t => (C(0)(t), C(1)(t))
+        }
+      case (TyTuple(), t: TyAnyInt) =>
+        (C(0)(t), checkedDelta)
+      case (t: TyAnyInt, TyTuple()) =>
+        if (!t.contains(1)) {
+          throw new TypeError(
+            s"cannot create a counter with element type $t. Please choose a wider type."
+          )
+        }
+        (checkedInit, C(1)(t))
+      case (t1: TyAnyInt, t2: TyAnyInt) =>
+        if (!t1.equalsGivenConstants(t2, constValues)) {
+          throw new TypeError(
+            s"init and delta have different types: $t1 vs $t2.",
+            TypeChecker.relevantBindings(constValues, t1, t2)
+          )
+        }
+        (checkedInit, checkedDelta)
+      case (_: TyAnyInt, t) =>
+        throw new TypeError(s"wrong type for delta in VecCount: $t")
+      case (t, _) =>
+        throw new TypeError(s"wrong type for init in VecCount: $t")
+    }
+    this.rebuild(
+      TyVec(finalInit.typ, newN),
+      Seq(newN, finalInit, finalDelta)
+    )
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
@@ -415,15 +447,15 @@ case class VecMap2(v1: Expr, v2: Expr, f: Expr)(typ: Type = Missing)
   * @param f
   *   the function to use for folding.
   */
-case class VecFoldComb(
+case class VecFold(
     v: Expr /* Vec<T1; n> */,
     z: Expr /* T2 */,
     f: Expr /* T2 -> T1 -> T2 */
 )(typ: Type = Missing) /* T2 */
     extends ResolvedSyntaxSugar(v, z, f)(typ) {
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecFoldComb = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): VecFold = {
     newChildren match {
-      case Seq(v, z, f) => VecFoldComb(v, z, f)(typ)
+      case Seq(v, z, f) => VecFold(v, z, f)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -431,7 +463,7 @@ case class VecFoldComb(
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): VecFoldComb = {
+  )(implicit c: Canonicalizer): VecFold = {
     val v = this.v.tchk(context, constValues)
     val t1 = v.typ match {
       case TyVec(t, _) => t
@@ -443,8 +475,9 @@ case class VecFoldComb(
     val z = this.z.tchk(context, constValues)
     val t2 = z.typ
     val f = this.f
+      .annotateFunc(TyTuple(t2, t1))
       .tchk(context, constValues)
-      .expectType(t2 ->: t1 ->: t2, constValues)
+      .expectType((t2, t1) ->: t2, constValues)
     this.rebuild(t2, Seq(v, z, f))
   }
 
@@ -456,12 +489,14 @@ case class VecFoldComb(
     n match {
       case IntCst(n) =>
         (0 until n.toInt)
-          .foldLeft(z)({ case (acc, i) => f(acc)(VecAccess(v, C(i)())()) })
+          .foldLeft(z)({ case (acc, i) =>
+            f(Tuple(acc, VecAccess(v, C(i)())())())
+          })
           .tchk()
           .lower
       case e =>
         throw new IllegalArgumentException(
-          s"Cannot use $className on a vector with non-constant size $e."
+          s"cannot fold over vector with non-constant size $e"
         )
     }
   }
@@ -495,10 +530,10 @@ case class VecAll(v: Expr)(typ: Type = Missing)
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    VecFoldComb(
+    VecFold(
       v,
       True,
-      TyBool ::+ (a => TyBool ::+ (b => And(a, b)()))
+      (TyBool, TyBool) ::+ (x => And(x.__0, x.__1)())
     )().tchk().lower
   }
 }
@@ -531,10 +566,10 @@ case class VecAny(v: Expr)(typ: Type = Missing)
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    VecFoldComb(
+    VecFold(
       v,
       False,
-      TyBool ::+ (a => TyBool ::+ (b => Or(a, b)()))
+      (TyBool, TyBool) ::+ (x => Or(x.__0, x.__1)())
     )().tchk().lower
   }
 }
@@ -568,10 +603,10 @@ case class VecSum(v: Expr)(typ: Type = Missing)
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val TyVec(typ, _) = this.v.typ
-    VecFoldComb(
+    VecFold(
       v,
       C(0)(typ),
-      typ ::+ (a => typ ::+ (b => WrappingSum(a, b)()))
+      (typ, typ) ::+ (x => WrappingSum(x.__0, x.__1)())
     )().tchk().lower
   }
 }
@@ -761,11 +796,11 @@ case class VecDrop(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): VecDrop = {
-    val newK = k.tchk(context, constValues).expectUInt()
+    val newK = k.tchk(context, constValues).expectAnyInt()
     val newV = vec.tchk(context, constValues)
     newV.typ match {
       case TyVec(t, n) =>
-        val newLen = SmartDiff(n, newK)().tchk()
+        val newLen = ToUnsigned(SafeDiff(n, newK)())().tchk()
         this.rebuild(TyVec(t, newLen), Seq(newV, newK))
       case t =>
         throw new TypeError(
@@ -777,12 +812,11 @@ case class VecDrop(
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val k = this.k.lower
-    val TyVec(_, n) = this.vec.typ
-    val newLen = SmartDiff(n, k)().tchk().lower
+    val TyVec(_, newLen) = this.typ
     VecBuild(
       newLen,
       // Need to use this.vec instead of the lowered version to avoid a type error
-      U32 ::+ (i => VecAccess(this.vec, SmartSum(k, i)())())
+      U32 ::+ (i => VecAccess(this.vec, EnsureUnsigned(SafeSum(k, i)())())())
     )().tchk().lower
   }
 }
@@ -815,7 +849,7 @@ case class VecTakeRight(v: Expr, k: Expr)(typ: Type = Missing)
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    VecDrop(this.v, SmartDiff(VecLength(this.v)(), this.k)())().tchk().lower
+    VecDrop(this.v, SafeDiff(VecLength(this.v)(), this.k)())().tchk().lower
   }
 }
 

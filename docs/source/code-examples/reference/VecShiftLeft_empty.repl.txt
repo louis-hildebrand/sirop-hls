@@ -1,0 +1,2 @@
+> ([]v:Vec[u8,0]).VecShiftLeft(42:u8)
+[]v:Vec[u8, 0]

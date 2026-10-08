@@ -20,11 +20,12 @@ let module0: Vec[Vec[u32, 3], 3] -> Vec[Vec[u32, 1], 1] = (
     let n126: Vec[Vec[u32, 1], 3] = (
       VecMap(
         n121,
-        (I : Vec[u32, 3]) => VecReduce(I, (I : (u32, u32)) => I.0 +%` I.1)
+        (I : Vec[u32, 3]) =>
+          VecReduceAetherling(I, (I : (u32, u32)) => I.0 +%` I.1)
       )
     ) in
     let n131: Vec[Vec[u32, 1], 1] = (
-      VecReduce(
+      VecReduceAetherling(
         n126,
         (I : Vec[(u32, u32), 1]) => VecMap(I, (I : (u32, u32)) => I.0 +%` I.1)
       )

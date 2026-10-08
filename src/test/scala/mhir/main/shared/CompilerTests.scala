@@ -11,7 +11,7 @@ class CompilerTests extends AnyFunSuite {
 
   test("multiple lets") {
     val in = Parser.parse(
-      s"""let s = StmRange(5, 0:u8, 1:u8) in
+      s"""let s = StmCount(5, 0:u8, 1:u8) in
          |let k = 5:u8 in
          |StmMap(s, (x) => x + k)
          |""".stripMargin.stripTrailing

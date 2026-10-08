@@ -14,7 +14,7 @@ top = (I: Stm[Stm[u32, 1920], 1080]) =>
             let blurred = {
                 let zipped = VecZip(VecJoin(window), VecJoin(KERNEL)) in
                 let products = VecMap(zipped, (x) => x.0 * x.1) in
-                let sum = VecReduce(products, (x) => x.0 + x.1)[0] in
+                let sum = VecReduce(products, (x) => x.0 + x.1) in
                 sum >>> 4
             } in
             let cropped = window[1][1] in

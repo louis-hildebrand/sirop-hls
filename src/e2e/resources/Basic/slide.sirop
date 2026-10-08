@@ -8,7 +8,7 @@ const Y: u8 = ones:[u8]()
 const n: u8 = zeros:[u8]()
 
 assert {
-    s = StmRange(8, 42:u8, 1:u8)
+    s = StmCount(8, 42:u8, 1:u8)
 }
 yields [
     [_____, _____, _____, _____, 42:u8]v,

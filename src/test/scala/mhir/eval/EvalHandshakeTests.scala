@@ -433,7 +433,7 @@ class EvalHandshakeTests extends AnyFunSuite {
   test("LetStm:MissingBufSize") {
     val x = Param("x")(TyStm(U8, 8))
     val expr =
-      LetStm(Undefined(U8), x, StmRange(8, C(0)(U8), C(1)(U8))(), x)().tchk()
+      LetStm(Undefined(U8), x, StmCount(8, C(0)(U8), C(1)(U8))(), x)().tchk()
     val ex = intercept[MissingRequiredValue](mhir.eval.eval(expr))
     assert(
       ex.getMessage.contains("letstm buffer size evaluated to undefined:u8")

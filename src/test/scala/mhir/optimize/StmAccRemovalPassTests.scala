@@ -738,7 +738,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
         |    next: big_vec.VecShiftLeft(sdata(p))
         |  },
         |  (outside_vec: Vec[u8, 4] @ 1) = {
-        |    init: VecRange(4, 100:u8, 1:u8),
+        |    init: VecCount(4, 100:u8, 1:u8),
         |    next: outside_vec.VecShiftLeft(big_vec[2])
         |  }
         |} {
@@ -769,7 +769,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     val original = makeSbuild(
       """sbuild(12 @ 1)(undefined, (big_vec, outside_vec), true) {
         |  (big_vec: Vec[u8, 8] @ 1) = {
-        |    init: VecRange(8, 200:u8, 1:u8),
+        |    init: VecCount(8, 200:u8, 1:u8),
         |    next: big_vec.VecShiftLeft(sdata(p))
         |  },
         |  (outside_vec: Vec[u8, 4]) = {
@@ -909,7 +909,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     val original = makeSbuild(
       """sbuild(4 @ 1)(undefined, v, true) {
          |  (v: Vec[u8, 4] @ 1) = {
-         |    init: VecRange(4, 42:u8, 1:u8),
+         |    init: VecCount(4, 42:u8, 1:u8),
          |    next: VecShiftLeft(v, v[0]) // rotate
          |  }
          |} {}
@@ -936,11 +936,11 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     val original = makeSbuild(
       """sbuild(12 @ 1)(undefined, (v1, v2), true) {
         |  (v1: Vec[u8, 4] @ 1) = {
-        |    init: VecRange(4, 42:u8, 1:u8),
+        |    init: VecCount(4, 42:u8, 1:u8),
         |    next: VecShiftLeft(v1, v1[1]) // rotate
         |  },
         |  (v2: Vec[u8, 3] @ 1) = {
-        |    init: VecRange(3, 43:u8, 1:u8),
+        |    init: VecCount(3, 43:u8, 1:u8),
         |    next: VecShiftLeft(v2, v1[1])
         |  }
         |} {}
@@ -972,11 +972,11 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     val original = makeSbuild(
       """sbuild(12 @ 1)(undefined, (v1, v2), true) {
         |  (v1: Vec[u8, 4] @ 1) = {
-        |    init: VecRange(4, 42:u8, 1:u8),
+        |    init: VecCount(4, 42:u8, 1:u8),
         |    next: VecShiftLeft(v1, v1[1]) // rotate
         |  },
         |  (v2: Vec[u8, 6] @ 1) = {
-        |    init: VecRange(6, 40:u8, 1:u8),
+        |    init: VecCount(6, 40:u8, 1:u8),
         |    next: VecShiftLeft(v2, v1[1])
         |  }
         |} {}
@@ -1018,11 +1018,11 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     val original = makeSbuild(
       """sbuild(12 @ 1)(undefined, (big_vec, start_vec), true) {
         |  (big_vec: Vec[u8, 8] @ 1) = {
-        |    init: VecRange(8, 38:u8, 1:u8),
+        |    init: VecCount(8, 38:u8, 1:u8),
         |    next: big_vec.VecShiftLeft(5:u8 +` sdata(p))
         |  },
         |  (start_vec: Vec[u8, 4] @ 1) = {
-        |    init: VecRange(4, 42:u8, 1:u8),
+        |    init: VecCount(4, 42:u8, 1:u8),
         |    next: start_vec.VecShiftLeft(5:u8 +` sdata(p))
         |  }
         |} {
@@ -1094,7 +1094,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
         |    next: big_vec.VecShiftLeft(5:u8 +` sdata(p))
         |  },
         |  (start_vec: Vec[u8, 4] @ 1) = {
-        |    init: VecRange(4, 42:u8, 1:u8),
+        |    init: VecCount(4, 42:u8, 1:u8),
         |    next: start_vec.VecShiftLeft(5:u8 +` sdata(p))
         |  }
         |} {
@@ -1125,7 +1125,7 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     val original = makeSbuild(
       """sbuild(12 @ 1)(undefined, (big_vec, start_vec), true) {
         |  (big_vec: Vec[u8, 8] @ 1) = {
-        |    init: VecRange(8, 42:u8, 1:u8),
+        |    init: VecCount(8, 42:u8, 1:u8),
         |    next: big_vec.VecShiftLeft(5:u8 +` sdata(p))
         |  },
         |  (start_vec: Vec[u8, 4]) = {
@@ -1165,11 +1165,11 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     val original = makeSbuild(
       """sbuild(12 @ 1)(undefined, (big_vec, start_vec), true) {
         |  (big_vec: Vec[u8, 8] @ 1) = {
-        |    init: VecRange(8, 42:u8, 1:u8),
+        |    init: VecCount(8, 42:u8, 1:u8),
         |    next: big_vec.VecShiftLeft(5:u8 +` sdata(p))
         |  },
         |  (start_vec: Vec[u8, 4] @ 1) = {
-        |    init: VecRange(4, 42:u8, 1:u8),
+        |    init: VecCount(4, 42:u8, 1:u8),
         |    next: start_vec.VecShiftLeft(5:u8 +` sdata(p))
         |  }
         |} {
@@ -1200,11 +1200,11 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     val original = makeSbuild(
       """sbuild(12 @ 1)(undefined, (big_vec, start_vec), true) {
         |  (big_vec: Vec[u8, 8] @ 1) = {
-        |    init: VecRange(8, 38:u8, 1:u8),
+        |    init: VecCount(8, 38:u8, 1:u8),
         |    next: big_vec.VecShiftLeft(5:u8 +` sdata(p))
         |  },
         |  (start_vec: Vec[u8, 4] @ 2) = {
-        |    init: VecRange(4, 42:u8, 1:u8),
+        |    init: VecCount(4, 42:u8, 1:u8),
         |    next: start_vec.VecShiftLeft(5:u8 +` sdata(p))
         |  }
         |} {
@@ -1314,19 +1314,19 @@ class StmAccRemovalPassTests extends SiropFunSuite {
     val original = makeSbuild(
       """sbuild(12 @ 1)(undefined, (gen1, gen2, gen3, gen4), true) {
         |  (gen1: Vec[u8, 3] @ 1) = {
-        |    init: VecRange(3, 100:u8, 1:u8),
+        |    init: VecCount(3, 100:u8, 1:u8),
         |    next: gen1.VecShiftLeft(gen4[0])
         |  },
         |  (gen2: Vec[u8, 3] @ 1) = {
-        |    init: VecRange(3, 97:u8, 1:u8),
+        |    init: VecCount(3, 97:u8, 1:u8),
         |    next: gen2.VecShiftLeft(gen1[0])
         |  },
         |  (gen3: Vec[u8, 3] @ 1) = {
-        |    init: VecRange(3, 95:u8, 1:u8),
+        |    init: VecCount(3, 95:u8, 1:u8),
         |    next: gen3.VecShiftLeft(gen2[1])
         |  },
         |  (gen4: Vec[u8, 3] @ 1) = {
-        |    init: VecRange(3, 94:u8, 1:u8),
+        |    init: VecCount(3, 94:u8, 1:u8),
         |    next: gen4.VecShiftLeft(gen3[2])
         |  }
         |} {

@@ -1,0 +1,6 @@
+> __handshake = false
+> __show_prefix = false
+> ([5:i8]s ++ [1:i8, 2:i8, 8:i8]s).StmFold(9:i8, @(x, y) => x - y) // 9-1-2-8
+[-2:i8]s
+> ([5:u16]s ++ [2:u16, 0:u16, 2:u16, 6:u16]s).StmFold(0:u16, @(x, y) => 10*x + y)
+[2026:u16]s

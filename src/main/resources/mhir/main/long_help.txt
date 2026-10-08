@@ -35,7 +35,7 @@ Output Arguments:
   --out:test                       run the tests and print the results
   --out:test:expected FILE         where to write the expected outputs
   --out:test:actual FILE           where to write the actual outputs
-  --out:test:actual:show-physical  include the physical prefix when printing
+  --out:test:actual:show-prefix    include the physical prefix when printing
                                    the actual outputs
 
   --out:trace DIR                  generate a trace in the given directory. The

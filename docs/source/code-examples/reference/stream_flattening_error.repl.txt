@@ -1,0 +1,24 @@
+> __handshake = false
+> __show_prefix = true
+>
+> // Taking the first row of a nested stream
+> type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
+Stm[Stm[u8, 3], 2]
+> type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
+Stm[Stm[u8, 3], 1]
+> [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
+[undefined:u8]s ++ [1:u8, 2:u8, 3:u8]s
+>
+> // Taking the first element of a flat stream (different result!)
+> type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
+Stm[u8, 6]
+> type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
+Stm[u8, 1]
+> [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
+[undefined:u8]s ++ [1:u8]s
+>
+> // Some functions only work on flat streams
+> [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmSum()
+TypeError: Input to StmSum has type Stm[Stm[u8, 3], 2]. Expected a stream of integers.
+> [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmSum()
+[0:u8, 1:u8, 3:u8, 6:u8, 10:u8, 15:u8]s ++ [21:u8]s

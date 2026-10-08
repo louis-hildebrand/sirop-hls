@@ -1,0 +1,4 @@
+> __handshake = false
+> __show_prefix = true
+> StmCst(3, (42:u8, true))
+[(42:u8, true)]s ++ [(42:u8, true), (42:u8, true), (42:u8, true)]s

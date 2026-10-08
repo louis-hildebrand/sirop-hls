@@ -1,0 +1,8 @@
+> __handshake = false
+> __show_prefix = true
+> StmCount(5:u3)
+[undefined:u3]s ++ [0:u3, 1:u3, 2:u3, 3:u3, 4:u3]s
+> StmCount(4, 42:u32)
+[undefined:u32]s ++ [42:u32, 43:u32, 44:u32, 45:u32]s
+> StmCount(3, -9:i8, -2:i8)
+[undefined:i8]s ++ [-9:i8, -11:i8, -13:i8]s

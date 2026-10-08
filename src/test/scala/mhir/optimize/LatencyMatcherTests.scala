@@ -423,7 +423,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     val actual = env.pass.matchLatencies(original, headByParam = Map())
 
     val inputs = Map(
-      input -> StmRange(n, C(42)(U8), C(1)(U8))().tchk().lower
+      input -> StmCount(n, C(42)(U8), C(1)(U8))().tchk().lower
     )
 
     // There should be a latency mismatch at first
@@ -508,7 +508,7 @@ class LatencyMatcherTests extends AnyFunSuite {
       env.pass.matchLatencies(original, headByParam = Map())
 
     val inputs = Map(
-      input1 -> StmRange(n, C(1)(U16), C(1)(U16))().tchk().lower,
+      input1 -> StmCount(n, C(1)(U16), C(1)(U16))().tchk().lower,
       input2 -> StmLiteral(
         Seq(False),
         (0 until n).map(_ % 2 == 0).map(if (_) True else False)
@@ -579,7 +579,7 @@ class LatencyMatcherTests extends AnyFunSuite {
       )
 
     val inputs = Map(
-      input1 -> StmRange(n, C(1)(U16), C(1)(U16))().tchk().lower,
+      input1 -> StmCount(n, C(1)(U16), C(1)(U16))().tchk().lower,
       input2 -> StmLiteral(
         Seq(False),
         (0 until n).map(_ % 2 == 0).map(if (_) True else False)
@@ -643,7 +643,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     )
 
     val inputs = Map(
-      input -> StmRange(n, C(42)(U16), C(1)(U16))().tchk().lower
+      input -> StmCount(n, C(42)(U16), C(1)(U16))().tchk().lower
     )
 
     // There should be a latency mismatch at first

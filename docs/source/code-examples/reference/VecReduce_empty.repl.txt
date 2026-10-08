@@ -1,0 +1,2 @@
+> ([]v:Vec[u8,0]).VecReduce(@(x, y) => x + y)
+undefined:u8

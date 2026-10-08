@@ -4,7 +4,6 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.sugar._
-import mhir.sugar.handshake.VecReduce
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -18,8 +17,8 @@ class StmFissionPassTests extends AnyFunSuite {
   test("SharpenOne") {
     val n = 9
     val uint = U32
-    val inputA = StmRange(n, C(96)(uint), C(1)(uint))().tchk().lower
-    val inputB = StmRange(n, C(80)(uint), C(5)(uint))().tchk().lower
+    val inputA = StmCount(n, C(96)(uint), C(1)(uint))().tchk().lower
+    val inputB = StmCount(n, C(80)(uint), C(5)(uint))().tchk().lower
     val original = {
       val sA = Param("s_a")(TyStm(uint, n))
       val sB = Param("s_b")(TyStm(uint, n))
@@ -142,7 +141,7 @@ class StmFissionPassTests extends AnyFunSuite {
     assert(optimizedDelayCost <= delay.FullCycleDelay)
   }
 
-  test("ProdReductionTree:VecReduceComb") {
+  test("ProdReductionTree:VecReduce") {
     val n = 8
     val m = 5
     val uint = U32

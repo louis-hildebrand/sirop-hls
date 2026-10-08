@@ -174,7 +174,7 @@ class StreamifierTests extends AnyFunSuite {
 
   test("u8 -> Stm[(u8, u8), n]:UsedInProducers") {
     val n = 7
-    val f = (U8 ::+ (c => StmZip(StmCst(n, c)(), StmRange(n, c, C(1)(U8))())()))
+    val f = (U8 ::+ (c => StmZip(StmCst(n, c)(), StmCount(n, c, C(1)(U8))())()))
       .tchk()
       .lower
       .asInstanceOf[Function]
@@ -416,7 +416,7 @@ class StreamifierTests extends AnyFunSuite {
     val n = 10
     val f @ Function(c0, Function(s0, originalBody)) =
       (U32 ::+ (c =>
-        TyStm(I16, n) ::+ (s => StmZip(s, StmRange(n, c, C(1)(U32))())())
+        TyStm(I16, n) ::+ (s => StmZip(s, StmCount(n, c, C(1)(U32))())())
       )).tchk().lower
     val actual @ Function(c1, Function(s1, actualBody)) = f.streamify
     val examples = Seq(
@@ -451,7 +451,7 @@ class StreamifierTests extends AnyFunSuite {
             LetStm(
               1,
               zippedTwice,
-              StmZip(zippedOnce, StmRange(n, c, C(1)(U16))())(),
+              StmZip(zippedOnce, StmCount(n, c, C(1)(U16))())(),
               zippedTwice
             )()
           )()

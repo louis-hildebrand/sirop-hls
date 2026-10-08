@@ -27,8 +27,8 @@ class StmSourceFusionPassTests extends AnyFunSuite {
 
     // Correctness
     val inputs = Map(
-      input1 -> StmRange(n, C(3)(I16), C(-1)(I16))().tchk().lower,
-      input2 -> StmRange(n, C(-4)(I16), C(1)(I16))().tchk().lower
+      input1 -> StmCount(n, C(3)(I16), C(-1)(I16))().tchk().lower,
+      input2 -> StmCount(n, C(-4)(I16), C(1)(I16))().tchk().lower
     )
     val expectedVal = mhir.eval.eval(original, inputs = inputs)
     val actualVal = mhir.eval.eval(fused, inputs = inputs)

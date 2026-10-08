@@ -106,7 +106,7 @@ top = (I: Stm[Stm[u32, 1920], 1080]) =>
                     let process_channel = (window: Vec[u32, 9]) => {
                         let zipped = VecZip(window, kernel) in
                         let products = VecMap(zipped, (x) => x.0 *% x.1) in
-                        let sum = VecReduce(products, (x) => x.0 +% x.1)[0] in
+                        let sum = VecReduce(products, (x) => x.0 +% x.1) in
                         (sum >>> 4, window[8])
                     } in
                     let red = process_channel(VecMap(VecJoin(window), (x) => x.0)) in

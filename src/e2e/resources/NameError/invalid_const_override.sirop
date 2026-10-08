@@ -4,6 +4,6 @@ accelerator top =
 (s: Stm[u8, M]) => s.StmMap( x => x + 5 )
 
 assert {
-    s = StmRange(M, 0:u8, 1:u8)
+    s = StmCount(M, 0:u8, 1:u8)
 }
-yields StmRange(M, 5:u8, 1:u8)
+yields StmCount(M, 5:u8, 1:u8)

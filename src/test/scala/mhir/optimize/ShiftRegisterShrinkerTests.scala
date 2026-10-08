@@ -315,7 +315,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     val original = makeSbuild(
       """sbuild(8 @ 1)(undefined, (buf[0], buf[1]), true) {
         |  (buf: Vec[u8, 4] @ 1) = {
-        |    init: VecRange(4, 1:u8, 1:u8),
+        |    init: VecCount(4, 1:u8, 1:u8),
         |    next: buf.VecShiftLeft(sdata(p))
         |  }
         |} {
@@ -388,7 +388,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     val original = makeSbuild(
       """sbuild(8 @ 4)(undefined, buf[0], true) {
         |  (buf: Vec[u8, 4] @ 1) = {
-        |    init: VecRange(4, 10:u8, 1:u8),
+        |    init: VecCount(4, 10:u8, 1:u8),
         |    next: buf.VecShiftLeft(buf[1])
         |  }
         |} {}

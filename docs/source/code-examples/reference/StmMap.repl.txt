@@ -1,0 +1,6 @@
+> __handshake = false
+> __show_prefix = true
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmMap(x => x + 5)
+[undefined:u8, 5:u8]s ++ [6:u8, 7:u8, 8:u8, 9:u8]s
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmMap(x => x + 5, 42:u8)
+[42:u8, 5:u8]s ++ [6:u8, 7:u8, 8:u8, 9:u8]s

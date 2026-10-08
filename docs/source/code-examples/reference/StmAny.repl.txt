@@ -1,0 +1,12 @@
+> __handshake = false
+> __show_prefix = false
+> ([true]s ++ [false, false, false]s).StmAny()
+[false]s
+> ([true]s ++ [false, false, true]s).StmAny()
+[true]s
+> ([true]s ++ [false, true, false]s).StmAny()
+[true]s
+> ([true]s ++ [true, false, false]s).StmAny()
+[true]s
+> ([true]s ++ [true, true, true]s).StmAny()
+[true]s

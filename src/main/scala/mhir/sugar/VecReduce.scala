@@ -1,5 +1,4 @@
 package mhir.sugar
-package nohandshake
 
 import mhir.ir._
 import mhir.typecheck._
@@ -30,26 +29,26 @@ case class VecReduce(v: Expr, f: Expr)(typ: Type = Missing)
       .annotateFunc(TyTuple(elemTyp, elemTyp))
       .tchk(context, constValues)
       .expectType((elemTyp, elemTyp) ->: elemTyp, constValues)
-    this.rebuild(TyVec(elemTyp, 1), Seq(v, f))
+    this.rebuild(elemTyp, Seq(v, f))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val v = this.v.lower
-    val TyVec(_, nExpr) = this.v.typ
+    val TyVec(elemTyp, nExpr) = this.v.typ
     val n = nExpr.getIntCstOrElse({ case e =>
       throw new IllegalArgumentException(
         s"cannot reduce over vector with non-constant size $e"
       )
     })
     if (n <= 0) {
-      throw new IllegalArgumentException("cannot reduce over empty vector")
+      Undefined(elemTyp.lower)
+    } else {
+      val f = this.f.lower
+      (0 until n.toInt)
+        .map(i => VecAccess(v, C(i)())())
+        .reduce[Expr]({ case (e1, e2) => FunCall(f, Tuple(e1, e2)())() })
+        .tchk()
     }
-    val f = this.f.lower
-    val result = (0 until n.toInt)
-      .map(i => VecAccess(v, C(i)())())
-      .reduce[Expr]({ case (e1, e2) => FunCall(f, Tuple(e1, e2)())() })
-      .tchk()
-    VecBuild(C(1)(), U8 ::+ (_ => result))().tchk()
   }
 }

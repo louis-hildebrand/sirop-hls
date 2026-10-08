@@ -17,15 +17,19 @@ For example, a `dot product <https://en.wikipedia.org/wiki/Dot_product>`__ can b
 .. literalinclude:: code-examples/dot.repl.txt
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
     :caption: Getting Started
 
-    install
-    language-intro
-    related-projects
-    example-dot
-    example-fir
+    getting-started/install
+    getting-started/language-intro
+    getting-started/related-projects
+    getting-started/example-dot
+    getting-started/example-fir
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
     :caption: Reference
+
+    reference/types
+    reference/vectors
+    reference/streams
