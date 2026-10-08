@@ -35,19 +35,20 @@ case class VecReduce(v: Expr, f: Expr)(typ: Type = Missing)
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val v = this.v.lower
-    val TyVec(_, nExpr) = this.v.typ
+    val TyVec(elemTyp, nExpr) = this.v.typ
     val n = nExpr.getIntCstOrElse({ case e =>
       throw new IllegalArgumentException(
         s"cannot reduce over vector with non-constant size $e"
       )
     })
     if (n <= 0) {
-      throw new IllegalArgumentException("cannot reduce over empty vector")
+      Undefined(elemTyp.lower)
+    } else {
+      val f = this.f.lower
+      (0 until n.toInt)
+        .map(i => VecAccess(v, C(i)())())
+        .reduce[Expr]({ case (e1, e2) => FunCall(f, Tuple(e1, e2)())() })
+        .tchk()
     }
-    val f = this.f.lower
-    (0 until n.toInt)
-      .map(i => VecAccess(v, C(i)())())
-      .reduce[Expr]({ case (e1, e2) => FunCall(f, Tuple(e1, e2)())() })
-      .tchk()
   }
 }

@@ -496,7 +496,7 @@ case class VecFold(
           .lower
       case e =>
         throw new IllegalArgumentException(
-          s"Cannot use $className on a vector with non-constant size $e."
+          s"cannot fold over vector with non-constant size $e"
         )
     }
   }
