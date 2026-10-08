@@ -1,0 +1,8 @@
+> [1:u8, 2:u8, 3:u8, 4:u8]v.VecTakeRight(2)
+[3:u8, 4:u8]v
+> [1:u8, 2:u8, 3:u8, 4:u8]v.VecTakeRight(3)
+[2:u8, 3:u8, 4:u8]v
+> [1:u8, 2:u8, 3:u8, 4:u8]v.VecTakeRight(4)
+[1:u8, 2:u8, 3:u8, 4:u8]v
+> [1:u8, 2:u8, 3:u8, 4:u8]v.VecTakeRight(0)
+[]v:Vec[u8, 0]

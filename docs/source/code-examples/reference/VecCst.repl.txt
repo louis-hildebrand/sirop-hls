@@ -1,0 +1,2 @@
+> VecCst(3, (42:u8, true))
+[(42:u8, true), (42:u8, true), (42:u8, true)]v

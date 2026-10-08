@@ -1,0 +1,9 @@
+> // 2 dimensions
+> [[1:u8, 2:u8, 3:u8]v, [4:u8, 5:u8, 6:u8]v]v.VecJoin()
+[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]v
+>
+> // 3 dimensions
+> [[[1:u8, 2:u8]v, [3:u8, 4:u8]v]v, [[5:u8, 6:u8]v, [7:u8, 8:u8]v]v]v.VecJoin()
+[[1:u8, 2:u8]v, [3:u8, 4:u8]v, [5:u8, 6:u8]v, [7:u8, 8:u8]v]v
+> [[[1:u8, 2:u8]v, [3:u8, 4:u8]v]v, [[5:u8, 6:u8]v, [7:u8, 8:u8]v]v]v.VecMap(v => v.VecJoin())
+[[1:u8, 2:u8, 3:u8, 4:u8]v, [5:u8, 6:u8, 7:u8, 8:u8]v]v

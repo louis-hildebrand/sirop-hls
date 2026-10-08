@@ -91,6 +91,14 @@ Creating Streams
 
 .. only:: not handshake
 
+    .. function:: StmCst(n: I, k: T): Stm[T, n] :: I is an unsigned integer type
+
+        Creates a stream of length ``n`` whose elements are all the constant ``k``.
+
+        .. literalinclude:: /code-examples/reference/StmCst.repl.txt
+
+.. only:: not handshake
+
     .. function:: StmCount(n: I, init: J = 0, delta: J = 1): Stm[J, n] :: I is an unsigned integer type and J is any integer type
 
         Creates a stream of ``n`` integers starting at ``init`` and increasing by ``delta``.
@@ -112,14 +120,6 @@ Creating Streams
         .. NOTE::
             The REPL prints a 1-dimensional stream due to :ref:`stream flattening <stream-flattening>`.
 
-.. only:: not handshake
-
-    .. function:: StmCst(n: I, k: T): Stm[T, n] :: I is an unsigned integer type
-
-        Creates a stream of length ``n`` whose elements are all the constant ``k``.
-
-        .. literalinclude:: /code-examples/reference/StmCst.repl.txt
-
 Transforming Streams Elementwise
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -127,7 +127,7 @@ Transforming Streams Elementwise
 
     .. function:: StmMap(s: Stm[A, n], f: A -> B): Stm[B, n]
 
-        Applies function ``f`` elementwise to a stream.
+        Applies function ``f`` elementwise to stream ``s``.
 
         ::
 
@@ -135,9 +135,9 @@ Transforming Streams Elementwise
             > [1:u8, 2:u8, 3:u8, 4:u8]s.StmMap(x => x + 5)
             [6:u8, 7:u8, 8:u8, 9:u8]s
 
-        **See also:**
+        .. seealso::
 
-        * :func:`StmMap2`, for simultaneous transformation over two streams
+            :func:`StmMap2`, for simultaneous transformation over two streams
 
 .. only:: not handshake
 
@@ -147,9 +147,9 @@ Transforming Streams Elementwise
 
         .. literalinclude:: /code-examples/reference/StmMap.repl.txt
 
-        **See also:**
+        .. seealso::
 
-        * :func:`StmMap2`, for simultaneous transformation over two streams
+            :func:`StmMap2`, for simultaneous transformation over two streams
 
 Combining Multiple Streams
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -164,6 +164,18 @@ Combining Multiple Streams
 
 .. only:: not handshake
 
+    .. function:: StmZip(s1: Stm[A, n], s2: Stm[B, n], head: (A, B) = undefined): Stm[(A, B), n]
+
+        Pair up the elements of two streams.
+
+        .. literalinclude:: /code-examples/reference/StmZip.repl.txt
+
+     .. seealso::
+
+            :func:`StmMap2`, which zips two streams with an arbitrary function.
+
+.. only:: not handshake
+
     .. function:: StmMap2(s1: Stm[A, n], s2: Stm[B, n], f: A -> B -> C, head: C = undefined): Stm[C, n]
 
         Like :func:`StmMap`, but for two streams at once.
@@ -173,21 +185,9 @@ Combining Multiple Streams
 
         .. literalinclude:: /code-examples/reference/StmMap2.repl.txt
 
-        **See also**:
+        .. seealso::
 
-        * :func:`StmZip`, the special case where ``f`` is simply ``x => y => (x, y)``
-
-.. only:: not handshake
-
-    .. function:: StmZip(s1: Stm[A, n], s2: Stm[B, n], head: (A, B) = undefined): Stm[(A, B), n]
-
-        Pair up the elements of two streams.
-
-        .. literalinclude:: /code-examples/reference/StmZip.repl.txt
-
-        **See also:**
-
-        * :func:`StmMap2`, which zips two streams with an arbitrary function.
+            :func:`StmZip`, the special case where ``f`` is simply ``x => y => (x, y)``
 
 Sliding Windows
 ^^^^^^^^^^^^^^^
@@ -216,9 +216,9 @@ Aggregation
 
         .. literalinclude:: /code-examples/reference/StmAll_empty.repl.txt
 
-        **See also:**
+        .. seealso::
 
-        * :func:`StmFold`, for aggregation with an arbitrary function.
+            :func:`StmFold`, for aggregation with an arbitrary function.
 
 .. only:: not handshake
 
@@ -232,9 +232,31 @@ Aggregation
 
         .. literalinclude:: /code-examples/reference/StmAny_empty.repl.txt
 
-        **See also:**
+        .. seealso::
 
-        * :func:`StmFold`, for aggregation with an arbitrary function.
+            :func:`StmFold`, for aggregation with an arbitrary function.
+
+.. only:: not handshake
+
+    .. function:: StmSum(s: Stm[I, n]): Stm[I, 1] :: I is an integer type
+
+        Returns the sum of the elements in the :ref:`logical part <physical-logical-stream>` of stream ``s``.
+
+        .. literalinclude:: /code-examples/reference/StmSum.repl.txt
+
+        When applied to an empty stream, :func:`StmSum` returns 0.
+
+        .. literalinclude:: /code-examples/reference/StmSum_empty.repl.txt
+
+        .. WARNING::
+            Beware of `overflow <https://en.wikipedia.org/wiki/Integer_overflow>`!
+            The sum is performed with the same type as the inputs.
+
+        .. literalinclude:: /code-examples/reference/StmSum_overflow.repl.txt
+
+        .. seealso::
+
+            :func:`StmFold`, for aggregation with an arbitrary function.
 
 .. only:: not handshake
 
@@ -251,12 +273,15 @@ Aggregation
 
         .. literalinclude:: /code-examples/reference/StmFold_empty.repl.txt
 
-        **See also:**
+        .. seealso::
 
-        * :func:`StmAll`, which is a special case of :func:`StmFold` with logical AND
-        * :func:`StmAny`, which is a special case of :func:`StmFold` with logical OR
-        * :func:`StmSum`, which is a special case of :func:`StmFold` with addition
-        * :func:`StmReduce`, for aggregation of non-empty streams without needing to specify an initial value
+            :func:`StmAll`, which is a special case of :func:`StmFold` with logical AND
+
+            :func:`StmAny`, which is a special case of :func:`StmFold` with logical OR
+
+            :func:`StmSum`, which is a special case of :func:`StmFold` with addition
+
+            :func:`StmReduce`, for aggregation of non-empty streams without needing to specify an initial value
 
 .. only:: not handshake
 
@@ -273,32 +298,9 @@ Aggregation
 
         .. literalinclude:: /code-examples/reference/StmReduce_empty.repl.txt
 
-        **See also:**
+        .. seealso::
 
-        * :func:`StmFold`, for aggregation of possibly empty streams with a given initial value
-
-.. only:: not handshake
-
-    .. function:: StmSum(s: Stm[I, n]): Stm[I, 1] :: I is an integer type
-
-        Returns the sum of the elements in the :ref:`logical part <physical-logical-stream>` of stream ``s``.
-
-        .. literalinclude:: /code-examples/reference/StmSum.repl.txt
-
-        .. WARNING::
-
-            The sum is performed with the same type as the inputs.
-            Beware of overflow!
-
-        .. literalinclude:: /code-examples/reference/StmSum_overflow.repl.txt
-
-        When applied to an empty stream, :func:`StmSum` returns 0.
-
-        .. literalinclude:: /code-examples/reference/StmSum_empty.repl.txt
-
-        **See also:**
-
-        * :func:`StmFold`, for aggregation with an arbitrary function.
+            :func:`StmFold`, for aggregation of possibly empty streams with a given initial value
 
 Nested Streams
 ^^^^^^^^^^^^^^
@@ -314,9 +316,9 @@ Nested Streams
         .. NOTE::
             The REPL prints 1-dimensional streams in each case due to :ref:`stream flattening <stream-flattening>`.
 
-        **See also:**
+        .. seealso::
 
-        * :func:`StmSplit`, for converting a flat stream back to a nested stream
+            :func:`StmSplit`, for converting a flat stream back to a nested stream
 
 .. only:: not handshake
 
@@ -334,9 +336,9 @@ Nested Streams
 
         .. literalinclude:: /code-examples/reference/StmSplit_not_divisible.repl.txt
 
-        **See also:**
+        .. seealso::
 
-        * :func:`StmJoin`, for converting a nested stream back to a flat stream
+            :func:`StmJoin`, for converting a nested stream back to a flat stream
 
 Discarding Parts of a Stream
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -354,9 +356,9 @@ Discarding Parts of a Stream
 
         .. literalinclude:: /code-examples/reference/StmDrop_too_many.repl.txt
 
-        **See also:**
+        .. seealso::
 
-        * :func:`StmTake`, for discarding elements from the end of a stream
+            :func:`StmTake`, for discarding elements from the end of a stream
 
 .. only:: not handshake
 
@@ -367,13 +369,13 @@ Discarding Parts of a Stream
         .. literalinclude:: /code-examples/reference/StmTake.repl.txt
 
         .. WARNING::
-            If the original stream length ``n`` is less than ``k``, the extra elements will be undefined.
+            If ``k`` is greater than ``n``, the extra elements will be undefined.
 
         .. literalinclude:: /code-examples/reference/StmTake_too_many.repl.txt
 
-        **See also:**
+        .. seealso::
 
-        * :func:`StmDrop`, for discarding elements from the beginning of a stream
+            :func:`StmDrop`, for discarding elements from the beginning of a stream
 
 Using Dedicated DSP Blocks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

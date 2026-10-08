@@ -13,7 +13,7 @@ Type                             Description
 ``u0``, ``u1``, ``u2``, ...  Unsigned integer with the given bitwidth
 ``i1``, ``i2``, ``i3``, ...  Signed integer with the given bitwidth
 ``(A, B, ...)``              Tuple whose elements have type ``A``, ``B``, etc.
-``Vec[T, n]``                Vector of length ``n`` whose elements have type ``T``
+``Vec[T, n]``                :doc:`Vector </reference/vectors>` of length ``n`` whose elements have type ``T``
 ``Stm[T, n]``                :doc:`Stream </reference/streams>` of length ``n`` whose elements have type ``T``
 ``A -> B``                   Function with input of type ``A`` and output of type ``B``
 ===========================  ==========================================================

@@ -1,0 +1,4 @@
+> [1:u8, 2:u8, 3:u8, 4:u8]v.VecDropRight(5)
+undefined:Vec[u8, undefined:u3]
+> 4:u3 - 5:u3 // Output length is 4:u3 - 5:u3, which is undefined
+undefined:u3

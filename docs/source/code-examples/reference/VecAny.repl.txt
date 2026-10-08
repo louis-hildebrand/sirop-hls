@@ -1,0 +1,10 @@
+> [false, false, false]v.VecAny()
+false
+> [false, false, true]v.VecAny()
+true
+> [false, true, false]v.VecAny()
+true
+> [true, false, false]v.VecAny()
+true
+> [true, true, true]v.VecAny()
+true
