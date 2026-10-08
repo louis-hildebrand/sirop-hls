@@ -793,11 +793,11 @@ case class VecDrop(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
   )(implicit c: Canonicalizer): VecDrop = {
-    val newK = k.tchk(context, constValues).expectUInt()
+    val newK = k.tchk(context, constValues).expectAnyInt()
     val newV = vec.tchk(context, constValues)
     newV.typ match {
       case TyVec(t, n) =>
-        val newLen = SmartDiff(n, newK)().tchk()
+        val newLen = ToUnsigned(SafeDiff(n, newK)())().tchk()
         this.rebuild(TyVec(t, newLen), Seq(newV, newK))
       case t =>
         throw new TypeError(
@@ -809,12 +809,11 @@ case class VecDrop(
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val k = this.k.lower
-    val TyVec(_, n) = this.vec.typ
-    val newLen = SmartDiff(n, k)().tchk().lower
+    val TyVec(_, newLen) = this.typ
     VecBuild(
       newLen,
       // Need to use this.vec instead of the lowered version to avoid a type error
-      U32 ::+ (i => VecAccess(this.vec, SmartSum(k, i)())())
+      U32 ::+ (i => VecAccess(this.vec, EnsureUnsigned(SafeSum(k, i)())())())
     )().tchk().lower
   }
 }
@@ -847,7 +846,7 @@ case class VecTakeRight(v: Expr, k: Expr)(typ: Type = Missing)
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    VecDrop(this.v, SmartDiff(VecLength(this.v)(), this.k)())().tchk().lower
+    VecDrop(this.v, SafeDiff(VecLength(this.v)(), this.k)())().tchk().lower
   }
 }
 

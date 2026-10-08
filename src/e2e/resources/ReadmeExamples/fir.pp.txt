@@ -3,7 +3,7 @@
     (undefined:i18, false),
     (
       truncate18(stage1 +` 7:i44 *` pad44(slide_buf[0:u32])),
-      delay_buf[0:u32] && (delay_buf[1:u32] && delay_buf[2:u32])
+      delay_buf[0:u32] && (delay_buf[1:u32] && delay_buf[2:u33])
     ),
     true
   ) {
