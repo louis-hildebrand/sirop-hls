@@ -423,53 +423,53 @@ The answer is that, in some cases, we care about <em>some properties</em> of the
 For example, we might want the generated VHDL entity to produce a <code class="docutils literal notranslate"><span class="pre">valid</span></code> output bit.
 In the physical prefix, the <code class="docutils literal notranslate"><span class="pre">valid</span></code> bit must always be <code class="docutils literal notranslate"><span class="pre">false</span></code>.
 In the logical part, the <code class="docutils literal notranslate"><span class="pre">valid</span></code> bit may be <code class="docutils literal notranslate"><span class="pre">true</span></code> or <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>const N: u32 = 4
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="k">const</span> <span class="n">N</span>: <span class="kt">u32</span> = <span class="m">4</span>
 
-// Return the square of the given u8.
-// The output valid bit will be set to false in case of overflow.
-accelerator[no_handshake] square = (s: Stm[(u8, bool), N]) =&gt;
-    s
-    .StmMap(
-        @(data, valid) =&gt; (data*data, valid &amp;&amp; data &lt; 16),
-        /*head*/ (undefined:u8, false)
+<span class="c c-Singleline">// Return the square of the given u8.</span>
+<span class="c c-Singleline">// The output valid bit will be set to false in case of overflow.</span>
+<span class="k">accelerator</span><span class="p">[</span><span class="n">no</span>_<span class="n">handshake</span><span class="p">]</span> <span class="n">square</span> = (<span class="n">s</span>: <span class="kt">Stm</span><span class="p">[</span>(<span class="kt">u8</span>, <span class="kt">bool</span>), <span class="n">N</span><span class="p">]</span>) <span class="p">=&gt;</span>
+    <span class="n">s</span>
+    .<span class="nb">StmMap</span>(
+        @(<span class="n">data</span>, <span class="n">valid</span>) <span class="p">=&gt;</span> (<span class="n">data</span><span class="o">*</span><span class="n">data</span>, <span class="n">valid</span> <span class="o">&amp;&amp;</span> <span class="n">data</span> <span class="o">&lt;</span> <span class="m">16</span>),
+        <span class="cm">/*head*/</span> (<span class="l">undefined</span>:<span class="kt">u8</span>, <span class="l">false</span>)
     )
 
-assert {
-    s = [(undefined:u8, false)]s ++ [
-        (2:u8, true), // OK
-        (3:u8, true), // OK
-        (4:u8, true), // OK
-        (16:u8, true) // Will overflow!
-    ]s
+<span class="k">assert</span> {
+    <span class="n">s</span> = <span class="p">[</span>(<span class="l">undefined</span>:<span class="kt">u8</span>, <span class="l">false</span>)<span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span>
+        (<span class="m">2</span>:<span class="kt">u8</span>, <span class="l">true</span>), <span class="c c-Singleline">// OK</span>
+        (<span class="m">3</span>:<span class="kt">u8</span>, <span class="l">true</span>), <span class="c c-Singleline">// OK</span>
+        (<span class="m">4</span>:<span class="kt">u8</span>, <span class="l">true</span>), <span class="c c-Singleline">// OK</span>
+        (<span class="m">16</span>:<span class="kt">u8</span>, <span class="l">true</span>) <span class="c c-Singleline">// Will overflow!</span>
+    <span class="p">]</span><span class="n">s</span>
 }
-yields [
-    ( 4:u8,             true),
-    ( 9:u8,             true),
-    (16:u8,             true),
-    ( 0:u8 /*ignored*/, false)
-]s
-// The "ignoring" clause specifies a bit mask to ignore parts of the output.
-// 1 means ignore.
-ignoring [
-    zeros:[(u8, bool)](),
-    zeros:[(u8, bool)](),
-    zeros:[(u8, bool)](),
-    (ones:[u8](), false)
-]s
-// All elements of the physical prefix must satisfy this predicate.
-with prefix @(_, valid) =&gt; valid == false
+<span class="k">yields</span> <span class="p">[</span>
+    ( <span class="m">4</span>:<span class="kt">u8</span>,             <span class="l">true</span>),
+    ( <span class="m">9</span>:<span class="kt">u8</span>,             <span class="l">true</span>),
+    (<span class="m">16</span>:<span class="kt">u8</span>,             <span class="l">true</span>),
+    ( <span class="m">0</span>:<span class="kt">u8</span> <span class="cm">/*ignored*/</span>, <span class="l">false</span>)
+<span class="p">]</span><span class="n">s</span>
+<span class="c c-Singleline">// The "ignoring" clause specifies a bit mask to ignore parts of the output.</span>
+<span class="c c-Singleline">// 1 means ignore.</span>
+<span class="k">ignoring</span> <span class="p">[</span>
+    <span class="nb">zeros</span>:<span class="p">[</span>(<span class="kt">u8</span>, <span class="kt">bool</span>)<span class="p">]</span>(),
+    <span class="nb">zeros</span>:<span class="p">[</span>(<span class="kt">u8</span>, <span class="kt">bool</span>)<span class="p">]</span>(),
+    <span class="nb">zeros</span>:<span class="p">[</span>(<span class="kt">u8</span>, <span class="kt">bool</span>)<span class="p">]</span>(),
+    (<span class="nb">ones</span>:<span class="p">[</span><span class="kt">u8</span><span class="p">]</span>(), <span class="l">false</span>)
+<span class="p">]</span><span class="n">s</span>
+<span class="c c-Singleline">// All elements of the physical prefix must satisfy this predicate.</span>
+<span class="k">with</span> <span class="k">prefix</span> @(_, <span class="n">valid</span>) <span class="p">=&gt;</span> <span class="n">valid</span> <span class="o">==</span> <span class="l">false</span>
 </pre></div>
 </div>
 <p>Many of the built-in functions listed provide some way of controlling the physical prefix.
 For instance, as shown in the sample code above, <a class="reference internal" href="#StmMap" title="StmMap"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMap</span></code></a> has a <code class="docutils literal notranslate"><span class="pre">head</span></code> parameter to set the initial value of the output register.</p>
 <p>In the REPL, the physical prefix is hidden by default.
 If it’s important to see the physical prefix, enable it by setting the special variable <code class="docutils literal notranslate"><span class="pre">__show_prefix</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; [0:u8]s ++ [1:u8, 2:u8, 3:u8]s
-[1:u8, 2:u8, 3:u8]s
-&gt; __show_prefix = true
-&gt; [0:u8]s ++ [1:u8, 2:u8, 3:u8]s
-[0:u8]s ++ [1:u8, 2:u8, 3:u8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span><span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>
+<span class="go">[1:u8, 2:u8, 3:u8]s</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt; </span><span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>
+<span class="go">[0:u8]s ++ [1:u8, 2:u8, 3:u8]s</span>
 </pre></div>
 </div>
 </section>
@@ -479,38 +479,38 @@ If it’s important to see the physical prefix, enable it by setting the special
 <p>The Sirop compiler flattens nested streams.
 (There is only one time dimension, after all.)
 For example:</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
-Stm[Stm[u8, 3], 2]
-&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
-[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="k">type</span> <span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>
+<span class="go">Stm[Stm[u8, 3], 2]</span>
+<span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>
+<span class="go">[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s</span>
 </pre></div>
 </div>
 <p>Flattening happens <em>after</em> type checking.
 Therefore, if downstream functions require a flat stream, you should use <a class="reference internal" href="#StmJoin" title="StmJoin"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmJoin</span></code></a> to explicitly flatten.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt;
-&gt; // Taking the first row of a nested stream
-&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
-Stm[Stm[u8, 3], 2]
-&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
-Stm[Stm[u8, 3], 1]
-&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
-[undefined:u8]s ++ [1:u8, 2:u8, 3:u8]s
-&gt;
-&gt; // Taking the first element of a flat stream (different result!)
-&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
-Stm[u8, 6]
-&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
-Stm[u8, 1]
-&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
-[undefined:u8]s ++ [1:u8]s
-&gt;
-&gt; // Some functions only work on flat streams
-&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmSum()
-TypeError: Input to StmSum has type Stm[Stm[u8, 3], 2]. Expected a stream of integers.
-&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmSum()
-[0:u8, 1:u8, 3:u8, 6:u8, 10:u8, 15:u8]s ++ [21:u8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Taking the first row of a nested stream</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>
+<span class="go">Stm[Stm[u8, 3], 2]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">Stm[Stm[u8, 3], 1]</span>
+<span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">[undefined:u8]s ++ [1:u8, 2:u8, 3:u8]s</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Taking the first element of a flat stream (different result!)</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmJoin</span>()
+<span class="go">Stm[u8, 6]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmJoin</span>().<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">Stm[u8, 1]</span>
+<span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmJoin</span>().<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">[undefined:u8]s ++ [1:u8]s</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Some functions only work on flat streams</span>
+<span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmSum</span>()
+<span class="go">TypeError: Input to StmSum has type Stm[Stm[u8, 3], 2]. Expected a stream of integers.</span>
+<span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmJoin</span>().<span class="nb">StmSum</span>()
+<span class="go">[0:u8, 1:u8, 3:u8, 6:u8, 10:u8, 15:u8]s ++ [21:u8]s</span>
 </pre></div>
 </div>
 </section>
@@ -523,10 +523,10 @@ TypeError: Input to StmSum has type Stm[Stm[u8, 3], 2]. Expected a stream of int
 <dt class="sig sig-object sirop" id="StmCst">
 <span class="sig-name descname"><span class="pre">StmCst</span></span><span class="sig-paren">(</span><span class="pre">n:</span> <span class="pre">I,</span> <span class="pre">k:</span> <span class="pre">T</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmCst" title="Link to this definition">#</a></dt>
 <dd><p>Creates a stream of length <code class="docutils literal notranslate"><span class="pre">n</span></code> whose elements are all the constant <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt; StmCst(3, (42:u8, true))
-[(42:u8, true)]s ++ [(42:u8, true), (42:u8, true), (42:u8, true)]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt; </span><span class="nb">StmCst</span>(<span class="m">3</span>, (<span class="m">42</span>:<span class="kt">u8</span>, <span class="l">true</span>))
+<span class="go">[(42:u8, true)]s ++ [(42:u8, true), (42:u8, true), (42:u8, true)]s</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -535,14 +535,14 @@ TypeError: Input to StmSum has type Stm[Stm[u8, 3], 2]. Expected a stream of int
 <dt class="sig sig-object sirop" id="StmCount">
 <span class="sig-name descname"><span class="pre">StmCount</span></span><span class="sig-paren">(</span><span class="pre">n:</span> <span class="pre">I,</span> <span class="pre">init:</span> <span class="pre">J</span> <span class="pre">=</span> <span class="pre">0,</span> <span class="pre">delta:</span> <span class="pre">J</span> <span class="pre">=</span> <span class="pre">1</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[J,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span> <span class="pre">and</span> <span class="pre">J</span> <span class="pre">is</span> <span class="pre">any</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmCount" title="Link to this definition">#</a></dt>
 <dd><p>Creates a stream of <code class="docutils literal notranslate"><span class="pre">n</span></code> integers starting at <code class="docutils literal notranslate"><span class="pre">init</span></code> and increasing by <code class="docutils literal notranslate"><span class="pre">delta</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt; StmCount(5:u3)
-[undefined:u3]s ++ [0:u3, 1:u3, 2:u3, 3:u3, 4:u3]s
-&gt; StmCount(4, 42:u32)
-[undefined:u32]s ++ [42:u32, 43:u32, 44:u32, 45:u32]s
-&gt; StmCount(3, -9:i8, -2:i8)
-[undefined:i8]s ++ [-9:i8, -11:i8, -13:i8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt; </span><span class="nb">StmCount</span>(<span class="m">5</span>:<span class="kt">u3</span>)
+<span class="go">[undefined:u3]s ++ [0:u3, 1:u3, 2:u3, 3:u3, 4:u3]s</span>
+<span class="go">&gt; </span><span class="nb">StmCount</span>(<span class="m">4</span>, <span class="m">42</span>:<span class="kt">u32</span>)
+<span class="go">[undefined:u32]s ++ [42:u32, 43:u32, 44:u32, 45:u32]s</span>
+<span class="go">&gt; </span><span class="nb">StmCount</span>(<span class="m">3</span>, <span class="o">-</span><span class="m">9</span>:<span class="kt">i8</span>, <span class="o">-</span><span class="m">2</span>:<span class="kt">i8</span>)
+<span class="go">[undefined:i8]s ++ [-9:i8, -11:i8, -13:i8]s</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -552,25 +552,25 @@ TypeError: Input to StmSum has type Stm[Stm[u8, 3], 2]. Expected a stream of int
 <span class="sig-name descname"><span class="pre">StmCount2D</span></span><span class="sig-paren">(</span><span class="pre">n:</span> <span class="pre">I,</span> <span class="pre">m:</span> <span class="pre">J</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[Stm[(I,</span> <span class="pre">J),</span> <span class="pre">m],</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">and</span> <span class="pre">J</span> <span class="pre">are</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">types</span></em><a class="headerlink" href="#StmCount2D" title="Link to this definition">#</a></dt>
 <dd><p>Creates a nested stream such that the element at “row” <code class="docutils literal notranslate"><span class="pre">i</span></code> and “column” <code class="docutils literal notranslate"><span class="pre">j</span></code> is <code class="docutils literal notranslate"><span class="pre">(i,</span> <span class="pre">j)</span></code>.
 The types of <code class="docutils literal notranslate"><span class="pre">i</span></code> and <code class="docutils literal notranslate"><span class="pre">j</span></code> are the same as the lengths <code class="docutils literal notranslate"><span class="pre">n</span></code> and <code class="docutils literal notranslate"><span class="pre">m</span></code>, respectively.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt; StmCount2D(3:u8, 4:u16)
-[
-  undefined:(u8, u16)
-]s ++ [
-  (0:u8, 0:u16),
-  (0:u8, 1:u16),
-  (0:u8, 2:u16),
-  (0:u8, 3:u16),
-  (1:u8, 0:u16),
-  (1:u8, 1:u16),
-  (1:u8, 2:u16),
-  (1:u8, 3:u16),
-  (2:u8, 0:u16),
-  (2:u8, 1:u16),
-  (2:u8, 2:u16),
-  (2:u8, 3:u16)
-]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt; </span><span class="nb">StmCount2D</span>(<span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u16</span>)
+<span class="go">[</span>
+<span class="go">  undefined:(u8, u16)</span>
+<span class="go">]s ++ [</span>
+<span class="go">  (0:u8, 0:u16),</span>
+<span class="go">  (0:u8, 1:u16),</span>
+<span class="go">  (0:u8, 2:u16),</span>
+<span class="go">  (0:u8, 3:u16),</span>
+<span class="go">  (1:u8, 0:u16),</span>
+<span class="go">  (1:u8, 1:u16),</span>
+<span class="go">  (1:u8, 2:u16),</span>
+<span class="go">  (1:u8, 3:u16),</span>
+<span class="go">  (2:u8, 0:u16),</span>
+<span class="go">  (2:u8, 1:u16),</span>
+<span class="go">  (2:u8, 2:u16),</span>
+<span class="go">  (2:u8, 3:u16)</span>
+<span class="go">]s</span>
 </pre></div>
 </div>
 <div class="admonition note">
@@ -586,12 +586,12 @@ The types of <code class="docutils literal notranslate"><span class="pre">i</spa
 <dt class="sig sig-object sirop" id="StmMap">
 <span class="sig-name descname"><span class="pre">StmMap</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[A,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B,</span> <span class="pre">head:</span> <span class="pre">B</span> <span class="pre">=</span> <span class="pre">undefined</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[B,</span> <span class="pre">n]</span><a class="headerlink" href="#StmMap" title="Link to this definition">#</a></dt>
 <dd><p>Applies function <code class="docutils literal notranslate"><span class="pre">f</span></code> elementwise to stream <code class="docutils literal notranslate"><span class="pre">s</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmMap(x =&gt; x + 5)
-[undefined:u8, 5:u8]s ++ [6:u8, 7:u8, 8:u8, 9:u8]s
-&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmMap(x =&gt; x + 5, 42:u8)
-[42:u8, 5:u8]s ++ [6:u8, 7:u8, 8:u8, 9:u8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmMap</span>(<span class="n">x</span> <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="m">5</span>)
+<span class="go">[undefined:u8, 5:u8]s ++ [6:u8, 7:u8, 8:u8, 9:u8]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmMap</span>(<span class="n">x</span> <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="m">5</span>, <span class="m">42</span>:<span class="kt">u8</span>)
+<span class="go">[42:u8, 5:u8]s ++ [6:u8, 7:u8, 8:u8, 9:u8]s</span>
 </pre></div>
 </div>
 <div class="admonition seealso">
@@ -607,12 +607,12 @@ The types of <code class="docutils literal notranslate"><span class="pre">i</spa
 <dt class="sig sig-object sirop" id="StmConcat">
 <span class="sig-name descname"><span class="pre">StmConcat</span></span><span class="sig-paren">(</span><span class="pre">s1:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">s2:</span> <span class="pre">Stm[T,</span> <span class="pre">m],</span> <span class="pre">head:</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">undefined</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">n+m]</span><a class="headerlink" href="#StmConcat" title="Link to this definition">#</a></dt>
 <dd><p>Concatenates two streams.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt; StmConcat([0:u8]s ++ [1:u8, 2:u8, 3:u8]s, [9:u8]s ++ [8:u8, 7:u8]s)
-[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 8:u8, 7:u8]s
-&gt; StmConcat([0:u8]s ++ [1:u8, 2:u8, 3:u8]s, [9:u8]s ++ [8:u8, 7:u8]s, 42:u8)
-[42:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 8:u8, 7:u8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt; </span><span class="nb">StmConcat</span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">9</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">8</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>)
+<span class="go">[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 8:u8, 7:u8]s</span>
+<span class="go">&gt; </span><span class="nb">StmConcat</span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">9</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">8</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="m">42</span>:<span class="kt">u8</span>)
+<span class="go">[42:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 8:u8, 7:u8]s</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -620,20 +620,18 @@ The types of <code class="docutils literal notranslate"><span class="pre">i</spa
 <dl class="sirop function">
 <dt class="sig sig-object sirop" id="StmZip">
 <span class="sig-name descname"><span class="pre">StmZip</span></span><span class="sig-paren">(</span><span class="pre">s1:</span> <span class="pre">Stm[A,</span> <span class="pre">n],</span> <span class="pre">s2:</span> <span class="pre">Stm[B,</span> <span class="pre">n],</span> <span class="pre">head:</span> <span class="pre">(A,</span> <span class="pre">B)</span> <span class="pre">=</span> <span class="pre">undefined</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[(A,</span> <span class="pre">B),</span> <span class="pre">n]</span><a class="headerlink" href="#StmZip" title="Link to this definition">#</a></dt>
-<dd><blockquote>
-<div><p>Pair up the elements of two streams.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt;
-&gt; u = [0:u6]s ++ [1:u6, 2:u6, 3:u6]s
-&gt; v = [-1:i8]s ++ [-9:i8, -8:i8, -7:i8]s
-&gt; StmZip(u, v)
-[undefined:(u6, i8), (0:u6, -1:i8)]s ++ [(1:u6, -9:i8), (2:u6, -8:i8), (3:u6, -7:i8)]s
-&gt; StmZip(u, v, (42:u6, 43:i8))
-[(42:u6, 43:i8), (0:u6, -1:i8)]s ++ [(1:u6, -9:i8), (2:u6, -8:i8), (3:u6, -7:i8)]s
+<dd><p>Pairs up the elements of two streams.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="n">u</span> = <span class="p">[</span><span class="m">0</span>:<span class="kt">u6</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u6</span>, <span class="m">2</span>:<span class="kt">u6</span>, <span class="m">3</span>:<span class="kt">u6</span><span class="p">]</span><span class="n">s</span>
+<span class="go">&gt; </span><span class="n">v</span> = <span class="p">[</span><span class="o">-</span><span class="m">1</span>:<span class="kt">i8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="o">-</span><span class="m">9</span>:<span class="kt">i8</span>, <span class="o">-</span><span class="m">8</span>:<span class="kt">i8</span>, <span class="o">-</span><span class="m">7</span>:<span class="kt">i8</span><span class="p">]</span><span class="n">s</span>
+<span class="go">&gt; </span><span class="nb">StmZip</span>(<span class="n">u</span>, <span class="n">v</span>)
+<span class="go">[undefined:(u6, i8), (0:u6, -1:i8)]s ++ [(1:u6, -9:i8), (2:u6, -8:i8), (3:u6, -7:i8)]s</span>
+<span class="go">&gt; </span><span class="nb">StmZip</span>(<span class="n">u</span>, <span class="n">v</span>, (<span class="m">42</span>:<span class="kt">u6</span>, <span class="m">43</span>:<span class="kt">i8</span>))
+<span class="go">[(42:u6, 43:i8), (0:u6, -1:i8)]s ++ [(1:u6, -9:i8), (2:u6, -8:i8), (3:u6, -7:i8)]s</span>
 </pre></div>
 </div>
-</div></blockquote>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
 <p><a class="reference internal" href="#StmMap2" title="StmMap2"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMap2</span></code></a>, which zips two streams with an arbitrary function.</p>
@@ -644,30 +642,30 @@ The types of <code class="docutils literal notranslate"><span class="pre">i</spa
 <dt class="sig sig-object sirop" id="StmMap2">
 <span class="sig-name descname"><span class="pre">StmMap2</span></span><span class="sig-paren">(</span><span class="pre">s1:</span> <span class="pre">Stm[A,</span> <span class="pre">n],</span> <span class="pre">s2:</span> <span class="pre">Stm[B,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span> <span class="pre">-&gt;</span> <span class="pre">C,</span> <span class="pre">head:</span> <span class="pre">C</span> <span class="pre">=</span> <span class="pre">undefined</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[C,</span> <span class="pre">n]</span><a class="headerlink" href="#StmMap2" title="Link to this definition">#</a></dt>
 <dd><p>Like <a class="reference internal" href="#StmMap" title="StmMap"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMap</span></code></a>, but for two streams at once.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt; u = [0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
-&gt; v = [-1:i16]s ++ [-9:i16, -8:i16, -7:i16, -6:i16]s
-&gt; StmMap2(u, v, x =&gt; y =&gt; (x, y, x*y))
-[
-  undefined:(u8, i16, i16),
-  (0:u8, -1:i16, 0:i16)
-]s ++ [
-  (1:u8, -9:i16, -9:i16),
-  (2:u8, -8:i16, -16:i16),
-  (3:u8, -7:i16, -21:i16),
-  (4:u8, -6:i16, -24:i16)
-]s
-&gt; StmMap2(u, v, x =&gt; y =&gt; (x, y, x*y), (0:u8, 0:i16, 0:i16))
-[
-  (0:u8, 0:i16, 0:i16),
-  (0:u8, -1:i16, 0:i16)
-]s ++ [
-  (1:u8, -9:i16, -9:i16),
-  (2:u8, -8:i16, -16:i16),
-  (3:u8, -7:i16, -21:i16),
-  (4:u8, -6:i16, -24:i16)
-]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt; </span><span class="n">u</span> = <span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>
+<span class="go">&gt; </span><span class="n">v</span> = <span class="p">[</span><span class="o">-</span><span class="m">1</span>:<span class="kt">i16</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="o">-</span><span class="m">9</span>:<span class="kt">i16</span>, <span class="o">-</span><span class="m">8</span>:<span class="kt">i16</span>, <span class="o">-</span><span class="m">7</span>:<span class="kt">i16</span>, <span class="o">-</span><span class="m">6</span>:<span class="kt">i16</span><span class="p">]</span><span class="n">s</span>
+<span class="go">&gt; </span><span class="nb">StmMap2</span>(<span class="n">u</span>, <span class="n">v</span>, <span class="n">x</span> <span class="p">=&gt;</span> <span class="n">y</span> <span class="p">=&gt;</span> (<span class="n">x</span>, <span class="n">y</span>, <span class="n">x</span><span class="o">*</span><span class="n">y</span>))
+<span class="go">[</span>
+<span class="go">  undefined:(u8, i16, i16),</span>
+<span class="go">  (0:u8, -1:i16, 0:i16)</span>
+<span class="go">]s ++ [</span>
+<span class="go">  (1:u8, -9:i16, -9:i16),</span>
+<span class="go">  (2:u8, -8:i16, -16:i16),</span>
+<span class="go">  (3:u8, -7:i16, -21:i16),</span>
+<span class="go">  (4:u8, -6:i16, -24:i16)</span>
+<span class="go">]s</span>
+<span class="go">&gt; </span><span class="nb">StmMap2</span>(<span class="n">u</span>, <span class="n">v</span>, <span class="n">x</span> <span class="p">=&gt;</span> <span class="n">y</span> <span class="p">=&gt;</span> (<span class="n">x</span>, <span class="n">y</span>, <span class="n">x</span><span class="o">*</span><span class="n">y</span>), (<span class="m">0</span>:<span class="kt">u8</span>, <span class="m">0</span>:<span class="kt">i16</span>, <span class="m">0</span>:<span class="kt">i16</span>))
+<span class="go">[</span>
+<span class="go">  (0:u8, 0:i16, 0:i16),</span>
+<span class="go">  (0:u8, -1:i16, 0:i16)</span>
+<span class="go">]s ++ [</span>
+<span class="go">  (1:u8, -9:i16, -9:i16),</span>
+<span class="go">  (2:u8, -8:i16, -16:i16),</span>
+<span class="go">  (3:u8, -7:i16, -21:i16),</span>
+<span class="go">  (4:u8, -6:i16, -24:i16)</span>
+<span class="go">]s</span>
 </pre></div>
 </div>
 <div class="admonition seealso">
@@ -684,30 +682,30 @@ The types of <code class="docutils literal notranslate"><span class="pre">i</spa
 <span class="sig-name descname"><span class="pre">StmSlide</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">w:</span> <span class="pre">I,</span> <span class="pre">head:</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">undefined</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[Vec[T,</span> <span class="pre">w],</span> <span class="pre">n-w+1]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmSlide" title="Link to this definition">#</a></dt>
 <dd><p>Produces a stream of sliding windows over stream <code class="docutils literal notranslate"><span class="pre">s</span></code>.
 Each window has size <code class="docutils literal notranslate"><span class="pre">w</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt; ([42:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s).StmSlide(3)
-[
-  undefined:Vec[u8, 3],
-  [undefined:u8, undefined:u8, 42:u8]v,
-  [undefined:u8, 42:u8, 1:u8]v,
-  [42:u8, 1:u8, 2:u8]v
-]s ++ [
-  [1:u8, 2:u8, 3:u8]v,
-  [2:u8, 3:u8, 4:u8]v,
-  [3:u8, 4:u8, 5:u8]v
-]s
-&gt; ([42:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s).StmSlide(3, 0:u8)
-[
-  [0:u8, 0:u8, 0:u8]v,
-  [0:u8, 0:u8, 42:u8]v,
-  [0:u8, 42:u8, 1:u8]v,
-  [42:u8, 1:u8, 2:u8]v
-]s ++ [
-  [1:u8, 2:u8, 3:u8]v,
-  [2:u8, 3:u8, 4:u8]v,
-  [3:u8, 4:u8, 5:u8]v
-]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">42</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmSlide</span>(<span class="m">3</span>)
+<span class="go">[</span>
+<span class="go">  undefined:Vec[u8, 3],</span>
+<span class="go">  [undefined:u8, undefined:u8, 42:u8]v,</span>
+<span class="go">  [undefined:u8, 42:u8, 1:u8]v,</span>
+<span class="go">  [42:u8, 1:u8, 2:u8]v</span>
+<span class="go">]s ++ [</span>
+<span class="go">  [1:u8, 2:u8, 3:u8]v,</span>
+<span class="go">  [2:u8, 3:u8, 4:u8]v,</span>
+<span class="go">  [3:u8, 4:u8, 5:u8]v</span>
+<span class="go">]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">42</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmSlide</span>(<span class="m">3</span>, <span class="m">0</span>:<span class="kt">u8</span>)
+<span class="go">[</span>
+<span class="go">  [0:u8, 0:u8, 0:u8]v,</span>
+<span class="go">  [0:u8, 0:u8, 42:u8]v,</span>
+<span class="go">  [0:u8, 42:u8, 1:u8]v,</span>
+<span class="go">  [42:u8, 1:u8, 2:u8]v</span>
+<span class="go">]s ++ [</span>
+<span class="go">  [1:u8, 2:u8, 3:u8]v,</span>
+<span class="go">  [2:u8, 3:u8, 4:u8]v,</span>
+<span class="go">  [3:u8, 4:u8, 5:u8]v</span>
+<span class="go">]s</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -719,24 +717,24 @@ Each window has size <code class="docutils literal notranslate"><span class="pre
 <dt class="sig sig-object sirop" id="StmAll">
 <span class="sig-name descname"><span class="pre">StmAll</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[bool,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[bool,</span> <span class="pre">1]</span><a class="headerlink" href="#StmAll" title="Link to this definition">#</a></dt>
 <dd><p>Returns <code class="docutils literal notranslate"><span class="pre">true</span></code> if all elements in the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code> are <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = false
-&gt; ([false]s ++ [true, true, true]s).StmAll()
-[true]s
-&gt; ([false]s ++ [true, true, false]s).StmAll()
-[false]s
-&gt; ([false]s ++ [true, false, true]s).StmAll()
-[false]s
-&gt; ([false]s ++ [false, true, true]s).StmAll()
-[false]s
-&gt; ([false]s ++ [false, false, false]s).StmAll()
-[false]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">false</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">false</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="l">true</span>, <span class="l">true</span>, <span class="l">true</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmAll</span>()
+<span class="go">[true]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">false</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="l">true</span>, <span class="l">true</span>, <span class="l">false</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmAll</span>()
+<span class="go">[false]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">false</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="l">true</span>, <span class="l">false</span>, <span class="l">true</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmAll</span>()
+<span class="go">[false]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">false</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="l">false</span>, <span class="l">true</span>, <span class="l">true</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmAll</span>()
+<span class="go">[false]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">false</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="l">false</span>, <span class="l">false</span>, <span class="l">false</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmAll</span>()
+<span class="go">[false]s</span>
 </pre></div>
 </div>
 <p>When applied to an empty stream, <a class="reference internal" href="#StmAll" title="StmAll"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmAll</span></code></a> returns <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; ([]s:Stm[bool,0]).StmAll()
-[true]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>(<span class="p">[]</span><span class="n">s</span>:<span class="kt">Stm</span><span class="p">[</span><span class="kt">bool</span>,<span class="m">0</span><span class="p">]</span>).<span class="nb">StmAll</span>()
+<span class="go">[true]s</span>
 </pre></div>
 </div>
 <div class="admonition seealso">
@@ -749,24 +747,24 @@ Each window has size <code class="docutils literal notranslate"><span class="pre
 <dt class="sig sig-object sirop" id="StmAny">
 <span class="sig-name descname"><span class="pre">StmAny</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[bool,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[bool,</span> <span class="pre">1]</span><a class="headerlink" href="#StmAny" title="Link to this definition">#</a></dt>
 <dd><p>Returns <code class="docutils literal notranslate"><span class="pre">true</span></code> if any elements in the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code> are <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = false
-&gt; ([true]s ++ [false, false, false]s).StmAny()
-[false]s
-&gt; ([true]s ++ [false, false, true]s).StmAny()
-[true]s
-&gt; ([true]s ++ [false, true, false]s).StmAny()
-[true]s
-&gt; ([true]s ++ [true, false, false]s).StmAny()
-[true]s
-&gt; ([true]s ++ [true, true, true]s).StmAny()
-[true]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">false</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">true</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="l">false</span>, <span class="l">false</span>, <span class="l">false</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmAny</span>()
+<span class="go">[false]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">true</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="l">false</span>, <span class="l">false</span>, <span class="l">true</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmAny</span>()
+<span class="go">[true]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">true</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="l">false</span>, <span class="l">true</span>, <span class="l">false</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmAny</span>()
+<span class="go">[true]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">true</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="l">true</span>, <span class="l">false</span>, <span class="l">false</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmAny</span>()
+<span class="go">[true]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">true</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="l">true</span>, <span class="l">true</span>, <span class="l">true</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmAny</span>()
+<span class="go">[true]s</span>
 </pre></div>
 </div>
 <p>When applied to an empty stream, <a class="reference internal" href="#StmAny" title="StmAny"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmAny</span></code></a> returns <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; ([]s:Stm[bool,0]).StmAny()
-[false]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>(<span class="p">[]</span><span class="n">s</span>:<span class="kt">Stm</span><span class="p">[</span><span class="kt">bool</span>,<span class="m">0</span><span class="p">]</span>).<span class="nb">StmAny</span>()
+<span class="go">[false]s</span>
 </pre></div>
 </div>
 <div class="admonition seealso">
@@ -779,17 +777,17 @@ Each window has size <code class="docutils literal notranslate"><span class="pre
 <dt class="sig sig-object sirop" id="StmSum">
 <span class="sig-name descname"><span class="pre">StmSum</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[I,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[I,</span> <span class="pre">1]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmSum" title="Link to this definition">#</a></dt>
 <dd><p>Returns the sum of the elements in the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = false
-&gt; ([undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmSum()
-[10:u8]s
-&gt; ([undefined:i16]s ++ [-9:i16, -8:i16, -7:i16]s).StmSum()
-[-24:i16]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">false</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">undefined</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmSum</span>()
+<span class="go">[10:u8]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="l">undefined</span>:<span class="kt">i16</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="o">-</span><span class="m">9</span>:<span class="kt">i16</span>, <span class="o">-</span><span class="m">8</span>:<span class="kt">i16</span>, <span class="o">-</span><span class="m">7</span>:<span class="kt">i16</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmSum</span>()
+<span class="go">[-24:i16]s</span>
 </pre></div>
 </div>
 <p>When applied to an empty stream, <a class="reference internal" href="#StmSum" title="StmSum"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmSum</span></code></a> returns 0.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; ([]s:Stm[u2,0]).StmSum()
-[0:u2]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>(<span class="p">[]</span><span class="n">s</span>:<span class="kt">Stm</span><span class="p">[</span><span class="kt">u2</span>,<span class="m">0</span><span class="p">]</span>).<span class="nb">StmSum</span>()
+<span class="go">[0:u2]s</span>
 </pre></div>
 </div>
 <div class="admonition warning">
@@ -797,12 +795,12 @@ Each window has size <code class="docutils literal notranslate"><span class="pre
 <p>Beware of <cite>overflow &lt;https://en.wikipedia.org/wiki/Integer_overflow&gt;</cite>!
 The sum is performed with the same type as the inputs.</p>
 </div>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = false
-&gt; [255:u8, 1:u8]s.StmSum()
-[0:u8]s
-&gt; [255:u8, 1:u8]s.StmMap(x =&gt; pad9(x)).StmSum()
-[256:u9]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">false</span>
+<span class="go">&gt; </span><span class="p">[</span><span class="m">255</span>:<span class="kt">u8</span>, <span class="m">1</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmSum</span>()
+<span class="go">[0:u8]s</span>
+<span class="go">&gt; </span><span class="p">[</span><span class="m">255</span>:<span class="kt">u8</span>, <span class="m">1</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmMap</span>(<span class="n">x</span> <span class="p">=&gt;</span> <span class="nb">pad9</span>(<span class="n">x</span>)).<span class="nb">StmSum</span>()
+<span class="go">[256:u9]s</span>
 </pre></div>
 </div>
 <div class="admonition seealso">
@@ -816,19 +814,19 @@ The sum is performed with the same type as the inputs.</p>
 <span class="sig-name descname"><span class="pre">StmFold</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[A,</span> <span class="pre">n],</span> <span class="pre">z:</span> <span class="pre">B,</span> <span class="pre">f:</span> <span class="pre">(B,</span> <span class="pre">A)</span> <span class="pre">-&gt;</span> <span class="pre">B</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[B,</span> <span class="pre">1]</span><a class="headerlink" href="#StmFold" title="Link to this definition">#</a></dt>
 <dd><p>Combines the elements in the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code> to a single element using function <code class="docutils literal notranslate"><span class="pre">f</span></code> and initial value <code class="docutils literal notranslate"><span class="pre">z</span></code>.</p>
 <p>For example, for a 3-element stream <code class="docutils literal notranslate"><span class="pre">[x1,</span> <span class="pre">x2,</span> <span class="pre">x3]s</span></code>, the result will be <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">f(f(f(z,</span> <span class="pre">x1),</span> <span class="pre">x2),</span> <span class="pre">x3)</span> <span class="pre">]s</span></code></p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = false
-&gt; ([5:i8]s ++ [1:i8, 2:i8, 8:i8]s).StmFold(9:i8, @(x, y) =&gt; x - y) // 9-1-2-8
-[-2:i8]s
-&gt; ([5:u16]s ++ [2:u16, 0:u16, 2:u16, 6:u16]s).StmFold(0:u16, @(x, y) =&gt; 10*x + y)
-[2026:u16]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">false</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">5</span>:<span class="kt">i8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">i8</span>, <span class="m">2</span>:<span class="kt">i8</span>, <span class="m">8</span>:<span class="kt">i8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmFold</span>(<span class="m">9</span>:<span class="kt">i8</span>, @(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span>) <span class="c c-Singleline">// 9-1-2-8</span>
+<span class="go">[-2:i8]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">5</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">2</span>:<span class="kt">u16</span>, <span class="m">0</span>:<span class="kt">u16</span>, <span class="m">2</span>:<span class="kt">u16</span>, <span class="m">6</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmFold</span>(<span class="m">0</span>:<span class="kt">u16</span>, @(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="m">10</span><span class="o">*</span><span class="n">x</span> <span class="o">+</span> <span class="n">y</span>)
+<span class="go">[2026:u16]s</span>
 </pre></div>
 </div>
 <p>Unlike with <a class="reference internal" href="#StmReduce" title="StmReduce"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmReduce</span></code></a>, the input stream can be empty.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = false
-&gt; ([]s:Stm[u8,0]).StmFold(42:u8, @(x, y) =&gt; x + y)
-[42:u8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">false</span>
+<span class="go">&gt; </span>(<span class="p">[]</span><span class="n">s</span>:<span class="kt">Stm</span><span class="p">[</span><span class="kt">u8</span>,<span class="m">0</span><span class="p">]</span>).<span class="nb">StmFold</span>(<span class="m">42</span>:<span class="kt">u8</span>, @(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>)
+<span class="go">[42:u8]s</span>
 </pre></div>
 </div>
 <div class="admonition seealso">
@@ -845,24 +843,24 @@ The sum is performed with the same type as the inputs.</p>
 <span class="sig-name descname"><span class="pre">StmReduce</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">(T,</span> <span class="pre">T)</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">1]</span><a class="headerlink" href="#StmReduce" title="Link to this definition">#</a></dt>
 <dd><p>Combines the elements in the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code> to a single element using function <code class="docutils literal notranslate"><span class="pre">f</span></code>.</p>
 <p>For example, for a 3-element stream <code class="docutils literal notranslate"><span class="pre">[x1,</span> <span class="pre">x2,</span> <span class="pre">x3]s</span></code>, the result will be <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">f(f(x1,</span> <span class="pre">x2),</span> <span class="pre">x3)</span> <span class="pre">]s</span></code></p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = false
-&gt; ([0:u8]s ++ [4:u8, 9:u8, 1:u8, 3:u8]s).StmReduce(@(x, y) =&gt; min(x, y))
-[1:u8]s
-&gt; ([0:u8]s ++ [4:u8, 9:u8, 1:u8, 3:u8]s).StmReduce(@(x, y) =&gt; max(x, y))
-[9:u8]s
-&gt; ([0:i8]s ++ [4:i8, 9:i8, 1:i8, 3:i8]s).StmReduce(@(x, y) =&gt; x - y)
-[-9:i8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">false</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">9</span>:<span class="kt">u8</span>, <span class="m">1</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmReduce</span>(@(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="nb">min</span>(<span class="n">x</span>, <span class="n">y</span>))
+<span class="go">[1:u8]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">9</span>:<span class="kt">u8</span>, <span class="m">1</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmReduce</span>(@(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="nb">max</span>(<span class="n">x</span>, <span class="n">y</span>))
+<span class="go">[9:u8]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">i8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">4</span>:<span class="kt">i8</span>, <span class="m">9</span>:<span class="kt">i8</span>, <span class="m">1</span>:<span class="kt">i8</span>, <span class="m">3</span>:<span class="kt">i8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmReduce</span>(@(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span>)
+<span class="go">[-9:i8]s</span>
 </pre></div>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>The input stream must be non-empty.</p>
 </div>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt; ([]s:Stm[u8,0]).StmReduce(@(x, y) =&gt; x + y)
-[undefined:u8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt; </span>(<span class="p">[]</span><span class="n">s</span>:<span class="kt">Stm</span><span class="p">[</span><span class="kt">u8</span>,<span class="m">0</span><span class="p">]</span>).<span class="nb">StmReduce</span>(@(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>)
+<span class="go">[undefined:u8]s</span>
 </pre></div>
 </div>
 <div class="admonition seealso">
@@ -878,40 +876,40 @@ The sum is performed with the same type as the inputs.</p>
 <dt class="sig sig-object sirop" id="StmJoin">
 <span class="sig-name descname"><span class="pre">StmJoin</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[Stm[T,</span> <span class="pre">m],</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">n*m]</span><a class="headerlink" href="#StmJoin" title="Link to this definition">#</a></dt>
 <dd><p>Removes the outermost level of nesting from the given stream.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt;
-&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
-Stm[Stm[u8, 3], 2]
-&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
-Stm[u8, 6]
-&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
-[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
-&gt;
-&gt; // Not convinced anything is going on?
-&gt; // We can observe the difference using StmTake.
-&gt; // Taking the first row (before flattening):
-&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
-Stm[Stm[u8, 3], 2]
-&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
-Stm[Stm[u8, 3], 1]
-&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
-[undefined:u8]s ++ [1:u8, 2:u8, 3:u8]s
-&gt; // Taking the first element (after flattening):
-&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
-Stm[u8, 6]
-&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
-Stm[u8, 1]
-&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
-[undefined:u8]s ++ [1:u8]s
-&gt;
-&gt; // What about 3 dimensions?
-&gt; type [[[1:u8, 2:u8]s, [3:u8, 4:u8]s]s, [[5:u8, 6:u8]s, [7:u8, 8:u8]s]s]s
-Stm[Stm[Stm[u8, 2], 2], 2]
-&gt; type [[[1:u8, 2:u8]s, [3:u8, 4:u8]s]s, [[5:u8, 6:u8]s, [7:u8, 8:u8]s]s]s.StmJoin()
-Stm[Stm[u8, 2], 4]
-&gt; type [[[1:u8, 2:u8]s, [3:u8, 4:u8]s]s, [[5:u8, 6:u8]s, [7:u8, 8:u8]s]s]s.StmJoin().StmJoin()
-Stm[u8, 8]
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>
+<span class="go">Stm[Stm[u8, 3], 2]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmJoin</span>()
+<span class="go">Stm[u8, 6]</span>
+<span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmJoin</span>()
+<span class="go">[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Not convinced anything is going on?</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// We can observe the difference using StmTake.</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Taking the first row (before flattening):</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>
+<span class="go">Stm[Stm[u8, 3], 2]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">Stm[Stm[u8, 3], 1]</span>
+<span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">[undefined:u8]s ++ [1:u8, 2:u8, 3:u8]s</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Taking the first element (after flattening):</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmJoin</span>()
+<span class="go">Stm[u8, 6]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmJoin</span>().<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">Stm[u8, 1]</span>
+<span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmJoin</span>().<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">[undefined:u8]s ++ [1:u8]s</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// What about 3 dimensions?</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>, <span class="p">[[</span><span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>
+<span class="go">Stm[Stm[Stm[u8, 2], 2], 2]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>, <span class="p">[[</span><span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmJoin</span>()
+<span class="go">Stm[Stm[u8, 2], 4]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>, <span class="p">[[</span><span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>, <span class="p">[</span><span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmJoin</span>().<span class="nb">StmJoin</span>()
+<span class="go">Stm[u8, 8]</span>
 </pre></div>
 </div>
 <div class="admonition note">
@@ -928,40 +926,40 @@ Stm[u8, 8]
 <dt class="sig sig-object sirop" id="StmSplit">
 <span class="sig-name descname"><span class="pre">StmSplit</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">m:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[Stm[T,</span> <span class="pre">m],</span> <span class="pre">n/m]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmSplit" title="Link to this definition">#</a></dt>
 <dd><p>Increases the level of nesting in the given stream.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = false
-&gt;
-&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
-Stm[u8, 6]
-&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(2)
-Stm[Stm[u8, 2], 3]
-&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3)
-Stm[Stm[u8, 3], 2]
-&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3)
-[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
-&gt;
-&gt; // Not convinced anything is going on?
-&gt; // We can observe the difference using StmTake.
-&gt; // Taking the first element (before splitting):
-&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
-Stm[u8, 6]
-&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmTake(1)
-Stm[u8, 1]
-&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmTake(1)
-[1:u8]s
-&gt; // Taking the first row (after splitting):
-&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3)
-Stm[Stm[u8, 3], 2]
-&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3).StmTake(1)
-Stm[Stm[u8, 3], 1]
-&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3).StmTake(1)
-[1:u8, 2:u8, 3:u8]s
-&gt;
-&gt; // What about three dimensions?
-&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8, 8:u8]s
-Stm[u8, 8]
-&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8, 8:u8]s.StmSplit(2).StmSplit(2)
-Stm[Stm[Stm[u8, 2], 2], 2]
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">false</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>
+<span class="go">Stm[u8, 6]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmSplit</span>(<span class="m">2</span>)
+<span class="go">Stm[Stm[u8, 2], 3]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmSplit</span>(<span class="m">3</span>)
+<span class="go">Stm[Stm[u8, 3], 2]</span>
+<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmSplit</span>(<span class="m">3</span>)
+<span class="go">[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Not convinced anything is going on?</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// We can observe the difference using StmTake.</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Taking the first element (before splitting):</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>
+<span class="go">Stm[u8, 6]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">Stm[u8, 1]</span>
+<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">[1:u8]s</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Taking the first row (after splitting):</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmSplit</span>(<span class="m">3</span>)
+<span class="go">Stm[Stm[u8, 3], 2]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmSplit</span>(<span class="m">3</span>).<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">Stm[Stm[u8, 3], 1]</span>
+<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmSplit</span>(<span class="m">3</span>).<span class="nb">StmTake</span>(<span class="m">1</span>)
+<span class="go">[1:u8, 2:u8, 3:u8]s</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// What about three dimensions?</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>
+<span class="go">Stm[u8, 8]</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmSplit</span>(<span class="m">2</span>).<span class="nb">StmSplit</span>(<span class="m">2</span>)
+<span class="go">Stm[Stm[Stm[u8, 2], 2], 2]</span>
 </pre></div>
 </div>
 <div class="admonition note">
@@ -972,13 +970,13 @@ Stm[Stm[Stm[u8, 2], 2], 2]
 <p class="admonition-title">Warning</p>
 <p>If <code class="docutils literal notranslate"><span class="pre">m</span></code> does not divide <code class="docutils literal notranslate"><span class="pre">n</span></code>, the output stream will be shorter than the input stream.</p>
 </div>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt;
-&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8]s.StmSplit(2)
-Stm[Stm[u8, 2], 3]
-&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8]s.StmSplit(2)
-[undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="k">type</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmSplit</span>(<span class="m">2</span>)
+<span class="go">Stm[Stm[u8, 2], 3]</span>
+<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmSplit</span>(<span class="m">2</span>)
+<span class="go">[undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s</span>
 </pre></div>
 </div>
 <div class="admonition seealso">
@@ -994,28 +992,28 @@ Stm[Stm[u8, 2], 3]
 <dt class="sig sig-object sirop" id="StmDrop">
 <span class="sig-name descname"><span class="pre">StmDrop</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">n-k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmDrop" title="Link to this definition">#</a></dt>
 <dd><p>Discards <code class="docutils literal notranslate"><span class="pre">k</span></code> elements from the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(2)
-[undefined:u8, 0:u8, 1:u8, 2:u8]s ++ [3:u8, 4:u8]s
-&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(1)
-[undefined:u8, 0:u8, 1:u8]s ++ [2:u8, 3:u8, 4:u8]s
-&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(0)
-[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
-&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(4)
-[undefined:u8, 0:u8, 1:u8, 2:u8, 3:u8, 4:u8]s ++ []s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmDrop</span>(<span class="m">2</span>)
+<span class="go">[undefined:u8, 0:u8, 1:u8, 2:u8]s ++ [3:u8, 4:u8]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmDrop</span>(<span class="m">1</span>)
+<span class="go">[undefined:u8, 0:u8, 1:u8]s ++ [2:u8, 3:u8, 4:u8]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmDrop</span>(<span class="m">0</span>)
+<span class="go">[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmDrop</span>(<span class="m">4</span>)
+<span class="go">[undefined:u8, 0:u8, 1:u8, 2:u8, 3:u8, 4:u8]s ++ []s</span>
 </pre></div>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>It is an error to drop more than the available number of elements.</p>
 </div>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(5)
-EvalError: length in StmDrop evaluated to undefined:u4
-&gt; 4:u4 - 5:u4 // Output length is 4:u4 - 5:u4, which is undefined
-undefined:u4
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmDrop</span>(<span class="m">5</span>)
+<span class="go">EvalError: length in StmDrop evaluated to undefined:u4</span>
+<span class="go">&gt; </span><span class="m">4</span>:<span class="kt">u4</span> <span class="o">-</span> <span class="m">5</span>:<span class="kt">u4</span> <span class="c c-Singleline">// Output length is 4:u4 - 5:u4, which is undefined</span>
+<span class="go">undefined:u4</span>
 </pre></div>
 </div>
 <div class="admonition seealso">
@@ -1028,33 +1026,33 @@ undefined:u4
 <dt class="sig sig-object sirop" id="StmTake">
 <span class="sig-name descname"><span class="pre">StmTake</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmTake" title="Link to this definition">#</a></dt>
 <dd><p>Changes the length of stream <code class="docutils literal notranslate"><span class="pre">s</span></code> to <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt;
-&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmTake(2)
-[undefined:u8, 0:u8]s ++ [1:u8, 2:u8]s
-&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmTake(3)
-[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8]s
-&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmTake(4)
-[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmTake</span>(<span class="m">2</span>)
+<span class="go">[undefined:u8, 0:u8]s ++ [1:u8, 2:u8]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmTake</span>(<span class="m">3</span>)
+<span class="go">[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8]s</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmTake</span>(<span class="m">4</span>)
+<span class="go">[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s</span>
 </pre></div>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>If <code class="docutils literal notranslate"><span class="pre">k</span></code> is greater than <code class="docutils literal notranslate"><span class="pre">n</span></code>, the extra elements will be undefined.</p>
 </div>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt;
-&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmTake(5)
-[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, undefined:u8]s
-&gt;
-&gt; // Taking 4 elements from a stream of length 2 (!!!)
-&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s.StmTake(2).StmTake(4)
-[undefined:u8, undefined:u8]s ++ [1:u8, 2:u8, undefined:u8, undefined:u8]s
-&gt; // Just taking 4 directly would have been fine
-&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s.StmTake(4)
-[undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span>(<span class="p">[</span><span class="m">0</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>).<span class="nb">StmTake</span>(<span class="m">5</span>)
+<span class="go">[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, undefined:u8]s</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Taking 4 elements from a stream of length 2 (!!!)</span>
+<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmTake</span>(<span class="m">2</span>).<span class="nb">StmTake</span>(<span class="m">4</span>)
+<span class="go">[undefined:u8, undefined:u8]s ++ [1:u8, 2:u8, undefined:u8, undefined:u8]s</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Just taking 4 directly would have been fine</span>
+<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmTake</span>(<span class="m">4</span>)
+<span class="go">[undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s</span>
 </pre></div>
 </div>
 <div class="admonition seealso">
@@ -1076,40 +1074,40 @@ The following stream operators are helpful for taking advantage of this function
 <dd><p>Computes the dot product of each vector in <code class="docutils literal notranslate"><span class="pre">s1</span></code> with the corresponding vector in <code class="docutils literal notranslate"><span class="pre">s2</span></code>.
 This is defined so that the generated VHDL uses the DSPs in systolic mode.
 <code class="docutils literal notranslate"><span class="pre">delay</span></code> is the number of internal registers to enable in the DSPs; increasing this number will increase latency and increase the maximum clock frequency.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt;
-&gt; u = [[ 1:i16, 2:i16, 3:i16]v, [4:i16,  5:i16, 6:i16]v]s
-&gt; v = [[-1:i16, 2:i16, 3:i16]v, [4:i16, -2:i16, 4:i16]v]s
-&gt; // dot([1, 2, 3], [-1, 2, 3]) = 12
-&gt; // dot([4, 5, 6], [4, -2, 4]) = 30
-&gt; StmMapDot(u, v, 0)
-[
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44
-]s ++ [
-  12:i44,
-  30:i44
-]s
-&gt; StmMapDot(u, v, 1)
-[
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44
-]s ++ [
-  12:i44,
-  30:i44
-]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="n">u</span> = <span class="p">[[</span> <span class="m">1</span>:<span class="kt">i16</span>, <span class="m">2</span>:<span class="kt">i16</span>, <span class="m">3</span>:<span class="kt">i16</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">i16</span>,  <span class="m">5</span>:<span class="kt">i16</span>, <span class="m">6</span>:<span class="kt">i16</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">s</span>
+<span class="go">&gt; </span><span class="n">v</span> = <span class="p">[[</span><span class="o">-</span><span class="m">1</span>:<span class="kt">i16</span>, <span class="m">2</span>:<span class="kt">i16</span>, <span class="m">3</span>:<span class="kt">i16</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">i16</span>, <span class="o">-</span><span class="m">2</span>:<span class="kt">i16</span>, <span class="m">4</span>:<span class="kt">i16</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">s</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// dot([1, 2, 3], [-1, 2, 3]) = 12</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// dot([4, 5, 6], [4, -2, 4]) = 30</span>
+<span class="go">&gt; </span><span class="nb">StmMapDot</span>(<span class="n">u</span>, <span class="n">v</span>, <span class="m">0</span>)
+<span class="go">[</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44</span>
+<span class="go">]s ++ [</span>
+<span class="go">  12:i44,</span>
+<span class="go">  30:i44</span>
+<span class="go">]s</span>
+<span class="go">&gt; </span><span class="nb">StmMapDot</span>(<span class="n">u</span>, <span class="n">v</span>, <span class="m">1</span>)
+<span class="go">[</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44,</span>
+<span class="go">  undefined:i44</span>
+<span class="go">]s ++ [</span>
+<span class="go">  12:i44,</span>
+<span class="go">  30:i44</span>
+<span class="go">]s</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -1130,21 +1128,21 @@ In other words, <a class="reference internal" href="#StmMapDot" title="StmMapDot
 <dt class="sig sig-object sirop" id="StmCascade">
 <span class="sig-name descname"><span class="pre">StmCascade</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[Vec[T,</span> <span class="pre">m],</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[Vec[T,</span> <span class="pre">m],</span> <span class="pre">n]</span><a class="headerlink" href="#StmCascade" title="Link to this definition">#</a></dt>
 <dd><p>Delays each element of the vector by 1 cycle relative to the previous element.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
-&gt; __show_prefix = true
-&gt;
-&gt; [[1:u8, 2:u8, 3:u8]v, [4:u8, 5:u8, 6:u8]v, [7:u8, 8:u8, 9:u8]v]s.StmCascade()
-[
-  undefined:Vec[u8, 3],
-  undefined:Vec[u8, 3]
-]s ++ [
-  /* Values manually aligned for legibility */
-  [        1:u8, undefined:u8, undefined:u8]v,
-  [        4:u8,         2:u8, undefined:u8]v,
-  [        7:u8,         5:u8,         3:u8]v,
-  [undefined:u8,         8:u8,         6:u8]v,
-  [undefined:u8, undefined:u8,         9:u8]v
-]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>__<span class="n">handshake</span> = <span class="l">false</span>
+<span class="go">&gt; </span>__<span class="n">show</span>_<span class="n">prefix</span> = <span class="l">true</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span>, <span class="m">9</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmCascade</span>()
+<span class="go">[</span>
+<span class="go">  undefined:Vec[u8, 3],</span>
+<span class="go">  undefined:Vec[u8, 3]</span>
+<span class="go">]s ++ [</span>
+<span class="go">  /* Values manually aligned for legibility */</span>
+<span class="go">  [        1:u8, undefined:u8, undefined:u8]v,</span>
+<span class="go">  [        4:u8,         2:u8, undefined:u8]v,</span>
+<span class="go">  [        7:u8,         5:u8,         3:u8]v,</span>
+<span class="go">  [undefined:u8,         8:u8,         6:u8]v,</span>
+<span class="go">  [undefined:u8, undefined:u8,         9:u8]v</span>
+<span class="go">]s</span>
 </pre></div>
 </div>
 </dd></dl>

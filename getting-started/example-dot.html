@@ -376,57 +376,57 @@
 <h1>Example with Dynamic Scheduling: Dot Product<a class="headerlink" href="#example-with-dynamic-scheduling-dot-product" title="Link to this heading">#</a></h1>
 <p>As a simple example, consider the <a class="reference external" href="https://en.wikipedia.org/wiki/Dot_product">dot product</a> of two streams.
 This can be expressed as follows in Sirop:</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>// ===== MAIN CODE =============================================================
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c c-Singleline">// ===== MAIN CODE =============================================================</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span>// u and v are streams of 16-bit unsigned integers, each with length 4
-<span class="linenos"> 4</span>accelerator dot = (u: Stm[u16, 4]) =&gt; (v: Stm[u16, 4]) =&gt;
-<span class="linenos"> 5</span>    // EXAMPLE: u = [1:u16, 2:u16, 3:u16, 4:u16]s
-<span class="linenos"> 6</span>    // EXAMPLE: v = [5:u16, 6:u16, 7:u16, 8:u16]s
-<span class="linenos"> 7</span>    StmZip(u, v)
-<span class="linenos"> 8</span>    // EXAMPLE: [(1:u16, 5:u16), (2:u16, 6:u16), (3:u16, 7:u16), (4:u16, 8:u16)]s
-<span class="linenos"> 9</span>    .StmMap( @(x, y) =&gt; x * y )
-<span class="linenos">10</span>    // EXAMPLE: [5:u16, 12:u16, 21:u16, 32:u16]s
-<span class="linenos">11</span>    .StmSum()
-<span class="linenos">12</span>    // EXAMPLE: [70:u16]s
+<span class="linenos"> 3</span><span class="c c-Singleline">// u and v are streams of 16-bit unsigned integers, each with length 4</span>
+<span class="linenos"> 4</span><span class="k">accelerator</span> <span class="n">dot</span> = (<span class="n">u</span>: <span class="kt">Stm</span><span class="p">[</span><span class="kt">u16</span>, <span class="m">4</span><span class="p">]</span>) <span class="p">=&gt;</span> (<span class="n">v</span>: <span class="kt">Stm</span><span class="p">[</span><span class="kt">u16</span>, <span class="m">4</span><span class="p">]</span>) <span class="p">=&gt;</span>
+<span class="linenos"> 5</span>    <span class="c c-Singleline">// EXAMPLE: u = [1:u16, 2:u16, 3:u16, 4:u16]s</span>
+<span class="linenos"> 6</span>    <span class="c c-Singleline">// EXAMPLE: v = [5:u16, 6:u16, 7:u16, 8:u16]s</span>
+<span class="linenos"> 7</span>    <span class="nb">StmZip</span>(<span class="n">u</span>, <span class="n">v</span>)
+<span class="linenos"> 8</span>    <span class="c c-Singleline">// EXAMPLE: [(1:u16, 5:u16), (2:u16, 6:u16), (3:u16, 7:u16), (4:u16, 8:u16)]s</span>
+<span class="linenos"> 9</span>    .<span class="nb">StmMap</span>( @(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span> )
+<span class="linenos">10</span>    <span class="c c-Singleline">// EXAMPLE: [5:u16, 12:u16, 21:u16, 32:u16]s</span>
+<span class="linenos">11</span>    .<span class="nb">StmSum</span>()
+<span class="linenos">12</span>    <span class="c c-Singleline">// EXAMPLE: [70:u16]s</span>
 <span class="linenos">13</span>
-<span class="linenos">14</span>// ===== TESTING ===============================================================
+<span class="linenos">14</span><span class="c c-Singleline">// ===== TESTING ===============================================================</span>
 <span class="linenos">15</span>
-<span class="linenos">16</span>assert {
-<span class="linenos">17</span>    // when the inputs are...
-<span class="linenos">18</span>    u = [1:u16, 2:u16, 3:u16, 4:u16]s,
-<span class="linenos">19</span>    v = [5:u16, 6:u16, 7:u16, 8:u16]s.StmMap(x =&gt; x) // add some delay for demonstration
+<span class="linenos">16</span><span class="k">assert</span> {
+<span class="linenos">17</span>    <span class="c c-Singleline">// when the inputs are...</span>
+<span class="linenos">18</span>    <span class="n">u</span> = <span class="p">[</span><span class="m">1</span>:<span class="kt">u16</span>, <span class="m">2</span>:<span class="kt">u16</span>, <span class="m">3</span>:<span class="kt">u16</span>, <span class="m">4</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span>,
+<span class="linenos">19</span>    <span class="n">v</span> = <span class="p">[</span><span class="m">5</span>:<span class="kt">u16</span>, <span class="m">6</span>:<span class="kt">u16</span>, <span class="m">7</span>:<span class="kt">u16</span>, <span class="m">8</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span>.<span class="nb">StmMap</span>(<span class="n">x</span> <span class="p">=&gt;</span> <span class="n">x</span>) <span class="c c-Singleline">// add some delay for demonstration</span>
 <span class="linenos">20</span>}
-<span class="linenos">21</span>// ... then we expect the following output
-<span class="linenos">22</span>yields [70:u16]s
+<span class="linenos">21</span><span class="c c-Singleline">// ... then we expect the following output</span>
+<span class="linenos">22</span><span class="k">yields</span> <span class="p">[</span><span class="m">70</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span>
 </pre></div>
 </div>
 <section id="testing-and-debugging">
 <h2>Testing and Debugging<a class="headerlink" href="#testing-and-debugging" title="Link to this heading">#</a></h2>
 <p>The Sirop compiler can test the high-level code directly, without translating it to VHDL:</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sirop dot.sirop --out:test
-[INFO ] test 0: PASSED
-[INFO ] 1/1 test passed!
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">$ </span>sirop dot.sirop --out:test
+<span class="go">[INFO ] test 0: PASSED</span>
+<span class="go">[INFO ] 1/1 test passed!</span>
 </pre></div>
 </div>
 <p>If you had accidentally used addition instead of multiplication in <code class="docutils literal notranslate"><span class="pre">StmMap</span></code>, the test would fail.
 The compiler can dump the expected and actual outputs to files so you can compare them (e.g., with <code class="docutils literal notranslate"><span class="pre">diff</span></code>):</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sed -i 's/x \* y/x + y/g' dot.sirop
-$ sirop dot.sirop --out:test:actual actual.txt --out:test:expected expected.txt
-[WARN ] test 0: WRONG OUTPUT
-TestError: 1/1 test failed.
-$ diff expected.txt actual.txt
-3c3
-&lt;   70:u16
----
-&gt;   36:u16
-$ sed -i 's/x + y/x * y/g' dot.sirop
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">$ </span>sed -i 's/x \* y/x + y/g' dot.sirop
+<span class="go">$ </span>sirop dot.sirop --out:test:actual actual.txt --out:test:expected expected.txt
+<span class="go">[WARN ] test 0: WRONG OUTPUT</span>
+<span class="go">TestError: 1/1 test failed.</span>
+<span class="go">$ </span>diff expected.txt actual.txt
+<span class="go">3c3</span>
+<span class="go">&lt;   70:u16</span>
+<span class="go">---</span>
+<span class="go">&gt;   36:u16</span>
+<span class="go">$ </span>sed -i 's/x + y/x * y/g' dot.sirop
 </pre></div>
 </div>
 <p>The Sirop compiler can also generate a cycle-by-cycle trace of the execution of the program.
 For example, running the following (with the working dot product program) generates a series of images in <code class="docutils literal notranslate"><span class="pre">./trace</span></code>:</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span># Disable fusion to show each pipeline stage (zip, map, sum).
-# By default, the compiler combines everything into a single pipeline stage.
-$ sirop dot.sirop --out:trace ./trace --opt:no-fuse
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">$ </span><span class="c"># Disable fusion to show each pipeline stage (zip, map, sum).</span>
+<span class="go">$ </span><span class="c"># By default, the compiler combines everything into a single pipeline stage.</span>
+<span class="go">$ </span>sirop dot.sirop --out:trace ./trace --opt:no-fuse
 </pre></div>
 </div>
 <div class="admonition important">
@@ -471,16 +471,16 @@ It can also generate a testbench to check that the generated VHDL entity behaves
 <div class="admonition important">
 <p class="admonition-title">Important</p>
 <p>The testbench is run using Questa.
-The relevant commands (<cite>vcom</cite>, <cite>vsim</cite>, etc.) must be on your <cite>PATH</cite>.
-Furthermore, you may need a license to run <cite>vsim</cite>.</p>
+The relevant commands (<code class="docutils literal notranslate"><span class="pre">vcom</span></code>, <code class="docutils literal notranslate"><span class="pre">vsim</span></code>, etc.) must be on your <code class="docutils literal notranslate"><span class="pre">PATH</span></code>.
+Furthermore, you may need a license to run <code class="docutils literal notranslate"><span class="pre">vsim</span></code>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>To change the compilation target, use the <cite>–out:vhdl:family</cite> and <cite>–out:vhdl:device</cite> flags.
-Run <cite>sirop –help</cite> for more details.</p>
+<p>To change the compilation target, use the <code class="docutils literal notranslate"><span class="pre">--out:vhdl:family</span></code> and <code class="docutils literal notranslate"><span class="pre">--out:vhdl:device</span></code> flags.
+Run <code class="docutils literal notranslate"><span class="pre">sirop</span> <span class="pre">--help</span></code> for more details.</p>
 </div>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sirop dot.sirop --out:vhdl vhdl_project_dir --out:vhdl:run-sim
-[INFO ] VHDL testbench passed!
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">$ </span>sirop dot.sirop --out:vhdl vhdl_project_dir --out:vhdl:run-sim
+<span class="go">[INFO ] VHDL testbench passed!</span>
 </pre></div>
 </div>
 <p>At this point, you have VHDL code that can be synthesized with Quartus, simulated with your own testbench in Questa, etc.</p>

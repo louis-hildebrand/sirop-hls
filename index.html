@@ -372,20 +372,20 @@ Similarly to projects like <a class="reference external" href="https://fastmachi
 </a>
 <p>Programs are written in a functional style using “parallel patterns.”
 For example, a <a class="reference external" href="https://en.wikipedia.org/wiki/Dot_product">dot product</a> can be expressed as follows:</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sirop
-Welcome to the Sirop REPL (v2.1.0)!
-Type 'exit' or press Ctrl+D to exit.
-&gt; u = [1:u8, 2:u8, 3:u8, 4:u8]s
-&gt; v = [5:u8, 6:u8, 7:u8, 8:u8]s
-&gt; zipped = StmZip(u, v)
-&gt; zipped
-[(1:u8, 5:u8), (2:u8, 6:u8), (3:u8, 7:u8), (4:u8, 8:u8)]s
-&gt; multiplied = zipped.StmMap( @(x, y) =&gt; x * y )
-&gt; multiplied
-[5:u8, 12:u8, 21:u8, 32:u8]s
-&gt; result = multiplied.StmSum()
-&gt; result
-[70:u8]s
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">$ </span>sirop
+<span class="go">Welcome to the Sirop REPL (v2.1.0)!</span>
+<span class="go">Type 'exit' or press Ctrl+D to exit.</span>
+<span class="go">&gt; </span><span class="n">u</span> = <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>
+<span class="go">&gt; </span><span class="n">v</span> = <span class="p">[</span><span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>
+<span class="go">&gt; </span><span class="n">zipped</span> = <span class="nb">StmZip</span>(<span class="n">u</span>, <span class="n">v</span>)
+<span class="go">&gt; </span><span class="n">zipped</span>
+<span class="go">[(1:u8, 5:u8), (2:u8, 6:u8), (3:u8, 7:u8), (4:u8, 8:u8)]s</span>
+<span class="go">&gt; </span><span class="n">multiplied</span> = <span class="n">zipped</span>.<span class="nb">StmMap</span>( @(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span> )
+<span class="go">&gt; </span><span class="n">multiplied</span>
+<span class="go">[5:u8, 12:u8, 21:u8, 32:u8]s</span>
+<span class="go">&gt; </span><span class="n">result</span> = <span class="n">multiplied</span>.<span class="nb">StmSum</span>()
+<span class="go">&gt; </span><span class="n">result</span>
+<span class="go">[70:u8]s</span>
 </pre></div>
 </div>
 <div class="toctree-wrapper compound">

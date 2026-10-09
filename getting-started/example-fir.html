@@ -364,84 +364,84 @@
   <section id="example-with-static-scheduling-fir-filter">
 <h1>Example with Static Scheduling: FIR Filter<a class="headerlink" href="#example-with-static-scheduling-fir-filter" title="Link to this heading">#</a></h1>
 <p>Now consider the following example, which implements an <a class="reference external" href="https://en.wikipedia.org/wiki/Finite_impulse_response">FIR filter</a> without backpressure.</p>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span>// ===== MAIN CODE =============================================================
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c c-Singleline">// ===== MAIN CODE =============================================================</span>
 <span class="linenos"> 2</span>
-<span class="linenos"> 3</span>// Length of test inputs
-<span class="linenos"> 4</span>const T: u32 = 24
-<span class="linenos"> 5</span>// Number of taps
-<span class="linenos"> 6</span>const DEPTH: u32 = 3
-<span class="linenos"> 7</span>// FIR filter coefficients
-<span class="linenos"> 8</span>const COEFFS: Vec[i18, DEPTH] = [3:i18, 5:i18, 7:i18]v
-<span class="linenos"> 9</span>// Number of pipeline registers to enable in the DSPs
-<span class="linenos">10</span>const PIPELINE: u32 = 2
+<span class="linenos"> 3</span><span class="c c-Singleline">// Length of test inputs</span>
+<span class="linenos"> 4</span><span class="k">const</span> <span class="n">T</span>: <span class="kt">u32</span> = <span class="m">24</span>
+<span class="linenos"> 5</span><span class="c c-Singleline">// Number of taps</span>
+<span class="linenos"> 6</span><span class="k">const</span> <span class="n">DEPTH</span>: <span class="kt">u32</span> = <span class="m">3</span>
+<span class="linenos"> 7</span><span class="c c-Singleline">// FIR filter coefficients</span>
+<span class="linenos"> 8</span><span class="k">const</span> <span class="n">COEFFS</span>: <span class="kt">Vec</span><span class="p">[</span><span class="kt">i18</span>, <span class="n">DEPTH</span><span class="p">]</span> = <span class="p">[</span><span class="m">3</span>:<span class="kt">i18</span>, <span class="m">5</span>:<span class="kt">i18</span>, <span class="m">7</span>:<span class="kt">i18</span><span class="p">]</span><span class="n">v</span>
+<span class="linenos"> 9</span><span class="c c-Singleline">// Number of pipeline registers to enable in the DSPs</span>
+<span class="linenos">10</span><span class="k">const</span> <span class="n">PIPELINE</span>: <span class="kt">u32</span> = <span class="m">2</span>
 <span class="linenos">11</span>
-<span class="linenos">12</span>accelerator[
-<span class="linenos">13</span>    // Disable the handshake protocol, i.e., use static scheduling
-<span class="linenos">14</span>    no_handshake,
-<span class="linenos">15</span>    // Until we start receiving the real data, the valid bit should be 0.
-<span class="linenos">16</span>    // If the Sirop compiler needs to increase the latency of this stream
-<span class="linenos">17</span>    // (e.g., for latency matching), it must ensure the valid bit remains 0.
-<span class="linenos">18</span>    head(s)=(undefined:i18, false)
-<span class="linenos">19</span>]
-<span class="linenos">20</span>fir = (s: Stm[(i18, bool), T]) =&gt;
-<span class="linenos">21</span>    // ----- Compute "data" part of output -------------------------------------
-<span class="linenos">22</span>    let data =
-<span class="linenos">23</span>        s
-<span class="linenos">24</span>        // Take just the "data" part of the input stream
-<span class="linenos">25</span>        .StmMap( @(data, valid) =&gt; data )
-<span class="linenos">26</span>        // Get sliding windows of size 3
-<span class="linenos">27</span>        .StmSlide(3)
-<span class="linenos">28</span>        // Take dot product between each window and the coefficients.
-<span class="linenos">29</span>        // StmMapDot is specifically defined to facilitate the use of the DSPs
-<span class="linenos">30</span>        // in "systolic" mode.
-<span class="linenos">31</span>        .StmMapDot(StmCst(T-(DEPTH-1), COEFFS), PIPELINE)
-<span class="linenos">32</span>        // StmMapDot produces wider outputs for compatibility with DSPs.
-<span class="linenos">33</span>        // Truncate the outputs back to 18 bits.
-<span class="linenos">34</span>        .StmMap( x =&gt; truncate18(x) )
-<span class="linenos">35</span>    in
-<span class="linenos">36</span>    // ----- Compute output "valid" bit ----------------------------------------
-<span class="linenos">37</span>    // Consistently set the "head" to false, so that the initial value of each
-<span class="linenos">38</span>    // pipeline register will be false
-<span class="linenos">39</span>    let valid =
-<span class="linenos">40</span>        s
-<span class="linenos">41</span>        // Take just the "valid" bit from the input stream
-<span class="linenos">42</span>        .StmMap( @(data, valid) =&gt; valid, /*head=*/false)
-<span class="linenos">43</span>        // Get sliding windows of size 3
-<span class="linenos">44</span>        .StmSlide(3, /*head=*/false)
-<span class="linenos">45</span>        // Output is valid if all elements in the window are valid
-<span class="linenos">46</span>        .StmMap( window =&gt; window.VecAll(), /*head=*/false)
-<span class="linenos">47</span>    in
-<span class="linenos">48</span>    // ----- Pair the output "data" with the output "valid" --------------------
-<span class="linenos">49</span>    StmZip(data, valid, /*head=*/(undefined:i18, false))
+<span class="linenos">12</span><span class="k">accelerator</span><span class="p">[</span>
+<span class="linenos">13</span>    <span class="c c-Singleline">// Disable the handshake protocol, i.e., use static scheduling</span>
+<span class="linenos">14</span>    <span class="n">no</span>_<span class="n">handshake</span>,
+<span class="linenos">15</span>    <span class="c c-Singleline">// Until we start receiving the real data, the valid bit should be 0.</span>
+<span class="linenos">16</span>    <span class="c c-Singleline">// If the Sirop compiler needs to increase the latency of this stream</span>
+<span class="linenos">17</span>    <span class="c c-Singleline">// (e.g., for latency matching), it must ensure the valid bit remains 0.</span>
+<span class="linenos">18</span>    <span class="n">head</span>(<span class="n">s</span>)=(<span class="l">undefined</span>:<span class="kt">i18</span>, <span class="l">false</span>)
+<span class="linenos">19</span><span class="p">]</span>
+<span class="linenos">20</span><span class="n">fir</span> = (<span class="n">s</span>: <span class="kt">Stm</span><span class="p">[</span>(<span class="kt">i18</span>, <span class="kt">bool</span>), <span class="n">T</span><span class="p">]</span>) <span class="p">=&gt;</span>
+<span class="linenos">21</span>    <span class="c c-Singleline">// ----- Compute "data" part of output -------------------------------------</span>
+<span class="linenos">22</span>    <span class="k">let</span> <span class="n">data</span> =
+<span class="linenos">23</span>        <span class="n">s</span>
+<span class="linenos">24</span>        <span class="c c-Singleline">// Take just the "data" part of the input stream</span>
+<span class="linenos">25</span>        .<span class="nb">StmMap</span>( @(<span class="n">data</span>, <span class="n">valid</span>) <span class="p">=&gt;</span> <span class="n">data</span> )
+<span class="linenos">26</span>        <span class="c c-Singleline">// Get sliding windows of size 3</span>
+<span class="linenos">27</span>        .<span class="nb">StmSlide</span>(<span class="m">3</span>)
+<span class="linenos">28</span>        <span class="c c-Singleline">// Take dot product between each window and the coefficients.</span>
+<span class="linenos">29</span>        <span class="c c-Singleline">// StmMapDot is specifically defined to facilitate the use of the DSPs</span>
+<span class="linenos">30</span>        <span class="c c-Singleline">// in "systolic" mode.</span>
+<span class="linenos">31</span>        .<span class="nb">StmMapDot</span>(<span class="nb">StmCst</span>(<span class="n">T</span><span class="o">-</span>(<span class="n">DEPTH</span><span class="o">-</span><span class="m">1</span>), <span class="n">COEFFS</span>), <span class="n">PIPELINE</span>)
+<span class="linenos">32</span>        <span class="c c-Singleline">// StmMapDot produces wider outputs for compatibility with DSPs.</span>
+<span class="linenos">33</span>        <span class="c c-Singleline">// Truncate the outputs back to 18 bits.</span>
+<span class="linenos">34</span>        .<span class="nb">StmMap</span>( <span class="n">x</span> <span class="p">=&gt;</span> <span class="nb">truncate18</span>(<span class="n">x</span>) )
+<span class="linenos">35</span>    <span class="k">in</span>
+<span class="linenos">36</span>    <span class="c c-Singleline">// ----- Compute output "valid" bit ----------------------------------------</span>
+<span class="linenos">37</span>    <span class="c c-Singleline">// Consistently set the "head" to false, so that the initial value of each</span>
+<span class="linenos">38</span>    <span class="c c-Singleline">// pipeline register will be false</span>
+<span class="linenos">39</span>    <span class="k">let</span> <span class="n">valid</span> =
+<span class="linenos">40</span>        <span class="n">s</span>
+<span class="linenos">41</span>        <span class="c c-Singleline">// Take just the "valid" bit from the input stream</span>
+<span class="linenos">42</span>        .<span class="nb">StmMap</span>( @(<span class="n">data</span>, <span class="n">valid</span>) <span class="p">=&gt;</span> <span class="n">valid</span>, <span class="cm">/*head=*/</span><span class="l">false</span>)
+<span class="linenos">43</span>        <span class="c c-Singleline">// Get sliding windows of size 3</span>
+<span class="linenos">44</span>        .<span class="nb">StmSlide</span>(<span class="m">3</span>, <span class="cm">/*head=*/</span><span class="l">false</span>)
+<span class="linenos">45</span>        <span class="c c-Singleline">// Output is valid if all elements in the window are valid</span>
+<span class="linenos">46</span>        .<span class="nb">StmMap</span>( <span class="n">window</span> <span class="p">=&gt;</span> <span class="n">window</span>.<span class="nb">VecAll</span>(), <span class="cm">/*head=*/</span><span class="l">false</span>)
+<span class="linenos">47</span>    <span class="k">in</span>
+<span class="linenos">48</span>    <span class="c c-Singleline">// ----- Pair the output "data" with the output "valid" --------------------</span>
+<span class="linenos">49</span>    <span class="nb">StmZip</span>(<span class="n">data</span>, <span class="n">valid</span>, <span class="cm">/*head=*/</span>(<span class="l">undefined</span>:<span class="kt">i18</span>, <span class="l">false</span>))
 <span class="linenos">50</span>
-<span class="linenos">51</span>// ===== TESTING ===============================================================
+<span class="linenos">51</span><span class="c c-Singleline">// ===== TESTING ===============================================================</span>
 <span class="linenos">52</span>
-<span class="linenos">53</span>assert {
-<span class="linenos">54</span>    // Square wave with amplitude 42 and period 8
-<span class="linenos">55</span>    s = [
-<span class="linenos">56</span>        // Maybe the first few cycles will have invalid data
-<span class="linenos">57</span>        (undefined:i18, false),
-<span class="linenos">58</span>        (undefined:i18, false)
-<span class="linenos">59</span>    ]s ++ [
-<span class="linenos">60</span>        (-42:i18, true), (-42:i18, true), (-42:i18, true), (-42:i18, true),
-<span class="linenos">61</span>        (+42:i18, true), (+42:i18, true), (+42:i18, true), (+42:i18, true),
-<span class="linenos">62</span>        (-42:i18, true), (-42:i18, true), (-42:i18, true), (-42:i18, true),
-<span class="linenos">63</span>        (+42:i18, true), (+42:i18, true), (+42:i18, true), (+42:i18, false),
-<span class="linenos">64</span>        (-42:i18, true), (-42:i18, true), (-42:i18, true), (-42:i18, true),
-<span class="linenos">65</span>        (+42:i18, true), (+42:i18, true), (+42:i18, true), (+42:i18, true)
-<span class="linenos">66</span>    ]s
+<span class="linenos">53</span><span class="k">assert</span> {
+<span class="linenos">54</span>    <span class="c c-Singleline">// Square wave with amplitude 42 and period 8</span>
+<span class="linenos">55</span>    <span class="n">s</span> = <span class="p">[</span>
+<span class="linenos">56</span>        <span class="c c-Singleline">// Maybe the first few cycles will have invalid data</span>
+<span class="linenos">57</span>        (<span class="l">undefined</span>:<span class="kt">i18</span>, <span class="l">false</span>),
+<span class="linenos">58</span>        (<span class="l">undefined</span>:<span class="kt">i18</span>, <span class="l">false</span>)
+<span class="linenos">59</span>    <span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span>
+<span class="linenos">60</span>        (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>),
+<span class="linenos">61</span>        (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>),
+<span class="linenos">62</span>        (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>),
+<span class="linenos">63</span>        (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">false</span>),
+<span class="linenos">64</span>        (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>),
+<span class="linenos">65</span>        (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>)
+<span class="linenos">66</span>    <span class="p">]</span><span class="n">s</span>
 <span class="linenos">67</span>}
-<span class="linenos">68</span>yields [
-<span class="linenos">69</span>    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
-<span class="linenos">70</span>    (+630:i18, true), (+630:i18, true),  (+42:i18, true),  (-378:i18, true),
-<span class="linenos">71</span>    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
-<span class="linenos">72</span>    (+630:i18, true), (+630:i18, false), (+42:i18, false), (-378:i18, false),
-<span class="linenos">73</span>    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
-<span class="linenos">74</span>    (+630:i18, true), (+630:i18, true)
-<span class="linenos">75</span>]s
-<span class="linenos">76</span>// The FIR filter will have some latency N.
-<span class="linenos">77</span>// For the first N clock cycles, the output "valid" bit must be 0.
-<span class="linenos">78</span>with prefix /* which satisfies the predicate... */ @(_, valid) =&gt; valid == false
+<span class="linenos">68</span><span class="k">yields</span> <span class="p">[</span>
+<span class="linenos">69</span>    (<span class="o">-</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">true</span>),  (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>),  (<span class="o">+</span><span class="m">378</span>:<span class="kt">i18</span>, <span class="l">true</span>),
+<span class="linenos">70</span>    (<span class="o">+</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">true</span>),  (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>),  (<span class="o">-</span><span class="m">378</span>:<span class="kt">i18</span>, <span class="l">true</span>),
+<span class="linenos">71</span>    (<span class="o">-</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">true</span>),  (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>),  (<span class="o">+</span><span class="m">378</span>:<span class="kt">i18</span>, <span class="l">true</span>),
+<span class="linenos">72</span>    (<span class="o">+</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">false</span>), (<span class="o">+</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">false</span>), (<span class="o">-</span><span class="m">378</span>:<span class="kt">i18</span>, <span class="l">false</span>),
+<span class="linenos">73</span>    (<span class="o">-</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">-</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">true</span>),  (<span class="o">-</span><span class="m">42</span>:<span class="kt">i18</span>, <span class="l">true</span>),  (<span class="o">+</span><span class="m">378</span>:<span class="kt">i18</span>, <span class="l">true</span>),
+<span class="linenos">74</span>    (<span class="o">+</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">true</span>), (<span class="o">+</span><span class="m">630</span>:<span class="kt">i18</span>, <span class="l">true</span>)
+<span class="linenos">75</span><span class="p">]</span><span class="n">s</span>
+<span class="linenos">76</span><span class="c c-Singleline">// The FIR filter will have some latency N.</span>
+<span class="linenos">77</span><span class="c c-Singleline">// For the first N clock cycles, the output "valid" bit must be 0.</span>
+<span class="linenos">78</span><span class="k">with</span> <span class="k">prefix</span> <span class="cm">/* which satisfies the predicate... */</span> @(_, <span class="n">valid</span>) <span class="p">=&gt;</span> <span class="n">valid</span> <span class="o">==</span> <span class="l">false</span>
 </pre></div>
 </div>
 <p>Test, compile, and simulate the design using the following command.</p>
@@ -450,11 +450,11 @@
 <p>To change the compilation target, use the <code class="docutils literal notranslate"><span class="pre">--out:vhdl:family</span></code> and <code class="docutils literal notranslate"><span class="pre">--out:vhdl:device</span></code> flags.
 Run <code class="docutils literal notranslate"><span class="pre">sirop</span> <span class="pre">--help</span></code> for more details.</p>
 </div>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sirop fir.sirop --out:test --out:vhdl vhdl_project_dir/ --out:vhdl:run-sim
-[INFO ] the design has a latency of 5 cycles
-[INFO ] test 0: PASSED
-[INFO ] 1/1 test passed!
-[INFO ] VHDL testbench passed!
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">$ </span>sirop fir.sirop --out:test --out:vhdl vhdl_project_dir/ --out:vhdl:run-sim
+<span class="go">[INFO ] the design has a latency of 5 cycles</span>
+<span class="go">[INFO ] test 0: PASSED</span>
+<span class="go">[INFO ] 1/1 test passed!</span>
+<span class="go">[INFO ] VHDL testbench passed!</span>
 </pre></div>
 </div>
 </section>

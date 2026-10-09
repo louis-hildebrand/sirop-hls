@@ -166,11 +166,11 @@ Combining Multiple Streams
 
     .. function:: StmZip(s1: Stm[A, n], s2: Stm[B, n], head: (A, B) = undefined): Stm[(A, B), n]
 
-        Pair up the elements of two streams.
+        Pairs up the elements of two streams.
 
         .. literalinclude:: /code-examples/reference/StmZip.repl.txt
 
-     .. seealso::
+        .. seealso::
 
             :func:`StmMap2`, which zips two streams with an arbitrary function.
 
