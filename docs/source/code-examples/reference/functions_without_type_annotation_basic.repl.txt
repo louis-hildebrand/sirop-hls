@@ -1,0 +1,11 @@
+> s = [(2:u8, 2:u8), (3:u8, 10:u8), (5:u8, 4:u8)]s
+>
+> s.StmMap( (x: (u8, u8)) => x.0 * x.1 )
+[4:u8, 30:u8, 20:u8]s
+> // The elements in stream s have type (u8, u8).
+> // Therefore, the function's input type must also be (u8, u8).
+> s.StmMap( (x) => x.0 * x.1 )
+[4:u8, 30:u8, 20:u8]s
+> // You can even omit the parentheses in this case!
+> s.StmMap( x => x.0 * x.1 )
+[4:u8, 30:u8, 20:u8]s
