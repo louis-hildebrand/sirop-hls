@@ -10,14 +10,18 @@ This can be expressed as follows in Sirop:
 Testing and Debugging
 ---------------------
 
-The Sirop compiler can test the high-level code directly, without translating it to VHDL::
+The Sirop compiler can test the high-level code directly, without translating it to VHDL:
+
+.. code::
 
     $ sirop dot.sirop --out:test
     [INFO ] test 0: PASSED
     [INFO ] 1/1 test passed!
 
 If you had accidentally used addition instead of multiplication in ``StmMap``, the test would fail.
-The compiler can dump the expected and actual outputs to files so you can compare them (e.g., with ``diff``)::
+The compiler can dump the expected and actual outputs to files so you can compare them (e.g., with ``diff``):
+
+.. code::
 
     $ sed -i 's/x \* y/x + y/g' dot.sirop
     $ sirop dot.sirop --out:test:actual actual.txt --out:test:expected expected.txt
@@ -31,10 +35,12 @@ The compiler can dump the expected and actual outputs to files so you can compar
     $ sed -i 's/x + y/x * y/g' dot.sirop
 
 The Sirop compiler can also generate a cycle-by-cycle trace of the execution of the program.
-For example, running the following (with the working dot product program) generates a series of images in ``./trace``::
+For example, running the following (with the working dot product program) generates a series of images in ``./trace``:
 
-    # Disable fusion to show each pipeline stage (zip, map, sum).
-    # By default, the compiler combines everything into a single pipeline stage.
+.. code::
+
+    $ # Disable fusion to show each pipeline stage (zip, map, sum).
+    $ # By default, the compiler combines everything into a single pipeline stage.
     $ sirop dot.sirop --out:trace ./trace --opt:no-fuse
 
 .. IMPORTANT::
@@ -89,14 +95,14 @@ It can also generate a testbench to check that the generated VHDL entity behaves
 
 .. IMPORTANT::
     The testbench is run using Questa.
-    The relevant commands (`vcom`, `vsim`, etc.) must be on your `PATH`.
-    Furthermore, you may need a license to run `vsim`.
+    The relevant commands (``vcom``, ``vsim``, etc.) must be on your ``PATH``.
+    Furthermore, you may need a license to run ``vsim``.
 
 .. NOTE::
-    To change the compilation target, use the `--out:vhdl:family` and `--out:vhdl:device` flags.
-    Run `sirop --help` for more details.
+    To change the compilation target, use the ``--out:vhdl:family`` and ``--out:vhdl:device`` flags.
+    Run ``sirop --help`` for more details.
 
-::
+.. code::
 
     $ sirop dot.sirop --out:vhdl vhdl_project_dir --out:vhdl:run-sim
     [INFO ] VHDL testbench passed!

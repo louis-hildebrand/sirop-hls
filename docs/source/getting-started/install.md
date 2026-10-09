@@ -3,8 +3,8 @@
 The Sirop compiler is provided as an executable .jar file; see the [Releases tab on GitHub](https://github.com/louis-hildebrand/sirop-hls/releases).
 Download the .jar file and run it with
 
-```sh
-java -jar sirop.jar --version
+```
+$ java -jar sirop.jar --version
 ```
 
 For convenience, you could define a function like
@@ -18,14 +18,14 @@ export -f sirop
 
 and then run
 
-```sh
-sirop --version
+```
+$ sirop --version
 ```
 
 For help with the command-line interface, run
 
-```sh
-sirop --help
+```
+$ sirop --help
 ```
 
 ## Syntax Highlighting

@@ -10,7 +10,11 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path('extensions').resolve()))
+from sphinx.highlighting import lexers
+
+sys.path.append(str(Path('highlight').resolve().parent))
+# pylint: disable-next=wrong-import-position
+from highlight import SiropLexer
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -23,7 +27,9 @@ author = 'Louis Hildebrand'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
+sys.path.append(str(Path('extensions').resolve()))
 extensions = ['myst_parser', 'sirop']
+primary_domain = 'sirop'
 
 templates_path = ['_templates']
 exclude_patterns = []
@@ -40,8 +46,8 @@ linkcheck_ignore = [
     'https://doi.org/10.1145/3814943.3816175',
 ]
 
-highlight_language = 'none'
-primary_domain = 'sirop'
+highlight_language = 'sirop'
+lexers['sirop'] = SiropLexer()
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -54,4 +60,7 @@ html_theme_options = {
     'use_edit_page_button': True,
     'path_to_docs': '/docs/source',
     'show_toc_level': 3,
+    # Syntax highlighting
+    'pygments_light_style': 'default',
+    'pygments_dark_style': 'lightbulb',
 }
