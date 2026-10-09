@@ -46,7 +46,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'reference/types';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Vectors" href="vectors.html" />
+    <link rel="next" title="Functions" href="functions.html" />
     <link rel="prev" title="Example with Static Scheduling: FIR Filter" href="../getting-started/example-fir.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -148,6 +148,7 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Types in Sirop</a></li>
+<li class="toctree-l1"><a class="reference internal" href="functions.html">Functions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="vectors.html">Vectors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="streams.html">Streams</a></li>
 </ul>
@@ -390,17 +391,17 @@
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">i1</span></code>, <code class="docutils literal notranslate"><span class="pre">i2</span></code>, <code class="docutils literal notranslate"><span class="pre">i3</span></code>, …</p></td>
 <td><p>Signed integer with the given bitwidth</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">(A,</span> <span class="pre">B,</span> <span class="pre">...)</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span></code></p></td>
+<td><p><a class="reference internal" href="functions.html"><span class="doc">Function</span></a> with input of type <code class="docutils literal notranslate"><span class="pre">A</span></code> and output of type <code class="docutils literal notranslate"><span class="pre">B</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">(A,</span> <span class="pre">B,</span> <span class="pre">...)</span></code></p></td>
 <td><p>Tuple whose elements have type <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code>, etc.</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Vec[T,</span> <span class="pre">n]</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Vec[T,</span> <span class="pre">n]</span></code></p></td>
 <td><p><a class="reference internal" href="vectors.html"><span class="doc">Vector</span></a> of length <code class="docutils literal notranslate"><span class="pre">n</span></code> whose elements have type <code class="docutils literal notranslate"><span class="pre">T</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Stm[T,</span> <span class="pre">n]</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Stm[T,</span> <span class="pre">n]</span></code></p></td>
 <td><p><a class="reference internal" href="streams.html"><span class="doc">Stream</span></a> of length <code class="docutils literal notranslate"><span class="pre">n</span></code> whose elements have type <code class="docutils literal notranslate"><span class="pre">T</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span></code></p></td>
-<td><p>Function with input of type <code class="docutils literal notranslate"><span class="pre">A</span></code> and output of type <code class="docutils literal notranslate"><span class="pre">B</span></code></p></td>
 </tr>
 </tbody>
 </table>
@@ -443,11 +444,11 @@ In practice, the Sirop compiler will ensure no such functions remain in the fina
       </div>
     </a>
     <a class="right-next"
-       href="vectors.html"
+       href="functions.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Vectors</p>
+        <p class="prev-next-title">Functions</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Installation &#8212; Sirop  documentation</title>
+    <title>Functions &#8212; Sirop  documentation</title>
   
   
   
@@ -43,11 +43,11 @@
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'getting-started/install';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'reference/functions';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Overview" href="language-intro.html" />
-    <link rel="prev" title="Sirop documentation" href="../index.html" />
+    <link rel="next" title="Vectors" href="vectors.html" />
+    <link rel="prev" title="Types in Sirop" href="types.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="" />
@@ -138,19 +138,19 @@
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
-<ul class="current nav bd-sidenav">
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="language-intro.html">Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="related-projects.html">Related Projects</a></li>
-<li class="toctree-l1"><a class="reference internal" href="example-dot.html">Example with Dynamic Scheduling: Dot Product</a></li>
-<li class="toctree-l1"><a class="reference internal" href="example-fir.html">Example with Static Scheduling: FIR Filter</a></li>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/language-intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/related-projects.html">Related Projects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/example-dot.html">Example with Dynamic Scheduling: Dot Product</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/example-fir.html">Example with Static Scheduling: FIR Filter</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../reference/types.html">Types in Sirop</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../reference/functions.html">Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../reference/vectors.html">Vectors</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../reference/streams.html">Streams</a></li>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types in Sirop</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vectors.html">Vectors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="streams.html">Streams</a></li>
 </ul>
 
     </div>
@@ -227,7 +227,7 @@
       
       
       
-      <li><a href="https://github.com/louis-hildebrand/sirop-hls/edit/main//docs/source/getting-started/install.md" target="_blank"
+      <li><a href="https://github.com/louis-hildebrand/sirop-hls/edit/main//docs/source/reference/functions.rst" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -244,7 +244,7 @@
       
       
       
-      <li><a href="https://github.com/louis-hildebrand/sirop-hls/issues/new?title=Issue%20on%20page%20%2Fgetting-started/install.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/louis-hildebrand/sirop-hls/issues/new?title=Issue%20on%20page%20%2Freference/functions.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -274,7 +274,7 @@
       
       
       
-      <li><a href="../_sources/getting-started/install.md" target="_blank"
+      <li><a href="../_sources/reference/functions.rst" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -284,7 +284,7 @@
 <span class="btn__icon-container">
   <i class="fas fa-file"></i>
   </span>
-<span class="btn__text-container">.md</span>
+<span class="btn__text-container">.rst</span>
 </a>
 </li>
       
@@ -350,7 +350,7 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Installation</h1>
+    <h1>Functions</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -360,7 +360,8 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#syntax-highlighting">Syntax Highlighting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unpacking-the-input">Unpacking the Input</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#omitting-the-input-type-annotation">Omitting the Input Type Annotation</a></li>
 </ul>
             </nav>
         </div>
@@ -372,31 +373,59 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="installation">
-<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading">#</a></h1>
-<p>The Sirop compiler is provided as an executable .jar file; see the <a class="reference external" href="https://github.com/louis-hildebrand/sirop-hls/releases">Releases tab on GitHub</a>.
-Download the .jar file and run it with</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">$ </span>java -jar sirop.jar --version
+  <section id="functions">
+<h1>Functions<a class="headerlink" href="#functions" title="Link to this heading">#</a></h1>
+<p>In their most basic form, Sirop functions look like <code class="docutils literal notranslate"><span class="pre">(input:</span> <span class="pre">Type)</span> <span class="pre">=&gt;</span> <span class="pre">output</span></code>.
+For example, the following function takes as input <code class="docutils literal notranslate"><span class="pre">x</span></code>, an unsigned 8-bit integer, and returns <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">+</span> <span class="pre">5</span></code>:</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span>(<span class="n">x</span>: <span class="kt">u8</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="m">5</span>
 </pre></div>
 </div>
-<p>For convenience, you could define a function like</p>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="k">function</span><span class="w"> </span>sirop<span class="w"> </span><span class="o">{</span>
-<span class="w">    </span>java<span class="w"> </span>-jar<span class="w"> </span>/absolute/path/to/sirop.jar<span class="w"> </span><span class="s2">"</span><span class="nv">$@</span><span class="s2">"</span>
-<span class="o">}</span>
-<span class="nb">export</span><span class="w"> </span>-f<span class="w"> </span>sirop
+<p>The functions themselves are anonymous, but they can be bound to a name using <code class="docutils literal notranslate"><span class="pre">let</span></code>:</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="k">let</span> <span class="n">f</span> = (<span class="n">x</span>: <span class="kt">u8</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="m">5</span> <span class="k">in</span> <span class="p">[</span><span class="n">f</span>(<span class="m">42</span>:<span class="kt">u8</span>), <span class="n">f</span>(<span class="m">43</span>:<span class="kt">u8</span>), <span class="n">f</span>(<span class="m">44</span>:<span class="kt">u8</span>)<span class="p">]</span><span class="n">v</span>
+<span class="go">[47:u8, 48:u8, 49:u8]v</span>
 </pre></div>
 </div>
-<p>and then run</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">$ </span>sirop --version
+<p>The example above creates a vector of three integers.
+A straightforward translation to VHDL would therefore instantiate three copies of <code class="docutils literal notranslate"><span class="pre">f</span></code>, i.e., three adders.</p>
+<section id="unpacking-the-input">
+<span id="pattern-functions"></span><h2>Unpacking the Input<a class="headerlink" href="#unpacking-the-input" title="Link to this heading">#</a></h2>
+<p>For functions that take as input a tuple, it is often convenient to name each part of the input.
+For example, the following function:</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span>(<span class="n">x</span>: (<span class="kt">u8</span>, <span class="kt">u8</span>)) <span class="p">=&gt;</span> <span class="n">x</span>.<span class="m">0</span> <span class="o">+</span> <span class="n">x</span>.<span class="m">1</span>
 </pre></div>
 </div>
-<p>For help with the command-line interface, run</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">$ </span>sirop --help
+<p>can also be written as</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span>@(<span class="n">x</span>: <span class="kt">u8</span>, <span class="n">y</span>: <span class="kt">u8</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
 </pre></div>
 </div>
-<section id="syntax-highlighting">
-<h2>Syntax Highlighting<a class="headerlink" href="#syntax-highlighting" title="Link to this heading">#</a></h2>
-<p>A Vim plugin providing basic syntax highlighting can be found at <a class="reference external" href="https://github.com/louis-hildebrand/sirop-vim">github.com/louis-hildebrand/sirop-vim</a>.</p>
+</section>
+<section id="omitting-the-input-type-annotation">
+<h2>Omitting the Input Type Annotation<a class="headerlink" href="#omitting-the-input-type-annotation" title="Link to this heading">#</a></h2>
+<p>In some cases, the Sirop compiler can infer the input type for a function from the context.
+In these cases, the type annotation can be omitted from the source code.
+For example:</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="n">s</span> = <span class="p">[</span>(<span class="m">2</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>), (<span class="m">3</span>:<span class="kt">u8</span>, <span class="m">10</span>:<span class="kt">u8</span>), (<span class="m">5</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>)<span class="p">]</span><span class="n">s</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="n">s</span>.<span class="nb">StmMap</span>( (<span class="n">x</span>: (<span class="kt">u8</span>, <span class="kt">u8</span>)) <span class="p">=&gt;</span> <span class="n">x</span>.<span class="m">0</span> <span class="o">*</span> <span class="n">x</span>.<span class="m">1</span> )
+<span class="go">[4:u8, 30:u8, 20:u8]s</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// The elements in stream s have type (u8, u8).</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Therefore, the function's input type must also be (u8, u8).</span>
+<span class="go">&gt; </span><span class="n">s</span>.<span class="nb">StmMap</span>( (<span class="n">x</span>) <span class="p">=&gt;</span> <span class="n">x</span>.<span class="m">0</span> <span class="o">*</span> <span class="n">x</span>.<span class="m">1</span> )
+<span class="go">[4:u8, 30:u8, 20:u8]s</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// You can even omit the parentheses in this case!</span>
+<span class="go">&gt; </span><span class="n">s</span>.<span class="nb">StmMap</span>( <span class="n">x</span> <span class="p">=&gt;</span> <span class="n">x</span>.<span class="m">0</span> <span class="o">*</span> <span class="n">x</span>.<span class="m">1</span> )
+<span class="go">[4:u8, 30:u8, 20:u8]s</span>
+</pre></div>
+</div>
+<p>This also works for “pattern functions” (those that unpack their input):</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="n">s</span> = <span class="p">[</span>(<span class="m">2</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>), (<span class="m">3</span>:<span class="kt">u8</span>, <span class="m">10</span>:<span class="kt">u8</span>), (<span class="m">5</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>)<span class="p">]</span><span class="n">s</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="n">s</span>.<span class="nb">StmMap</span>( @(<span class="n">x</span>: <span class="kt">u8</span>, <span class="n">y</span>: <span class="kt">u8</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span> )
+<span class="go">[4:u8, 30:u8, 20:u8]s</span>
+<span class="go">&gt; </span><span class="n">s</span>.<span class="nb">StmMap</span>( @(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span> )
+<span class="go">[4:u8, 30:u8, 20:u8]s</span>
+</pre></div>
+</div>
 </section>
 </section>
 
@@ -412,20 +441,20 @@ Download the .jar file and run it with</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../index.html"
+       href="types.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Sirop documentation</p>
+        <p class="prev-next-title">Types in Sirop</p>
       </div>
     </a>
     <a class="right-next"
-       href="language-intro.html"
+       href="vectors.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Overview</p>
+        <p class="prev-next-title">Vectors</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -447,7 +476,8 @@ Download the .jar file and run it with</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#syntax-highlighting">Syntax Highlighting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unpacking-the-input">Unpacking the Input</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#omitting-the-input-type-annotation">Omitting the Input Type Annotation</a></li>
 </ul>
   </nav></div>
 
