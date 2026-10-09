@@ -1,0 +1,1264 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Streams &#8212; Sirop  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'reference/streams';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Vectors" href="vectors.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Sirop  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/language-intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/related-projects.html">Related Projects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/example-dot.html">Example with Dynamic Scheduling: Dot Product</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/example-fir.html">Example with Static Scheduling: FIR Filter</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types in Sirop</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vectors.html">Vectors</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Streams</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/louis-hildebrand/sirop-hls" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/louis-hildebrand/sirop-hls/edit/main//docs/source/reference/streams.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/louis-hildebrand/sirop-hls/issues/new?title=Issue%20on%20page%20%2Freference/streams.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/reference/streams.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Streams</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parts-of-a-stream">Parts of a Stream</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#controlling-the-physical-prefix">Controlling the Physical Prefix</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stream-flattening">Stream Flattening</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-stream-functions">Built-In Stream Functions</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-streams">Creating Streams</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transforming-streams-elementwise">Transforming Streams Elementwise</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#combining-multiple-streams">Combining Multiple Streams</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sliding-windows">Sliding Windows</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#aggregation">Aggregation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-streams">Nested Streams</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discarding-parts-of-a-stream">Discarding Parts of a Stream</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-dedicated-dsp-blocks">Using Dedicated DSP Blocks</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="streams">
+<h1>Streams<a class="headerlink" href="#streams" title="Link to this heading">#</a></h1>
+<p>As described in <a class="reference internal" href="../getting-started/language-intro.html"><span class="doc">Overview</span></a>, a stream is an inherently sequential collection.
+Each element in a stream is provided at a different clock cycle.
+It is not possible to read a stream out of order (skipping elements, rewinding, etc.).</p>
+<section id="parts-of-a-stream">
+<span id="physical-logical-stream"></span><h2>Parts of a Stream<a class="headerlink" href="#parts-of-a-stream" title="Link to this heading">#</a></h2>
+<p>Sirop streams have two parts: a “physical prefix” and a “logical part.”
+To see why, consider the following <a class="reference external" href="https://en.wikipedia.org/wiki/Digital_timing_diagram">timing diagram</a>:</p>
+<a class="only-dark reference internal image-reference" href="../_images/physical-logical-stream.svg"><img alt="../_images/physical-logical-stream.svg" class="only-dark" src="../_images/physical-logical-stream.svg" style="width: 587.5px; height: 65.0px;" />
+</a>
+<a class="only-light reference internal image-reference" href="../_images/physical-logical-stream1.svg"><img alt="../_images/physical-logical-stream1.svg" class="only-light" src="../_images/physical-logical-stream1.svg" style="width: 587.5px; height: 65.0px;" />
+</a>
+<p>What <em>logical</em> data does this stream carry?
+There is more than one possible interpretation:</p>
+<ul class="simple">
+<li><p>If there is no latency, the data we care about is <code class="docutils literal notranslate"><span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3,</span> <span class="pre">4,</span> <span class="pre">5,</span> <span class="pre">...]</span></code>.</p></li>
+<li><p>If the latency is 1 clock cycle, the data we care about is <code class="docutils literal notranslate"><span class="pre">[2,</span> <span class="pre">3,</span> <span class="pre">4,</span> <span class="pre">5,</span> <span class="pre">...]</span></code>. The preceding values (<code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">1]</span></code>) should be ignored.</p></li>
+<li><p>If the latency is 2 clock cycles, the data we care about is <code class="docutils literal notranslate"><span class="pre">[3,</span> <span class="pre">4,</span> <span class="pre">5,</span> <span class="pre">...]</span></code>. The preceding values (<code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">1,</span> <span class="pre">2]</span></code>) should be ignored.</p></li>
+<li><p>etc.</p></li>
+</ul>
+<p>In Sirop, these interpretations are expressed as follows:</p>
+<ul class="simple">
+<li><p>0-cycle latency: <code class="docutils literal notranslate"><span class="pre">[]s</span> <span class="pre">++</span> <span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3,</span> <span class="pre">4,</span> <span class="pre">5]s</span></code> (or, more commonly, just <code class="docutils literal notranslate"><span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3,</span> <span class="pre">4,</span> <span class="pre">5]s</span></code>)</p></li>
+<li><p>1-cycle latency: <code class="docutils literal notranslate"><span class="pre">[1]s</span> <span class="pre">++</span> <span class="pre">[2,</span> <span class="pre">3,</span> <span class="pre">4,</span> <span class="pre">5]s</span></code></p></li>
+<li><p>2-cycle latency: <code class="docutils literal notranslate"><span class="pre">[1,</span> <span class="pre">2]s</span> <span class="pre">++</span> <span class="pre">[3,</span> <span class="pre">4,</span> <span class="pre">5]s</span></code></p></li>
+<li><p>etc.</p></li>
+</ul>
+<p>The part before the <code class="docutils literal notranslate"><span class="pre">++</span></code> is the “physical prefix.”
+We will see these outputs if we observe a design running on a physical FPGA, but they are not part of the logical output we care about.
+The part after the <code class="docutils literal notranslate"><span class="pre">++</span></code> is the “logical part.”</p>
+<section id="controlling-the-physical-prefix">
+<h3>Controlling the Physical Prefix<a class="headerlink" href="#controlling-the-physical-prefix" title="Link to this heading">#</a></h3>
+<p>Why even write down the physical prefix if we don’t care about it?
+The answer is that, in some cases, we care about <em>some properties</em> of the physical prefix.
+For example, we might want the generated VHDL entity to produce a <code class="docutils literal notranslate"><span class="pre">valid</span></code> output bit.
+In the physical prefix, the <code class="docutils literal notranslate"><span class="pre">valid</span></code> bit must always be <code class="docutils literal notranslate"><span class="pre">false</span></code>.
+In the logical part, the <code class="docutils literal notranslate"><span class="pre">valid</span></code> bit may be <code class="docutils literal notranslate"><span class="pre">true</span></code> or <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>const N: u32 = 4
+
+// Return the square of the given u8.
+// The output valid bit will be set to false in case of overflow.
+accelerator[no_handshake] square = (s: Stm[(u8, bool), N]) =&gt;
+    s
+    .StmMap(
+        @(data, valid) =&gt; (data*data, valid &amp;&amp; data &lt; 16),
+        /*head*/ (undefined:u8, false)
+    )
+
+assert {
+    s = [(undefined:u8, false)]s ++ [
+        (2:u8, true), // OK
+        (3:u8, true), // OK
+        (4:u8, true), // OK
+        (16:u8, true) // Will overflow!
+    ]s
+}
+yields [
+    ( 4:u8,             true),
+    ( 9:u8,             true),
+    (16:u8,             true),
+    ( 0:u8 /*ignored*/, false)
+]s
+// The "ignoring" clause specifies a bit mask to ignore parts of the output.
+// 1 means ignore.
+ignoring [
+    zeros:[(u8, bool)](),
+    zeros:[(u8, bool)](),
+    zeros:[(u8, bool)](),
+    (ones:[u8](), false)
+]s
+// All elements of the physical prefix must satisfy this predicate.
+with prefix @(_, valid) =&gt; valid == false
+</pre></div>
+</div>
+<p>Many of the built-in functions listed provide some way of controlling the physical prefix.
+For instance, as shown in the sample code above, <a class="reference internal" href="#StmMap" title="StmMap"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMap</span></code></a> has a <code class="docutils literal notranslate"><span class="pre">head</span></code> parameter to set the initial value of the output register.</p>
+<p>In the REPL, the physical prefix is hidden by default.
+If it’s important to see the physical prefix, enable it by setting the special variable <code class="docutils literal notranslate"><span class="pre">__show_prefix</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; [0:u8]s ++ [1:u8, 2:u8, 3:u8]s
+[1:u8, 2:u8, 3:u8]s
+&gt; __show_prefix = true
+&gt; [0:u8]s ++ [1:u8, 2:u8, 3:u8]s
+[0:u8]s ++ [1:u8, 2:u8, 3:u8]s
+</pre></div>
+</div>
+</section>
+</section>
+<section id="stream-flattening">
+<span id="id1"></span><h2>Stream Flattening<a class="headerlink" href="#stream-flattening" title="Link to this heading">#</a></h2>
+<p>The Sirop compiler flattens nested streams.
+(There is only one time dimension, after all.)
+For example:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
+Stm[Stm[u8, 3], 2]
+&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
+[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+</pre></div>
+</div>
+<p>Flattening happens <em>after</em> type checking.
+Therefore, if downstream functions require a flat stream, you should use <a class="reference internal" href="#StmJoin" title="StmJoin"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmJoin</span></code></a> to explicitly flatten.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt;
+&gt; // Taking the first row of a nested stream
+&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
+Stm[Stm[u8, 3], 2]
+&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
+Stm[Stm[u8, 3], 1]
+&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
+[undefined:u8]s ++ [1:u8, 2:u8, 3:u8]s
+&gt;
+&gt; // Taking the first element of a flat stream (different result!)
+&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
+Stm[u8, 6]
+&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
+Stm[u8, 1]
+&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
+[undefined:u8]s ++ [1:u8]s
+&gt;
+&gt; // Some functions only work on flat streams
+&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmSum()
+TypeError: Input to StmSum has type Stm[Stm[u8, 3], 2]. Expected a stream of integers.
+&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmSum()
+[0:u8, 1:u8, 3:u8, 6:u8, 10:u8, 15:u8]s ++ [21:u8]s
+</pre></div>
+</div>
+</section>
+<section id="built-in-stream-functions">
+<h2>Built-In Stream Functions<a class="headerlink" href="#built-in-stream-functions" title="Link to this heading">#</a></h2>
+<p>The following stream operators are provided as part of the Sirop language.</p>
+<section id="creating-streams">
+<h3>Creating Streams<a class="headerlink" href="#creating-streams" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmCst">
+<span class="sig-name descname"><span class="pre">StmCst</span></span><span class="sig-paren">(</span><span class="pre">n:</span> <span class="pre">I,</span> <span class="pre">k:</span> <span class="pre">T</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmCst" title="Link to this definition">#</a></dt>
+<dd><p>Creates a stream of length <code class="docutils literal notranslate"><span class="pre">n</span></code> whose elements are all the constant <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt; StmCst(3, (42:u8, true))
+[(42:u8, true)]s ++ [(42:u8, true), (42:u8, true), (42:u8, true)]s
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmCount">
+<span class="sig-name descname"><span class="pre">StmCount</span></span><span class="sig-paren">(</span><span class="pre">n:</span> <span class="pre">I,</span> <span class="pre">init:</span> <span class="pre">J</span> <span class="pre">=</span> <span class="pre">0,</span> <span class="pre">delta:</span> <span class="pre">J</span> <span class="pre">=</span> <span class="pre">1</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[J,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span> <span class="pre">and</span> <span class="pre">J</span> <span class="pre">is</span> <span class="pre">any</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmCount" title="Link to this definition">#</a></dt>
+<dd><p>Creates a stream of <code class="docutils literal notranslate"><span class="pre">n</span></code> integers starting at <code class="docutils literal notranslate"><span class="pre">init</span></code> and increasing by <code class="docutils literal notranslate"><span class="pre">delta</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt; StmCount(5:u3)
+[undefined:u3]s ++ [0:u3, 1:u3, 2:u3, 3:u3, 4:u3]s
+&gt; StmCount(4, 42:u32)
+[undefined:u32]s ++ [42:u32, 43:u32, 44:u32, 45:u32]s
+&gt; StmCount(3, -9:i8, -2:i8)
+[undefined:i8]s ++ [-9:i8, -11:i8, -13:i8]s
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmCount2D">
+<span class="sig-name descname"><span class="pre">StmCount2D</span></span><span class="sig-paren">(</span><span class="pre">n:</span> <span class="pre">I,</span> <span class="pre">m:</span> <span class="pre">J</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[Stm[(I,</span> <span class="pre">J),</span> <span class="pre">m],</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">and</span> <span class="pre">J</span> <span class="pre">are</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">types</span></em><a class="headerlink" href="#StmCount2D" title="Link to this definition">#</a></dt>
+<dd><p>Creates a nested stream such that the element at “row” <code class="docutils literal notranslate"><span class="pre">i</span></code> and “column” <code class="docutils literal notranslate"><span class="pre">j</span></code> is <code class="docutils literal notranslate"><span class="pre">(i,</span> <span class="pre">j)</span></code>.
+The types of <code class="docutils literal notranslate"><span class="pre">i</span></code> and <code class="docutils literal notranslate"><span class="pre">j</span></code> are the same as the lengths <code class="docutils literal notranslate"><span class="pre">n</span></code> and <code class="docutils literal notranslate"><span class="pre">m</span></code>, respectively.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt; StmCount2D(3:u8, 4:u16)
+[
+  undefined:(u8, u16)
+]s ++ [
+  (0:u8, 0:u16),
+  (0:u8, 1:u16),
+  (0:u8, 2:u16),
+  (0:u8, 3:u16),
+  (1:u8, 0:u16),
+  (1:u8, 1:u16),
+  (1:u8, 2:u16),
+  (1:u8, 3:u16),
+  (2:u8, 0:u16),
+  (2:u8, 1:u16),
+  (2:u8, 2:u16),
+  (2:u8, 3:u16)
+]s
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The REPL prints a 1-dimensional stream due to <a class="reference internal" href="#stream-flattening"><span class="std std-ref">stream flattening</span></a>.</p>
+</div>
+</dd></dl>
+
+</section>
+<section id="transforming-streams-elementwise">
+<h3>Transforming Streams Elementwise<a class="headerlink" href="#transforming-streams-elementwise" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmMap">
+<span class="sig-name descname"><span class="pre">StmMap</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[A,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B,</span> <span class="pre">head:</span> <span class="pre">B</span> <span class="pre">=</span> <span class="pre">undefined</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[B,</span> <span class="pre">n]</span><a class="headerlink" href="#StmMap" title="Link to this definition">#</a></dt>
+<dd><p>Applies function <code class="docutils literal notranslate"><span class="pre">f</span></code> elementwise to stream <code class="docutils literal notranslate"><span class="pre">s</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmMap(x =&gt; x + 5)
+[undefined:u8, 5:u8]s ++ [6:u8, 7:u8, 8:u8, 9:u8]s
+&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmMap(x =&gt; x + 5, 42:u8)
+[42:u8, 5:u8]s ++ [6:u8, 7:u8, 8:u8, 9:u8]s
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmMap2" title="StmMap2"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMap2</span></code></a>, for simultaneous transformation over two streams</p>
+</div>
+</dd></dl>
+
+</section>
+<section id="combining-multiple-streams">
+<h3>Combining Multiple Streams<a class="headerlink" href="#combining-multiple-streams" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmConcat">
+<span class="sig-name descname"><span class="pre">StmConcat</span></span><span class="sig-paren">(</span><span class="pre">s1:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">s2:</span> <span class="pre">Stm[T,</span> <span class="pre">m],</span> <span class="pre">head:</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">undefined</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">n+m]</span><a class="headerlink" href="#StmConcat" title="Link to this definition">#</a></dt>
+<dd><p>Concatenates two streams.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt; StmConcat([0:u8]s ++ [1:u8, 2:u8, 3:u8]s, [9:u8]s ++ [8:u8, 7:u8]s)
+[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 8:u8, 7:u8]s
+&gt; StmConcat([0:u8]s ++ [1:u8, 2:u8, 3:u8]s, [9:u8]s ++ [8:u8, 7:u8]s, 42:u8)
+[42:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 8:u8, 7:u8]s
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmZip">
+<span class="sig-name descname"><span class="pre">StmZip</span></span><span class="sig-paren">(</span><span class="pre">s1:</span> <span class="pre">Stm[A,</span> <span class="pre">n],</span> <span class="pre">s2:</span> <span class="pre">Stm[B,</span> <span class="pre">n],</span> <span class="pre">head:</span> <span class="pre">(A,</span> <span class="pre">B)</span> <span class="pre">=</span> <span class="pre">undefined</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[(A,</span> <span class="pre">B),</span> <span class="pre">n]</span><a class="headerlink" href="#StmZip" title="Link to this definition">#</a></dt>
+<dd><blockquote>
+<div><p>Pair up the elements of two streams.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt;
+&gt; u = [0:u6]s ++ [1:u6, 2:u6, 3:u6]s
+&gt; v = [-1:i8]s ++ [-9:i8, -8:i8, -7:i8]s
+&gt; StmZip(u, v)
+[undefined:(u6, i8), (0:u6, -1:i8)]s ++ [(1:u6, -9:i8), (2:u6, -8:i8), (3:u6, -7:i8)]s
+&gt; StmZip(u, v, (42:u6, 43:i8))
+[(42:u6, 43:i8), (0:u6, -1:i8)]s ++ [(1:u6, -9:i8), (2:u6, -8:i8), (3:u6, -7:i8)]s
+</pre></div>
+</div>
+</div></blockquote>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmMap2" title="StmMap2"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMap2</span></code></a>, which zips two streams with an arbitrary function.</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmMap2">
+<span class="sig-name descname"><span class="pre">StmMap2</span></span><span class="sig-paren">(</span><span class="pre">s1:</span> <span class="pre">Stm[A,</span> <span class="pre">n],</span> <span class="pre">s2:</span> <span class="pre">Stm[B,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span> <span class="pre">-&gt;</span> <span class="pre">C,</span> <span class="pre">head:</span> <span class="pre">C</span> <span class="pre">=</span> <span class="pre">undefined</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[C,</span> <span class="pre">n]</span><a class="headerlink" href="#StmMap2" title="Link to this definition">#</a></dt>
+<dd><p>Like <a class="reference internal" href="#StmMap" title="StmMap"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMap</span></code></a>, but for two streams at once.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt; u = [0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
+&gt; v = [-1:i16]s ++ [-9:i16, -8:i16, -7:i16, -6:i16]s
+&gt; StmMap2(u, v, x =&gt; y =&gt; (x, y, x*y))
+[
+  undefined:(u8, i16, i16),
+  (0:u8, -1:i16, 0:i16)
+]s ++ [
+  (1:u8, -9:i16, -9:i16),
+  (2:u8, -8:i16, -16:i16),
+  (3:u8, -7:i16, -21:i16),
+  (4:u8, -6:i16, -24:i16)
+]s
+&gt; StmMap2(u, v, x =&gt; y =&gt; (x, y, x*y), (0:u8, 0:i16, 0:i16))
+[
+  (0:u8, 0:i16, 0:i16),
+  (0:u8, -1:i16, 0:i16)
+]s ++ [
+  (1:u8, -9:i16, -9:i16),
+  (2:u8, -8:i16, -16:i16),
+  (3:u8, -7:i16, -21:i16),
+  (4:u8, -6:i16, -24:i16)
+]s
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmZip" title="StmZip"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmZip</span></code></a>, the special case where <code class="docutils literal notranslate"><span class="pre">f</span></code> is simply <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=&gt;</span> <span class="pre">y</span> <span class="pre">=&gt;</span> <span class="pre">(x,</span> <span class="pre">y)</span></code></p>
+</div>
+</dd></dl>
+
+</section>
+<section id="sliding-windows">
+<h3>Sliding Windows<a class="headerlink" href="#sliding-windows" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmSlide">
+<span class="sig-name descname"><span class="pre">StmSlide</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">w:</span> <span class="pre">I,</span> <span class="pre">head:</span> <span class="pre">T</span> <span class="pre">=</span> <span class="pre">undefined</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[Vec[T,</span> <span class="pre">w],</span> <span class="pre">n-w+1]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmSlide" title="Link to this definition">#</a></dt>
+<dd><p>Produces a stream of sliding windows over stream <code class="docutils literal notranslate"><span class="pre">s</span></code>.
+Each window has size <code class="docutils literal notranslate"><span class="pre">w</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt; ([42:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s).StmSlide(3)
+[
+  undefined:Vec[u8, 3],
+  [undefined:u8, undefined:u8, 42:u8]v,
+  [undefined:u8, 42:u8, 1:u8]v,
+  [42:u8, 1:u8, 2:u8]v
+]s ++ [
+  [1:u8, 2:u8, 3:u8]v,
+  [2:u8, 3:u8, 4:u8]v,
+  [3:u8, 4:u8, 5:u8]v
+]s
+&gt; ([42:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s).StmSlide(3, 0:u8)
+[
+  [0:u8, 0:u8, 0:u8]v,
+  [0:u8, 0:u8, 42:u8]v,
+  [0:u8, 42:u8, 1:u8]v,
+  [42:u8, 1:u8, 2:u8]v
+]s ++ [
+  [1:u8, 2:u8, 3:u8]v,
+  [2:u8, 3:u8, 4:u8]v,
+  [3:u8, 4:u8, 5:u8]v
+]s
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="aggregation">
+<h3>Aggregation<a class="headerlink" href="#aggregation" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmAll">
+<span class="sig-name descname"><span class="pre">StmAll</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[bool,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[bool,</span> <span class="pre">1]</span><a class="headerlink" href="#StmAll" title="Link to this definition">#</a></dt>
+<dd><p>Returns <code class="docutils literal notranslate"><span class="pre">true</span></code> if all elements in the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code> are <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = false
+&gt; ([false]s ++ [true, true, true]s).StmAll()
+[true]s
+&gt; ([false]s ++ [true, true, false]s).StmAll()
+[false]s
+&gt; ([false]s ++ [true, false, true]s).StmAll()
+[false]s
+&gt; ([false]s ++ [false, true, true]s).StmAll()
+[false]s
+&gt; ([false]s ++ [false, false, false]s).StmAll()
+[false]s
+</pre></div>
+</div>
+<p>When applied to an empty stream, <a class="reference internal" href="#StmAll" title="StmAll"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmAll</span></code></a> returns <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; ([]s:Stm[bool,0]).StmAll()
+[true]s
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmFold" title="StmFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmFold</span></code></a>, for aggregation with an arbitrary function.</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmAny">
+<span class="sig-name descname"><span class="pre">StmAny</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[bool,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[bool,</span> <span class="pre">1]</span><a class="headerlink" href="#StmAny" title="Link to this definition">#</a></dt>
+<dd><p>Returns <code class="docutils literal notranslate"><span class="pre">true</span></code> if any elements in the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code> are <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = false
+&gt; ([true]s ++ [false, false, false]s).StmAny()
+[false]s
+&gt; ([true]s ++ [false, false, true]s).StmAny()
+[true]s
+&gt; ([true]s ++ [false, true, false]s).StmAny()
+[true]s
+&gt; ([true]s ++ [true, false, false]s).StmAny()
+[true]s
+&gt; ([true]s ++ [true, true, true]s).StmAny()
+[true]s
+</pre></div>
+</div>
+<p>When applied to an empty stream, <a class="reference internal" href="#StmAny" title="StmAny"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmAny</span></code></a> returns <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; ([]s:Stm[bool,0]).StmAny()
+[false]s
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmFold" title="StmFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmFold</span></code></a>, for aggregation with an arbitrary function.</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmSum">
+<span class="sig-name descname"><span class="pre">StmSum</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[I,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[I,</span> <span class="pre">1]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmSum" title="Link to this definition">#</a></dt>
+<dd><p>Returns the sum of the elements in the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = false
+&gt; ([undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmSum()
+[10:u8]s
+&gt; ([undefined:i16]s ++ [-9:i16, -8:i16, -7:i16]s).StmSum()
+[-24:i16]s
+</pre></div>
+</div>
+<p>When applied to an empty stream, <a class="reference internal" href="#StmSum" title="StmSum"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmSum</span></code></a> returns 0.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; ([]s:Stm[u2,0]).StmSum()
+[0:u2]s
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Beware of <cite>overflow &lt;https://en.wikipedia.org/wiki/Integer_overflow&gt;</cite>!
+The sum is performed with the same type as the inputs.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = false
+&gt; [255:u8, 1:u8]s.StmSum()
+[0:u8]s
+&gt; [255:u8, 1:u8]s.StmMap(x =&gt; pad9(x)).StmSum()
+[256:u9]s
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmFold" title="StmFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmFold</span></code></a>, for aggregation with an arbitrary function.</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmFold">
+<span class="sig-name descname"><span class="pre">StmFold</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[A,</span> <span class="pre">n],</span> <span class="pre">z:</span> <span class="pre">B,</span> <span class="pre">f:</span> <span class="pre">(B,</span> <span class="pre">A)</span> <span class="pre">-&gt;</span> <span class="pre">B</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[B,</span> <span class="pre">1]</span><a class="headerlink" href="#StmFold" title="Link to this definition">#</a></dt>
+<dd><p>Combines the elements in the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code> to a single element using function <code class="docutils literal notranslate"><span class="pre">f</span></code> and initial value <code class="docutils literal notranslate"><span class="pre">z</span></code>.</p>
+<p>For example, for a 3-element stream <code class="docutils literal notranslate"><span class="pre">[x1,</span> <span class="pre">x2,</span> <span class="pre">x3]s</span></code>, the result will be <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">f(f(f(z,</span> <span class="pre">x1),</span> <span class="pre">x2),</span> <span class="pre">x3)</span> <span class="pre">]s</span></code></p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = false
+&gt; ([5:i8]s ++ [1:i8, 2:i8, 8:i8]s).StmFold(9:i8, @(x, y) =&gt; x - y) // 9-1-2-8
+[-2:i8]s
+&gt; ([5:u16]s ++ [2:u16, 0:u16, 2:u16, 6:u16]s).StmFold(0:u16, @(x, y) =&gt; 10*x + y)
+[2026:u16]s
+</pre></div>
+</div>
+<p>Unlike with <a class="reference internal" href="#StmReduce" title="StmReduce"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmReduce</span></code></a>, the input stream can be empty.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = false
+&gt; ([]s:Stm[u8,0]).StmFold(42:u8, @(x, y) =&gt; x + y)
+[42:u8]s
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmAll" title="StmAll"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmAll</span></code></a>, which is a special case of <a class="reference internal" href="#StmFold" title="StmFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmFold</span></code></a> with logical AND</p>
+<p><a class="reference internal" href="#StmAny" title="StmAny"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmAny</span></code></a>, which is a special case of <a class="reference internal" href="#StmFold" title="StmFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmFold</span></code></a> with logical OR</p>
+<p><a class="reference internal" href="#StmSum" title="StmSum"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmSum</span></code></a>, which is a special case of <a class="reference internal" href="#StmFold" title="StmFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmFold</span></code></a> with addition</p>
+<p><a class="reference internal" href="#StmReduce" title="StmReduce"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmReduce</span></code></a>, for aggregation of non-empty streams without needing to specify an initial value</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmReduce">
+<span class="sig-name descname"><span class="pre">StmReduce</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">(T,</span> <span class="pre">T)</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">1]</span><a class="headerlink" href="#StmReduce" title="Link to this definition">#</a></dt>
+<dd><p>Combines the elements in the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code> to a single element using function <code class="docutils literal notranslate"><span class="pre">f</span></code>.</p>
+<p>For example, for a 3-element stream <code class="docutils literal notranslate"><span class="pre">[x1,</span> <span class="pre">x2,</span> <span class="pre">x3]s</span></code>, the result will be <code class="docutils literal notranslate"><span class="pre">[</span> <span class="pre">f(f(x1,</span> <span class="pre">x2),</span> <span class="pre">x3)</span> <span class="pre">]s</span></code></p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = false
+&gt; ([0:u8]s ++ [4:u8, 9:u8, 1:u8, 3:u8]s).StmReduce(@(x, y) =&gt; min(x, y))
+[1:u8]s
+&gt; ([0:u8]s ++ [4:u8, 9:u8, 1:u8, 3:u8]s).StmReduce(@(x, y) =&gt; max(x, y))
+[9:u8]s
+&gt; ([0:i8]s ++ [4:i8, 9:i8, 1:i8, 3:i8]s).StmReduce(@(x, y) =&gt; x - y)
+[-9:i8]s
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The input stream must be non-empty.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt; ([]s:Stm[u8,0]).StmReduce(@(x, y) =&gt; x + y)
+[undefined:u8]s
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmFold" title="StmFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmFold</span></code></a>, for aggregation of possibly empty streams with a given initial value</p>
+</div>
+</dd></dl>
+
+</section>
+<section id="nested-streams">
+<h3>Nested Streams<a class="headerlink" href="#nested-streams" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmJoin">
+<span class="sig-name descname"><span class="pre">StmJoin</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[Stm[T,</span> <span class="pre">m],</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">n*m]</span><a class="headerlink" href="#StmJoin" title="Link to this definition">#</a></dt>
+<dd><p>Removes the outermost level of nesting from the given stream.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt;
+&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
+Stm[Stm[u8, 3], 2]
+&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
+Stm[u8, 6]
+&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
+[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+&gt;
+&gt; // Not convinced anything is going on?
+&gt; // We can observe the difference using StmTake.
+&gt; // Taking the first row (before flattening):
+&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s
+Stm[Stm[u8, 3], 2]
+&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
+Stm[Stm[u8, 3], 1]
+&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmTake(1)
+[undefined:u8]s ++ [1:u8, 2:u8, 3:u8]s
+&gt; // Taking the first element (after flattening):
+&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin()
+Stm[u8, 6]
+&gt; type [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
+Stm[u8, 1]
+&gt; [[1:u8, 2:u8, 3:u8]s, [4:u8, 5:u8, 6:u8]s]s.StmJoin().StmTake(1)
+[undefined:u8]s ++ [1:u8]s
+&gt;
+&gt; // What about 3 dimensions?
+&gt; type [[[1:u8, 2:u8]s, [3:u8, 4:u8]s]s, [[5:u8, 6:u8]s, [7:u8, 8:u8]s]s]s
+Stm[Stm[Stm[u8, 2], 2], 2]
+&gt; type [[[1:u8, 2:u8]s, [3:u8, 4:u8]s]s, [[5:u8, 6:u8]s, [7:u8, 8:u8]s]s]s.StmJoin()
+Stm[Stm[u8, 2], 4]
+&gt; type [[[1:u8, 2:u8]s, [3:u8, 4:u8]s]s, [[5:u8, 6:u8]s, [7:u8, 8:u8]s]s]s.StmJoin().StmJoin()
+Stm[u8, 8]
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The REPL prints 1-dimensional streams in each case due to <a class="reference internal" href="#stream-flattening"><span class="std std-ref">stream flattening</span></a>.</p>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmSplit" title="StmSplit"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmSplit</span></code></a>, for converting a flat stream back to a nested stream</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmSplit">
+<span class="sig-name descname"><span class="pre">StmSplit</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">m:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[Stm[T,</span> <span class="pre">m],</span> <span class="pre">n/m]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmSplit" title="Link to this definition">#</a></dt>
+<dd><p>Increases the level of nesting in the given stream.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = false
+&gt;
+&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+Stm[u8, 6]
+&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(2)
+Stm[Stm[u8, 2], 3]
+&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3)
+Stm[Stm[u8, 3], 2]
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3)
+[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+&gt;
+&gt; // Not convinced anything is going on?
+&gt; // We can observe the difference using StmTake.
+&gt; // Taking the first element (before splitting):
+&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+Stm[u8, 6]
+&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmTake(1)
+Stm[u8, 1]
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmTake(1)
+[1:u8]s
+&gt; // Taking the first row (after splitting):
+&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3)
+Stm[Stm[u8, 3], 2]
+&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3).StmTake(1)
+Stm[Stm[u8, 3], 1]
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s.StmSplit(3).StmTake(1)
+[1:u8, 2:u8, 3:u8]s
+&gt;
+&gt; // What about three dimensions?
+&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8, 8:u8]s
+Stm[u8, 8]
+&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8, 8:u8]s.StmSplit(2).StmSplit(2)
+Stm[Stm[Stm[u8, 2], 2], 2]
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The REPL prints 1-dimensional streams in each case due to <a class="reference internal" href="#stream-flattening"><span class="std std-ref">stream flattening</span></a>.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">m</span></code> does not divide <code class="docutils literal notranslate"><span class="pre">n</span></code>, the output stream will be shorter than the input stream.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt;
+&gt; type [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8]s.StmSplit(2)
+Stm[Stm[u8, 2], 3]
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8]s.StmSplit(2)
+[undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmJoin" title="StmJoin"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmJoin</span></code></a>, for converting a nested stream back to a flat stream</p>
+</div>
+</dd></dl>
+
+</section>
+<section id="discarding-parts-of-a-stream">
+<h3>Discarding Parts of a Stream<a class="headerlink" href="#discarding-parts-of-a-stream" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmDrop">
+<span class="sig-name descname"><span class="pre">StmDrop</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">n-k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmDrop" title="Link to this definition">#</a></dt>
+<dd><p>Discards <code class="docutils literal notranslate"><span class="pre">k</span></code> elements from the <a class="reference internal" href="#physical-logical-stream"><span class="std std-ref">logical part</span></a> of stream <code class="docutils literal notranslate"><span class="pre">s</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(2)
+[undefined:u8, 0:u8, 1:u8, 2:u8]s ++ [3:u8, 4:u8]s
+&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(1)
+[undefined:u8, 0:u8, 1:u8]s ++ [2:u8, 3:u8, 4:u8]s
+&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(0)
+[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
+&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(4)
+[undefined:u8, 0:u8, 1:u8, 2:u8, 3:u8, 4:u8]s ++ []s
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It is an error to drop more than the available number of elements.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDrop(5)
+EvalError: length in StmDrop evaluated to undefined:u4
+&gt; 4:u4 - 5:u4 // Output length is 4:u4 - 5:u4, which is undefined
+undefined:u4
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmTake" title="StmTake"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmTake</span></code></a>, for discarding elements from the end of a stream</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmTake">
+<span class="sig-name descname"><span class="pre">StmTake</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[T,</span> <span class="pre">k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmTake" title="Link to this definition">#</a></dt>
+<dd><p>Changes the length of stream <code class="docutils literal notranslate"><span class="pre">s</span></code> to <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt;
+&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmTake(2)
+[undefined:u8, 0:u8]s ++ [1:u8, 2:u8]s
+&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmTake(3)
+[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8]s
+&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmTake(4)
+[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">k</span></code> is greater than <code class="docutils literal notranslate"><span class="pre">n</span></code>, the extra elements will be undefined.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt;
+&gt; ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmTake(5)
+[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, undefined:u8]s
+&gt;
+&gt; // Taking 4 elements from a stream of length 2 (!!!)
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s.StmTake(2).StmTake(4)
+[undefined:u8, undefined:u8]s ++ [1:u8, 2:u8, undefined:u8, undefined:u8]s
+&gt; // Just taking 4 directly would have been fine
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s.StmTake(4)
+[undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#StmDrop" title="StmDrop"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmDrop</span></code></a>, for discarding elements from the beginning of a stream</p>
+</div>
+</dd></dl>
+
+</section>
+<section id="using-dedicated-dsp-blocks">
+<h3>Using Dedicated DSP Blocks<a class="headerlink" href="#using-dedicated-dsp-blocks" title="Link to this heading">#</a></h3>
+<p>FPGAs generally have dedicated digital signal processing (DSP) blocks to perform multiplication and accumulation.
+The following stream operators are helpful for taking advantage of this functionality, especially the “systolic mode” on Agilex FPGAs (e.g., <a class="reference external" href="https://docs.altera.com/r/docs/683037/24.3.1/agilextm-7-variable-precision-dsp-blocks-user-guide/agilextm-7-variable-precision-dsp-blocks-overview">https://docs.altera.com/r/docs/683037/24.3.1/agilextm-7-variable-precision-dsp-blocks-user-guide/agilextm-7-variable-precision-dsp-blocks-overview</a>).</p>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmMapDot">
+<span class="sig-name descname"><span class="pre">StmMapDot</span></span><span class="sig-paren">(</span><span class="pre">s1:</span> <span class="pre">Stm[Vec[I,</span> <span class="pre">m],</span> <span class="pre">n],</span> <span class="pre">s2:</span> <span class="pre">Stm[Vec[J,</span> <span class="pre">m],</span> <span class="pre">n],</span> <span class="pre">delay:</span> <span class="pre">K</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[u44,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I,</span> <span class="pre">J,</span> <span class="pre">and</span> <span class="pre">K</span> <span class="pre">are</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">types</span></em><a class="headerlink" href="#StmMapDot" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object sirop">
+<span class="sig-name descname"><span class="pre">StmMapDot</span></span><span class="sig-paren">(</span><span class="pre">s1:</span> <span class="pre">Stm[Vec[I,</span> <span class="pre">m],</span> <span class="pre">n],</span> <span class="pre">s2:</span> <span class="pre">Stm[Vec[J,</span> <span class="pre">m],</span> <span class="pre">n],</span> <span class="pre">delay:</span> <span class="pre">K</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[i44,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">and</span> <span class="pre">J</span> <span class="pre">are</span> <span class="pre">integer</span> <span class="pre">types,</span> <span class="pre">and</span> <span class="pre">K</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em></dt>
+<dd><p>Computes the dot product of each vector in <code class="docutils literal notranslate"><span class="pre">s1</span></code> with the corresponding vector in <code class="docutils literal notranslate"><span class="pre">s2</span></code>.
+This is defined so that the generated VHDL uses the DSPs in systolic mode.
+<code class="docutils literal notranslate"><span class="pre">delay</span></code> is the number of internal registers to enable in the DSPs; increasing this number will increase latency and increase the maximum clock frequency.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt;
+&gt; u = [[ 1:i16, 2:i16, 3:i16]v, [4:i16,  5:i16, 6:i16]v]s
+&gt; v = [[-1:i16, 2:i16, 3:i16]v, [4:i16, -2:i16, 4:i16]v]s
+&gt; // dot([1, 2, 3], [-1, 2, 3]) = 12
+&gt; // dot([4, 5, 6], [4, -2, 4]) = 30
+&gt; StmMapDot(u, v, 0)
+[
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44
+]s ++ [
+  12:i44,
+  30:i44
+]s
+&gt; StmMapDot(u, v, 1)
+[
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44
+]s ++ [
+  12:i44,
+  30:i44
+]s
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmMapDotCascaded">
+<span class="sig-name descname"><span class="pre">StmMapDotCascaded</span></span><span class="sig-paren">(</span><span class="pre">s1:</span> <span class="pre">Stm[Vec[I,</span> <span class="pre">m],</span> <span class="pre">n],</span> <span class="pre">s2:</span> <span class="pre">Stm[Vec[J,</span> <span class="pre">m],</span> <span class="pre">n],</span> <span class="pre">delay:</span> <span class="pre">K</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[u44,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">and</span> <span class="pre">J</span> <span class="pre">are</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">types,</span> <span class="pre">K</span> <span class="pre">is</span> <span class="pre">any</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#StmMapDotCascaded" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object sirop">
+<span class="sig-name descname"><span class="pre">StmMapDotCascaded</span></span><span class="sig-paren">(</span><span class="pre">s1:</span> <span class="pre">Stm[Vec[I,</span> <span class="pre">m],</span> <span class="pre">n],</span> <span class="pre">s2:</span> <span class="pre">Stm[Vec[J,</span> <span class="pre">m],</span> <span class="pre">n],</span> <span class="pre">delay:</span> <span class="pre">K</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[u44,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I,</span> <span class="pre">J,</span> <span class="pre">and</span> <span class="pre">K</span> <span class="pre">are</span> <span class="pre">integer</span> <span class="pre">types</span></em></dt>
+<dd><p>Like <a class="reference internal" href="#StmMapDot" title="StmMapDot"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMapDot</span></code></a>, but the input should be cascaded (like the output from <a class="reference internal" href="#StmCascade" title="StmCascade"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmCascade</span></code></a>).
+In other words, <a class="reference internal" href="#StmMapDot" title="StmMapDot"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMapDot</span></code></a> is equivalent to <a class="reference internal" href="#StmCascade" title="StmCascade"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmCascade</span></code></a> followed by <a class="reference internal" href="#StmMapDotCascaded" title="StmMapDotCascaded"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMapDotCascaded</span></code></a>.</p>
+<p>In systolic mode, each input to the DSP chain must be delayed by one cycle relative to the previous input.
+<a class="reference internal" href="#StmMapDotCascaded" title="StmMapDotCascaded"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMapDotCascaded</span></code></a> behaves the same way.
+<a class="reference internal" href="#StmMapDot" title="StmMapDot"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMapDot</span></code></a> is more user-friendly, but <a class="reference internal" href="#StmMapDotCascaded" title="StmMapDotCascaded"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMapDotCascaded</span></code></a> gives you more control in case you want to create the input cascade without <a class="reference internal" href="#StmCascade" title="StmCascade"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmCascade</span></code></a>.</p>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="StmCascade">
+<span class="sig-name descname"><span class="pre">StmCascade</span></span><span class="sig-paren">(</span><span class="pre">s:</span> <span class="pre">Stm[Vec[T,</span> <span class="pre">m],</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Stm[Vec[T,</span> <span class="pre">m],</span> <span class="pre">n]</span><a class="headerlink" href="#StmCascade" title="Link to this definition">#</a></dt>
+<dd><p>Delays each element of the vector by 1 cycle relative to the previous element.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; __handshake = false
+&gt; __show_prefix = true
+&gt;
+&gt; [[1:u8, 2:u8, 3:u8]v, [4:u8, 5:u8, 6:u8]v, [7:u8, 8:u8, 9:u8]v]s.StmCascade()
+[
+  undefined:Vec[u8, 3],
+  undefined:Vec[u8, 3]
+]s ++ [
+  /* Values manually aligned for legibility */
+  [        1:u8, undefined:u8, undefined:u8]v,
+  [        4:u8,         2:u8, undefined:u8]v,
+  [        7:u8,         5:u8,         3:u8]v,
+  [undefined:u8,         8:u8,         6:u8]v,
+  [undefined:u8, undefined:u8,         9:u8]v
+]s
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="vectors.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Vectors</p>
+      </div>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parts-of-a-stream">Parts of a Stream</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#controlling-the-physical-prefix">Controlling the Physical Prefix</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stream-flattening">Stream Flattening</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-stream-functions">Built-In Stream Functions</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-streams">Creating Streams</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transforming-streams-elementwise">Transforming Streams Elementwise</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#combining-multiple-streams">Combining Multiple Streams</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sliding-windows">Sliding Windows</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#aggregation">Aggregation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-streams">Nested Streams</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discarding-parts-of-a-stream">Discarding Parts of a Stream</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-dedicated-dsp-blocks">Using Dedicated DSP Blocks</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Louis Hildebrand
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Louis Hildebrand.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

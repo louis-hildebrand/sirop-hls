@@ -1,0 +1,967 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Vectors &#8212; Sirop  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'reference/vectors';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Streams" href="streams.html" />
+    <link rel="prev" title="Types in Sirop" href="types.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Sirop  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/language-intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/related-projects.html">Related Projects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/example-dot.html">Example with Dynamic Scheduling: Dot Product</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/example-fir.html">Example with Static Scheduling: FIR Filter</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types in Sirop</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Vectors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="streams.html">Streams</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/louis-hildebrand/sirop-hls" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/louis-hildebrand/sirop-hls/edit/main//docs/source/reference/vectors.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/louis-hildebrand/sirop-hls/issues/new?title=Issue%20on%20page%20%2Freference/vectors.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/reference/vectors.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Vectors</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-vector-functions">Built-In Vector Functions</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-vectors">Creating Vectors</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transforming-vectors-elementwise">Transforming Vectors Elementwise</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#combining-multiple-vectors">Combining Multiple Vectors</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#aggregation">Aggregation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-vectors">Nested Vectors</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reordering-vectors">Reordering Vectors</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discarding-parts-of-a-vector">Discarding Parts of a Vector</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="vectors">
+<h1>Vectors<a class="headerlink" href="#vectors" title="Link to this heading">#</a></h1>
+<p>As described in <a class="reference internal" href="../getting-started/language-intro.html"><span class="doc">Overview</span></a>, a vector is a combinational collection.
+Elements of a vector can be accessed all at once, in the same clock cycle.</p>
+<section id="built-in-vector-functions">
+<h2>Built-In Vector Functions<a class="headerlink" href="#built-in-vector-functions" title="Link to this heading">#</a></h2>
+<p>The following vector operators are provided as part of the Sirop language.</p>
+<section id="creating-vectors">
+<h3>Creating Vectors<a class="headerlink" href="#creating-vectors" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecCst">
+<span class="sig-name descname"><span class="pre">VecCst</span></span><span class="sig-paren">(</span><span class="pre">n:</span> <span class="pre">I,</span> <span class="pre">k:</span> <span class="pre">T</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecCst" title="Link to this definition">#</a></dt>
+<dd><p>Creates a vector of length <code class="docutils literal notranslate"><span class="pre">n</span></code> whose elements are all the constant <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; VecCst(3, (42:u8, true))
+[(42:u8, true), (42:u8, true), (42:u8, true)]v
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecCount">
+<span class="sig-name descname"><span class="pre">VecCount</span></span><span class="sig-paren">(</span><span class="pre">n:</span> <span class="pre">I,</span> <span class="pre">init:</span> <span class="pre">J,</span> <span class="pre">delta:</span> <span class="pre">J</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[J,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span> <span class="pre">and</span> <span class="pre">J</span> <span class="pre">is</span> <span class="pre">any</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecCount" title="Link to this definition">#</a></dt>
+<dd><p>Creates a vector of <code class="docutils literal notranslate"><span class="pre">n</span></code> integers starting at <code class="docutils literal notranslate"><span class="pre">init</span></code> and increasing by <code class="docutils literal notranslate"><span class="pre">delta</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; VecCount(5:u3)
+[0:u3, 1:u3, 2:u3, 3:u3, 4:u3]v
+&gt; VecCount(4, 42:u32)
+[42:u32, 43:u32, 44:u32, 45:u32]v
+&gt; VecCount(3, -9:i8, -2:i8)
+[-9:i8, -11:i8, -13:i8]v
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="transforming-vectors-elementwise">
+<h3>Transforming Vectors Elementwise<a class="headerlink" href="#transforming-vectors-elementwise" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecMap">
+<span class="sig-name descname"><span class="pre">VecMap</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[A,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[B,</span> <span class="pre">n]</span><a class="headerlink" href="#VecMap" title="Link to this definition">#</a></dt>
+<dd><p>Applies function <code class="docutils literal notranslate"><span class="pre">f</span></code> elementwise to vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecMap(x =&gt; x + 5)
+[6:u8, 7:u8, 8:u8, 9:u8]v
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="combining-multiple-vectors">
+<h3>Combining Multiple Vectors<a class="headerlink" href="#combining-multiple-vectors" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecConcat">
+<span class="sig-name descname"><span class="pre">VecConcat</span></span><span class="sig-paren">(</span><span class="pre">v1:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">v2:</span> <span class="pre">Vec[T,</span> <span class="pre">m]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n+m]</span><a class="headerlink" href="#VecConcat" title="Link to this definition">#</a></dt>
+<dd><p>Concatenates two vectors.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8]v.VecConcat([8:u8, 7:u8]v)
+[1:u8, 2:u8, 3:u8, 8:u8, 7:u8]v
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecZip">
+<span class="sig-name descname"><span class="pre">VecZip</span></span><span class="sig-paren">(</span><span class="pre">v1:</span> <span class="pre">Vec[A,</span> <span class="pre">n],</span> <span class="pre">v2:</span> <span class="pre">Vec[B,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[(A,</span> <span class="pre">B),</span> <span class="pre">n]</span><a class="headerlink" href="#VecZip" title="Link to this definition">#</a></dt>
+<dd><p>Pairs up the elements of two vectors.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; u = [ 1:u6,  2:u6,  3:u6]v
+&gt; v = [-9:i8, -8:i8, -7:i8]v
+&gt; VecZip(u, v)
+[(1:u6, -9:i8), (2:u6, -8:i8), (3:u6, -7:i8)]v
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecMap2" title="VecMap2"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecMap2</span></code></a>, which zips two vectors with an arbitrary function</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecMap2">
+<span class="sig-name descname"><span class="pre">VecMap2</span></span><span class="sig-paren">(</span><span class="pre">v1:</span> <span class="pre">Vec[A,</span> <span class="pre">n],</span> <span class="pre">v2:</span> <span class="pre">Vec[B,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span> <span class="pre">-&gt;</span> <span class="pre">C</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[C,</span> <span class="pre">n]</span><a class="headerlink" href="#VecMap2" title="Link to this definition">#</a></dt>
+<dd><p>Like <a class="reference internal" href="#VecMap" title="VecMap"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecMap</span></code></a>, but for two streams at once.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; u = [ 1:u6,  2:u6,  3:u6]v
+&gt; v = [-9:i8, -8:i8, -7:i8]v
+&gt; VecMap2(u, v, x =&gt; y =&gt; (x, y, x*y))
+[(1:u6, -9:i8, -9:i8), (2:u6, -8:i8, -16:i8), (3:u6, -7:i8, -21:i8)]v
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecZip" title="VecZip"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecZip</span></code></a>, the special case where <code class="docutils literal notranslate"><span class="pre">f</span></code> is simply <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=&gt;</span> <span class="pre">y</span> <span class="pre">=&gt;</span> <span class="pre">(x,</span> <span class="pre">y)</span></code></p>
+</div>
+</dd></dl>
+
+</section>
+<section id="aggregation">
+<h3>Aggregation<a class="headerlink" href="#aggregation" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecAll">
+<span class="sig-name descname"><span class="pre">VecAll</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[bool,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span><a class="headerlink" href="#VecAll" title="Link to this definition">#</a></dt>
+<dd><p>Returns <code class="docutils literal notranslate"><span class="pre">true</span></code> if all elements of vector <code class="docutils literal notranslate"><span class="pre">v</span></code> are <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [true, true, true]v.VecAll()
+true
+&gt; [true, true, false]v.VecAll()
+false
+&gt; [true, false, true]v.VecAll()
+false
+&gt; [false, true, true]v.VecAll()
+false
+&gt; [false, false, false]v.VecAll()
+false
+</pre></div>
+</div>
+<p>When applied to an empty vector, <a class="reference internal" href="#VecAll" title="VecAll"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecAll</span></code></a> returns <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; ([]v:Vec[bool,0]).VecAll()
+true
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a>, for aggregation with an arbitrary function</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecAny">
+<span class="sig-name descname"><span class="pre">VecAny</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[bool,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span><a class="headerlink" href="#VecAny" title="Link to this definition">#</a></dt>
+<dd><p>Returns <code class="docutils literal notranslate"><span class="pre">true</span></code> if any elements of vector <code class="docutils literal notranslate"><span class="pre">v</span></code> are <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [false, false, false]v.VecAny()
+false
+&gt; [false, false, true]v.VecAny()
+true
+&gt; [false, true, false]v.VecAny()
+true
+&gt; [true, false, false]v.VecAny()
+true
+&gt; [true, true, true]v.VecAny()
+true
+</pre></div>
+</div>
+<p>When applied to an empty vector, <a class="reference internal" href="#VecAny" title="VecAny"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecAny</span></code></a> returns <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; ([]v:Vec[bool,0]).VecAny()
+false
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a>, for aggregation with an arbitrary function</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecSum">
+<span class="sig-name descname"><span class="pre">VecSum</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[I,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">I</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecSum" title="Link to this definition">#</a></dt>
+<dd><p>Returns the sum of the elements in vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecSum()
+10:u8
+&gt; [-9:i16, -8:i16, -7:i16]v.VecSum()
+-24:i16
+</pre></div>
+</div>
+<p>When applied to an empty vector, <a class="reference internal" href="#VecSum" title="VecSum"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecSum</span></code></a> returns 0.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; ([]v:Vec[u2,0]).VecSum()
+0:u2
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Beware of <a class="reference external" href="https://en.wikipedia.org/wiki/Integer_overflow">overflow</a>!
+The sum is performed with the same type as the inputs.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [255:u8, 1:u8]v.VecSum()
+0:u8
+&gt; [255:u8, 1:u8]v.VecMap(x =&gt; pad9(x)).VecSum()
+256:u9
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a>, for aggregation with an arbitrary function</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecFold">
+<span class="sig-name descname"><span class="pre">VecFold</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[A,</span> <span class="pre">n],</span> <span class="pre">z:</span> <span class="pre">B,</span> <span class="pre">f:</span> <span class="pre">(B,</span> <span class="pre">A)</span> <span class="pre">-&gt;</span> <span class="pre">B</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">B</span><a class="headerlink" href="#VecFold" title="Link to this definition">#</a></dt>
+<dd><p>Combines the elements in vector <code class="docutils literal notranslate"><span class="pre">v</span></code> to a single value using function <code class="docutils literal notranslate"><span class="pre">f</span></code> and initial value <code class="docutils literal notranslate"><span class="pre">z</span></code>.</p>
+<p>For example, for a 3-element stream <code class="docutils literal notranslate"><span class="pre">[a,</span> <span class="pre">b,</span> <span class="pre">c]v</span></code>, the result will be <code class="docutils literal notranslate"><span class="pre">f(f(f(z,</span> <span class="pre">a),</span> <span class="pre">b),</span> <span class="pre">c)</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:i8, 2:i8, 8:i8]v.VecFold(9:i8, @(x, y) =&gt; x - y) // 9 - 1 - 2 - 8
+-2:i8
+&gt; [2:u16, 0:u16, 2:u16, 6:u16]v.VecFold(0:u16, @(x, y) =&gt; 10*x + y)
+2026:u16
+</pre></div>
+</div>
+<p>Unlike with <a class="reference internal" href="#VecReduce" title="VecReduce"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecReduce</span></code></a>, the input vector can be empty.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; ([]v:Vec[u8,0]).VecFold(42:u8, @(x, y) =&gt; x + y)
+42:u8
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecAll" title="VecAll"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecAll</span></code></a>, the special case of <a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a> with logical AND</p>
+<p><a class="reference internal" href="#VecAny" title="VecAny"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecAny</span></code></a>, the special case of <a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a> with logical OR</p>
+<p><a class="reference internal" href="#VecSum" title="VecSum"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecSum</span></code></a>, the special case of <a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a> with addition</p>
+<p><a class="reference internal" href="#VecReduce" title="VecReduce"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecReduce</span></code></a>, for aggregation of a non-empty vector without needing to specify an initial value</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecReduce">
+<span class="sig-name descname"><span class="pre">VecReduce</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">(T,</span> <span class="pre">T)</span> <span class="pre">-&gt;</span> <span class="pre">T</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">1]</span><a class="headerlink" href="#VecReduce" title="Link to this definition">#</a></dt>
+<dd><p>Combines the elements in vector <code class="docutils literal notranslate"><span class="pre">v</span></code> to a single value using function <code class="docutils literal notranslate"><span class="pre">f</span></code>.</p>
+<p>For example, for a 3-element vector <code class="docutils literal notranslate"><span class="pre">[a,</span> <span class="pre">b,</span> <span class="pre">c]v</span></code>, the result will be <code class="docutils literal notranslate"><span class="pre">f(f(a,</span> <span class="pre">b),</span> <span class="pre">c)</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [4:u8, 9:u8, 1:u8, 3:u8]v.VecReduce(@(x, y) =&gt; min(x, y))
+1:u8
+&gt; [4:u8, 9:u8, 1:u8, 3:u8]v.VecReduce(@(x, y) =&gt; max(x, y))
+9:u8
+&gt; [4:i8, 9:i8, 1:i8, 3:i8]v.VecReduce(@(x, y) =&gt; x - y) // 4 - 9 - 1 - 3
+-9:i8
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The input vector must be non-empty.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; ([]v:Vec[u8,0]).VecReduce(@(x, y) =&gt; x + y)
+undefined:u8
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a>, for aggregation of a possibly empty vector with a given initial value</p>
+</div>
+</dd></dl>
+
+</section>
+<section id="nested-vectors">
+<h3>Nested Vectors<a class="headerlink" href="#nested-vectors" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecJoin">
+<span class="sig-name descname"><span class="pre">VecJoin</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[Vec[T,</span> <span class="pre">m],</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n*m]</span><a class="headerlink" href="#VecJoin" title="Link to this definition">#</a></dt>
+<dd><p>Removes the outermost level of nesting from vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; // 2 dimensions
+&gt; [[1:u8, 2:u8, 3:u8]v, [4:u8, 5:u8, 6:u8]v]v.VecJoin()
+[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]v
+&gt;
+&gt; // 3 dimensions
+&gt; [[[1:u8, 2:u8]v, [3:u8, 4:u8]v]v, [[5:u8, 6:u8]v, [7:u8, 8:u8]v]v]v.VecJoin()
+[[1:u8, 2:u8]v, [3:u8, 4:u8]v, [5:u8, 6:u8]v, [7:u8, 8:u8]v]v
+&gt; [[[1:u8, 2:u8]v, [3:u8, 4:u8]v]v, [[5:u8, 6:u8]v, [7:u8, 8:u8]v]v]v.VecMap(v =&gt; v.VecJoin())
+[[1:u8, 2:u8, 3:u8, 4:u8]v, [5:u8, 6:u8, 7:u8, 8:u8]v]v
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecSplit" title="VecSplit"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecSplit</span></code></a>, for converting a flat vector back to a nested vector</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecSplit">
+<span class="sig-name descname"><span class="pre">VecSplit</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">m:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[Vec[T,</span> <span class="pre">m],</span> <span class="pre">n/m]</span><a class="headerlink" href="#VecSplit" title="Link to this definition">#</a></dt>
+<dd><p>Increases the level of nesting of vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; // 2 dimensions
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]v.VecSplit(2)
+[[1:u8, 2:u8]v, [3:u8, 4:u8]v, [5:u8, 6:u8]v]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]v.VecSplit(3)
+[[1:u8, 2:u8, 3:u8]v, [4:u8, 5:u8, 6:u8]v]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]v.VecSplit(6)
+[[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]v]v
+&gt;
+&gt; // 3 dimensions
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8, 8:u8]v.VecSplit(2).VecSplit(2)
+[[[1:u8, 2:u8]v, [3:u8, 4:u8]v]v, [[5:u8, 6:u8]v, [7:u8, 8:u8]v]v]v
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">m</span></code> does not divide <code class="docutils literal notranslate"><span class="pre">n</span></code>, some elements will be discarded.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8, 7:u8]v.VecSplit(2)
+[[1:u8, 2:u8]v, [3:u8, 4:u8]v, [5:u8, 6:u8]v]v
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecJoin" title="VecJoin"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecJoin</span></code></a>, for converting a nested vector back to a flat vector</p>
+</div>
+</dd></dl>
+
+</section>
+<section id="reordering-vectors">
+<h3>Reordering Vectors<a class="headerlink" href="#reordering-vectors" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecShiftLeft">
+<span class="sig-name descname"><span class="pre">VecShiftLeft</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">input:</span> <span class="pre">T</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n]</span><a class="headerlink" href="#VecShiftLeft" title="Link to this definition">#</a></dt>
+<dd><p>Shifts vector <code class="docutils literal notranslate"><span class="pre">v</span></code> left and inserts <code class="docutils literal notranslate"><span class="pre">input</span></code> at the end.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecShiftLeft(42:u8)
+[2:u8, 3:u8, 4:u8, 42:u8]v
+</pre></div>
+</div>
+<p>If <code class="docutils literal notranslate"><span class="pre">v</span></code> is empty, <code class="docutils literal notranslate"><span class="pre">input</span></code> is unused.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; ([]v:Vec[u8,0]).VecShiftLeft(42:u8)
+[]v:Vec[u8, 0]
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecReverse">
+<span class="sig-name descname"><span class="pre">VecReverse</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n]</span><a class="headerlink" href="#VecReverse" title="Link to this definition">#</a></dt>
+<dd><p>Reverses vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecReverse()
+[4:u8, 3:u8, 2:u8, 1:u8]v
+&gt;
+&gt; [[1:u8, 2:u8]v, [3:u8, 4:u8]v]v.VecReverse()
+[[3:u8, 4:u8]v, [1:u8, 2:u8]v]v
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecTranspose">
+<span class="sig-name descname"><span class="pre">VecTranspose</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[Vec[T,</span> <span class="pre">m],</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[Vec[T,</span> <span class="pre">n],</span> <span class="pre">m]</span><a class="headerlink" href="#VecTranspose" title="Link to this definition">#</a></dt>
+<dd><p>Transposes vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [[1:u8, 2:u8]v, [3:u8, 4:u8]v, [5:u8, 6:u8]v]v.VecTranspose()
+[[1:u8, 3:u8, 5:u8]v, [2:u8, 4:u8, 6:u8]v]v
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="discarding-parts-of-a-vector">
+<h3>Discarding Parts of a Vector<a class="headerlink" href="#discarding-parts-of-a-vector" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecDrop">
+<span class="sig-name descname"><span class="pre">VecDrop</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n-k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecDrop" title="Link to this definition">#</a></dt>
+<dd><p>Discards the first <code class="docutils literal notranslate"><span class="pre">k</span></code> elements from vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecDrop(2)
+[3:u8, 4:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecDrop(1)
+[2:u8, 3:u8, 4:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecDrop(0)
+[1:u8, 2:u8, 3:u8, 4:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecDrop(4)
+[]v:Vec[u8, 0]
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It is an error to drop more than the available number of elements.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecDrop(5)
+undefined:Vec[u8, undefined:u3]
+&gt; 4:u3 - 5:u3 // Output length is 4:u3 - 5:u3, which is undefined
+undefined:u3
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecTakeRight" title="VecTakeRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTakeRight</span></code></a>, if it is easier to say how many elements to <em>keep</em> than to say how many to <em>discard</em></p>
+<p><a class="reference internal" href="#VecDropRight" title="VecDropRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDropRight</span></code></a>, for discarding elements from the end of a vector</p>
+<p><a class="reference internal" href="#VecTake" title="VecTake"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTake</span></code></a>, for discarding elements from the end of a vector</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecDropRight">
+<span class="sig-name descname"><span class="pre">VecDropRight</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n-k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecDropRight" title="Link to this definition">#</a></dt>
+<dd><p>Discards the last <code class="docutils literal notranslate"><span class="pre">k</span></code> elements from vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecDropRight(2)
+[1:u8, 2:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecDropRight(1)
+[1:u8, 2:u8, 3:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecDropRight(0)
+[1:u8, 2:u8, 3:u8, 4:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecDropRight(4)
+[]v:Vec[u8, 0]
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>It is an error to drop more than the available number of elements.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecDropRight(5)
+undefined:Vec[u8, undefined:u3]
+&gt; 4:u3 - 5:u3 // Output length is 4:u3 - 5:u3, which is undefined
+undefined:u3
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecTake" title="VecTake"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTake</span></code></a>, if it is easier to say how many elements to <em>keep</em> than to say how many to <em>discard</em></p>
+<p><a class="reference internal" href="#VecDrop" title="VecDrop"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDrop</span></code></a>, for discarding elements from the beginning of a vector</p>
+<p><a class="reference internal" href="#VecTakeRight" title="VecTakeRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTakeRight</span></code></a>, for discarding elements from the beginning of a vector</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecTake">
+<span class="sig-name descname"><span class="pre">VecTake</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecTake" title="Link to this definition">#</a></dt>
+<dd><p>Returns the first <code class="docutils literal notranslate"><span class="pre">k</span></code> elements of vector <code class="docutils literal notranslate"><span class="pre">v</span></code>, discarding the rest.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTake(2)
+[1:u8, 2:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTake(3)
+[1:u8, 2:u8, 3:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTake(4)
+[1:u8, 2:u8, 3:u8, 4:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTake(0)
+[]v:Vec[u8, 0]
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">k</span></code> is greater than <code class="docutils literal notranslate"><span class="pre">n</span></code>, the extra elements will be undefined.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTake(5)
+[1:u8, 2:u8, 3:u8, 4:u8, undefined:u8]v
+&gt;
+&gt; // Taking 4 elements from a vector of length 2 (!!!)
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]v.VecTake(2).VecTake(4)
+[1:u8, 2:u8, undefined:u8, undefined:u8]v
+&gt; // Taking 4 directly would have been fine
+&gt; [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]v.VecTake(4)
+[1:u8, 2:u8, 3:u8, 4:u8]v
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecDropRight" title="VecDropRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDropRight</span></code></a>, if it is easier to say how many elements to <em>discard</em> than to say how many to <em>keep</em></p>
+<p><a class="reference internal" href="#VecTakeRight" title="VecTakeRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTakeRight</span></code></a>, for discarding elements from the beginning of a vector</p>
+<p><a class="reference internal" href="#VecDrop" title="VecDrop"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDrop</span></code></a>, for discarding elements from the beginning of a vector</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="VecTakeRight">
+<span class="sig-name descname"><span class="pre">VecTakeRight</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecTakeRight" title="Link to this definition">#</a></dt>
+<dd><p>Returns the last <code class="docutils literal notranslate"><span class="pre">k</span></code> elements of vector <code class="docutils literal notranslate"><span class="pre">v</span></code>, discarding the rest.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTakeRight(2)
+[3:u8, 4:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTakeRight(3)
+[2:u8, 3:u8, 4:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTakeRight(4)
+[1:u8, 2:u8, 3:u8, 4:u8]v
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTakeRight(0)
+[]v:Vec[u8, 0]
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">k</span></code> is greater than <code class="docutils literal notranslate"><span class="pre">n</span></code>, the extra elements will be undefined.</p>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTakeRight(5)
+[undefined:u8, 1:u8, 2:u8, 3:u8, 4:u8]v
+&gt;
+&gt; // Taking 4 elements from a vector of length 2 (!!!)
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTakeRight(2).VecTakeRight(4)
+[undefined:u8, undefined:u8, 3:u8, 4:u8]v
+&gt; // Taking 4 elements directly would have been fine
+&gt; [1:u8, 2:u8, 3:u8, 4:u8]v.VecTakeRight(4)
+[1:u8, 2:u8, 3:u8, 4:u8]v
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#VecDrop" title="VecDrop"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDrop</span></code></a>, if it is easier to say how many elements to <em>discard</em> than to say how many to <em>keep</em></p>
+<p><a class="reference internal" href="#VecTake" title="VecTake"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTake</span></code></a>, for discarding elements from the end of a vector</p>
+<p><a class="reference internal" href="#VecDropRight" title="VecDropRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDropRight</span></code></a>, for discarding elements from the end of a vector</p>
+</div>
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="types.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Types in Sirop</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="streams.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Streams</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-vector-functions">Built-In Vector Functions</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-vectors">Creating Vectors</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transforming-vectors-elementwise">Transforming Vectors Elementwise</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#combining-multiple-vectors">Combining Multiple Vectors</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#aggregation">Aggregation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-vectors">Nested Vectors</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reordering-vectors">Reordering Vectors</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discarding-parts-of-a-vector">Discarding Parts of a Vector</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Louis Hildebrand
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Louis Hildebrand.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
