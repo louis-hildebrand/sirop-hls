@@ -12,7 +12,7 @@ Testing and Debugging
 
 The Sirop compiler can test the high-level code directly, without translating it to VHDL::
 
-    $ sirop -i dot.sirop --out:test
+    $ sirop dot.sirop --out:test
     [INFO ] test 0: PASSED
     [INFO ] 1/1 test passed!
 
@@ -20,7 +20,7 @@ If you had accidentally used addition instead of multiplication in ``StmMap``, t
 The compiler can dump the expected and actual outputs to files so you can compare them (e.g., with ``diff``)::
 
     $ sed -i 's/x \* y/x + y/g' dot.sirop
-    $ sirop -i dot.sirop --out:test:actual actual.txt --out:test:expected expected.txt
+    $ sirop dot.sirop --out:test:actual actual.txt --out:test:expected expected.txt
     [WARN ] test 0: WRONG OUTPUT
     TestError: 1/1 test failed.
     $ diff expected.txt actual.txt
@@ -35,7 +35,7 @@ For example, running the following (with the working dot product program) genera
 
     # Disable fusion to show each pipeline stage (zip, map, sum).
     # By default, the compiler combines everything into a single pipeline stage.
-    $ sirop -i dot.sirop --out:trace ./trace --opt:no-fuse
+    $ sirop dot.sirop --out:trace ./trace --opt:no-fuse
 
 .. IMPORTANT::
     The images are generated using Graphviz, which must be installed separately.
@@ -98,7 +98,7 @@ It can also generate a testbench to check that the generated VHDL entity behaves
 
 ::
 
-    $ sirop -i dot.sirop --out:vhdl vhdl_project_dir --out:vhdl:run-sim
+    $ sirop dot.sirop --out:vhdl vhdl_project_dir --out:vhdl:run-sim
     [INFO ] VHDL testbench passed!
 
 At this point, you have VHDL code that can be synthesized with Quartus, simulated with your own testbench in Questa, etc.
