@@ -71,8 +71,6 @@ object Repl {
       run(state.resetCtrlCCount(), reader, writer)
     } else if (ctrlC) {
       run(state.incrementCtrlCCount(), reader, writer)
-    } else if (line.strip().isEmpty) {
-      run(state.resetCtrlCCount(), reader, writer)
     } else {
       val newState =
         try {
@@ -90,7 +88,7 @@ object Repl {
             writer.println(ex.getMessage)
             state
         }
-      run(newState, reader, writer)
+      run(newState.resetCtrlCCount(), reader, writer)
     }
   }
 
@@ -106,6 +104,8 @@ object Repl {
       writer: PrintWriter
   ): (ReplState, Boolean) = {
     s match {
+      case NullStmt =>
+        (state, false)
       case ExprStmt(e) =>
         val result = eval(e, state)
         writer.println(ExprPrinter.display(result))

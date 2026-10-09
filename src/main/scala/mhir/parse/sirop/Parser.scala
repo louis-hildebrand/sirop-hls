@@ -317,12 +317,17 @@ object Parser {
   }
 
   def parseStmt(code: String, constants: Map[Param, Type]): Stmt = {
-    val (s, remainingTokens) = parseStmt(Lexer.lex(code).toList, constants)
-    if (remainingTokens.nonEmpty) {
-      val loc = remainingTokens.head.loc
-      throw SyntaxError("unexpected tokens remaining at end of file", loc)
+    val originalTokens = Lexer.lex(code).toList
+    if (originalTokens.isEmpty) {
+      NullStmt
+    } else {
+      val (s, remainingTokens) = parseStmt(originalTokens, constants)
+      if (remainingTokens.nonEmpty) {
+        val loc = remainingTokens.head.loc
+        throw SyntaxError("unexpected tokens remaining at end of file", loc)
+      }
+      s
     }
-    s
   }
 
   private def parseStmt(
