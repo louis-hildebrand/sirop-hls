@@ -409,9 +409,10 @@ This can be expressed as follows in Sirop:</p>
 <span class="go">[INFO ] 1/1 test passed!</span>
 </pre></div>
 </div>
-<p>If you had accidentally used addition instead of multiplication in <code class="docutils literal notranslate"><span class="pre">StmMap</span></code>, the test would fail.
+<p>If you had accidentally used addition instead of multiplication in <a class="reference internal" href="../reference/streams.html#StmMap" title="StmMap"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMap</span></code></a>, the test would fail.
 The compiler can dump the expected and actual outputs to files so you can compare them (e.g., with <code class="docutils literal notranslate"><span class="pre">diff</span></code>):</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">$ </span>sed -i 's/x \* y/x + y/g' dot.sirop
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">$ </span><span class="c"># Replace multiplication with addition</span>
+<span class="go">$ </span>sed -i 's/x \* y/x + y/g' dot.sirop
 <span class="go">$ </span>sirop dot.sirop --out:test:actual actual.txt --out:test:expected expected.txt
 <span class="go">[WARN ] test 0: WRONG OUTPUT</span>
 <span class="go">TestError: 1/1 test failed.</span>
@@ -420,6 +421,7 @@ The compiler can dump the expected and actual outputs to files so you can compar
 <span class="go">&lt;   70:u16</span>
 <span class="go">---</span>
 <span class="go">&gt;   36:u16</span>
+<span class="go">$ </span><span class="c"># Revert to the working code</span>
 <span class="go">$ </span>sed -i 's/x + y/x * y/g' dot.sirop
 </pre></div>
 </div>
@@ -437,12 +439,14 @@ See <a class="reference external" href="https://graphviz.org/download/">https://
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The arrows in the diagrams show the handshake protocol in action.
-- A green double-headed arrow represents a successful data transfer.
-- A dashed arrow from producer to consumer shows that the producer has valid data, but the consumer is not ready to receive it yet.
-- A line without any arrowheads shows that the producer does not have valid data.</p>
-<p>Notice how <cite>u</cite> must wait one clock cycle for the data from <cite>v</cite> to arrive.
-The node corresponding to <cite>StmZip</cite> is exerting back-pressure (i.e., its <cite>ready</cite> signal is lowered).</p>
+<p>The arrows in the diagrams show the handshake protocol in action.</p>
+<ul class="simple">
+<li><p>A green double-headed arrow represents a successful data transfer.</p></li>
+<li><p>A dashed arrow from producer to consumer shows that the producer has valid data, but the consumer is not ready to receive it yet.</p></li>
+<li><p>A line without any arrowheads shows that the producer does not have valid data.</p></li>
+</ul>
+<p>Notice how <code class="docutils literal notranslate"><span class="pre">u</span></code> must wait one clock cycle for the data from <code class="docutils literal notranslate"><span class="pre">v</span></code> to arrive.
+The node corresponding to <a class="reference internal" href="../reference/streams.html#StmZip" title="StmZip"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmZip</span></code></a> is exerting back-pressure (i.e., its <code class="docutils literal notranslate"><span class="pre">ready</span></code> signal is lowered).</p>
 </div>
 <a class="reference internal image-reference" href="../_images/step_0.svg"><img alt="Time step 0 of the dot product trace" src="../_images/step_0.svg" style="width: 30%;" />
 </a>
