@@ -18,11 +18,12 @@ The Sirop compiler can test the high-level code directly, without translating it
     [INFO ] test 0: PASSED
     [INFO ] 1/1 test passed!
 
-If you had accidentally used addition instead of multiplication in ``StmMap``, the test would fail.
+If you had accidentally used addition instead of multiplication in :func:`StmMap`, the test would fail.
 The compiler can dump the expected and actual outputs to files so you can compare them (e.g., with ``diff``):
 
 .. code::
 
+    $ # Replace multiplication with addition
     $ sed -i 's/x \* y/x + y/g' dot.sirop
     $ sirop dot.sirop --out:test:actual actual.txt --out:test:expected expected.txt
     [WARN ] test 0: WRONG OUTPUT
@@ -32,6 +33,7 @@ The compiler can dump the expected and actual outputs to files so you can compar
     <   70:u16
     ---
     >   36:u16
+    $ # Revert to the working code
     $ sed -i 's/x + y/x * y/g' dot.sirop
 
 The Sirop compiler can also generate a cycle-by-cycle trace of the execution of the program.
@@ -49,12 +51,13 @@ For example, running the following (with the working dot product program) genera
 
 .. NOTE::
     The arrows in the diagrams show the handshake protocol in action.
+
     - A green double-headed arrow represents a successful data transfer.
     - A dashed arrow from producer to consumer shows that the producer has valid data, but the consumer is not ready to receive it yet.
     - A line without any arrowheads shows that the producer does not have valid data.
 
-    Notice how `u` must wait one clock cycle for the data from `v` to arrive.
-    The node corresponding to `StmZip` is exerting back-pressure (i.e., its `ready` signal is lowered).
+    Notice how ``u`` must wait one clock cycle for the data from ``v`` to arrive.
+    The node corresponding to :func:`StmZip` is exerting back-pressure (i.e., its ``ready`` signal is lowered).
 
 .. image:: /figures/dot-trace/step_0.svg
     :alt: Time step 0 of the dot product trace
