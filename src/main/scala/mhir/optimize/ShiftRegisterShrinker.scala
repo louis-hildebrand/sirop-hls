@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
-import mhir.matchers.ShiftLeft
+import mhir.matchers.ShiftLeftSelf
 import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.sugar._
 import mhir.typecheck._
@@ -103,7 +103,7 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
 
     def runAndMutateBindings(stm: StmBuild): StmBuild = {
       val shiftRegisters = stm.accumulators
-        .collect({ case ShiftLeft(x, shift) => x -> shift })
+        .collect({ case ShiftLeftSelf(x, shift) => x -> shift })
         .toSet
       val maxIndexByVar = {
         val candidates = shiftRegisters.map({ case (x, _) => x })
@@ -126,7 +126,7 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
       }
       // TODO: do this in a single pass, rather than one pass per variable
       val shiftRegisterUses = shiftRegisters
-        .flatMap({ case (v, ShiftLeft(len, input)) =>
+        .flatMap({ case (v, ShiftLeftSelf(len, input)) =>
           (maxIndexByVar.get(v), maxIndexInSinkByVar.get(v)) match {
             case (Some(maxIndexInBody), Some(maxIndexInSink)) =>
               val maxIndex = math.max(maxIndexInBody, maxIndexInSink)
@@ -214,7 +214,8 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
           stm.valid.freeVars.contains(x) ||
           dependencies.inNeighbours(x).-(v).nonEmpty
         })
-      val ShiftLeft(_, ShiftLeft(oldLen, input)) = v -> stm.accumulators(v)
+      val ShiftLeftSelf(_, ShiftLeftSelf(oldLen, input)) =
+        v -> stm.accumulators(v)
       val (oldInit, _, oldDelay) = stm.accumulators(v)
       val deltaDelay = oldLen - newLen
       val outDelay = stm.delay match {

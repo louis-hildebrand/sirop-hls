@@ -302,9 +302,10 @@ case class VecMap(v: Expr /* Vec<A; n> */, f: Expr /* A -> B */ )(
     val result = f.typ.asInstanceOf[TyArrow] match {
       case TyArrow(t1, t2) if t1.isData && t2.isData =>
         VL.logger.trace(s"lowering $className as standard vector...")
+        val i = Param("i")(U32)
         VecBuild(
           v.typ.asInstanceOf[TyVec].n,
-          U32 ::+ (i => FunCall(f, VecAccess(v, i)())())
+          Function(i, FunCall(f, VecAccess(v, i)())())()
         )().tchk().lower
       case TyArrow(t1, _: TyStm) =>
         VL.logger.trace(s"lowering $className containing streams...")

@@ -301,8 +301,9 @@ object FlattenPipeline {
                 (zInit, zDelay) match {
                   case (VecBuild(_, Function(_, False)), zDelay)
                       if zDelay == delay =>
-                    (zShift, (zInit, zNext, zDelay)) match {
-                      case ShiftLeft(_, ShiftLeft(length, input)) =>
+                    zNext match {
+                      case ShiftLeft(length, vec, input)
+                          if vec.forall(_ == zShift) =>
                         val TyVec(elemTyp, _) = zShift.typ
                         val newLen = C(length + 1)()
                         val newZ = Param(zShift.prefix)(TyVec(elemTyp, newLen))
