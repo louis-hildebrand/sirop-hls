@@ -119,9 +119,16 @@ object Compiler {
       optimizedProgram
     }
     val latency = {
-      val (inputs, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
+      val (_, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
       val analysis = new LatencyAnalysis(handshake = finalProgram.handshake)
-      analysis.actualLatency(body, inputs.map(_ -> Some(0)).toMap).latency
+      val intInputDelays = finalProgram.accel.inputDelays.map({
+        case (x, IntCst(d)) => x -> Some(d.toInt)
+        case (x, delay) =>
+          throw SemanticError(
+            s"latency matching does not currently support non-constant delay $delay for input $x"
+          )
+      })
+      analysis.actualLatency(body, intInputDelays).latency
     }
     latency match {
       case None =>
@@ -278,6 +285,9 @@ object Compiler {
   private def lower(prog: Program): (Program, Duration) = {
     time2("lowering", Level.DEBUG) {
       val inlinedProg = inlineConstants(prog)
+      val newInputDelays = inlinedProg.accel.inputDelays.map({
+        case (x, delay) => x -> delay.lower
+      })
       val loweredExpr = translateStmLiteral(inlinedProg.accel.body.lower)
       val loweredTests =
         inlinedProg.test.map({
@@ -294,7 +304,10 @@ object Compiler {
             )
         })
       inlinedProg.copy(
-        accel = inlinedProg.accel.copy(body = loweredExpr),
+        accel = inlinedProg.accel.copy(
+          body = loweredExpr,
+          inputDelays = newInputDelays
+        ),
         test = loweredTests
       )
     }
@@ -304,8 +317,12 @@ object Compiler {
     val mainConstVals = prog.constants
       .map({ case ConstDecl(x, e) => x -> e })
       .toMap[Expr, Expr]
-    val newAccel =
-      prog.accel.copy(body = prog.accel.body.subPreserveType(mainConstVals))
+    val newAccel = prog.accel.copy(
+      body = prog.accel.body.subPreserveType(mainConstVals),
+      inputDelays = prog.accel.inputDelays.map({ case (x, delay) =>
+        x -> delay.subPreserveType(mainConstVals)
+      })
+    )
     val (_, newTestSuite) =
       prog.test.foldLeft(mainConstVals, Seq[Assertion]())({
         case ((subs, result), ConstDecl(x, e)) =>
@@ -358,13 +375,21 @@ object Compiler {
       optFlags: OptimizerOptions,
       handshake: Boolean
   ): (Program, Duration) = {
-    time2("optimization", Level.DEBUG) {
-      val optimizer = Optimizer(
-        optFlags,
-        handshake = handshake,
-        headByParam = prog.headByParam
-      )
-      val newBody = optimizer.optimize(prog.body)
+    val ((newBody, newInputDelays), mainDuration) =
+      time2("optimization", Level.DEBUG) {
+        val newInputDelays = prog.accel.inputDelays.map({ case (x, delay) =>
+          x -> PartialEvalPass.partialEval(delay)
+        })
+        val optimizer = Optimizer(
+          optFlags,
+          handshake = handshake,
+          headByParam = prog.headByParam,
+          inputDelays = newInputDelays
+        )
+        val newBody = optimizer.optimize(prog.body)
+        (newBody, newInputDelays)
+      }
+    val (newTests, testDuration) = time2("optimization (test)", Level.DEBUG) {
       val transform = if (prog.handshake) { (e: Expr) =>
         PartialEvalPass.partialEval(e)()
       } else {
@@ -380,18 +405,23 @@ object Compiler {
         val letBufShrinker = new StaticLetStmBufferShrinker(
           latencyAnalysis,
           handshake = prog.handshake,
-          assumeThroughputsMatch = optFlags.assumeThroughputsMatch
+          assumeThroughputsMatch = optFlags.assumeThroughputsMatch,
+          inputDelays = Map()
         )
         (e: Expr) => {
           val e0 = PartialEvalPass.partialEval(e)()
           // Need to run latency matching and shrink all the letstm buffers
           // to avoid errors and warnings during evaluation
-          val e1 = latencyMatcher.matchLatencies(e0, headByParam = Map())
+          val e1 = latencyMatcher.matchLatencies(
+            e0,
+            headByParam = Map(),
+            inputDelays = Map()
+          )
           val e2 = letBufShrinker.shrinkBuffers(e1)
           e2
         }
       }
-      val newTests = prog.test.map({
+      prog.test.map({
         case cd: ConstDecl => cd
         case Assertion(inputs, expectedOutput, ignore, prefixCondition) =>
           val newInputs = inputs.map({ case (x, e) =>
@@ -399,8 +429,12 @@ object Compiler {
           })
           Assertion(newInputs, expectedOutput, ignore, prefixCondition)
       })
-      prog.copy(accel = prog.accel.copy(body = newBody), test = newTests)
     }
+    val newProg = prog.copy(
+      accel = prog.accel.copy(body = newBody, inputDelays = newInputDelays),
+      test = newTests
+    )
+    (newProg, mainDuration.plus(testDuration))
   }
 
   private def generateCode(

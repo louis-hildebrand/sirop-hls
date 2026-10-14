@@ -12,20 +12,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class DspSelectionTests extends AnyFunSuite {
 
-  private val optimizer: Optimizer = Optimizer(
-    OptimizerOptions
-      .all(
-        assumeThroughputsMatch = false,
-        maxLetStmBufSize = None
-      )
-      .copy(madd = true),
-    handshake = true,
-    headByParam = Map()
-  )
-  private def simplify(e: Expr): Expr = {
-    optimizer.optimize(e)
-  }
-
   private val primes = Seq(3, 5, 7, 11, 13, 17)
   for (depth <- Seq(1, 2, 3, 4, 5, 6)) {
     for ((inTyp, outTyp) <- Seq((I16, I44), (U16, U44))) {
@@ -55,11 +41,27 @@ class DspSelectionTests extends AnyFunSuite {
                     False
                   )()
               ).tchk().lower
+              val optimizer = Optimizer(
+                OptimizerOptions
+                  .all(
+                    assumeThroughputsMatch = false,
+                    maxLetStmBufSize = None
+                  )
+                  .copy(madd = true),
+                handshake = true,
+                headByParam = Map(),
+                inputDelays = p1 match {
+                  case p1: Param => Map(p1 -> 0, p2 -> 0)
+                  case _         => Map(p2 -> 0)
+                }
+              )
               val f = p1 match {
                 case p1: Param =>
-                  simplify(Function(p1, Function(p2, sbuild)())().tchk())
+                  optimizer.optimize(
+                    Function(p1, Function(p2, sbuild)())().tchk()
+                  )
                 case _ =>
-                  simplify(Function(p2, sbuild)().tchk())
+                  optimizer.optimize(Function(p2, sbuild)().tchk())
               }
               FlattenPipeline(f, options)
             }

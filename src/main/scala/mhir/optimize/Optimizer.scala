@@ -22,7 +22,8 @@ class Optimizer(
     letStmBufShrinker: LetStmBufferShrinker,
     binOpBalancer: BinOpTreeBalancingPass,
     unusedDataRemover: UnusedDataRemover,
-    headByParam: Map[Param, Expr]
+    headByParam: Map[Param, Expr],
+    inputDelays: Map[Param, Expr]
 ) {
 
   private implicit val logger: Logger = Logger(getClass.getName)
@@ -83,7 +84,11 @@ class Optimizer(
     }
 
     val s5 = {
-      val s4_1 = latencyMatcher.matchLatencies(s4, headByParam = headByParam)
+      val s4_1 = latencyMatcher.matchLatencies(
+        s4,
+        headByParam = headByParam,
+        inputDelays = inputDelays
+      )
       // In no_handshake mode, some new shift registers may have appeared and
       // it may be possible to merge these with existing ones
       val s4_2 = simplifier.simplify(s4_1)
@@ -124,7 +129,8 @@ object Optimizer {
   def apply(
       options: OptimizerOptions,
       handshake: Boolean,
-      headByParam: Map[Param, Expr]
+      headByParam: Map[Param, Expr],
+      inputDelays: Map[Param, Expr]
   ): Optimizer = {
     val stmBuildSimplifier =
       StmBuildSimplifier(enabled = options.simplifyStmBuild)
@@ -168,7 +174,8 @@ object Optimizer {
           new StaticLetStmBufferShrinker(
             latencyAnalysis = latencyAnalysis,
             handshake = handshake,
-            assumeThroughputsMatch = options.assumeThroughputsMatch
+            assumeThroughputsMatch = options.assumeThroughputsMatch,
+            inputDelays = inputDelays
           )
         )
       } else {
@@ -189,7 +196,8 @@ object Optimizer {
       letStmBufShrinker,
       binOpBalancerWithLogging,
       unusedDataRemover,
-      headByParam = headByParam
+      headByParam = headByParam,
+      inputDelays = inputDelays
     )
   }
 }

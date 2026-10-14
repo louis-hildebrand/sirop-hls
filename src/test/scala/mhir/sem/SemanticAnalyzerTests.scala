@@ -63,8 +63,11 @@ class SemanticAnalyzerTests extends AnyFunSuite {
   test("CheckNames:OutNameMatchesInName") {
     val x = Param("x", -1)(TyStm(U16, 100))
     val f = Function(x, SimpleMap(x, x => x + C(5)(U16)))().tchk().lower
-    val prog =
-      Program(Seq(), AccelDecl("top", f, Map("out_name" -> x), Map()), Seq())
+    val prog = Program(
+      Seq(),
+      AccelDecl("top", f, Map("out_name" -> x), Map(), Map()),
+      Seq()
+    )
     val ex = intercept[SemanticError](SemanticAnalyzer.checkNames(prog))
     assert(ex.msg == "output name 'x' is already used for an input")
   }
@@ -76,7 +79,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
       StmConcat(StmCount(n)(), StmCount(m)()).tchk(),
       x => x * x
     ).tchk().lower
-    val prog = Program(Seq(), AccelDecl("top", e, Map(), Map()), Seq())
+    val prog = Program(Seq(), AccelDecl("top", e, Map(), Map(), Map()), Seq())
     SemanticAnalyzer.check(prog)
   }
 
@@ -90,7 +93,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     val prog =
       Program(
         Seq(),
-        AccelDecl("top", e, Map("no_handshake" -> True), Map()),
+        AccelDecl("top", e, Map("no_handshake" -> True), Map(), Map()),
         Seq()
       )
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
@@ -105,7 +108,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
       mhir.sugar.handshake.StmSlide(StmCount(n)(), 2)().tchk(),
       v => VecAccess(v, 0)() + VecAccess(v, 1)()
     ).tchk().lower
-    val prog = Program(Seq(), AccelDecl("top", e, Map(), Map()), Seq())
+    val prog = Program(Seq(), AccelDecl("top", e, Map(), Map(), Map()), Seq())
     SemanticAnalyzer.check(prog)
   }
 
@@ -118,7 +121,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     ).tchk().lower
     val prog = Program(
       Seq(),
-      AccelDecl("top", e, Map("no_handshake" -> True), Map()),
+      AccelDecl("top", e, Map("no_handshake" -> True), Map(), Map()),
       Seq()
     )
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
@@ -133,7 +136,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     val e = StmSlide2D(StmCount2D(n, m)(), 3, 3)().tchk().lower
     val prog = Program(
       Seq(),
-      AccelDecl("top", e, Map("no_handshake" -> True), Map()),
+      AccelDecl("top", e, Map("no_handshake" -> True), Map(), Map()),
       Seq()
     )
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
@@ -153,7 +156,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
       .lower
     val prog = Program(
       Seq(),
-      AccelDecl("top", e, Map("no_handshake" -> True), Map()),
+      AccelDecl("top", e, Map("no_handshake" -> True), Map(), Map()),
       Seq()
     )
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
@@ -174,7 +177,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     )().tchk().asInstanceOf[StmBuild].annotateWithName("bar")
     val prog = Program(
       Seq(),
-      AccelDecl("top", s, Map("no_handshake" -> True), Map()),
+      AccelDecl("top", s, Map("no_handshake" -> True), Map(), Map()),
       Seq()
     )
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))
@@ -196,7 +199,7 @@ class SemanticAnalyzerTests extends AnyFunSuite {
     )().tchk().asInstanceOf[StmBuild].annotateWithName("foo")
     val prog = Program(
       Seq(),
-      AccelDecl("top", s, Map("no_handshake" -> True), Map()),
+      AccelDecl("top", s, Map("no_handshake" -> True), Map(), Map()),
       Seq()
     )
     val ex = intercept[SemanticError](SemanticAnalyzer.check(prog))

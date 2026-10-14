@@ -8,10 +8,13 @@ program    ::= const_decl* accel_decl test_decl*
 
 const_decl        ::= "const" ident ":" typ "=" expr
 
-accel_decl        ::= "accelerator" [ "[" accel_annotations "]" ] ident "=" expr
+accel_decl        ::= "accelerator" [ "[" accel_annotations "]" ] ident "=" accel_inputs expr
 accel_annotations ::= ""
                     | accel_annotation ( "," accel_annotation )*
 accel_annotation  ::= ident [ "(" ident ")" ] [ "=" expr ]
+accel_inputs      ::= ""
+                    | accel_input accel_input*
+accel_input       ::= "(" ident ":" typ [ "@" expr ] ")" "=>"
 
 test_decl         ::= const_decl
                     | assertion

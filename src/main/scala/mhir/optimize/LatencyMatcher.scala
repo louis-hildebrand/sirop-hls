@@ -5,6 +5,7 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
 import mhir.optimize.StreamFuser.StmBuildFusion
+import mhir.sem.SemanticError
 import mhir.sugar.nohandshake.StmMap
 import mhir.sugar.{ExprLowering, StmDelay}
 import mhir.typecheck._
@@ -14,7 +15,11 @@ trait LatencyMatcher {
   def enabled: Boolean
   def disabled: Boolean = !enabled
 
-  def matchLatencies(e: Expr, headByParam: Map[Param, Expr]): Expr
+  def matchLatencies(
+      e: Expr,
+      headByParam: Map[Param, Expr],
+      inputDelays: Map[Param, Expr]
+  ): Expr
 }
 
 object LatencyMatcher {
@@ -64,12 +69,29 @@ class EnabledLatencyMatcher(
     * @param e
     *   the stream pipeline to process.
     */
-  def matchLatencies(e: Expr, headByParam: Map[Param, Expr]): Expr = {
+  def matchLatencies(
+      e: Expr,
+      headByParam: Map[Param, Expr],
+      inputDelays: Map[Param, Expr]
+  ): Expr = {
     time("latency matching", Level.DEBUG) {
       // TODO: move this unwrapping and wrapping out of this method?
       val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
-      val lat =
-        latencyAnalysis.idealLatency(body, inputs.map(_ -> Some(0)).toMap)
+      val inputsWithoutDelay = inputs.filterNot(inputDelays.contains)
+      if (inputsWithoutDelay.nonEmpty) {
+        val inputsStr = inputsWithoutDelay.map(x => s"'$x'").mkString(", ")
+        throw new IllegalArgumentException(
+          s"missing delay for inputs: $inputsStr"
+        )
+      }
+      val intInputDelays = inputDelays.map({
+        case (x, IntCst(d)) => x -> Some(d.toInt)
+        case (x, delay) =>
+          throw SemanticError(
+            s"latency matching does not currently support non-constant delay $delay for input $x"
+          )
+      })
+      val lat = latencyAnalysis.idealLatency(body, intInputDelays)
       val newBody = matchLatencies(
         body,
         lat,
@@ -281,7 +303,11 @@ object DisabledLatencyMatcher extends LatencyMatcher {
 
   override def enabled: Boolean = false
 
-  override def matchLatencies(e: Expr, headByParam: Map[Param, Expr]): Expr = {
+  override def matchLatencies(
+      e: Expr,
+      headByParam: Map[Param, Expr],
+      inputDelays: Map[Param, Expr]
+  ): Expr = {
     if (!hasLogged) {
       hasLogged = true
       logger.debug("latency matching is disabled")

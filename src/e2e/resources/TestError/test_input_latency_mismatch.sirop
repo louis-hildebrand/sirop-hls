@@ -1,10 +1,12 @@
 accelerator[no_handshake]
-top = (a: Stm[u8, 3]) => (b: Stm[bool, 3]) =>
+top = (a: Stm[u8, 3] @ 0) => (b: Stm[bool, 3] @ 0) =>
     StmZip(a, b)
 
 assert {
-    a = []s ++ [1:u8, 2:u8, 3:u8]s,
-    b = []s ++ [true, false, true]s
+    // It's fine if the absolute latency is different, as long as the input
+    // streams are all correct relative to one another
+    a = [undefined:u8, undefined:u8]s ++ [1:u8, 2:u8, 3:u8]s,
+    b = [undefined:bool, undefined:bool]s ++ [true, false, true]s
 }
 yields [(1:u8, true), (2:u8, false), (3:u8, true)]s
 

@@ -75,7 +75,11 @@ class LatencyMatcherTests extends AnyFunSuite {
       }
       LetStm(1, s, count, delay)().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(original, headByParam = Map())
+    val optimized = env.pass.matchLatencies(
+      original,
+      headByParam = Map(),
+      inputDelays = Map()
+    )
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -104,7 +108,11 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(sA, sB, timesTwo)
       LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(original, headByParam = Map())
+    val optimized = env.pass.matchLatencies(
+      original,
+      headByParam = Map(),
+      inputDelays = Map()
+    )
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -165,7 +173,11 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(delay, plusOne)
       LetStm(1, s, count, zip)().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(original, headByParam = Map())
+    val optimized = env.pass.matchLatencies(
+      original,
+      headByParam = Map(),
+      inputDelays = Map()
+    )
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -257,7 +269,11 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zipped = SimpleZip(sumPlusFive, stm2Vec)
       LetStm(1, x, count, zipped)().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(original, headByParam = Map())
+    val optimized = env.pass.matchLatencies(
+      original,
+      headByParam = Map(),
+      inputDelays = Map()
+    )
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -285,7 +301,11 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(s0, plusFive)
       LetStm(1, s1, LetStm(1, s0, count, zip)(), s1)().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(original, headByParam = Map())
+    val optimized = env.pass.matchLatencies(
+      original,
+      headByParam = Map(),
+      inputDelays = Map()
+    )
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -312,7 +332,11 @@ class LatencyMatcherTests extends AnyFunSuite {
         SimpleConcatHandshake(s0, SimpleMap(s0, x => Sum(C(5)(U8), x)()))
       LetStm(n, s0, count, concat)().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(original, headByParam = Map())
+    val optimized = env.pass.matchLatencies(
+      original,
+      headByParam = Map(),
+      inputDelays = Map()
+    )
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -343,7 +367,8 @@ class LatencyMatcherTests extends AnyFunSuite {
     }
     val optimized = env.pass.matchLatencies(
       original,
-      headByParam = Map(sA -> Undefined(Missing), sB -> Undefined(Missing))
+      headByParam = Map(sA -> Undefined(Missing), sB -> Undefined(Missing)),
+      inputDelays = Map(sA -> 0, sB -> 0)
     )
 
     // Correct behaviour
@@ -420,7 +445,11 @@ class LatencyMatcherTests extends AnyFunSuite {
       }
       Function(input, zip)().tchk()
     }
-    val actual = env.pass.matchLatencies(original, headByParam = Map())
+    val actual = env.pass.matchLatencies(
+      original,
+      headByParam = Map(),
+      inputDelays = Map(input -> 0)
+    )
 
     val inputs = Map(
       input -> StmCount(n, C(42)(U8), C(1)(U8))().tchk().lower
@@ -469,7 +498,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     val n = 5
     val original @ Function(input1, Function(input2, originalBody)) = {
       val input1 = Param("input1")(TyStm(U16, n))
-      val input2 = Param("input1")(TyStm(TyBool, n))
+      val input2 = Param("input2")(TyStm(TyBool, n))
       val power4 = SimpleMap(
         SimpleMap(input1, x => Prod(x, x)()).tchk(),
         x => Prod(x, x)()
@@ -504,8 +533,11 @@ class LatencyMatcherTests extends AnyFunSuite {
       }
       Function(input1, Function(input2, zip)())().tchk()
     }
-    val Function(_, Function(_, actualBody)) =
-      env.pass.matchLatencies(original, headByParam = Map())
+    val Function(_, Function(_, actualBody)) = env.pass.matchLatencies(
+      original,
+      headByParam = Map(),
+      inputDelays = Map(input1 -> 0, input2 -> 0)
+    )
 
     val inputs = Map(
       input1 -> StmCount(n, C(1)(U16), C(1)(U16))().tchk().lower,
@@ -575,7 +607,8 @@ class LatencyMatcherTests extends AnyFunSuite {
     val Function(_, Function(_, actualBody)) =
       env.pass.matchLatencies(
         original,
-        headByParam = Map(input2 -> False)
+        headByParam = Map(input2 -> False),
+        inputDelays = Map(input1 -> 0, input2 -> 0)
       )
 
     val inputs = Map(
@@ -639,7 +672,8 @@ class LatencyMatcherTests extends AnyFunSuite {
     val Function(_, actualBody) = env.pass.matchLatencies(
       original,
       // IMPORTANT: no head is specified for input
-      headByParam = Map()
+      headByParam = Map(),
+      inputDelays = Map(input -> 0)
     )
 
     val inputs = Map(

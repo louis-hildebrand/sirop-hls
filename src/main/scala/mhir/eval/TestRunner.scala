@@ -53,7 +53,8 @@ object TestRunner {
             body,
             expectedPath = expectedPath,
             actualPath = actualPath,
-            headByParam = prog.headByParam
+            headByParam = prog.headByParam,
+            inputDelays = prog.accel.inputDelays
           )
           logger.info(s"test $i: PASSED")
         } catch {
@@ -97,7 +98,8 @@ class TestRunner(testIdx: Int, handshake: Boolean, showPhysical: Boolean) {
       body: Expr,
       expectedPath: Option[Path],
       actualPath: Option[Path],
-      headByParam: Map[Param, Expr]
+      headByParam: Map[Param, Expr],
+      inputDelays: Map[Param, Expr]
   ): Unit = {
     logger.debug(s"running test $testIdx ... ")
     val rawExpectedOutput = eval("expected output", expectedPath) {
@@ -147,12 +149,37 @@ class TestRunner(testIdx: Int, handshake: Boolean, showPhysical: Boolean) {
       }
       input -> result
     })
-    val inputLatencies = inputs.map({
-      case (_, StmLiteral(physical, _)) => physical.length
-      case _                            => 0
-    })
-    if (inputLatencies.toSet.size > 1) {
-      throw TestCaseFailed("INPUT LATENCY MISMATCH")
+    val actualInputLatencies = inputs
+      .mapValues({
+        case StmLiteral(physical, _) => physical.length
+        case _                       => 0
+      })
+    val delayComparison = inputs
+      .map({ case (x, _) =>
+        val actual = actualInputLatencies.get(x)
+        val expected = inputDelays.get(x)
+        val delta = (expected, actual) match {
+          case (Some(IntCst(expected)), Some(actual)) => Some(actual - expected)
+          case _                                      => None
+        }
+        x -> (actual, expected, delta)
+      })
+    val deltas = delayComparison.map({ case (_, (_, _, delay)) => delay }).toSet
+    val latencyMismatch = deltas.size > 1 || deltas.exists(_.isEmpty)
+    if (latencyMismatch) {
+      val comparisonStr = delayComparison
+        .map({ case (x, (actual, expected, delta)) =>
+          val actualStr = actual.map(_.toString).getOrElse("???")
+          val expectedStr = expected match {
+            case Some(IntCst(n)) => n.toString // Omit the type annotation
+            case Some(e)         => e.toString
+            case None            => "???"
+          }
+          val deltaStr = delta.map(_.toString).getOrElse("???")
+          s"  $x: expected $expectedStr, actual $actualStr (delta $deltaStr)"
+        })
+        .mkString("\n")
+      throw TestCaseFailed(s"INPUT LATENCY MISMATCH\n$comparisonStr")
     }
     val rawActualOutput = eval("actual output", actualPath, inputs = inputs) {
       body

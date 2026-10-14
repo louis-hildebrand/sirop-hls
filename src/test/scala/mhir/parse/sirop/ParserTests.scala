@@ -1626,6 +1626,7 @@ class ParserTests extends AnyFunSuite {
             call("StmMap", s, Missing ::+ (x => SmartSum(x, C(5)())()))
           )(),
           Map(),
+          Map(),
           Map()
         ),
         Seq(
@@ -1673,7 +1674,7 @@ class ParserTests extends AnyFunSuite {
 
   test("TestSuite:OK2") {
     val src =
-      """accelerator top = (a: Stm[u8, 4]) => (b: Stm[bool, 4]) =>
+      """accelerator top = (a: Stm[u8, 4]) => (b: Stm[bool, 4] @ 0) =>
         |  StmZip(a, b)
         |
         |assert {
@@ -1692,7 +1693,8 @@ class ParserTests extends AnyFunSuite {
           "top",
           Function(a, Function(b, call("StmZip", a, b))())(),
           Map(),
-          Map()
+          Map(),
+          Map(b -> C(0)())
         ),
         Seq(
           Assertion(
@@ -1728,6 +1730,7 @@ class ParserTests extends AnyFunSuite {
         "top",
         call("StmCount", 5, C(-2)(I16), C(1)(I16)),
         Map(),
+        Map(),
         Map()
       ),
       Seq(
@@ -1749,6 +1752,7 @@ class ParserTests extends AnyFunSuite {
       AccelDecl(
         "top",
         call("StmCount", 5, C(-2)(I16), C(1)(I16)),
+        Map(),
         Map(),
         Map()
       ),

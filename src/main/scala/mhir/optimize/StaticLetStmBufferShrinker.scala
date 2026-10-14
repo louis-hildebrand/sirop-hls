@@ -10,19 +10,27 @@ import org.slf4j.event.Level
 class StaticLetStmBufferShrinker(
     latencyAnalysis: LatencyAnalysis,
     private val handshake: Boolean,
-    private val assumeThroughputsMatch: Boolean
+    private val assumeThroughputsMatch: Boolean,
+    inputDelays: Map[Param, Expr]
 ) extends LetStmBufferShrinker {
+
   private implicit val logger: Logger = Logger(getClass.getName)
+
+  private val intInputDelays = inputDelays.map({
+    case (x, IntCst(n)) => x -> Some(n.toInt)
+    case (x, e) =>
+      throw new IllegalArgumentException(
+        s"${this.getClass.getName} does not currently support non-constant delay $e for input $x"
+      )
+  })
 
   override def enabled: Boolean = true
 
   override def shrinkBuffers(e: Expr): Expr = {
     time("statically shrinking letstm buffers", Level.DEBUG) {
       val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
-      val newBody = shrinkBuffers(
-        body,
-        latencyAnalysis.actualLatency(body, inputs.map(_ -> Some(0)).toMap)
-      )
+      val newBody =
+        shrinkBuffers(body, latencyAnalysis.actualLatency(body, intInputDelays))
       TypeChecker.wrapTopLevelFunction(inputs, newBody)
     }
   }
@@ -58,8 +66,6 @@ class StaticLetStmBufferShrinker(
             val out1 = shrinkBuffers(out, outLat)
             val newBufSize = latency match {
               case Some(_) if !this.handshake =>
-                assert(bufSize.typ.isInstanceOf[TyUInt])
-                assert(bufSize.typ.asInstanceOf[TyUInt].w >= 1)
                 C(0)(bufSize.typ)
               case Some(_) if this.assumeThroughputsMatch =>
                 assert(bufSize.typ.isInstanceOf[TyUInt])

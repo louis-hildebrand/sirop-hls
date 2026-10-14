@@ -1,5 +1,6 @@
 package mhir.optimize
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 
 /** Analysis for finding the latency of each node in the pipeline.
@@ -15,6 +16,8 @@ import mhir.ir._
   *   whether the handshake protocol is enabled.
   */
 class LatencyAnalysis(handshake: Boolean) {
+
+  private val logger: Logger = Logger(getClass.getName)
 
   private def letStmLatency: Int = if (this.handshake) 2 else 0
 
@@ -58,9 +61,8 @@ class LatencyAnalysis(handshake: Boolean) {
         latencyByVar.get(x) match {
           case Some(lat) => LatencySource(lat)
           case None =>
-            throw new IllegalArgumentException(
-              s"cannot find latency for unknown variable: '$x'"
-            )
+            logger.warn(s"delay is unknown for input $x")
+            LatencySource(None)
         }
       case StmLiteral(physical, _) =>
         LatencySource(Some(physical.length))
