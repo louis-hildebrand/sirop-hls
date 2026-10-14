@@ -31,7 +31,7 @@ Conversely, the compiler can split a single stage into two to improve the maximu
 :class: only-light
 ```
 
-## C-Based HLS (e.g., [Altera HLS IP Gen](https://www.altera.com/products/development-tools/hls_ip_gen_compiler), [Vitis HLS](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vitis/vitis-hls.html))
+## C-Based HLS (e.g., [Altera HLS IP Gen](https://www.altera.com/products/software-tools/hls-ip-gen-compiler), [Vitis HLS](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vitis/vitis-hls.html))
 
 C and C++ are widely known and their programming model make a lot of sense when working with a CPU.
 However, they are a much less natural fit for programming FPGAs.
