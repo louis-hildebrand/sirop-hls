@@ -61,6 +61,45 @@ If it's important to see the physical prefix, enable it by setting the special v
 
 .. literalinclude:: /code-examples/reference/show_prefix.repl.txt
 
+Input Stream Delay Annotations
+------------------------------
+
+Sirop supports "delay annotations" that express the relative arrival times of the inputs to the VHDL entity.
+
+First, consider the following simple program *without* delay annotations.
+Given streams ``a = [a0, a1, a2, ...]s`` and ``b = [b0, b1, b2, ...]s``, it returns ``[(a0*a0 + b0), (a1*a1 + b1), (a2*a2 + b2), ...]s``.
+Since the input streams do *not* have delay annotations, the Sirop compiler assumes ``a`` and ``b`` will arrive at the same time.
+
+.. literalinclude:: /code-examples/reference/delay_annotations_default.sirop
+
+The behaviour of this program is illustrated in the following timing diagram.
+
+.. image:: /figures/dark/delay-annotations-default.*
+    :class: only-dark
+    :scale: 150%
+.. image:: /figures/light/delay-annotations-default.*
+    :class: only-light
+    :scale: 150%
+
+..
+    TODO: Explain why this requires a shift register.
+    TODO: It would be nice to have some way to demonstrate it more clearly than the pretty-printer.
+    TODO: Maybe it would be possible to implement a basic "RTL viewer"-like tool.
+
+However, suppose we want stream ``b`` to arrive one cycle later than stream ``a``.
+This can be expressed as follows.
+
+.. literalinclude:: /code-examples/reference/delay_annotations_explicit.sirop
+
+This program is described by the following timing diagram:
+
+.. image:: /figures/dark/delay-annotations-explicit.*
+    :class: only-dark
+    :scale: 150%
+.. image:: /figures/light/delay-annotations-explicit.*
+    :class: only-light
+    :scale: 150%
+
 .. _stream-flattening:
 
 Stream Flattening
