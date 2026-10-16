@@ -5,3 +5,5 @@ sphinx == 8.2.3
 myst-parser == 5.1
 # Website theme
 sphinx-book-theme == 1.2
+# Figures with multiple images (to support dark/light mode images)
+sphinx-subfigure == 0.2.4
