@@ -8,12 +8,17 @@
 
 \begin{document}
 
-\pagecolor{bgcolor}
+% \pagecolor{bgcolor}
+
+% Mix in a little bit of the background color in case we're accidentally
+% showing the light mode image on a dark mode screen, or vice-versa.
+% That way, the user will hopefully still be able to see *something*.
+\colorlet{linecolor}{fgcolor!85!bgcolor}
 
 \begin{tikzpicture}[
     node distance=0.8em and 1.2em,
-    arrow/.style={->, fgcolor, very thick},
-    flowchartnode/.style={draw, fgcolor, very thick, align=center},
+    arrow/.style={->, linecolor, very thick},
+    flowchartnode/.style={draw, linecolor, very thick, align=center},
     hiprocess/.style={process, fill=Goldenrod!90!red},
     process/.style={flowchartnode, rectangle, fill=myblue, minimum height=1.6em, minimum width=5.5em},
     decision/.style={flowchartnode, diamond, aspect=1.8, fill=myorange},

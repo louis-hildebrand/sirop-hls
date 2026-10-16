@@ -1,14 +1,23 @@
 $ sirop
-Welcome to the Sirop REPL (v2.1.0)!
+Welcome to the Sirop REPL (v2.3.0)!
 Type 'exit' or press Ctrl+D to exit.
 > u = [1:u8, 2:u8, 3:u8, 4:u8]s
 > v = [5:u8, 6:u8, 7:u8, 8:u8]s
+> StmZip(u, v).StmMap( @(x, y) => x * y ).StmSum()
+[70:u8]s
+>
+> // ===== STEP-BY-STEP =================================
+> // (1) StmZip pairs up the elements of the two streams
 > zipped = StmZip(u, v)
 > zipped
 [(1:u8, 5:u8), (2:u8, 6:u8), (3:u8, 7:u8), (4:u8, 8:u8)]s
+>
+> // (2) StmMap multiplies each pair of numbers
 > multiplied = zipped.StmMap( @(x, y) => x * y )
 > multiplied
 [5:u8, 12:u8, 21:u8, 32:u8]s
+>
+> // (3) StmSum computes the sum of the resulting stream
 > result = multiplied.StmSum()
 > result
 [70:u8]s

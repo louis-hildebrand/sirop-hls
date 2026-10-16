@@ -2,7 +2,7 @@ Sirop documentation
 ===================
 
 Sirop is a language and compiler for generating streaming accelerators.
-Similarly to projects like `HLS4ML <https://fastmachinelearning.org/hls4ml/intro/introduction.html>`__ and `Altera HLS IP Gen <https://www.altera.com/products/software-tools/hls-ip-gen-compiler>`__, the goal is to convert high-level code into VHDL that can be synthesized and run on an FPGA.
+Similarly to projects like `HLS4ML <https://fastmachinelearning.org/hls4ml/intro/introduction.html>`__ and `Altera HLS IP Gen <https://www.altera.com/products/software-tools/hls-ip-gen-compiler>`__, the goal is to convert high-level code into `VHDL <https://en.wikipedia.org/wiki/VHDL>`__ that can be synthesized and run on an `FPGA <https://en.wikipedia.org/wiki/Field-programmable_gate_array>`__.
 
 .. image:: figures/dark/workflow.*
     :width: 100%
