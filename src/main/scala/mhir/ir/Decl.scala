@@ -39,15 +39,25 @@ case class AccelDecl(
     name: String,
     body: Expr,
     annotations: Map[String, Expr],
-    annotationsByParam: Map[(String, Param), Expr]
+    annotationsByParam: Map[(String, Param), Expr],
+    inputDelays: Map[Param, Expr]
 ) {
 
   def alphaEquals(that: AccelDecl): Boolean = {
     that match {
-      case AccelDecl(name, body, annotations, annotationsByParam) =>
+      case AccelDecl(
+            name,
+            body,
+            annotations,
+            annotationsByParam,
+            inputDelays
+          ) =>
         name == this.name &&
         (body alphaEquals this.body) &&
         (annotations.keySet == this.annotations.keySet) &&
+        // TODO: In theory, I guess I should use alphaEquals here.
+        //       But in practice, hopefully people won't be calling functions in the delay annotations.
+        (inputDelays == that.inputDelays) &&
         annotations
           .forall({ case (x, e) => e alphaEquals this.annotations(x) }) &&
         (annotationsByParam.keySet == this.annotationsByParam.keySet) &&

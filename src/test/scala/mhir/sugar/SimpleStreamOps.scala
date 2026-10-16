@@ -119,3 +119,27 @@ object SimpleConcatHandshake {
     )().annotateWithName("SimpleConcat").tchk().lower
   }
 }
+
+object SimpleConcatNoHandshake {
+  def apply(a: Expr, b: Expr, go: Expr): Expr = {
+    val TyStm(elemTypA, nA) = a.typ
+    val TyStm(elemTypB, nB) = b.typ
+    assert(elemTypB == elemTypA)
+    val pA = Param("p_a")(TyStm(elemTypA, -1))
+    val pB = Param("p_b")(TyStm(elemTypB, -1))
+    val pGo = Param("p_go")(TyStm(TyBool, -1))
+    StmBuild(
+      SafeSum(nA, nB)(),
+      C(1)(),
+      Undefined(Missing),
+      Mux(StmData(pGo)(), StmData(pB)(), StmData(pA)())(),
+      True,
+      Map(),
+      Map(
+        pA -> (a, True, C(0)()),
+        pB -> (b, True, nA),
+        pGo -> (go, True, nA)
+      )
+    )().annotateWithName("SimpleConcat").tchk().lower
+  }
+}

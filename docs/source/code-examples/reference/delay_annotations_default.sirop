@@ -1,0 +1,15 @@
+const N: u32 = 5
+
+accelerator[no_handshake, out_name=c, head(a)=undefined, head(b)=undefined]
+// Neither 'a' nor 'b' has a delay annotation, so assume delay 0 for both.
+// In other words, the two input streams must arrive simultaneously.
+foo = (a: Stm[u16, N]) => (b: Stm[u16, N]) =>
+    a
+    .StmMap(x => x * x)
+    .StmMap2(b, a_squared => b => a_squared + b)
+
+assert {
+    a = [ 2:u16,  3:u16,  4:u16,  5:u16,  6:u16]s,
+    b = [10:u16, 11:u16, 12:u16, 13:u16, 14:u16]s
+}
+yields [14:u16, 20:u16, 28:u16, 38:u16, 50:u16]s

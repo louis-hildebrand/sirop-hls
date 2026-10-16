@@ -12,13 +12,15 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     new StaticLetStmBufferShrinker(
       latencyAnalysis = new LatencyAnalysis(handshake = true),
       handshake = true,
-      assumeThroughputsMatch = true
+      assumeThroughputsMatch = true,
+      inputDelays = Map()
     )
   private val passWithoutHandshake: LetStmBufferShrinker =
     new StaticLetStmBufferShrinker(
       latencyAnalysis = new LatencyAnalysis(handshake = false),
       handshake = false,
-      assumeThroughputsMatch = true
+      assumeThroughputsMatch = true,
+      inputDelays = Map()
     )
 
   private def assertAllBufSizesEqual(e: Expr, expected: IntCst): Unit = {
@@ -273,7 +275,8 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val pass = new StaticLetStmBufferShrinker(
       latencyAnalysis = new LatencyAnalysis(handshake = true),
       handshake = true,
-      assumeThroughputsMatch = false
+      assumeThroughputsMatch = false,
+      inputDelays = Map()
     )
     val optimized = pass.shrinkBuffers(original)
 
@@ -356,7 +359,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     assert(actualVal == expectedVal)
   }
 
-  test("StmConcat") {
+  test("StmConcat:Handshake") {
     val n = 5
     val original = {
       val s0 = Param("s0")(TyStm(U8, n))
@@ -370,5 +373,63 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
     val originalVal = mhir.eval.eval(original)
     val actualVal = mhir.eval.eval(optimized)
     assert(actualVal == originalVal)
+  }
+
+  test("StmConcat:NoHandshake") {
+    val n = 5
+    val m = 7
+    val delayA = 0
+    val delayB = n + 1
+    val delayGo = n + 1
+    val original @ Function(a, Function(b, Function(go, originalBody))) = {
+      val a = Param("a")(TyStm(U8, n))
+      val b = Param("b")(TyStm(U8, m))
+      val go = Param("go")(TyStm(TyBool, m))
+      val s = Param("s")(TyStm(U8, n))
+      val plusFive = SimpleMap(a, x => Sum(C(5)(U8), x)())
+      val concat = SimpleConcatNoHandshake(s, b, go)
+      val output = Let(s, plusFive, concat)().tchk().lower
+      Function(a, Function(b, Function(go, output)())())().tchk()
+    }
+    val pass = new StaticLetStmBufferShrinker(
+      latencyAnalysis = new LatencyAnalysis(handshake = false),
+      handshake = false,
+      assumeThroughputsMatch = true,
+      inputDelays = Map(
+        a -> delayA,
+        b -> delayB,
+        go -> delayGo
+      )
+    )
+    val Function(_, Function(_, Function(_, optimized))) =
+      pass.shrinkBuffers(original)
+
+    // Correct behaviour
+    val exampleA = StmLiteral(
+      (0 until delayA).map(_ => Undefined(U8)),
+      (0 until n).map(C(_)(U8))
+    )(Missing).tchk()
+    val exampleB = StmLiteral(
+      (0 until delayB).map(_ => Undefined(U8)),
+      (0 until m).map(42 + _).map(C(_)(U8))
+    )(Missing).tchk()
+    val exampleGo = StmLiteral(
+      (0 until delayGo).map(_ => False),
+      (0 until m).map(_ => True)
+    )(Missing).tchk()
+    val expectedVal = mhir.eval.eval(
+      originalBody,
+      handshake = false,
+      inputs = Map(a -> exampleA, b -> exampleB, go -> exampleGo)
+    )
+    val actualVal = mhir.eval.eval(
+      optimized,
+      handshake = false,
+      inputs = Map(a -> exampleA, b -> exampleB, go -> exampleGo)
+    )
+    assert(actualVal == expectedVal)
+
+    // Effective optimization
+    assertAllBufSizesEqual(optimized, 0)
   }
 }

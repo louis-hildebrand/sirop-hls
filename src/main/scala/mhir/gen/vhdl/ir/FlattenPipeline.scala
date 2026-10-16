@@ -29,11 +29,7 @@ object FlattenPipeline {
       (inputs, stm3)
     }
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
-    val latency = {
-      val analysis = new LatencyAnalysis(handshake = options.handshake)
-      analysis.actualLatency(stm, inputs.map(_ -> Some(0)).toMap)
-    }
-    val (sink1, nodes1) = makePipeline(stm, latency)
+    val (sink1, nodes1) = makePipeline(stm)
     val (sink2, nodes2) = deduplicateVars(sink1, nodes1)
     val pipe1 = FlatPipeline(
       sbuilds = nodes2.collect({ case n: StmBuildNode => n }),
@@ -102,10 +98,7 @@ object FlattenPipeline {
     }
   }
 
-  private def makePipeline(
-      e: Expr,
-      latency: LatencyNode
-  ): (Param, Seq[PipelineNode]) = {
+  private def makePipeline(e: Expr): (Param, Seq[PipelineNode]) = {
     e match {
       case x: Param =>
         (x, Seq())
@@ -113,13 +106,8 @@ object FlattenPipeline {
         var newAccumulators = Map[Param, Accumulator]()
         var newProducers = Map[Param, (Param, Expr)]()
         var newNodes = Seq[PipelineNode]()
-        assert(
-          latency.isInstanceOf[LatencyStmBuild],
-          s"expression $s does not correspond to latency node $latency"
-        )
-        val LatencyStmBuild(_, _, producerLatencies) = latency
         for ((x, (stm, ready, _)) <- s.producers) {
-          val (sink, nodes) = makePipeline(stm, producerLatencies(x))
+          val (sink, nodes) = makePipeline(stm)
           newNodes ++= nodes
           newProducers += x -> (sink, ready)
         }
@@ -143,13 +131,8 @@ object FlattenPipeline {
         val x = Param("s")(s.typ)
         (x, newNodes :+ StmBuildNode(x, genSbuild))
       case LetStm(bufSizeExpr, x, in, out) =>
-        assert(
-          latency.isInstanceOf[LatencyLetStm],
-          s"expression $e does not correspond to latency node $latency"
-        )
-        val LatencyLetStm(_, inLat, outLat) = latency
-        val (sinkIn, nodesIn) = makePipeline(in, inLat)
-        val (sinkOut, nodesOut) = makePipeline(out, outLat)
+        val (sinkIn, nodesIn) = makePipeline(in)
+        val (sinkOut, nodesOut) = makePipeline(out)
         val IntCst(bufSize) = mhir.eval.eval(bufSizeExpr)
         val newNode = LetStmNode(sinkIn, bufSize.toInt, Set(x))
         (sinkOut, nodesIn ++ (newNode +: nodesOut))

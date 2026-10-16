@@ -28,7 +28,7 @@ author = 'Louis Hildebrand'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 sys.path.append(str(Path('extensions').resolve()))
-extensions = ['myst_parser', 'sirop']
+extensions = ['myst_parser', 'sirop', 'sphinx_subfigure']
 primary_domain = 'sirop'
 
 templates_path = ['_templates']
@@ -48,6 +48,11 @@ linkcheck_ignore = [
 
 highlight_language = 'sirop'
 lexers['sirop'] = SiropLexer()
+
+numfig = True
+numfig_format = {
+    'figure': 'Figure %s',
+}
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

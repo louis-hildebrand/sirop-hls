@@ -5,7 +5,7 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.parse.{SourcePoint, SyntaxError}
 import mhir.sugar._
-import mhir.typecheck.{NameError, TypeCheck}
+import mhir.typecheck.{NameError, TypeCheck, TypeChecker}
 import os.Path
 
 import scala.annotation.tailrec
@@ -193,12 +193,23 @@ object Parser {
     }
     val (IdentToken(name), rest3) = expect(IdentToken, rest2)
     val (_, rest4) = expect(AssignToken, rest3)
-    val (body, rest5) =
-      parseExpr(
-        rest4,
-        constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
-      )
-    (AccelDecl(name, body, annotations, annotationsByParam), rest5)
+    val constTypes =
+      constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
+    val (inputs, rest5) = parseAcceleratorInputs(rest4, constTypes, Seq())
+    val (body, rest6) = parseExpr(rest5, constTypes)
+    val inputDelays =
+      inputs.flatMap({ case (x, delay) => delay.map(x -> _) }).toMap
+    val bodyWithInputs = inputs
+      .map({ case (x, _) => x })
+      .foldRight(body)({ case (x, body) => Function(x, body)() })
+    val accel = AccelDecl(
+      name,
+      bodyWithInputs,
+      annotations,
+      annotationsByParam,
+      inputDelays
+    )
+    (accel, rest6)
   }
 
   private def parseAcceleratorAnnotations(
@@ -255,6 +266,45 @@ object Parser {
       msg => throw SyntaxError(msg, keyTok.loc)
     )
     ((key, param, value.getOrElse(True)), rest3)
+  }
+
+  @tailrec
+  private def parseAcceleratorInputs(
+      tokens: Seq[Token],
+      constants: Map[Param, Type],
+      inputsSoFar: Seq[(Param, Option[Expr])]
+  ): (Seq[(Param, Option[Expr])], Seq[Token]) = {
+    tokens.headOption match {
+      case Some(_: LeftParToken) =>
+        val rest1 = tokens.tail
+        rest1.headOption match {
+          case Some(IdentToken(x)) =>
+            val rest2 = rest1.tail
+            rest2.headOption match {
+              case Some(_: ColonToken) =>
+                val rest3 = rest2.tail
+                val (typ, rest4) = parseTyp(rest3, constants)
+                val (delay, rest5) = rest4.headOption match {
+                  case Some(_: AtToken) =>
+                    val rest4_1 = rest4.tail
+                    val (delay, rest4_2) = parseExpr(rest4_1, constants)
+                    (Some(delay), rest4_2)
+                  case _ => (None, rest4)
+                }
+                val (_, rest6) = expect(RightParToken, rest5)
+                val (_, rest7) = expect(DoubleArrowToken, rest6)
+                val latestInput = (Param(x, -1)(typ), delay)
+                parseAcceleratorInputs(
+                  rest7,
+                  constants,
+                  inputsSoFar :+ latestInput
+                )
+              case _ => (inputsSoFar, tokens)
+            }
+          case _ => (inputsSoFar, tokens)
+        }
+      case _ => (inputsSoFar, tokens)
+    }
   }
 
   private def parseAssertion(

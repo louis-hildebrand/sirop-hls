@@ -1,11 +1,14 @@
 package mhir.typecheck
 
+import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.sem.SemanticError
 
 import scala.annotation.tailrec
 
 trait TypeChecker {
+
+  private val logger: Logger = Logger(getClass.getName)
 
   implicit class TypeCheck(expr: Expr) {
 
@@ -883,14 +886,29 @@ trait TypeChecker {
       val mainConstVals = this.prog.constants
         .map({ case ConstDecl(x, e) => x -> e })
         .toMap
-      val newAccel =
-        this.prog.accel
-          .copy(body = this.prog.accel.body.tchk(mainConstTypes, mainConstVals))
+      val newBody = this.prog.accel.body.tchk(mainConstTypes, mainConstVals)
       val (accelInputs, accelOutTyp) = {
-        val (params, body) = TypeChecker.unwrapTopLevelFunction(newAccel.body)
+        val (params, body) = TypeChecker.unwrapTopLevelFunction(newBody)
         assert(body.typ != Missing)
         (params.toSet, body.typ)
       }
+      assert(
+        this.prog.accel.inputDelays.keySet.subsetOf(accelInputs),
+        s"input delay map seems to have invalid keys (${this.prog.accel.inputDelays.keySet})"
+          + s" that are not in input set ($accelInputs)"
+      )
+      val newInputDelays = accelInputs
+        .map({ x =>
+          this.prog.accel.inputDelays.get(x) match {
+            case Some(delay) => x -> delay.tchk(mainConstTypes, mainConstVals)
+            case None =>
+              logger.debug(s"assuming 0 delay for input $x")
+              x -> C(0)(U0)
+          }
+        })
+        .toMap
+      val newAccel =
+        this.prog.accel.copy(body = newBody, inputDelays = newInputDelays)
       val (_, _, newTestSuite) =
         this.prog.test
           .foldLeft(mainConstTypes, mainConstVals, Seq[TestDecl]())({

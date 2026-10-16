@@ -24,7 +24,8 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
   private def postProcess(
       e: Expr,
       handshake: Boolean = false,
-      headByParam: Map[Param, Expr] = Map()
+      headByParam: Map[Param, Expr] = Map(),
+      inputDelays: Map[Param, Expr] = Map()
   ): Expr = {
     // TODO: I think this basic sequence of transformations appears in three places: the main compiler, the REPL, and here. See if I can deduplicate it.
     // Certain transformations are needed when the handshake protocol is
@@ -47,11 +48,12 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
       handshake = handshake
     )
     val afterLatencyMatching =
-      latencyMatcher.matchLatencies(simplified, headByParam)
+      latencyMatcher.matchLatencies(simplified, headByParam, inputDelays)
     val letBufShrinker = new StaticLetStmBufferShrinker(
       latencyAnalysis,
       handshake = handshake,
-      assumeThroughputsMatch = false
+      assumeThroughputsMatch = false,
+      inputDelays = inputDelays
     )
     val afterLetBufShrinking =
       letBufShrinker.shrinkBuffers(afterLatencyMatching)
@@ -90,7 +92,8 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     )
     val simplified = this.postProcess(
       pass.applyOnce(original),
-      headByParam = Map(input -> Undefined(U8))
+      headByParam = Map(input -> Undefined(U8)),
+      inputDelays = Map(input -> 0)
     )
 
     // Same behaviour
@@ -135,7 +138,8 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     )
     val simplified = this.postProcess(
       pass.applyOnce(original),
-      headByParam = Map(input -> Undefined(U8))
+      headByParam = Map(input -> Undefined(U8)),
+      inputDelays = Map(input -> 0)
     )
 
     // Same behaviour
@@ -179,7 +183,8 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     )
     val simplified = this.postProcess(
       pass.applyOnce(original),
-      headByParam = Map(input -> Undefined(U8))
+      headByParam = Map(input -> Undefined(U8)),
+      inputDelays = Map(input -> 0)
     )
 
     // Same behaviour
@@ -220,7 +225,8 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     )
     val simplified = this.postProcess(
       pass.applyOnce(original),
-      headByParam = Map(input -> Undefined(U8))
+      headByParam = Map(input -> Undefined(U8)),
+      inputDelays = Map(input -> 0)
     )
 
     // Same behaviour
@@ -265,7 +271,8 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     assertSameVal(
       this.postProcess(
         simplified,
-        headByParam = Map(input -> Undefined(Missing))
+        headByParam = Map(input -> Undefined(Missing)),
+        inputDelays = Map(input -> 0)
       ),
       original,
       handshake = false,
@@ -292,7 +299,8 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     )
     val simplified = this.postProcess(
       pass.applyOnce(original),
-      headByParam = Map()
+      headByParam = Map(),
+      inputDelays = Map()
     )
 
     // Same behaviour
@@ -329,7 +337,8 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     )
     val simplified = this.postProcess(
       pass.applyOnce(original),
-      headByParam = Map(input -> Undefined(U8))
+      headByParam = Map(input -> Undefined(U8)),
+      inputDelays = Map(input -> 0)
     )
 
     // Same behaviour
@@ -366,7 +375,8 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     )
     val simplified = this.postProcess(
       pass.applyOnce(original),
-      headByParam = Map(input -> Undefined(U8))
+      headByParam = Map(input -> Undefined(U8)),
+      inputDelays = Map(input -> 0)
     )
 
     // Same behaviour
@@ -434,7 +444,8 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     )
     val simplified = this.postProcess(
       pass.applyOnce(original),
-      headByParam = Map(input -> Undefined(U8))
+      headByParam = Map(input -> Undefined(U8)),
+      inputDelays = Map(input -> 0)
     )
 
     // Same behaviour

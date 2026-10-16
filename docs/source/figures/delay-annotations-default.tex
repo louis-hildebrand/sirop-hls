@@ -1,0 +1,57 @@
+\documentclass[border={0pt 20pt 0pt 0pt}, varwidth]{standalone}
+
+\input{utils/font.tex}
+\input{utils/colors.tex}
+\input{utils/tikz.tex}
+
+\usepackage{pifont}
+\newcommand{\mycheckmark}{\ding{52}}
+\newcommand{\mycrossmark}{\ding{56}}
+
+\pagecolor{bgcolor}
+
+\begin{document}
+
+\begin{center}
+    \color{mygreen}
+    $a$ and $b$ arrive simultaneously
+    \mycheckmark
+\end{center}
+
+\begin{tikztimingtable}[
+    draw=mygray,
+    timing/xunit=3em,
+    timing/dslope=0.075,
+    timing/u/background/.style={fill=mygray},
+]
+    \texttt{clock} & 16{c} \\
+    $a$ & 1u 1D{2}  N(a) 1D{3}                1D{4}  1D{5}  1D{6}  1U     1U       1u \\
+    $b$ & 1u 1D{10} N(b) 1D{11}               1D{12} 1D{13} 1D{14} 1U     1U       1u \\
+    $c$ & 1u 1U     1U   {[fill=mygreen] N(c) 1D{14} 1D{20} 1D{28} 1D{38} 1D{50} } 1u \\
+    \extracode
+    \draw[arrow, mygreen, out=0, in=180] (a|-row2.mid) .. controls ([xshift=1em] a|-row2.mid) and ([xshift=-3em] c|-row4.mid) .. (c|-row4.mid);
+    \draw[arrow, mygreen, out=0, in=180] (b|-row3.mid) .. controls ([xshift=1em] b|-row3.mid) and ([xshift=-2.5em] c|-row4.mid) .. (c|-row4.mid);
+\end{tikztimingtable}
+
+\begin{center}
+    \color{myred}
+    $a$ and $b$ arrive out-of-sync
+    \mycrossmark
+\end{center}
+
+\begin{tikztimingtable}[
+    draw=mygray,
+    timing/xunit=3em,
+    timing/dslope=0.075,
+    timing/u/background/.style={fill=mygray},
+]
+    \texttt{clock} & 16{c} \\
+    $a$ & 1u 1D{2} 1D{3}  N(a) 1D{4}                   1D{5}  1D{6}  1U     1U       1u \\
+    $b$ & 1u 1U    1D{10} N(b) 1D{11}                  1D{12} 1D{13} 1D{14} 1U       1u \\
+    $c$ & 1u 1U    1U          1U   {[fill=myred] N(c) 1D{19} 1D{27} 1D{37} 1D{49} } 1u \\
+    \extracode
+    \draw[arrow, myred, out=0, in=180] (a|-row2.mid) .. controls ([xshift=1em] a|-row2.mid) and ([xshift=-3em] c|-row4.mid) .. (c|-row4.mid);
+    \draw[arrow, myred, out=0, in=180] (b|-row3.mid) .. controls ([xshift=1em] b|-row3.mid) and ([xshift=-2.5em] c|-row4.mid) .. (c|-row4.mid);
+\end{tikztimingtable}
+
+\end{document}

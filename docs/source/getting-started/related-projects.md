@@ -5,6 +5,8 @@
 Traditional hardware description languages give you a lot of control over the final product, but they are quite low-level and verbose.
 Sirop is a higher-level language; it lets you express your algorithm much more concisely.
 
+(latency-matching)=
+
 The Sirop compiler can also perform certain helpful transformations that synthesis tools like Quartus are not allowed to perform.
 For example, the Sirop compiler can insert registers to balance the latency across different paths.
 This makes it easier to focus on the high-level computations rather than low-level details like the latency along each path.

@@ -164,12 +164,20 @@ object Repl {
           case (x, StmLiteral(Seq(head, _*), _)) => x -> head
           case (x, _)                            => x -> Undefined(Missing)
         })
+      val inputDelays = state.env
+        .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
+        .flatMap({
+          case (x, StmLiteral(physical, _)) =>
+            Some(x -> C(physical.length)().tchk().asInstanceOf[IntCst])
+          case _ => None
+        })
       val afterLatencyMatching =
-        latencyMatcher.matchLatencies(simplified, headByParam)
+        latencyMatcher.matchLatencies(simplified, headByParam, inputDelays)
       val letBufShrinker = new StaticLetStmBufferShrinker(
         latencyAnalysis,
         handshake = state.handshake,
-        assumeThroughputsMatch = false
+        assumeThroughputsMatch = false,
+        inputDelays = inputDelays
       )
       letBufShrinker.shrinkBuffers(afterLatencyMatching)
     } else {

@@ -1,0 +1,112 @@
+\documentclass[border={0pt 0pt}]{standalone}
+
+\input{utils/font.tex}
+\input{utils/colors.tex}
+\input{utils/tikz.tex}
+
+\usepackage{bm}
+
+\begin{document}
+
+\pagecolor{bgcolor}
+
+\begin{tikzpicture}
+    % ===== Before adding delay annotation =====================================
+    \coordinate (before-start);
+    \coordinate[above=of before-start] (before-start-above);
+    \coordinate[below=of before-start] (before-start-below);
+    \node[left=0pt of before-start-above] {$a$};
+    \node[left=0pt of before-start-below] {$b$};
+
+    % StmMap
+    \coordinate[right=of before-start-above] (before-square-input);
+    \node[adder, right=of before-square-input] (before-square) {$\boldsymbol{\times}$};
+    \pic[right=of before-square] (before-square-reg) {register};
+    \node[subcomponent, fit=(before-square-input) (before-square) (before-square-reg)] (before-square-subcomponent) {};
+    \node[above=0pt of before-square-subcomponent] {\texttt{StmMap}};
+
+    % Register added for latency matching
+    \coordinate (before-latmatch-reg) at (before-square-reg.west|-before-start-below);
+    \begin{scope}[
+        regbox/.append style={ draw=myblue, fill=myblue!25!bgcolor },
+        regwedge/.append style={ draw=myblue, fill=myblue!25!bgcolor },
+    ]
+        \pic[below=0pt of before-latmatch-reg, anchor=west, draw=myblue, fill=myblue!50!bgcolor] (before-latmatch-reg) {register};
+    \end{scope}
+
+    % StmMap2
+    \coordinate[right=of before-square-reg] (before-above);
+    \coordinate (before-below) at (before-above|-before-start-below);
+    \draw[transparent] (before-above.east) to coordinate[midway] (midway) (before-below.east);
+    \node[adder, right=of midway] (before-zip) {$\boldsymbol{+}$};
+    \pic[right=of before-zip] (before-zip-reg) {register};
+    \node[right=of before-zip-reg] (before-end) {$c$};
+    \node[subcomponent, fit=(before-below) (before-above) (before-zip) (before-zip-reg)] (before-zip-subcomponent) {};
+    \node[above=0pt of before-zip-subcomponent] {\texttt{StmMap2}};
+
+    % Arrows
+    \draw[arrow, -] (before-start-above) to (before-square-input);
+    \draw[arrow, out=0, in=135] (before-square-input) to (before-square.north west);
+    \draw[arrow, out=0, in=225] (before-square-input) to (before-square.south west);
+    \draw[arrow] (before-square) to (before-square-reg);
+    \draw[arrow, -] (before-square-reg) to (before-above);
+    \draw[arrow] (before-start-below) to (before-latmatch-reg);
+    \draw[arrow, -] (before-latmatch-reg) to (before-below);
+    \draw[arrow, out=0, in=135, looseness=1.5] (before-above) to (before-zip);
+    \draw[arrow, out=0, in=225, looseness=1.5] (before-below.east) to (before-zip);
+    \draw[arrow] (before-zip) to (before-zip-reg);
+    \draw[arrow] (before-zip-reg) to (before-end);
+
+    % ===== After adding delay annotation ======================================
+    \coordinate[right=2 of before-end] (after-start);
+    \coordinate[above=of after-start] (after-start-above);
+    \coordinate[below=of after-start] (after-start-below);
+    \node[left=0pt of after-start-above] {$a$};
+    \node[left=0pt of after-start-below] {$b$};
+
+    % StmMap
+    \coordinate[right=of after-start-above] (after-square-input);
+    \node[adder, right=of after-square-input] (after-square) {$\boldsymbol{\times}$};
+    \pic[right=of after-square] (after-square-reg) {register};
+    \node[subcomponent, fit=(after-square-input) (after-square) (after-square-reg)] (after-square-subcomponent) {};
+    \node[above=0pt of after-square-subcomponent] {\texttt{StmMap}};
+
+    % StmMap2
+    \coordinate[right=of after-square-reg] (after-above);
+    \coordinate (after-below) at (after-above|-after-start-below);
+    \draw[transparent] (after-above.east) to coordinate[midway] (midway) (after-below.east);
+    \node[adder, right=of midway] (after-zip) {$\boldsymbol{+}$};
+    \pic[right=of after-zip] (after-zip-reg) {register};
+    \node[right=of after-zip-reg] (after-end) {$c$};
+    \node[subcomponent, fit=(after-below) (after-above) (after-zip) (after-zip-reg)] (after-zip-subcomponent) {};
+    \node[above=0pt of after-zip-subcomponent] {\texttt{StmMap2}};
+
+    \draw[arrow, -] (after-start-above) to (after-square-input);
+    \draw[arrow, out=0, in=135] (after-square-input) to (after-square.north west);
+    \draw[arrow, out=0, in=225] (after-square-input) to (after-square.south west);
+    \draw[arrow] (after-square) to (after-square-reg);
+    \draw[arrow, -] (after-square-reg) to (after-above);
+    \draw[arrow, -] (after-start-below) to (after-below);
+    \draw[arrow, out=0, in=135, looseness=1.5] (after-above) to (after-zip);
+    \draw[arrow, out=0, in=225, looseness=1.5] (after-below.east) to (after-zip);
+    \draw[arrow] (after-zip) to (after-zip-reg);
+    \draw[arrow] (after-zip-reg) to (after-end);
+
+    % ===== Separator ==========================================================
+    \draw[transparent] (before-end) to coordinate[midway] (vrule-mid) (after-start);
+    \coordinate[above=5em of current bounding box.north] (vrule-top);
+    \coordinate[below=5pt of current bounding box.south] (vrule-bot);
+    \draw[arrow, -, myblue, densely dotted] ([xshift=0pt, yshift=-5pt] vrule-bot) to ([xshift=0pt, yshift=5pt] vrule-top);
+
+    % "Before" title
+    \draw[transparent] (current bounding box.north west) to coordinate[midway] (before-title) (vrule-top);
+    \node[below=0pt of before-title] (before-title) {\textbf{$a$ and $b$ arrive simultaneously}};
+    \node[below=0pt of before-title] (before-title) {(i.e., no delay annotations)};
+
+    % "After" title
+    \draw[transparent] (current bounding box.north east) to coordinate[midway] (after-title) (vrule-top);
+    \node[below=0pt of after-title] (after-title) {\textbf{$b$ arrives 1 clock cycle after $a$}};
+    \node[below=0pt of after-title] (after-title) {(i.e., $b$ annotated with \texttt{@ 1})};
+\end{tikzpicture}
+
+\end{document}

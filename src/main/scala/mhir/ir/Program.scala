@@ -70,7 +70,7 @@ object Program {
   /** Creates a [[Program]] with a default name and no other declarations.
     */
   def apply(e: Expr): Program = {
-    Program(Seq(), AccelDecl("top", e, Map(), Map()), Seq())
+    Program(Seq(), AccelDecl("top", e, Map(), Map(), Map()), Seq())
   }
 
   def checkAnnotation(
