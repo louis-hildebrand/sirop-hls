@@ -380,7 +380,7 @@
 <h2>Hardware Description Languages (e.g., <a class="reference external" href="https://en.wikipedia.org/wiki/VHDL">VHDL</a>, <a class="reference external" href="https://en.wikipedia.org/wiki/Verilog">Verilog</a>)<a class="headerlink" href="#hardware-description-languages-e-g-vhdl-verilog" title="Link to this heading">#</a></h2>
 <p>Traditional hardware description languages give you a lot of control over the final product, but they are quite low-level and verbose.
 Sirop is a higher-level language; it lets you express your algorithm much more concisely.</p>
-<p>The Sirop compiler can also perform certain helpful transformations that synthesis tools like Quartus are not allowed to perform.
+<p id="latency-matching">The Sirop compiler can also perform certain helpful transformations that synthesis tools like Quartus are not allowed to perform.
 For example, the Sirop compiler can insert registers to balance the latency across different paths.
 This makes it easier to focus on the high-level computations rather than low-level details like the latency along each path.</p>
 <img alt="Diagram showing the effect of latency matching" class="only-dark" src="../_images/latency-matching.svg" />

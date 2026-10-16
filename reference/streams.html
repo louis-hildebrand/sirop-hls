@@ -363,6 +363,10 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#controlling-the-physical-prefix">Controlling the Physical Prefix</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#input-stream-delay-annotations">Input Stream Delay Annotations</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#effect-on-resource-usage">Effect on Resource Usage</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stream-flattening">Stream Flattening</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-stream-functions">Built-In Stream Functions</a><ul class="visible nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-streams">Creating Streams</a></li>
@@ -386,7 +390,11 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="streams">
+  
+<style>
+  .ss-layout-default-A_B { grid-template-areas: 'A' 'B'; }
+</style>
+<section id="streams">
 <h1>Streams<a class="headerlink" href="#streams" title="Link to this heading">#</a></h1>
 <p>As described in <a class="reference internal" href="../getting-started/language-intro.html"><span class="doc">Overview</span></a>, a stream is an inherently sequential collection.
 Each element in a stream is provided at a different clock cycle.
@@ -473,6 +481,94 @@ If it’s important to see the physical prefix, enable it by setting the special
 <span class="go">[0:u8]s ++ [1:u8, 2:u8, 3:u8]s</span>
 </pre></div>
 </div>
+</section>
+</section>
+<section id="input-stream-delay-annotations">
+<h2>Input Stream Delay Annotations<a class="headerlink" href="#input-stream-delay-annotations" title="Link to this heading">#</a></h2>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 2.3.0.</span></p>
+</div>
+<p>Sirop supports “delay annotations” that express the relative arrival times of the inputs to the VHDL entity.</p>
+<p>First, consider the following simple program <em>without</em> delay annotations.
+Given streams <code class="docutils literal notranslate"><span class="pre">a</span> <span class="pre">=</span> <span class="pre">[a0,</span> <span class="pre">a1,</span> <span class="pre">a2,</span> <span class="pre">...]s</span></code> and <code class="docutils literal notranslate"><span class="pre">b</span> <span class="pre">=</span> <span class="pre">[b0,</span> <span class="pre">b1,</span> <span class="pre">b2,</span> <span class="pre">...]s</span></code>, it returns <code class="docutils literal notranslate"><span class="pre">[(a0*a0</span> <span class="pre">+</span> <span class="pre">b0),</span> <span class="pre">(a1*a1</span> <span class="pre">+</span> <span class="pre">b1),</span> <span class="pre">(a2*a2</span> <span class="pre">+</span> <span class="pre">b2),</span> <span class="pre">...]s</span></code>.
+Since the input streams do <em>not</em> have delay annotations, the Sirop compiler assumes <code class="docutils literal notranslate"><span class="pre">a</span></code> and <code class="docutils literal notranslate"><span class="pre">b</span></code> will arrive at the same time.</p>
+<div class="highlight-sirop notranslate" id="delay-annotations-default"><div class="highlight"><pre><span></span><span class="k">const</span> <span class="n">N</span>: <span class="kt">u32</span> = <span class="m">5</span>
+
+<span class="k">accelerator</span><span class="p">[</span><span class="n">no</span>_<span class="n">handshake</span>, <span class="n">out</span>_<span class="n">name</span>=<span class="n">c</span>, <span class="n">head</span>(<span class="n">a</span>)=<span class="l">undefined</span>, <span class="n">head</span>(<span class="n">b</span>)=<span class="l">undefined</span><span class="p">]</span>
+<span class="c c-Singleline">// Neither 'a' nor 'b' has a delay annotation, so assume delay 0 for both.</span>
+<span class="c c-Singleline">// In other words, the two input streams must arrive simultaneously.</span>
+<span class="n">foo</span> = (<span class="n">a</span>: <span class="kt">Stm</span><span class="p">[</span><span class="kt">u16</span>, <span class="n">N</span><span class="p">]</span>) <span class="p">=&gt;</span> (<span class="n">b</span>: <span class="kt">Stm</span><span class="p">[</span><span class="kt">u16</span>, <span class="n">N</span><span class="p">]</span>) <span class="p">=&gt;</span>
+    <span class="n">a</span>
+    .<span class="nb">StmMap</span>(<span class="n">x</span> <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">x</span>)
+    .<span class="nb">StmMap2</span>(<span class="n">b</span>, <span class="n">a</span>_<span class="n">squared</span> <span class="p">=&gt;</span> <span class="n">b</span> <span class="p">=&gt;</span> <span class="n">a</span>_<span class="n">squared</span> <span class="o">+</span> <span class="n">b</span>)
+
+<span class="k">assert</span> {
+    <span class="n">a</span> = <span class="p">[</span> <span class="m">2</span>:<span class="kt">u16</span>,  <span class="m">3</span>:<span class="kt">u16</span>,  <span class="m">4</span>:<span class="kt">u16</span>,  <span class="m">5</span>:<span class="kt">u16</span>,  <span class="m">6</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span>,
+    <span class="n">b</span> = <span class="p">[</span><span class="m">10</span>:<span class="kt">u16</span>, <span class="m">11</span>:<span class="kt">u16</span>, <span class="m">12</span>:<span class="kt">u16</span>, <span class="m">13</span>:<span class="kt">u16</span>, <span class="m">14</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span>
+}
+<span class="k">yields</span> <span class="p">[</span><span class="m">14</span>:<span class="kt">u16</span>, <span class="m">20</span>:<span class="kt">u16</span>, <span class="m">28</span>:<span class="kt">u16</span>, <span class="m">38</span>:<span class="kt">u16</span>, <span class="m">50</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span>
+</pre></div>
+</div>
+<p>The behaviour of this program is illustrated in the following timing diagram.</p>
+<a class="only-dark reference internal image-reference" href="../_images/delay-annotations-default.svg"><img alt="../_images/delay-annotations-default.svg" class="only-dark" src="../_images/delay-annotations-default.svg" style="width: 514.5px; height: 274.5px;" />
+</a>
+<a class="only-light reference internal image-reference" href="../_images/delay-annotations-default1.svg"><img alt="../_images/delay-annotations-default1.svg" class="only-light" src="../_images/delay-annotations-default1.svg" style="width: 514.5px; height: 274.5px;" />
+</a>
+<p>However, suppose we want stream <code class="docutils literal notranslate"><span class="pre">b</span></code> to arrive one cycle later than stream <code class="docutils literal notranslate"><span class="pre">a</span></code>.
+This can be expressed as follows.</p>
+<div class="highlight-sirop notranslate" id="delay-annotations-explicit"><div class="highlight"><pre><span></span><span class="k">const</span> <span class="n">N</span>: <span class="kt">u32</span> = <span class="m">5</span>
+
+<span class="k">accelerator</span><span class="p">[</span><span class="n">no</span>_<span class="n">handshake</span>, <span class="n">out</span>_<span class="n">name</span>=<span class="n">c</span>, <span class="n">head</span>(<span class="n">a</span>)=<span class="l">undefined</span>, <span class="n">head</span>(<span class="n">b</span>)=<span class="l">undefined</span><span class="p">]</span>
+<span class="c c-Singleline">// Since there is no delay annotation for input 'a', it defaults to zero.</span>
+<span class="c c-Singleline">// Therefore, input 'b' must arrive one clock cycle later than 'a'.</span>
+<span class="n">foo</span> = (<span class="n">a</span>: <span class="kt">Stm</span><span class="p">[</span><span class="kt">u16</span>, <span class="n">N</span><span class="p">]</span>) <span class="p">=&gt;</span> (<span class="n">b</span>: <span class="kt">Stm</span><span class="p">[</span><span class="kt">u16</span>, <span class="n">N</span><span class="p">]</span> @ <span class="m">1</span>) <span class="p">=&gt;</span>
+<span class="c c-Singleline">//                                        ^^^</span>
+<span class="c c-Singleline">//                                        NEW</span>
+    <span class="n">a</span>
+    .<span class="nb">StmMap</span>(<span class="n">x</span> <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">x</span>)
+    .<span class="nb">StmMap2</span>(<span class="n">b</span>, <span class="n">a</span>_<span class="n">squared</span> <span class="p">=&gt;</span> <span class="n">b</span> <span class="p">=&gt;</span> <span class="n">a</span>_<span class="n">squared</span> <span class="o">+</span> <span class="n">b</span>)
+
+<span class="k">assert</span> {
+    <span class="n">a</span> =                     <span class="p">[</span> <span class="m">2</span>:<span class="kt">u16</span>,  <span class="m">3</span>:<span class="kt">u16</span>,  <span class="m">4</span>:<span class="kt">u16</span>,  <span class="m">5</span>:<span class="kt">u16</span>,  <span class="m">6</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span>,
+    <span class="n">b</span> = <span class="p">[</span><span class="l">undefined</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span> <span class="p">++</span> <span class="p">[</span><span class="m">10</span>:<span class="kt">u16</span>, <span class="m">11</span>:<span class="kt">u16</span>, <span class="m">12</span>:<span class="kt">u16</span>, <span class="m">13</span>:<span class="kt">u16</span>, <span class="m">14</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span>
+<span class="c c-Singleline">//      ^^^^^^^^^^^^^^^^</span>
+<span class="c c-Singleline">//            NEW</span>
+}
+<span class="k">yields</span> <span class="p">[</span><span class="m">14</span>:<span class="kt">u16</span>, <span class="m">20</span>:<span class="kt">u16</span>, <span class="m">28</span>:<span class="kt">u16</span>, <span class="m">38</span>:<span class="kt">u16</span>, <span class="m">50</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">s</span>
+</pre></div>
+</div>
+<p>This program is described by the following timing diagram.</p>
+<a class="only-dark reference internal image-reference" href="../_images/delay-annotations-explicit.svg"><img alt="../_images/delay-annotations-explicit.svg" class="only-dark" src="../_images/delay-annotations-explicit.svg" style="width: 514.5px; height: 274.5px;" />
+</a>
+<a class="only-light reference internal image-reference" href="../_images/delay-annotations-explicit1.svg"><img alt="../_images/delay-annotations-explicit1.svg" class="only-light" src="../_images/delay-annotations-explicit1.svg" style="width: 514.5px; height: 274.5px;" />
+</a>
+<p>Note that only the <em>relative</em> values of the delay annotations matter.
+In the example above, annotating <code class="docutils literal notranslate"><span class="pre">a</span></code> with <code class="docutils literal notranslate"><span class="pre">&#64;</span> <span class="pre">100</span></code> and <code class="docutils literal notranslate"><span class="pre">b</span></code> with <code class="docutils literal notranslate"><span class="pre">&#64;</span> <span class="pre">101</span></code> would have had the same effect as just annotating <code class="docutils literal notranslate"><span class="pre">b</span></code> with <code class="docutils literal notranslate"><span class="pre">&#64;</span> <span class="pre">1</span></code>.</p>
+<section id="effect-on-resource-usage">
+<h3>Effect on Resource Usage<a class="headerlink" href="#effect-on-resource-usage" title="Link to this heading">#</a></h3>
+<p>Carefully choosing the delay annotations can lower ALM usage.</p>
+<figure class="sphinx-subfigure align-default" id="delay-annotations-resource-usage">
+<div class="sphinx-subfigure-grid ss-layout-default-A_B" style="display: grid;">
+<div class="sphinx-subfigure-area" style="display: flex; flex-direction: column; justify-content: center; align-items: center; grid-area: A;">
+<a class="only-dark reference internal image-reference" href="../_images/delay-annotations-resource-usage.svg"><img alt="../_images/delay-annotations-resource-usage.svg" class="only-dark" src="../_images/delay-annotations-resource-usage.svg" style="width: 937.5px; height: 255.0px;" />
+</a>
+</div>
+<div class="sphinx-subfigure-area" style="display: flex; flex-direction: column; justify-content: center; align-items: center; grid-area: B;">
+<a class="only-light reference internal image-reference" href="../_images/delay-annotations-resource-usage1.svg"><img alt="../_images/delay-annotations-resource-usage1.svg" class="only-light" src="../_images/delay-annotations-resource-usage1.svg" style="width: 937.5px; height: 255.0px;" />
+</a>
+</div>
+</div>
+<figcaption>
+<p><span class="caption-number">Figure 1 </span><span class="caption-text">VHDL generated from the example program with and without delay annotations.</span><a class="headerlink" href="#delay-annotations-resource-usage" title="Link to this image">#</a></p>
+</figcaption>
+</figure>
+<p>In <a class="reference internal" href="#delay-annotations-default"><span class="std std-ref">the original program</span></a>, <code class="docutils literal notranslate"><span class="pre">a</span></code> passes through one pipeline stage (<code class="docutils literal notranslate"><span class="pre">StmMap(x</span> <span class="pre">=&gt;</span> <span class="pre">x</span> <span class="pre">*</span> <span class="pre">x)</span></code>) before reaching the adder.
+By contrast, <code class="docutils literal notranslate"><span class="pre">b</span></code> feeds directly into the adder.
+Therefore, the Sirop compiler must add a register to balance the latency (see <a class="reference internal" href="../getting-started/related-projects.html#latency-matching"><span class="std std-ref">latency matching</span></a>).
+This is the blue register on the left-hand side of <a class="reference internal" href="#delay-annotations-resource-usage"><span class="std std-numref">figure 1</span></a>.</p>
+<p>In <a class="reference internal" href="#delay-annotations-explicit"><span class="std std-ref">the program with a delay annotation</span></a>, the programmer promises that <code class="docutils literal notranslate"><span class="pre">b</span></code> will already be delayed by one clock cycle at the input.
+Therefore, the Sirop compiler does not need to add any extra registers.
+The result is shown on the right-hand side of <a class="reference internal" href="#delay-annotations-resource-usage"><span class="std std-numref">figure 1</span></a>.</p>
 </section>
 </section>
 <section id="stream-flattening">
@@ -1192,6 +1288,10 @@ In other words, <a class="reference internal" href="#StmMapDot" title="StmMapDot
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parts-of-a-stream">Parts of a Stream</a><ul class="visible nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#controlling-the-physical-prefix">Controlling the Physical Prefix</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#input-stream-delay-annotations">Input Stream Delay Annotations</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#effect-on-resource-usage">Effect on Resource Usage</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#stream-flattening">Stream Flattening</a></li>
