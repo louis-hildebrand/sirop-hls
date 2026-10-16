@@ -1,8 +1,28 @@
-\documentclass[border={5pt 0pt}]{standalone}
+\documentclass[border={0pt 15pt 0pt 0pt}]{standalone}
 
 \usepackage{tikz}
-\usetikzlibrary{positioning, shapes.geometric, backgrounds}
+\usetikzlibrary{positioning, shapes.geometric, shapes.symbols, backgrounds}
 
+\usepackage{listings}
+\lstdefinestyle{irstyle}{
+    basicstyle={\footnotesize\ttfamily},
+    commentstyle={\color{mygray}},
+    language=c,
+    tabsize=2,
+    keywords=[1]{StmMap, StmSum, StmZip},
+    keywordstyle=[1]{\color{mygreen}},
+    keywords=[2]{accelerator},
+    keywordstyle=[2]{\color{myorange}\bfseries},
+    emph={Stm, u8},
+    emphstyle={\color{myblue}\bfseries},
+    mathescape=true,
+    numberstyle={\color{gray}},
+}
+\lstset{style=irstyle}
+
+\usepackage{bm}
+
+\input{utils/tikz.tex}
 \input{utils/font.tex}
 \input{utils/colors.tex}
 
@@ -16,53 +36,136 @@
 \colorlet{linecolor}{fgcolor!85!bgcolor}
 
 \begin{tikzpicture}[
-    node distance=0.8em and 1.2em,
+    node distance=1.5em and 1.5em,
     arrow/.style={->, linecolor, very thick},
+    ioarrow/.style={->, linecolor, very thick, dashed},
     flowchartnode/.style={draw, linecolor, very thick, align=center},
     hiprocess/.style={process, fill=Goldenrod!90!red},
-    process/.style={flowchartnode, rectangle, fill=myblue, minimum height=1.6em, minimum width=5.5em},
+    process/.style={flowchartnode, rectangle, fill=myblue, minimum height=1.6em, minimum width=7em},
     decision/.style={flowchartnode, diamond, aspect=1.8, fill=myorange},
     endpoint/.style={flowchartnode, ellipse, fill=mygreen},
-    io/.style={flowchartnode, trapezium, trapezium left angle=70, trapezium right angle=110}
+    io/.style={flowchartnode, tape, tape bend top=none, align=left},
+    text=linecolor,
 ]
-    \scriptsize
-    \node[process, align=center]                (write-sirop)       {Write};
-    \node[io, right=of write-sirop]             (sirop-files)       {.sirop};
-    \node[process, below=of sirop-files]        (run-sirop-tests)   {Test};
-    \node[process, right=of run-sirop-tests]    (sirop-compile)     {Compile};
-    \node[process, right=of sirop-compile]      (run-vsim)          {Simulate};
-    \node[process, right=of run-vsim]           (synth)             {Synthesize};
-    \node[endpoint, right=of synth]             (end)               {:D};
-    \node[decision, below=of run-sirop-tests]   (sirop-tests-pass)  {OK?};
-    \node[decision, below=of run-vsim]          (vsim-pass)         {OK?};
-    \node[decision, below=of synth]             (synth-pass)        {OK?};
-    \node[io, above=of run-vsim]                (vhdl-files)        {.vhd};
-    \coordinate[below=of sirop-tests-pass]      (try-again);
+    \large
 
+    % Process nodes
+    \node[process, align=center]                 (write-sirop)       {Write};
+    \node[process, right=of write-sirop]         (run-sirop-tests)   {Test};
+    \node[process, right=2.0 of run-sirop-tests] (sirop-compile)     {Compile};
+    \node[process, right=2.0 of sirop-compile]   (run-vsim)          {Simulate};
+    \node[process, right=of run-vsim]            (synth)             {Synthesize};
+    \node[endpoint, right=of synth]              (end)               {:D};
+    \node[decision, below=of run-sirop-tests]    (sirop-tests-pass)  {OK?};
+    \node[decision, below=of run-vsim]           (vsim-pass)         {OK?};
+    \node[decision, below=of synth]              (synth-pass)        {OK?};
+    \coordinate[below=of sirop-tests-pass]       (try-again);
+
+    % Commands
+    \begin{scope}
+        \footnotesize
+        \node[text=linecolor, text depth=0pt, above=0pt of run-sirop-tests.north west, anchor=south west] {\texttt{\$ sirop --out:test}};
+        \node[text=linecolor, text depth=0pt, above=0pt of sirop-compile.north west, anchor=south west] (sirop-compile-cmd) {\texttt{\$ sirop --out:vhdl}};
+        \node[text=linecolor, text depth=0pt, above=0pt of run-vsim.north west, anchor=south west] {\texttt{\$ vsim}};
+        \node[text=linecolor, text depth=0pt, above=0pt of synth.north west, anchor=south west] {\texttt{\$ quartus\_sh}};
+    \end{scope}
+
+    % Documents
+    \coordinate[above=7 of run-vsim.north west, anchor=south west] (vhdl-files);
+    \node[io, right=0pt of vhdl-files] (vhdl-files) {
+        \begin{lstlisting}[gobble=12, language=vhdl]
+            -- foo.vhd
+            entity foo is
+            port (
+              clk  : in std_logic;
+              data : out std_logic_vector(7 downto 0);
+              rst  : in std_logic;
+              s    : in std_logic_vector(7 downto 0)
+            );
+            end entity foo;
+            -- etc.
+        \end{lstlisting}
+
+    };
+    \coordinate (sirop-files) at (run-sirop-tests.west|-vhdl-files.north);
+    \node[io, right=0pt of sirop-files, anchor=north west] (sirop-files) {
+        \begin{lstlisting}[gobble=12]
+            // foo.sirop
+            accelerator[no_handshake]
+            foo = (s: Stm[u8,4]) =>
+                s.StmMap(x => x+5)
+        \end{lstlisting}
+
+    };
+
+    % Block diagram of generated VHDL
+    \coordinate[above=1.5 of vhdl-files.north] (center);
+    \node[adder, left=0.5 of center] (adder) {$\boldsymbol{+}$};
+    \begin{scope}[regbox/.append style={minimum height=2.5em}]
+        \pic[right=0.5 of center] (register) {register};
+    \end{scope}
+    \node[above=0.5 of adder] (five) {5};
+    \node[left=1.5 of adder] (input) {\texttt{s}};
+    \node[right=1.5 of register] (output) {\texttt{data}};
+    \node[below=5pt of input.south east, anchor=north east] (clk) {\texttt{clk}};
+    \node[below=-3pt of clk.south east, anchor=north east] (rst) {\texttt{rst}};
+    \node[subcomponent, fit=(five) (adder) (register)] (stmmap) {};
+    \node[above=0pt of stmmap] {\texttt{foo}};
+    % Block diagram arrows
+    \draw[arrow] (input) to (adder);
+    \draw[arrow] (five) to (adder);
+    \draw[arrow] (adder) to (register);
+    \draw[arrow] (register) to (output);
+    \coordinate[left=1em of register-wedge] (before-register-wedge);
+    \draw[arrow] (clk) -| (before-register-wedge) to (register-wedge);
+
+    % Separator
     \begin{scope}[on background layer]
         \draw[transparent] (sirop-compile.east) to coordinate[midway] (midway) (run-vsim.west);
         \coordinate[above=6em of midway] (barrier-north);
-        \coordinate[below=6.5em of midway] (barrier-south);
-        \draw[gray, very thick, densely dashed] (barrier-north) to node[at start, right, yshift=-1pt, align=left, anchor=north west] {Traditional RTL workflow \\ $\longrightarrow$} (barrier-south);
+        \coordinate[below=8em of midway] (barrier-south);
+        \draw[gray, very thick, densely dashed] (barrier-north) to (barrier-south);
+        \node[below right=5pt of barrier-north, align=left, anchor=north west] {Traditional RTL workflow \\ $\longrightarrow$};
     \end{scope}
 
-    \draw[arrow] (write-sirop)      to (sirop-files);
-    \draw[arrow] (sirop-files)      to (run-sirop-tests);
-    \draw[arrow] (run-sirop-tests)  to (sirop-tests-pass);
-    \draw[arrow] (sirop-compile)    |- (vhdl-files);
-    \draw[arrow] (vhdl-files)       to (run-vsim);
-    \draw[arrow] (run-vsim)         to (vsim-pass);
-    \draw[arrow] (synth)            to (synth-pass);
+    % Arrows
+    \draw[ioarrow] (write-sirop.north)                      |- (sirop-files);
+    %\draw[ioarrow] (run-sirop-tests.north|-sirop-files.335) -| (run-sirop-tests.north);
+    \draw[arrow]   (write-sirop)                            to (run-sirop-tests);
+    \draw[arrow]   (run-sirop-tests)                        to (sirop-tests-pass);
+    \draw[ioarrow] (sirop-compile-cmd.north)                |- (vhdl-files);
+    %\draw[ioarrow] (run-vsim.north|-vhdl-files.225)         to (run-vsim);
+    \draw[arrow]   (sirop-compile)                          to (run-vsim);
+    \draw[arrow]   (run-vsim)                               to (vsim-pass);
+    \draw[arrow]   (synth)                                  to (synth-pass);
 
+    \draw[transparent] (run-sirop-tests) to coordinate[midway] (test-to-compile) (sirop-compile);
     \draw[transparent] (run-vsim) to coordinate[midway] (sim-to-synth) (synth);
     \draw[transparent] (synth) to coordinate[midway] (synth-to-end) (end);
-    \draw[arrow] (sirop-tests-pass) -| node[at start, above] {Y} (sirop-compile);
+    \draw[arrow] (sirop-tests-pass) -| node[at start, above] {Y} (test-to-compile) to (sirop-compile);
     \draw[arrow] (vsim-pass)        -| node[at start, above] {Y} (sim-to-synth) to (synth);
     \draw[arrow] (synth-pass)       -| node[at start, above] {Y} (synth-to-end) to (end);
 
     \draw[arrow] (sirop-tests-pass) |- node[at start, right, yshift=-1pt] {N} (try-again) -| (write-sirop);
     \draw[arrow] (vsim-pass)        |- node[at start, right, yshift=-1pt] {N} (try-again) -| (write-sirop);
     \draw[arrow] (synth-pass)       |- node[at start, right, yshift=-1pt] {N} (try-again) -| (write-sirop);
+
+    % Legend
+    \coordinate (top-left) at (write-sirop.north|-stmmap.north);
+    \node[
+        matrix,
+        below right=0pt of top-left,
+        anchor=north west,
+        rounded corners,
+        draw=mygray,
+        very thick,
+        column sep=1em,
+    ] (legend-box) {
+        \node[minimum width=3em, anchor=center] (arrow-box) {};    & \node[anchor=west] {Workflow}; \\
+        \node[minimum width=3em, anchor=center] (ioarrow-box) {};  & \node[anchor=west] {Output}; \\
+    };
+    \draw[arrow] (arrow-box.west) to (arrow-box.east);
+    \draw[ioarrow] (ioarrow-box.west) to (ioarrow-box.east);
 \end{tikzpicture}
 
 \end{document}
