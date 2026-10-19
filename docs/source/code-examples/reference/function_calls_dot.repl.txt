@@ -1,0 +1,16 @@
+> u = [1:u8, 2:u8, 3:u8, 4:u8]s
+> v = [5:u8, 6:u8, 7:u8, 8:u8]s
+> // Function style (read inside-out)
+> StmSum(StmMap(StmZip(u, v), @(x, y) => x * y))
+[70:u8]s
+> // Method style (read left-to-right)
+> u.StmZip(v).StmMap(@(x, y) => x * y).StmSum()
+[70:u8]s
+>
+> // Likewise for vectors
+> u = [1:u8, 2:u8, 3:u8, 4:u8]v
+> v = [5:u8, 6:u8, 7:u8, 8:u8]v
+> VecSum(VecMap(VecZip(u, v), @(x, y) => x * y))
+70:u8
+> u.VecZip(v).VecMap(@(x, y) => x * y).VecSum()
+70:u8

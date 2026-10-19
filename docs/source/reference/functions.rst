@@ -34,6 +34,30 @@ can also be written as
 
     @(x: u8, y: u8) => x + y
 
+Calling a Function
+------------------
+
+Functions can be called in one of two ways: "function-style" notation and "method-style" notation.
+
+For example, suppose ``f`` is a function that takes as input a 2-tuple.
+Then we can pass arguments ``x`` and ``y`` to ``f`` as follows:
+
+#. ``f(x, y)`` (function-style)
+#. ``x.f(y)`` (method-style)
+
+These two notations are exactly equivalent.
+
+.. NOTE::
+
+    Unlike in many object-oriented programming languages, method-style notation in Sirop does not come with any overhead (e.g., `dynamic dispatch <https://en.wikipedia.org/wiki/Dynamic_dispatch>`__).
+
+.. literalinclude:: /code-examples/reference/function_calls.repl.txt
+
+The same syntax can be used for stream and vector operators, like :func:`StmMap` and :func:`VecMap`.
+Method-style notation is especially convenient for expressing long sequences of stream transformations, since the stages of computation are laid out left-to-right (or top-to-bottom, if there are line breaks) rather than inside-out.
+
+.. literalinclude:: /code-examples/reference/function_calls_dot.repl.txt
+
 Omitting the Input Type Annotation
 ----------------------------------
 
