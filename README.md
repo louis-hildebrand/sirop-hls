@@ -8,7 +8,7 @@ Similarly to projects like [HLS4ML](https://fastmachinelearning.org/hls4ml/intro
     <img src="/docs/source/figures/dark/workflow.svg" alt="Flowchart showing the Sirop workflow" width="100%" />
 </picture>
 
-Programs are written in a functional style using “parallel patterns.” For example, a [dot product](https://en.wikipedia.org/wiki/Dot_product) can be expressed as follows:
+Programs are written in a functional style using "parallel patterns." For example, a [dot product](https://en.wikipedia.org/wiki/Dot_product) can be expressed as follows:
 
 ```
 $ sirop
