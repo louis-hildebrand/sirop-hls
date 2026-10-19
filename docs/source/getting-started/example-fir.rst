@@ -15,7 +15,7 @@ Test, compile, and simulate the design using the following command.
 .. code::
 
     $ sirop fir.sirop --out:test --out:vhdl vhdl_project_dir/ --out:vhdl:run-sim
-    [INFO ] the design has a latency of 5 cycles
+    [INFO ] the design has a latency of 6 cycles
     [INFO ] test 0: PASSED
     [INFO ] 1/1 test passed!
     [INFO ] VHDL testbench passed!
