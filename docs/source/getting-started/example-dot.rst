@@ -4,7 +4,7 @@ Example with Dynamic Scheduling: Dot Product
 As a simple example, consider the `dot product <https://en.wikipedia.org/wiki/Dot_product>`__ of two streams.
 This can be expressed as follows in Sirop:
 
-.. literalinclude:: /code-examples/dot.sirop
+.. literalinclude:: /code-examples/getting-started/dot.sirop
     :linenos:
 
 Testing and Debugging

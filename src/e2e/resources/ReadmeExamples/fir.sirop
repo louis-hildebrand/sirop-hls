@@ -2,11 +2,14 @@
 
 // Length of test inputs
 const T: u32 = 24
-// Number of taps
-const DEPTH: u32 = 3
-// FIR filter coefficients
-const COEFFS: Vec[i18, DEPTH] = [3:i18, 5:i18, 7:i18]v
-// Number of pipeline registers to enable in the DSPs
+// Number of taps.
+// Even numbers are more resource-efficient, since each DSP can perform two
+// multiplications in systolic mode.
+const DEPTH: u32 = 4
+// Number of pipeline registers to enable in the DSPs.
+// Enabling more of these tends to increases the maximum clock frequency,
+// but it also increases the latency.
+// In some cases, enabling more registers may also increase resource usage.
 const PIPELINE: u32 = 2
 
 accelerator[
@@ -17,19 +20,20 @@ accelerator[
     // (e.g., for latency matching), it must ensure the valid bit remains 0.
     head(s)=(undefined:i18, false)
 ]
-fir = (s: Stm[(i18, bool), T]) =>
+fir = (s: Stm[(i18, bool), T]) => (weights: Stm[Vec[i18, DEPTH], T]) =>
     // ----- Compute "data" part of output -------------------------------------
     let data =
         s
         // Take just the "data" part of the input stream
         .StmMap( @(data, valid) => data )
-        // Get sliding windows of size 3
-        .StmSlide(3)
-        // Take dot product between each sliced window and the coefficients.
-        // StmMapDot is specifically defined to facilitate the use of the DSPs
-        // in "systolic" mode.
-        .StmMapDot(StmCst(T-(DEPTH-1), COEFFS), PIPELINE)
-        // StmMapDot produces wider outputs for compatibility with DSPs.
+        // Get sliding windows
+        .StmSlide(DEPTH)
+        // Take dot product between each window and the coefficients.
+        // StmMapDotCascaded is specifically defined to facilitate the use of
+        // the DSPs in "systolic" mode.
+        .StmCascade()
+        .StmMapDotCascaded(weights, PIPELINE)
+        // StmMapDotCascaded produces wider outputs for compatibility with DSPs.
         // Truncate the outputs back to 18 bits.
         .StmMap( x => truncate18(x) )
     in
@@ -40,8 +44,8 @@ fir = (s: Stm[(i18, bool), T]) =>
         s
         // Take just the "valid" bit from the input stream
         .StmMap( @(data, valid) => valid, /*head=*/false)
-        // Get sliding windows of size 3
-        .StmSlide(3, /*head=*/false)
+        // Get sliding windows
+        .StmSlide(DEPTH, /*head=*/false)
         // Output is valid if all elements in the window are valid
         .StmMap( window => window.VecAll(), /*head=*/false)
     in
@@ -50,11 +54,15 @@ fir = (s: Stm[(i18, bool), T]) =>
 
 // ===== TESTING ===============================================================
 
+// FIR filter coefficients
+const COEFFS: Vec[i18, 4] = [3:i18, 5:i18, 7:i18, 9:i18]v
+
+const UNDEF: i18 = undefined:i18
+
 assert {
     // Square wave with amplitude 42 and period 8
     s = [
         // Maybe the first few cycles will have invalid data
-        (undefined:i18, false),
         (undefined:i18, false)
     ]s ++ [
         (-42:i18, true), (-42:i18, true), (-42:i18, true), (-42:i18, true),
@@ -63,16 +71,83 @@ assert {
         (+42:i18, true), (+42:i18, true), (+42:i18, true), (+42:i18, false),
         (-42:i18, true), (-42:i18, true), (-42:i18, true), (-42:i18, true),
         (+42:i18, true), (+42:i18, true), (+42:i18, true), (+42:i18, true)
-    ]s
+    ]s,
+    weights = StmCst(T, COEFFS)
 }
 yields [
-    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
-    (+630:i18, true), (+630:i18, true),  (+42:i18, true),  (-378:i18, true),
-    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
-    (+630:i18, true), (+630:i18, false), (+42:i18, false), (-378:i18, false),
-    (-630:i18, true), (-630:i18, true),  (-42:i18, true),  (+378:i18, true),
-    (+630:i18, true), (+630:i18, true)
+    (-1008:i18, true),  (-252:i18, true),   (+336:i18, true),   (+756:i18, true),
+    (+1008:i18, true),  (+252:i18, true),   (-336:i18, true),   (-756:i18, true),
+    (-1008:i18, true),  (-252:i18, true),   (+336:i18, true),   (+756:i18, true),
+    (+1008:i18, false), (+252:i18, false),  (-336:i18, false),  (-756:i18, false),
+    (-1008:i18, true),  (-252:i18, true),   (+336:i18, true),   (+756:i18, true),
+    (+1008:i18, true)
 ]s
 // The FIR filter will have some latency N.
 // For the first N clock cycles, the output "valid" bit must be 0.
 with prefix /* which satisfies the predicate... */ @(_, valid) => valid == false
+
+assert {
+    s = [
+        (101:i18, true), (102:i18, true), (103:i18, true), (104:i18, true),
+        (105:i18, true), (106:i18, true), (107:i18, true), (108:i18, true),
+        (109:i18, true), (110:i18, true), (111:i18, true), (112:i18, true),
+        (113:i18, true), (114:i18, true), (115:i18, true), (116:i18, true),
+        (117:i18, true), (118:i18, true), (119:i18, true), (120:i18, true),
+        (121:i18, true), (122:i18, true), (123:i18, true), (124:i18, true)
+    ]s,
+    // Note that the weights must be provided in a "cascaded" manner, i.e.,
+    // each element in the vector is delayed by one clock cycle compared to
+    // the previous element.
+    // Therefore, the first window of data ([101, 102, 103, 104]) will be
+    // multiplied by [1, 1, 1, 1] in this test case.
+    weights = [
+        [ 1:i18,  UNDEF,  UNDEF,  UNDEF]v,
+        [ 2:i18,  1:i18,  UNDEF,  UNDEF]v,
+        [ 3:i18,  2:i18,  1:i18,  UNDEF]v,
+        [ 4:i18,  3:i18,  2:i18,  1:i18]v,
+        [ 5:i18,  4:i18,  3:i18,  2:i18]v,
+        [ 6:i18,  5:i18,  4:i18,  3:i18]v,
+        [ 7:i18,  6:i18,  5:i18,  4:i18]v,
+        [ 8:i18,  7:i18,  6:i18,  5:i18]v,
+        [ 9:i18,  8:i18,  7:i18,  6:i18]v,
+        [10:i18,  9:i18,  8:i18,  7:i18]v,
+        [11:i18, 10:i18,  9:i18,  8:i18]v,
+        [12:i18, 11:i18, 10:i18,  9:i18]v,
+        [13:i18, 12:i18, 11:i18, 10:i18]v,
+        [14:i18, 13:i18, 12:i18, 11:i18]v,
+        [15:i18, 14:i18, 13:i18, 12:i18]v,
+        [16:i18, 15:i18, 14:i18, 13:i18]v,
+        [17:i18, 16:i18, 15:i18, 14:i18]v,
+        [18:i18, 17:i18, 16:i18, 15:i18]v,
+        [19:i18, 18:i18, 17:i18, 16:i18]v,
+        [20:i18, 19:i18, 18:i18, 17:i18]v,
+        [21:i18, 20:i18, 19:i18, 18:i18]v,
+        [ UNDEF, 21:i18, 20:i18, 19:i18]v,
+        [ UNDEF,  UNDEF, 21:i18, 20:i18]v,
+        [ UNDEF,  UNDEF,  UNDEF, 21:i18]v
+    ]s
+}
+yields [
+    ( 1:i18 * (101:i18 + 102:i18 + 103:i18 + 104:i18), true),
+    ( 2:i18 * (102:i18 + 103:i18 + 104:i18 + 105:i18), true),
+    ( 3:i18 * (103:i18 + 104:i18 + 105:i18 + 106:i18), true),
+    ( 4:i18 * (104:i18 + 105:i18 + 106:i18 + 107:i18), true),
+    ( 5:i18 * (105:i18 + 106:i18 + 107:i18 + 108:i18), true),
+    ( 6:i18 * (106:i18 + 107:i18 + 108:i18 + 109:i18), true),
+    ( 7:i18 * (107:i18 + 108:i18 + 109:i18 + 110:i18), true),
+    ( 8:i18 * (108:i18 + 109:i18 + 110:i18 + 111:i18), true),
+    ( 9:i18 * (109:i18 + 110:i18 + 111:i18 + 112:i18), true),
+    (10:i18 * (110:i18 + 111:i18 + 112:i18 + 113:i18), true),
+    (11:i18 * (111:i18 + 112:i18 + 113:i18 + 114:i18), true),
+    (12:i18 * (112:i18 + 113:i18 + 114:i18 + 115:i18), true),
+    (13:i18 * (113:i18 + 114:i18 + 115:i18 + 116:i18), true),
+    (14:i18 * (114:i18 + 115:i18 + 116:i18 + 117:i18), true),
+    (15:i18 * (115:i18 + 116:i18 + 117:i18 + 118:i18), true),
+    (16:i18 * (116:i18 + 117:i18 + 118:i18 + 119:i18), true),
+    (17:i18 * (117:i18 + 118:i18 + 119:i18 + 120:i18), true),
+    (18:i18 * (118:i18 + 119:i18 + 120:i18 + 121:i18), true),
+    (19:i18 * (119:i18 + 120:i18 + 121:i18 + 122:i18), true),
+    (20:i18 * (120:i18 + 121:i18 + 122:i18 + 123:i18), true),
+    (21:i18 * (121:i18 + 122:i18 + 123:i18 + 124:i18), true)
+]s
+with prefix @(_, valid) => valid == false

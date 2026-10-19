@@ -1,35 +1,88 @@
 (s : Stm[(i18, bool), 24]) =>
-  sbuild(22:u33 @ 5:i43)(
-    (undefined:i18, false),
-    (
-      truncate18(stage1 +` 7:i44 *` pad44(pipe2[0:u32])),
-      delay_buf[0:u32] && (delay_buf[1:u32] && delay_buf[2:u33])
-    ),
-    true
-  ) {
-    (delay_buf: Vec[bool, 4]) = {
-      init: vbuild(4:u3) { (i : u32) => false },
-      next: vbuild(4:u3) { (i : u3) =>
-        !(i ==` 3:u3) && delay_buf[1:u3 +` i] || i ==` 3:u3 && (sdata(p)).1
+  (weights : Stm[Vec[i18, 4], 24]) =>
+    sbuild(21:u35 @ 6:i53)(
+      (undefined:i18, false),
+      (
+        truncate18(
+          stage2 +` pad44(stage3_y_pipe[0:u0]) *` pad44(pipe3[0:u32])
+        ),
+        (delay_buf[0:u32] && delay_buf[1:u32])
+          && (delay_buf[2:u32] && delay_buf[3:u33])
+      ),
+      true
+    ) {
+      (delay_buf: Vec[bool, 5]) = {
+        init: vbuild(5:u3) { (i : u32) => false },
+        next: vbuild(5:u3) { (i : u3) =>
+          !(i ==` 4:u3) && delay_buf[1:u3 +` i]
+            || i ==` 4:u3 && (sdata(p_2)).1
+        }
+      },
+      (pipe3: Vec[i18, 2]) = {
+        init: undefined:Vec[i18, 2],
+        next: vbuild(2:u2) { (i : u2) =>
+          iff (i ==` 1:u2) then { (sdata(p_2)).0 } else { pipe3[1:u2 +` i] }
+        }
+      },
+      (stage0: i44) = {
+        init: undefined:i44,
+        next: pad44(stage0_y_pipe[0:u0]) *` pad44(pipe3[0:u32])
+      },
+      (stage0_y_pipe: Vec[i18, 2]) = {
+        init: undefined:Vec[i18, 2],
+        next: vbuild(2:u32) { (i : u32) =>
+          iff (i ==` 1:u32) then {
+            sdata(p_1)[0:u0]
+          } else {
+            stage0_y_pipe[1:u32 +` i]
+          }
+        }
+      },
+      (stage1: i44) = {
+        init: undefined:i44,
+        next: stage0 +` pad44(stage1_y_pipe[0:u0]) *` pad44(pipe3[0:u32])
+      },
+      (stage1_y_pipe: Vec[i18, 2]) = {
+        init: undefined:Vec[i18, 2],
+        next: vbuild(2:u32) { (i : u32) =>
+          iff (i ==` 1:u32) then {
+            sdata(p_1)[1:u1]
+          } else {
+            stage1_y_pipe[1:u32 +` i]
+          }
+        }
+      },
+      (stage2: i44) = {
+        init: undefined:i44,
+        next: stage1 +` pad44(stage2_y_pipe[0:u0]) *` pad44(pipe3[0:u32])
+      },
+      (stage2_y_pipe: Vec[i18, 2]) = {
+        init: undefined:Vec[i18, 2],
+        next: vbuild(2:u32) { (i : u32) =>
+          iff (i ==` 1:u32) then {
+            sdata(p_1)[2:u2]
+          } else {
+            stage2_y_pipe[1:u32 +` i]
+          }
+        }
+      },
+      (stage3_y_pipe: Vec[i18, 2]) = {
+        init: undefined:Vec[i18, 2],
+        next: vbuild(2:u32) { (i : u32) =>
+          iff (i ==` 1:u32) then {
+            sdata(p_1)[3:u2]
+          } else {
+            stage3_y_pipe[1:u32 +` i]
+          }
+        }
       }
-    },
-    (pipe2: Vec[i18, 2]) = {
-      init: undefined:Vec[i18, 2],
-      next: vbuild(2:u2) { (i : u2) =>
-        iff (i ==` 1:u2) then { (sdata(p)).0 } else { pipe2[1:u2 +` i] }
+    } {
+      (p_1: Stm[Vec[i18, 4], -1] @ 0:i52) = {
+        stm: weights,
+        ready: true
+      },
+      (p_2: Stm[(i18, bool), -1] @ 0:u0) = {
+        stm: s,
+        ready: true
       }
-    },
-    (stage0: i44) = {
-      init: undefined:i44,
-      next: 3:i44 *` pad44(pipe2[0:u32])
-    },
-    (stage1: i44) = {
-      init: undefined:i44,
-      next: stage0 +` 5:i44 *` pad44(pipe2[0:u32])
     }
-  } {
-    (p: Stm[(i18, bool), -1] @ 0:u0) = {
-      stm: s,
-      ready: true
-    }
-  }

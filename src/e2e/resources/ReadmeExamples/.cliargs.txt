@@ -1,1 +1,3 @@
 --simplify-names
+--out:vhdl:family
+""
