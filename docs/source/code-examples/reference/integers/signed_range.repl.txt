@@ -1,0 +1,8 @@
+> // i3 can represent values up to 2^2 - 1 = 3
+> // and down to -2^2 = -4
+> (-4:i3, -3:i3, -2:i3, -1:i3, 0:i3, 1:i3, 2:i3, 3:i3)
+(-4:i3, -3:i3, -2:i3, -1:i3, 0:i3, 1:i3, 2:i3, 3:i3)
+> 4:i3
+SyntaxError(1:2): constant 4 does not fit in type i3
+> -5:i3
+SyntaxError(1:3): constant -5 does not fit in type i3

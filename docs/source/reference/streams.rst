@@ -151,10 +151,10 @@ Therefore, if downstream functions require a flat stream, you should use :func:`
 
 .. literalinclude:: /code-examples/reference/stream_flattening_error.repl.txt
 
-Built-In Stream Functions
+Built-In Stream Operators
 -------------------------
 
-The following stream operators are provided as part of the Sirop language.
+The following stream-related operators are built into the Sirop language.
 
 ..
     TODO: add note explaining __handshake and __show_prefix at the beginning of each example?

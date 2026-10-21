@@ -1,0 +1,2 @@
+> ([5:u4, 8:u4]v, true).bits() // ([0b0101, 0b1000]v, 1)
+[false, true, false, true, true, false, false, false, true]v

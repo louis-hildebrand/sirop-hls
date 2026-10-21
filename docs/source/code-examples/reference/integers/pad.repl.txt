@@ -1,0 +1,11 @@
+> pad13(42:u8)
+42:u13
+> pad7(-5:i4)
+-5:i7
+>
+> // The target bitwidth can be equal to the original bitwidth
+> // (although it's pointless to do this)
+> pad8(-5:i8)
+-5:i8
+> pad0(0:u0)
+0:u0

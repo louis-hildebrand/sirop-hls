@@ -1,0 +1,6 @@
+> unsign(42:i9)
+42:u8
+> unsign(0:i1)
+0:u0
+> unsign(256:i17)
+256:u16

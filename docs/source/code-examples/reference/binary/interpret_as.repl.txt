@@ -1,0 +1,5 @@
+> binary = [false, true, false, true, true, false, false, false, true]v
+> binary.interpret_as:[(Vec[u4, 2], bool)]()
+([5:u4, 8:u4]v, true)
+> binary.interpret_as:[u9]()
+177:u9

@@ -9,9 +9,9 @@ The Sirop programming language supports the following types:
 ===========================  ==========================================================
 Type                             Description
 ===========================  ==========================================================
-``bool``                     Boolean
-``u0``, ``u1``, ``u2``, ...  Unsigned integer with the given bitwidth
-``i1``, ``i2``, ``i3``, ...  Signed integer with the given bitwidth
+``bool``                     :doc:`Boolean </reference/booleans>`
+``u0``, ``u1``, ``u2``, ...  Unsigned :doc:`integer </reference/integers>` with the given bitwidth
+``i1``, ``i2``, ``i3``, ...  Signed :doc:`integer </reference/integers>` with the given bitwidth
 ``A -> B``                   :doc:`Function </reference/functions>` with input of type ``A`` and output of type ``B``
 ``(A, B, ...)``              Tuple whose elements have type ``A``, ``B``, etc.
 ``Vec[T, n]``                :doc:`Vector </reference/vectors>` of length ``n`` whose elements have type ``T``
