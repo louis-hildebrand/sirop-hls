@@ -31,6 +31,10 @@ For example, a `dot product <https://en.wikipedia.org/wiki/Dot_product>`__ can b
     :caption: Reference
 
     reference/types
+    reference/booleans
+    reference/integers
+    reference/tuples
     reference/functions
     reference/vectors
     reference/streams
+    reference/binary

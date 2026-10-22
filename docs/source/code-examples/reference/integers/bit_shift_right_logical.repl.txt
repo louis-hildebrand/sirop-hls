@@ -1,0 +1,15 @@
+> // Always insert 0 at the left end
+> 10:u4 >>> 0 // 0b1010
+10:u4
+> 10:u4 >>> 1 // 0b0101
+5:u4
+> 10:u4 >>> 2 // 0b0010
+2:u4
+>
+> // Always insert 0 at the left end, even for negative numbers
+> -6:i4 >>> 0 // 0b1010
+-6:i4
+> -6:i4 >>> 1 // 0b0101
+5:i4
+> -6:i4 >>> 2 // 0b0010
+2:i4

@@ -1,0 +1,4 @@
+> truncate8(42:u7)
+TypeError: Argument of TruncateTo$ has type u7 but the target width is 8. The target width cannot be greater than the original width.
+> truncate8(42:i7)
+TypeError: Argument of TruncateTo$ has type i7 but the target width is 8. The target width cannot be greater than the original width.

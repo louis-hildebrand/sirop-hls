@@ -1,0 +1,8 @@
+> bits(42:u6)  //  0b101010
+[true, false, true, false, true, false]v
+> bits(42:u7)  // 0b0101010
+[false, true, false, true, false, true, false]v
+> bits(42:i7)  // 0b0101010
+[false, true, false, true, false, true, false]v
+> bits(-42:i7) // 0b1010110
+[true, false, true, false, true, true, false]v

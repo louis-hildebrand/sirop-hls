@@ -1,0 +1,9 @@
+> x = (42:u8, true, false, -5:i16)
+> x.0
+42:u8
+> x.1
+true
+> x.2
+false
+> x.3
+-5:i16

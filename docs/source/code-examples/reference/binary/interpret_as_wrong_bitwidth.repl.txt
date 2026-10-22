@@ -1,0 +1,5 @@
+> binary = [false, true, false, true, true, false, false, false, true]v
+> binary.interpret_as:[u8]()
+TypeError: Bitwidths in InterpretAs do not match: input is 9:u4 bits wide but the target type is 8:u4 bits wide.
+> binary.interpret_as:[u10]()
+TypeError: Bitwidths in InterpretAs do not match: input is 9:u4 bits wide but the target type is 10:u4 bits wide.

@@ -1,0 +1,17 @@
+> // (-) Overflow that produces undefined
+> 0:u8 - 1
+undefined:u8
+> 15:i5 - (-1)
+undefined:i5
+>
+> // (-%) Wrapping overflow
+> 0:u8 -% 1
+255:u8
+> 15:i5 -% (-1)
+-16:i5
+>
+> // (+%) Prevent overflow by producing wider result
+> 0:u8 -^ 1
+-1:i10
+> 15:i5 -^ (-1)
+16:i6

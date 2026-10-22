@@ -1,0 +1,2 @@
+> pad7(42:u8)
+TypeError: Argument of PadTo$ has type u8 but the target width is 7. The target width cannot be smaller than the original width.

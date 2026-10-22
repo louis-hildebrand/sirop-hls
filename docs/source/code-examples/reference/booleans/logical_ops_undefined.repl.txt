@@ -1,0 +1,20 @@
+> u = undefined:bool
+>
+> (u && false, false && u, u && true, true && u)
+(false, false, undefined:bool, undefined:bool)
+> (u || false, false || u, u || true, true || u)
+(undefined:bool, undefined:bool, true, true)
+>
+> // This is a bit like short-circuiting, except order doesn't matter
+> x = 1:u8
+> y = 0:u8
+> x % y == 0 // division by zero :(
+undefined:bool
+> y == 0 || x % y == 0
+true
+> x % y == 0 || y == 0
+true
+>
+> // not(undefined) is still undefined though
+> (!u)
+undefined:bool

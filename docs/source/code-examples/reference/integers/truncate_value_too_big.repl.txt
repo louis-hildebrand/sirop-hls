@@ -1,0 +1,6 @@
+> truncate8(256:u9) // 0b100000000
+undefined:u8
+> truncate3(-5:i4) // 0b1011
+undefined:i3
+> truncate3(4:i4) // 0b0100
+undefined:i3

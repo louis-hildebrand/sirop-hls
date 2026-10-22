@@ -1,0 +1,11 @@
+> truncate8(42:u13)
+42:u8
+> truncate4(-5:i7)
+-5:i4
+>
+> // The target bitwidth can be equal to the original bitwidth
+> // (although it's pointless to do this)
+> truncate8(-5:i8)
+-5:i8
+> truncate0(0:u0)
+0:u0

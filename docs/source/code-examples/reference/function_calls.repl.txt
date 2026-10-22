@@ -1,0 +1,7 @@
+> // Function style
+> let f = @(x: u8, y: u8) => (x, y, x + y) in f(42:u8, 5:u8)
+(42:u8, 5:u8, 47:u8)
+>
+> // Method style
+> let f = @(x: u8, y: u8) => (x, y, x + y) in (42:u8).f(5:u8)
+(42:u8, 5:u8, 47:u8)

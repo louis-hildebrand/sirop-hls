@@ -162,17 +162,27 @@ class SiropLexer(RegexLexer):
             (r"\+\+", token.Punctuation),
             (r"=>", token.Punctuation),
             # Operators
+            # (mul)
+            (r"\*^", token.Operator),
+            (r"\*%", token.Operator),
             (r"\*", token.Operator),
+            # (add)
+            (r"\+\^", token.Operator),
+            (r"\+%", token.Operator),
             (r"\+", token.Operator),
+            # (sub)
+            (r"-\^", token.Operator),
+            (r"-%", token.Operator),
             (r"-", token.Operator),
+            (r"!=", token.Operator),
+            (r"==", token.Operator),
+            (r"<=", token.Operator),
+            (r"<", token.Operator),
+            (r">=", token.Operator),
+            (r">", token.Operator),
             (r"&&", token.Operator),
             (r"\|\|", token.Operator),
             (r"!", token.Operator),
-            (r"==", token.Operator),
-            (r"<", token.Operator),
-            (r"<=", token.Operator),
-            (r">", token.Operator),
-            (r">=", token.Operator),
             # Other
             (r"/\*", token.Comment.Multiline, "comment"),
             (r"//.*", token.Comment.Singleline),

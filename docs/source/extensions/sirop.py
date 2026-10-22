@@ -28,8 +28,12 @@ class SiropFunctionDirective(ObjectDescription):
     required_arguments = 1
 
     def handle_signature(self, sig, signode):
-        (name, params, typ, comment) = parse.signature(sig)
+        (name, nat_params, typ_params, params, typ, comment) = parse.signature(sig)
         signode += addnodes.desc_name(text=name)
+        if nat_params:
+            signode += addnodes.literal_emphasis(text=f"{{{nat_params}}}")
+        if typ_params:
+            signode += addnodes.literal_emphasis(text=f":[{', '.join(typ_params)}]")
         signode += addnodes.desc_parameterlist(
             text=", ".join(p for p in params)
         )

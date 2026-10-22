@@ -1,0 +1,31 @@
+> // (==) Equals
+> ([42:u8, 43:u8]v, true) == ([42:u8, 43:u8]v, true)
+true
+> ([42:u8, 43:u8]v, true) == ([42:u8, 43:u8]v, false)
+false
+> ([42:u8, 43:u8]v, true) == ([42:u8,  0:u8]v, true)
+false
+>
+> // (!=) Not equal
+> ([42:u8, 43:u8]v, true) != ([42:u8, 43:u8]v, true)
+false
+> ([42:u8, 43:u8]v, true) != ([42:u8, 43:u8]v, false)
+true
+> ([42:u8, 43:u8]v, true) != ([42:u8,  0:u8]v, true)
+true
+>
+> // (<) Strictly less than
+> (41 < 42, 42 < 42, 43 < 42)
+(true, false, false)
+>
+> // (<=) Less than or equal
+> (41 <= 42, 42 <= 42, 43 <= 42)
+(true, true, false)
+>
+> // (>) Strictly greater than
+> (41 > 42, 42 > 42, 43 > 42)
+(false, false, true)
+>
+> // (>=) Greater than or equal
+> (41 >= 42, 42 >= 42, 43 >= 42)
+(false, true, true)
