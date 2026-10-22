@@ -3,6 +3,7 @@ package mhir.typecheck
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.sem.SemanticError
+import mhir.typecheck.TypeChecker.DEFAULT_DELAY_ANNOTATION
 
 import scala.annotation.tailrec
 
@@ -902,8 +903,10 @@ trait TypeChecker {
           this.prog.accel.inputDelays.get(x) match {
             case Some(delay) => x -> delay.tchk(mainConstTypes, mainConstVals)
             case None =>
-              logger.debug(s"assuming 0 delay for input $x")
-              x -> C(0)(U0)
+              logger.debug(
+                s"assuming delay of $DEFAULT_DELAY_ANNOTATION for input $x"
+              )
+              x -> C(DEFAULT_DELAY_ANNOTATION)(U0)
           }
         })
         .toMap
@@ -1017,6 +1020,8 @@ trait TypeChecker {
 }
 
 object TypeChecker {
+
+  val DEFAULT_DELAY_ANNOTATION: Int = 0
 
   def relevantBindings(
       constValues: Map[Param, Expr],
