@@ -29,7 +29,7 @@ object ApplyTransformations {
           val pass = agilex7.DspSelection(
             StmOutputScheduler(
               EnabledBinOpTreeBalancingPass,
-              SimpleDelayCostModel(madd = true)
+              SimpleDelayCostModel(targetFmaxMHz = options.fmax, madd = true)
             )
           )
           pipe2.mapSbuilds(pass.apply)

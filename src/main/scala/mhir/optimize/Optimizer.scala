@@ -110,11 +110,11 @@ class Optimizer(
 
     val delayCost = delay.rawCost(s9)
     val delayCostPercent =
-      100 * (delayCost / delay.FullCycleDelay.toDouble)
+      100 * (delayCost / delay.MaxCost.toDouble)
     logger.debug(
       f"final combinational delay cost: $delayCostPercent%.0f%% of maximum"
     )
-    if (delayCost > delay.FullCycleDelay) {
+    if (delayCost > delay.MaxCost) {
       logger.warn(
         f"combinational delay cost is $delayCostPercent%.0f%% of maximum."
           + " Design may not meet timing requirements."
@@ -141,7 +141,10 @@ object Optimizer {
       BinOpTreeBalancingPass(enabled = options.balanceBinOpTrees)
     val binOpBalancerWithLogging =
       BinOpTreeBalancingPassWithLogging(binOpBalancer)
-    val delayCostModel = SimpleDelayCostModel(madd = options.madd)
+    val delayCostModel = SimpleDelayCostModel(
+      targetFmaxMHz = options.targetFmaxMHz,
+      madd = options.madd
+    )
     val fusionPass = StmFusionPass(
       simplifier = stmBuildSimplifier,
       delayCostModel = delayCostModel,

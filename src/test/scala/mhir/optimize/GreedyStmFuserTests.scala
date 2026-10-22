@@ -11,7 +11,10 @@ class GreedyStmFuserTests extends AnyFunSuite {
 
   private val fusionPass = new GreedyStmFusionPass(
     StmBuildSimplifier(),
-    delayCostModel = SimpleDelayCostModel(madd = false)
+    delayCostModel = SimpleDelayCostModel(
+      targetFmaxMHz = 480 /* TODO: does this matter? */,
+      madd = false
+    )
   )
 
   /* Map(+3) is clearly better than Map(+1) |> Map(+2).

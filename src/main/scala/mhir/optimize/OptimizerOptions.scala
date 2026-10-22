@@ -21,6 +21,8 @@ package mhir.optimize
   * @param madd
   *   whether the DSPs on the target device support multiplication and addition
   *   in one cycle.
+  * @param targetFmaxMHz
+  *   the target Fmax, in MHz.
   * @param assumeThroughputsMatch
   *   whether the optimizer can assume the throughputs along different branches
   *   of a [[mhir.ir.LetStm]] match.
@@ -37,6 +39,7 @@ case class OptimizerOptions(
     maxLetStmBufSize: Option[Int],
     balanceBinOpTrees: Boolean,
     madd: Boolean,
+    targetFmaxMHz: Long,
     assumeThroughputsMatch: Boolean
 )
 
@@ -62,6 +65,7 @@ object OptimizerOptions {
       maxLetStmBufSize = maxLetStmBufSize,
       balanceBinOpTrees = true,
       madd = false,
+      targetFmaxMHz = 175, // TODO: replace this arbitrary value?
       assumeThroughputsMatch = assumeThroughputsMatch
     )
   }
@@ -83,6 +87,7 @@ object OptimizerOptions {
       maxLetStmBufSize = None,
       balanceBinOpTrees = false,
       madd = false,
+      targetFmaxMHz = 175, // TODO: replace this arbitrary value?
       assumeThroughputsMatch = false
     )
   }

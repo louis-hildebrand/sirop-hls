@@ -9,8 +9,14 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class SimpleDelayCostModelTests extends AnyFunSuite {
 
-  private val modelWithMadd = SimpleDelayCostModel(madd = true)
-  private val modelWithoutMadd = SimpleDelayCostModel(madd = false)
+  private val modelWithMadd = SimpleDelayCostModel(
+    targetFmaxMHz = 175 /* TODO: does this matter? */,
+    madd = true
+  )
+  private val modelWithoutMadd = SimpleDelayCostModel(
+    targetFmaxMHz = 175 /* TODO: does this matter? */,
+    madd = false
+  )
 
   private def X = ParamStore("x")
   private def Y = ParamStore("y")
@@ -21,12 +27,12 @@ class SimpleDelayCostModelTests extends AnyFunSuite {
 
   test("TwoMultiplications") {
     val e = (X(U8) * Y(U8) * Z(U8)).tchk().lower
-    assert(modelWithoutMadd.cost(e) > modelWithoutMadd.FullCycleDelay)
+    assert(modelWithoutMadd.cost(e) > modelWithoutMadd.MaxCost)
   }
 
   test("TwoWrappingMultiplications") {
     val e = (X(U8) *% Y(U8) *% Z(U8)).tchk().lower
-    assert(modelWithoutMadd.cost(e) > modelWithoutMadd.FullCycleDelay)
+    assert(modelWithoutMadd.cost(e) > modelWithoutMadd.MaxCost)
   }
 
   // Multiplication by a power of two is free ----------------------------------
@@ -57,14 +63,14 @@ class SimpleDelayCostModelTests extends AnyFunSuite {
     val e = (X(U16) * Y(U16) * C(8)(U16)).tchk().lower
     val cost = modelWithoutMadd.rawCost(e)
     assert(cost > 0)
-    assert(cost <= modelWithoutMadd.FullCycleDelay)
+    assert(cost <= modelWithoutMadd.MaxCost)
   }
 
   test("OneRealWrappingMul") {
     val e = (X(U16) *% Y(U16) *% C(8)(U16)).tchk().lower
     val cost = modelWithoutMadd.rawCost(e)
     assert(cost > 0)
-    assert(cost <= modelWithoutMadd.FullCycleDelay)
+    assert(cost <= modelWithoutMadd.MaxCost)
   }
 
   // Madd ----------------------------------------------------------------------
@@ -72,20 +78,20 @@ class SimpleDelayCostModelTests extends AnyFunSuite {
   test("MaddDisabled") {
     val e = ((X(I16) *% Y(I16)) +% (Z(I16) *% W(I16))).tchk().lower
     val cost = modelWithoutMadd.cost(e)
-    assert(cost > modelWithoutMadd.FullCycleDelay)
+    assert(cost > modelWithoutMadd.MaxCost)
   }
 
   test("MaddEnabled:WrappingSumAndProd") {
     val e = ((X(I16) *% Y(I16)) +% (Z(I16) *% W(I16))).tchk().lower
     val cost = modelWithMadd.cost(e)
     assert(cost > 0)
-    assert(cost <= modelWithMadd.FullCycleDelay)
+    assert(cost <= modelWithMadd.MaxCost)
   }
 
   test("MaddEnabled:RegularSumAndProd") {
     val e = Sum(Prod(X(I16), Y(I16))(), Prod(Z(I16), W(I16))())().tchk().lower
     val cost = modelWithMadd.cost(e)
     assert(cost > 0)
-    assert(cost <= modelWithMadd.FullCycleDelay)
+    assert(cost <= modelWithMadd.MaxCost)
   }
 }
