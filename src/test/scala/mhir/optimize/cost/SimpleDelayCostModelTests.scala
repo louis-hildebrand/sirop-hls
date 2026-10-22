@@ -94,4 +94,23 @@ class SimpleDelayCostModelTests extends AnyFunSuite {
     assert(cost > 0)
     assert(cost <= modelWithMadd.MaxCost)
   }
+
+  // Model takes Fmax into account ---------------------------------------------
+
+  test("Fmax:TwoAdditions:175MHz") {
+    // Two additions is fine at 175 MHz
+    val model = SimpleDelayCostModel(targetFmaxMHz = 175, madd = false)
+    val e = Sum(X(I16), Sum(Y(I16), Z(I16))())().tchk().lower
+    val cost = model.cost(e)
+    assert(cost > 0)
+    assert(cost <= model.MaxCost)
+  }
+
+  test("Fmax:TwoAdditions:480MHz") {
+    // Two additions is too many at 480 MHz
+    val model = SimpleDelayCostModel(targetFmaxMHz = 480, madd = false)
+    val e = Sum(X(I16), Sum(Y(I16), Z(I16))())().tchk().lower
+    val cost = model.cost(e)
+    assert(cost > model.MaxCost)
+  }
 }
