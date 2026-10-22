@@ -320,10 +320,18 @@ def main(test_sources: list[Path], skip_vsim: bool, save: bool) -> None:
         cli_args = []
         if (cli_args_file := test.parent.joinpath(".cliargs.txt")).is_file():
             # Common CLI args
-            cli_args += cli_args_file.read_text(encoding="utf-8").splitlines()
+            cli_args += [
+                line.strip()
+                for line in cli_args_file.read_text(encoding="utf-8").splitlines()
+                if not line.lstrip().startswith("#")
+            ]
         if (cli_args_file := test.with_suffix(".cliargs.txt")).is_file():
             # Test-specific CLI args
-            cli_args = cli_args_file.read_text(encoding="utf-8").splitlines()
+            cli_args += [
+                line.strip()
+                for line in cli_args_file.read_text(encoding="utf-8").splitlines()
+                if not line.lstrip().startswith("#")
+            ]
         if (eval_output := test.with_suffix(".eval.txt")).is_file():
             ran = True
             ok = test_eval(eval_output, cli_args=cli_args, save=save)

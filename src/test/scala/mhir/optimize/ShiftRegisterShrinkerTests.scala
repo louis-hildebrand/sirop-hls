@@ -11,7 +11,10 @@ import scala.annotation.tailrec
 
 class ShiftRegisterShrinkerTests extends SiropFunSuite {
 
-  private val delayCostModel = SimpleDelayCostModel(madd = true)
+  private val delayCostModel = SimpleDelayCostModel(
+    targetFmaxMHz = 480 /* shouldn't matter */,
+    madd = true
+  )
   private val pass: ShiftRegisterShrinker = {
     ShiftRegisterShrinker(delayCostModel, enabled = true, handshake = false)
   }

@@ -1,5 +1,15 @@
 /* Test 0 */
 [
+  undefined:u16,
+  undefined:u16,
+  undefined:u16,
+  undefined:u16,
+  undefined:u16,
+  undefined:u16,
+  undefined:u16,
+  undefined:u16,
+  undefined:u16
+]s ++ [
   0:u16,
   3:u16,
   8:u16,
@@ -20,6 +30,15 @@
 
 /* Test 1 */
 [
+  undefined:u16,
+  undefined:u16,
+  undefined:u16,
+  undefined:u16,
+  undefined:u16,
+  undefined:u16,
+  undefined:u16,
+  undefined:u16
+]s ++ [
   0:u16,
   9:u16,
   50:u16,

@@ -453,32 +453,33 @@ object Args {
     if (targets.isEmpty && src.nonEmpty) {
       throw new BadArgsException("no compilation targets specified")
     }
+    val vhdlOptions = {
+      val opt0 = VhdlGeneratorOptions(appendQsf = vhdlAppendQsf)
+      val opt1 = vhdlFamily match {
+        case Some(family) => opt0.copy(deviceFamily = family)
+        case None         => opt0
+      }
+      val opt2 = vhdlDevice match {
+        case Some(device) => opt1.copy(device = device)
+        case None         => opt1
+      }
+      val opt3 = vhdlFmax match {
+        case Some(fmax) => opt2.copy(fmax = fmax)
+        case None       => opt2
+      }
+      val opt4 = vhdlVirtualPins match {
+        case Some(b) => opt3.copy(virtualPins = b)
+        case None    => opt3
+      }
+      val opt5 = vhdlAbsorbOutReg match {
+        case Some(b) => opt4.copy(absorbOutReg = b)
+        case None    => opt4
+      }
+      opt5
+    }
     val options = CompilerOptions(
       targets = targets,
-      vhdl = {
-        val opt0 = VhdlGeneratorOptions(appendQsf = vhdlAppendQsf)
-        val opt1 = vhdlFamily match {
-          case Some(family) => opt0.copy(deviceFamily = family)
-          case None         => opt0
-        }
-        val opt2 = vhdlDevice match {
-          case Some(device) => opt1.copy(device = device)
-          case None         => opt1
-        }
-        val opt3 = vhdlFmax match {
-          case Some(fmax) => opt2.copy(fmax = fmax)
-          case None       => opt2
-        }
-        val opt4 = vhdlVirtualPins match {
-          case Some(b) => opt3.copy(virtualPins = b)
-          case None    => opt3
-        }
-        val opt5 = vhdlAbsorbOutReg match {
-          case Some(b) => opt4.copy(absorbOutReg = b)
-          case None    => opt4
-        }
-        opt5
-      },
+      vhdl = vhdlOptions,
       optFlags = OptimizerOptions(
         simplifyStmBuild = simplifyStmBuild,
         shrinkShiftRegisters = shrinkShiftRegisters,
@@ -491,6 +492,7 @@ object Args {
         maxLetStmBufSize = maxLetStmBufSize,
         balanceBinOpTrees = balanceBinOpTrees,
         madd = madd,
+        targetFmaxMHz = vhdlOptions.fmax,
         assumeThroughputsMatch = (
           // The Aetherling compiler guarantees that each producer/consumer pair
           // has the same "time."

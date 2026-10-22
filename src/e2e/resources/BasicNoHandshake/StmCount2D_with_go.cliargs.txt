@@ -1,0 +1,3 @@
+# Avoid warning about combinational delay cost being too high
+--out:vhdl:fmax
+200

@@ -16,7 +16,10 @@ class StmOutputSchedulerTests extends AnyFunSuite {
 
   private val pass = StmOutputScheduler(
     EnabledBinOpTreeBalancingPass,
-    SimpleDelayCostModel(madd = false)
+    SimpleDelayCostModel(
+      targetFmaxMHz = 175 /* TODO: does this matter? */,
+      madd = false
+    )
   )
 
   /** Simple example where computation is all done in the producer.
@@ -224,7 +227,10 @@ class StmOutputSchedulerTests extends AnyFunSuite {
     val e = Prod(x(U8), y(U8), z(U8))().tchk()
     val scheduler = StmOutputScheduler(
       DisabledBinOpTreeBalancingPass,
-      SimpleDelayCostModel(madd = false)
+      SimpleDelayCostModel(
+        targetFmaxMHz = 175 /* TODO: does this matter? */,
+        madd = false
+      )
     )
     val actual = scheduler.schedule(e)
     val expected = InProducer(e)

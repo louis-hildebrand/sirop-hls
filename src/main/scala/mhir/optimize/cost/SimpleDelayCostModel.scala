@@ -9,11 +9,19 @@ import mhir.typecheck.TypeCheck
   * @param madd
   *   whether the DSPs on the target device support multiplication and addition
   *   in one cycle.
+  * @param targetFmaxMHz
+  *   the target Fmax, in MHz.
   */
-case class SimpleDelayCostModel(madd: Boolean) {
+case class SimpleDelayCostModel(targetFmaxMHz: Long, madd: Boolean) {
 
-  val FullCycleDelay: Long = 100
-  private val MaxAddsPerCycle = 3
+  // I initially chose the costs with the MaxCost being 100 and the target
+  // Fmax being 175 MHz.
+  // I'll stick with that for now, and just reduce the MaxCost as Fmax
+  // increases.
+  val MaxCost: Long = (100f * 175f / targetFmaxMHz.toDouble).round
+  private val ProdCost = MaxCost
+  // At 175 MHz, seems like you can chain up to three adders (on Arria 10)
+  private val SumCost = 33
 
   /** The delay cost of the given expression, which will be at least as large as
     * the full cycle delay.
@@ -25,7 +33,7 @@ case class SimpleDelayCostModel(madd: Boolean) {
   ): Long = {
     // Doesn't really matter what the delay is, as long as it's low enough to
     // meet the timing requirements
-    math.max(FullCycleDelay, cost(staticVars, varCosts)(e.tchk()))
+    math.max(MaxCost, cost(staticVars, varCosts)(e.tchk()))
   }
 
   /** The raw delay cost of the given expression, which may be less than the
@@ -54,11 +62,11 @@ case class SimpleDelayCostModel(madd: Boolean) {
       case FunCall(f, arg) =>
         cost(staticVars, varCosts)(f) + cost(staticVars, varCosts)(arg)
       case MulAdd(a1, a2, b1, b2) if this.madd =>
-        FullCycleDelay + Seq(a1, a2, b1, b2).map(cost(staticVars, varCosts)).max
+        MaxCost + Seq(a1, a2, b1, b2).map(cost(staticVars, varCosts)).max
       case MulAccumulate(c, x, y) if this.madd =>
-        FullCycleDelay + Seq(c, x, y).map(cost(staticVars, varCosts)).max
+        MaxCost + Seq(c, x, y).map(cost(staticVars, varCosts)).max
       case AnyAdd(terms @ _*) =>
-        val adderDelay = log2(terms.length) * FullCycleDelay / MaxAddsPerCycle
+        val adderDelay = log2(terms.length) * SumCost
         val childDelay = terms
           .map({
             // Subtraction has the same cost as addition
@@ -71,7 +79,7 @@ case class SimpleDelayCostModel(madd: Boolean) {
         math.max(
           cost(staticVars, varCosts)(e1),
           cost(staticVars, varCosts)(e2)
-        ) + FullCycleDelay / MaxAddsPerCycle
+        ) + SumCost
       case AnyMul(factors @ _*) =>
         val nonPowersOfTwo = factors.filterNot({
           case IntCst(k) => isPowerOfTwo(k)
@@ -80,24 +88,27 @@ case class SimpleDelayCostModel(madd: Boolean) {
         val childCosts = factors.map(cost(staticVars, varCosts)).max
         val selfCost = nonPowersOfTwo.length match {
           case 0 | 1 => 0
-          case n     => log2(n) * FullCycleDelay
+          case n     => log2(n) * ProdCost
         }
         childCosts + selfCost
       case IntFixProd(e1, e2) =>
-        math.max(
+        val maxChildCost = math.max(
           cost(staticVars, varCosts)(e1),
           cost(staticVars, varCosts)(e2)
-        ) + FullCycleDelay
+        )
+        maxChildCost + ProdCost
       case Div(e1, e2) =>
-        math.max(
+        val maxChildCost = math.max(
           cost(staticVars, varCosts)(e1),
           cost(staticVars, varCosts)(e2)
-        ) + FullCycleDelay
+        )
+        maxChildCost + ProdCost
       case Mod(e1, e2) =>
-        math.max(
+        val maxChildCost = math.max(
           cost(staticVars, varCosts)(e1),
           cost(staticVars, varCosts)(e2)
-        ) + FullCycleDelay
+        )
+        maxChildCost + ProdCost
       case PadTo(e, _)       => cost(staticVars, varCosts)(e)
       case TruncateTo(e, _)  => cost(staticVars, varCosts)(e)
       case ToSigned(e)       => cost(staticVars, varCosts)(e)

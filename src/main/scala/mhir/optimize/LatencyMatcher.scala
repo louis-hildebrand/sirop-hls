@@ -77,20 +77,22 @@ class EnabledLatencyMatcher(
     time("latency matching", Level.DEBUG) {
       // TODO: move this unwrapping and wrapping out of this method?
       val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
-      val inputsWithoutDelay = inputs.filterNot(inputDelays.contains)
-      if (inputsWithoutDelay.nonEmpty) {
-        val inputsStr = inputsWithoutDelay.map(x => s"'$x'").mkString(", ")
-        throw new IllegalArgumentException(
-          s"missing delay for inputs: $inputsStr"
-        )
-      }
-      val intInputDelays = inputDelays.map({
-        case (x, IntCst(d)) => x -> Some(d.toInt)
-        case (x, delay) =>
-          throw SemanticError(
-            s"latency matching does not currently support non-constant delay $delay for input $x"
-          )
-      })
+      val intInputDelays = inputs
+        .map({ x =>
+          inputDelays.get(x) match {
+            case Some(IntCst(d)) => x -> Some(d.toInt)
+            case Some(delay) =>
+              throw SemanticError(
+                s"latency matching does not currently support non-constant delay $delay for input $x"
+              )
+            case None =>
+              logger.debug(
+                s"assuming delay of ${TypeChecker.DEFAULT_DELAY_ANNOTATION} for input '$x'"
+              )
+              x -> Some(TypeChecker.DEFAULT_DELAY_ANNOTATION)
+          }
+        })
+        .toMap
       val lat = latencyAnalysis.idealLatency(body, intInputDelays)
       val newBody = matchLatencies(
         body,

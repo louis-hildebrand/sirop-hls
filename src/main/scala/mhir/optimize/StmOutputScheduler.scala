@@ -129,7 +129,7 @@ case class StmOutputScheduler(
           staticVars = staticVars,
           varCosts = varCosts
         )
-        val stayInProducer = if (cost <= delayCostModel.FullCycleDelay) {
+        val stayInProducer = if (cost <= delayCostModel.MaxCost) {
           true
         } else if (allChildrenAtomic(e, staticVars, varCosts)) {
           logger.warn(
