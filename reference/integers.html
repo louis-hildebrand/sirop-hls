@@ -1,0 +1,891 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Integers &#8212; Sirop  documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'reference/integers';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tuples" href="tuples.html" />
+    <link rel="prev" title="Booleans" href="booleans.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Sirop  documentation</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/language-intro.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/related-projects.html">Related Projects</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/example-dot.html">Example with Dynamic Scheduling: Dot Product</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/example-fir.html">Example with Static Scheduling: FIR Filter</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types in Sirop</a></li>
+<li class="toctree-l1"><a class="reference internal" href="booleans.html">Booleans</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Integers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tuples.html">Tuples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="functions.html">Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vectors.html">Vectors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="streams.html">Streams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="binary.html">Binary Conversion</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/louis-hildebrand/sirop-hls" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/louis-hildebrand/sirop-hls/edit/main//docs/source/reference/integers.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/louis-hildebrand/sirop-hls/issues/new?title=Issue%20on%20page%20%2Freference/integers.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/reference/integers.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Integers</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unsigned-integers">Unsigned Integers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#signed-integers">Signed Integers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integer-literals">Integer Literals</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-integer-operations">Built-In Integer Operations</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#converting-between-integer-types">Converting Between Integer Types</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#arithmetic-operators">Arithmetic Operators</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#addition">Addition</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#subtraction">Subtraction</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#multiplication">Multiplication</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#bitwise-operators">Bitwise Operators</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="integers">
+<h1>Integers<a class="headerlink" href="#integers" title="Link to this heading">#</a></h1>
+<p>Sirop supports arbitrary-bitwidth integers, both signed and unsigned.</p>
+<section id="unsigned-integers">
+<h2>Unsigned Integers<a class="headerlink" href="#unsigned-integers" title="Link to this heading">#</a></h2>
+<p>Unsigned integer types are written as a <code class="docutils literal notranslate"><span class="pre">u</span></code> followed by a natural number.
+For example:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">u0</span></code> is the type of a zero-bit unsigned integer. (The only value of this type is 0.)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">u5</span></code> is the type of a five-bit unsigned integer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">u32</span></code> is the type of a 32-bit unsigned integer.</p></li>
+</ul>
+<p>Notice that the bitwidth does not need to be a power of two.</p>
+<p>An unsigned integer with <span class="math notranslate nohighlight">\(k\)</span> bits can represent values in the range <span class="math notranslate nohighlight">\([0, 2^k - 1]\)</span>.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="c c-Singleline">// u3 can represent values up to and including 2^3 - 1 = 7</span>
+<span class="go">&gt; </span>(<span class="m">0</span>:<span class="kt">u3</span>, <span class="m">1</span>:<span class="kt">u3</span>, <span class="m">2</span>:<span class="kt">u3</span>, <span class="m">3</span>:<span class="kt">u3</span>, <span class="m">4</span>:<span class="kt">u3</span>, <span class="m">5</span>:<span class="kt">u3</span>, <span class="m">6</span>:<span class="kt">u3</span>, <span class="m">7</span>:<span class="kt">u3</span>)
+<span class="go">(0:u3, 1:u3, 2:u3, 3:u3, 4:u3, 5:u3, 6:u3, 7:u3)</span>
+<span class="go">&gt; </span><span class="m">8</span>:<span class="kt">u3</span>
+<span class="go">SyntaxError(1:2): constant 8 does not fit in type u3</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">1</span>:<span class="kt">u3</span>
+<span class="go">SyntaxError(1:3): constant -1 does not fit in type u3</span>
+</pre></div>
+</div>
+</section>
+<section id="signed-integers">
+<h2>Signed Integers<a class="headerlink" href="#signed-integers" title="Link to this heading">#</a></h2>
+<p>Signed integer types are written as an <code class="docutils literal notranslate"><span class="pre">i</span></code> followed by a natural number.
+For example:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">i5</span></code> is the type of a five-bit signed integer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">i32</span></code> is the type of a 32-bit signed integer.</p></li>
+</ul>
+<p>The bitwidth must be at least 1.
+In other words, the smallest possible signed integer type is <code class="docutils literal notranslate"><span class="pre">i1</span></code>.
+Notice, however, that the bitwidth does not need to be a power of two.</p>
+<p>Signed integers are represented in <a class="reference external" href="https://en.wikipedia.org/wiki/Two%27s_complement">two’s complement</a>.
+A signed integer with <span class="math notranslate nohighlight">\(k\)</span> bits can therefore represent values in the range <span class="math notranslate nohighlight">\([-2^{k-1}, 2^{k-1} - 1]\)</span>.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="c c-Singleline">// i3 can represent values up to 2^2 - 1 = 3</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// and down to -2^2 = -4</span>
+<span class="go">&gt; </span>(<span class="o">-</span><span class="m">4</span>:<span class="kt">i3</span>, <span class="o">-</span><span class="m">3</span>:<span class="kt">i3</span>, <span class="o">-</span><span class="m">2</span>:<span class="kt">i3</span>, <span class="o">-</span><span class="m">1</span>:<span class="kt">i3</span>, <span class="m">0</span>:<span class="kt">i3</span>, <span class="m">1</span>:<span class="kt">i3</span>, <span class="m">2</span>:<span class="kt">i3</span>, <span class="m">3</span>:<span class="kt">i3</span>)
+<span class="go">(-4:i3, -3:i3, -2:i3, -1:i3, 0:i3, 1:i3, 2:i3, 3:i3)</span>
+<span class="go">&gt; </span><span class="m">4</span>:<span class="kt">i3</span>
+<span class="go">SyntaxError(1:2): constant 4 does not fit in type i3</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">5</span>:<span class="kt">i3</span>
+<span class="go">SyntaxError(1:3): constant -5 does not fit in type i3</span>
+</pre></div>
+</div>
+</section>
+<section id="integer-literals">
+<h2>Integer Literals<a class="headerlink" href="#integer-literals" title="Link to this heading">#</a></h2>
+<p>Integer literals are typically written with a type annotation to show their bitwidth and signedness.
+For example, <code class="docutils literal notranslate"><span class="pre">42:u8</span></code> denotes the number 42, represented as an 8-bit unsigned integer.
+<code class="docutils literal notranslate"><span class="pre">42:i16</span></code> denotes the same abstract value, but implemented as a 16-bit signed integer.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="nb">bits</span>(<span class="m">42</span>:<span class="kt">u6</span>)  <span class="c c-Singleline">//  0b101010</span>
+<span class="go">[true, false, true, false, true, false]v</span>
+<span class="go">&gt; </span><span class="nb">bits</span>(<span class="m">42</span>:<span class="kt">u7</span>)  <span class="c c-Singleline">// 0b0101010</span>
+<span class="go">[false, true, false, true, false, true, false]v</span>
+<span class="go">&gt; </span><span class="nb">bits</span>(<span class="m">42</span>:<span class="kt">i7</span>)  <span class="c c-Singleline">// 0b0101010</span>
+<span class="go">[false, true, false, true, false, true, false]v</span>
+<span class="go">&gt; </span><span class="nb">bits</span>(<span class="o">-</span><span class="m">42</span>:<span class="kt">i7</span>) <span class="c c-Singleline">// 0b1010110</span>
+<span class="go">[true, false, true, false, true, true, false]v</span>
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="binary.html#bits" title="bits"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">bits</span></code></a>, which converts a value to its binary representation</p>
+</div>
+<p>If no explicit type is specified, the narrowest type that can contain the given value is chosen.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>(<span class="o">-</span><span class="m">5</span>, <span class="o">-</span><span class="m">4</span>, <span class="o">-</span><span class="m">3</span>, <span class="o">-</span><span class="m">2</span>, <span class="o">-</span><span class="m">1</span>, <span class="m">0</span>, <span class="m">1</span>, <span class="m">2</span>, <span class="m">3</span>, <span class="m">4</span>)
+<span class="go">(-5:i4, -4:i3, -3:i3, -2:i2, -1:i1, 0:u0, 1:u1, 2:u2, 3:u2, 4:u3)</span>
+</pre></div>
+</div>
+</section>
+<section id="built-in-integer-operations">
+<h2>Built-In Integer Operations<a class="headerlink" href="#built-in-integer-operations" title="Link to this heading">#</a></h2>
+<p>The following integer-related operators are built into the Sirop language.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="booleans.html#relational-operators"><span class="std std-ref">Relational operators</span></a>, which accept integers as input</p>
+</div>
+<section id="converting-between-integer-types">
+<h3>Converting Between Integer Types<a class="headerlink" href="#converting-between-integer-types" title="Link to this heading">#</a></h3>
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="pad">
+<span class="sig-name descname"><span class="pre">pad</span></span><em><span class="pre">{w}</span></em><span class="sig-paren">(</span><span class="pre">x:</span> <span class="pre">u{k}</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">u{w}</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">w,</span> <span class="pre">k</span> <span class="pre">are</span> <span class="pre">natural</span> <span class="pre">numbers</span> <span class="pre">(possibly</span> <span class="pre">zero)</span> <span class="pre">and</span> <span class="pre">w</span> <span class="pre">&gt;=</span> <span class="pre">k</span></em><a class="headerlink" href="#pad" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object sirop">
+<span class="sig-name descname"><span class="pre">pad</span></span><em><span class="pre">{w}</span></em><span class="sig-paren">(</span><span class="pre">x:</span> <span class="pre">u{k}</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">u{w}</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">w,</span> <span class="pre">k</span> <span class="pre">are</span> <span class="pre">natural</span> <span class="pre">numbers</span> <span class="pre">(possibly</span> <span class="pre">zero)</span> <span class="pre">and</span> <span class="pre">w</span> <span class="pre">&gt;=</span> <span class="pre">k</span></em></dt>
+<dd><p>Increases the bitwidth of an integer while preserving its value.
+For signed integers, this involves <a class="reference external" href="https://en.wikipedia.org/wiki/Sign_extension">sign extension</a>.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="nb">pad13</span>(<span class="m">42</span>:<span class="kt">u8</span>)
+<span class="go">42:u13</span>
+<span class="go">&gt; </span><span class="nb">pad7</span>(<span class="o">-</span><span class="m">5</span>:<span class="kt">i4</span>)
+<span class="go">-5:i7</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// The target bitwidth can be equal to the original bitwidth</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// (although it's pointless to do this)</span>
+<span class="go">&gt; </span><span class="nb">pad8</span>(<span class="o">-</span><span class="m">5</span>:<span class="kt">i8</span>)
+<span class="go">-5:i8</span>
+<span class="go">&gt; </span><span class="nb">pad0</span>(<span class="m">0</span>:<span class="kt">u0</span>)
+<span class="go">0:u0</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The target bitwidth must be greater than or equal to the original bitwidth.</p>
+</div>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="nb">pad7</span>(<span class="m">42</span>:<span class="kt">u8</span>)
+<span class="go">TypeError: Argument of PadTo$ has type u8 but the target width is 7. The target width cannot be smaller than the original width.</span>
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#truncate" title="truncate"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">truncate</span></code></a>, for decreasing the bitwidth of an integer</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="truncate">
+<span class="sig-name descname"><span class="pre">truncate</span></span><em><span class="pre">{w}</span></em><span class="sig-paren">(</span><span class="pre">x:</span> <span class="pre">u{k}</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">u{w}</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">w,</span> <span class="pre">k</span> <span class="pre">are</span> <span class="pre">natural</span> <span class="pre">numbers</span> <span class="pre">(possibly</span> <span class="pre">zero)</span> <span class="pre">and</span> <span class="pre">w</span> <span class="pre">&lt;=</span> <span class="pre">k</span></em><a class="headerlink" href="#truncate" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object sirop">
+<span class="sig-name descname"><span class="pre">truncate</span></span><em><span class="pre">{w}</span></em><span class="sig-paren">(</span><span class="pre">x:</span> <span class="pre">i{k}</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">i{w}</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">w,</span> <span class="pre">k</span> <span class="pre">are</span> <span class="pre">natural</span> <span class="pre">numbers</span> <span class="pre">(possibly</span> <span class="pre">zero)</span> <span class="pre">and</span> <span class="pre">w</span> <span class="pre">&lt;=</span> <span class="pre">k</span></em></dt>
+<dd><p>Decreases the bitwidth of an integer.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="nb">truncate8</span>(<span class="m">42</span>:<span class="kt">u13</span>)
+<span class="go">42:u8</span>
+<span class="go">&gt; </span><span class="nb">truncate4</span>(<span class="o">-</span><span class="m">5</span>:<span class="kt">i7</span>)
+<span class="go">-5:i4</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// The target bitwidth can be equal to the original bitwidth</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// (although it's pointless to do this)</span>
+<span class="go">&gt; </span><span class="nb">truncate8</span>(<span class="o">-</span><span class="m">5</span>:<span class="kt">i8</span>)
+<span class="go">-5:i8</span>
+<span class="go">&gt; </span><span class="nb">truncate0</span>(<span class="m">0</span>:<span class="kt">u0</span>)
+<span class="go">0:u0</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If the value does not fit in the new bitwidth, the output is <code class="docutils literal notranslate"><span class="pre">undefined</span></code>.</p>
+</div>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="nb">truncate8</span>(<span class="m">256</span>:<span class="kt">u9</span>) <span class="c c-Singleline">// 0b100000000</span>
+<span class="go">undefined:u8</span>
+<span class="go">&gt; </span><span class="nb">truncate3</span>(<span class="o">-</span><span class="m">5</span>:<span class="kt">i4</span>) <span class="c c-Singleline">// 0b1011</span>
+<span class="go">undefined:i3</span>
+<span class="go">&gt; </span><span class="nb">truncate3</span>(<span class="m">4</span>:<span class="kt">i4</span>) <span class="c c-Singleline">// 0b0100</span>
+<span class="go">undefined:i3</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The target bitwidth must be less than or equal to the original bitwidth.</p>
+</div>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="nb">truncate8</span>(<span class="m">42</span>:<span class="kt">u7</span>)
+<span class="go">TypeError: Argument of TruncateTo$ has type u7 but the target width is 8. The target width cannot be greater than the original width.</span>
+<span class="go">&gt; </span><span class="nb">truncate8</span>(<span class="m">42</span>:<span class="kt">i7</span>)
+<span class="go">TypeError: Argument of TruncateTo$ has type i7 but the target width is 8. The target width cannot be greater than the original width.</span>
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#pad" title="pad"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">pad</span></code></a>, for increasing the bitwidth of an integer</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="sign">
+<span class="sig-name descname"><span class="pre">sign</span></span><span class="sig-paren">(</span><span class="pre">x:</span> <span class="pre">u{w}</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">i{w+1}</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">w</span> <span class="pre">is</span> <span class="pre">a</span> <span class="pre">natural</span> <span class="pre">number</span> <span class="pre">(possibly</span> <span class="pre">zero)</span></em><a class="headerlink" href="#sign" title="Link to this definition">#</a></dt>
+<dd><p>Converts an unsigned integer to a signed integer while preserving its value.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="nb">sign</span>(<span class="m">42</span>:<span class="kt">u8</span>)
+<span class="go">42:i9</span>
+<span class="go">&gt; </span><span class="nb">sign</span>(<span class="m">0</span>:<span class="kt">u0</span>)
+<span class="go">0:i1</span>
+<span class="go">&gt; </span><span class="nb">sign</span>(<span class="m">256</span>:<span class="kt">u16</span>)
+<span class="go">256:i17</span>
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#unsign" title="unsign"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">unsign</span></code></a>, for converting a non-negative signed integer back to an unsigned integer</p>
+</div>
+</dd></dl>
+
+<dl class="sirop function">
+<dt class="sig sig-object sirop" id="unsign">
+<span class="sig-name descname"><span class="pre">unsign</span></span><span class="sig-paren">(</span><span class="pre">x:</span> <span class="pre">i{w+1}</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">i{w}</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">w</span> <span class="pre">is</span> <span class="pre">a</span> <span class="pre">natural</span> <span class="pre">number</span> <span class="pre">(possibly</span> <span class="pre">zero)</span></em><a class="headerlink" href="#unsign" title="Link to this definition">#</a></dt>
+<dd><p>Converts a non-negative signed integer to an unsigned integer.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="nb">unsign</span>(<span class="m">42</span>:<span class="kt">i9</span>)
+<span class="go">42:u8</span>
+<span class="go">&gt; </span><span class="nb">unsign</span>(<span class="m">0</span>:<span class="kt">i1</span>)
+<span class="go">0:u0</span>
+<span class="go">&gt; </span><span class="nb">unsign</span>(<span class="m">256</span>:<span class="kt">i17</span>)
+<span class="go">256:u16</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If the input is negative, the output is <code class="docutils literal notranslate"><span class="pre">undefined</span></code>.</p>
+</div>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="nb">unsign</span>(<span class="o">-</span><span class="m">5</span>:<span class="kt">i8</span>)
+<span class="go">undefined:u7</span>
+</pre></div>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#sign" title="sign"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">sign</span></code></a>, for converting an unsigned integer back to a signed integer</p>
+</div>
+</dd></dl>
+
+</section>
+<section id="arithmetic-operators">
+<h3>Arithmetic Operators<a class="headerlink" href="#arithmetic-operators" title="Link to this heading">#</a></h3>
+<section id="addition">
+<h4>Addition<a class="headerlink" href="#addition" title="Link to this heading">#</a></h4>
+<p>Sirop provides a few addition operators that differ in their overflow behaviour.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">+</span></code>: overflow produces <code class="docutils literal notranslate"><span class="pre">undefined</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">+%</span></code>: the value wraps around on overflow</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">+^</span></code>: the return type is wide enough that overflow is impossible</p></li>
+</ul>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="c c-Singleline">// (+) Overflow that produces undefined</span>
+<span class="go">&gt; </span><span class="m">255</span>:<span class="kt">u8</span> <span class="o">+</span> <span class="m">1</span>
+<span class="go">undefined:u8</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">16</span>:<span class="kt">i5</span> <span class="o">+</span> <span class="o">-</span><span class="m">1</span>
+<span class="go">undefined:i5</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// (+%) Wrapping overflow</span>
+<span class="go">&gt; </span><span class="m">255</span>:<span class="kt">u8</span> <span class="o">+%</span> <span class="m">1</span>
+<span class="go">0:u8</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">16</span>:<span class="kt">i5</span> <span class="o">+%</span> <span class="o">-</span><span class="m">1</span>
+<span class="go">15:i5</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// (+^) Prevent overflow by producing wider result</span>
+<span class="go">&gt; </span><span class="m">255</span>:<span class="kt">u8</span> <span class="o">+^</span> <span class="m">1</span>
+<span class="go">256:u9</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">16</span>:<span class="kt">i5</span> <span class="o">+^</span> <span class="o">-</span><span class="m">1</span>
+<span class="go">-17:i6</span>
+</pre></div>
+</div>
+</section>
+<section id="subtraction">
+<h4>Subtraction<a class="headerlink" href="#subtraction" title="Link to this heading">#</a></h4>
+<p>Sirop provides a few subtraction operators that differ in their overflow behaviour.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-</span></code>: overflow produces <code class="docutils literal notranslate"><span class="pre">undefined</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-%</span></code>: the value wraps around on overflow</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-^</span></code>: the return type is wide enough that overflow is impossible</p></li>
+</ul>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="c c-Singleline">// (-) Overflow that produces undefined</span>
+<span class="go">&gt; </span><span class="m">0</span>:<span class="kt">u8</span> <span class="o">-</span> <span class="m">1</span>
+<span class="go">undefined:u8</span>
+<span class="go">&gt; </span><span class="m">15</span>:<span class="kt">i5</span> <span class="o">-</span> (<span class="o">-</span><span class="m">1</span>)
+<span class="go">undefined:i5</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// (-%) Wrapping overflow</span>
+<span class="go">&gt; </span><span class="m">0</span>:<span class="kt">u8</span> <span class="o">-%</span> <span class="m">1</span>
+<span class="go">255:u8</span>
+<span class="go">&gt; </span><span class="m">15</span>:<span class="kt">i5</span> <span class="o">-%</span> (<span class="o">-</span><span class="m">1</span>)
+<span class="go">-16:i5</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// (+%) Prevent overflow by producing wider result</span>
+<span class="go">&gt; </span><span class="m">0</span>:<span class="kt">u8</span> <span class="o">-^</span> <span class="m">1</span>
+<span class="go">-1:i10</span>
+<span class="go">&gt; </span><span class="m">15</span>:<span class="kt">i5</span> <span class="o">-^</span> (<span class="o">-</span><span class="m">1</span>)
+<span class="go">16:i6</span>
+</pre></div>
+</div>
+</section>
+<section id="multiplication">
+<h4>Multiplication<a class="headerlink" href="#multiplication" title="Link to this heading">#</a></h4>
+<p>Sirop provides a few multiplication operators that differ in their overflow behaviour.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">*</span></code>: overflow produces <code class="docutils literal notranslate"><span class="pre">undefined</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">*%</span></code>: the value wraps around on overflow</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">*^</span></code>: the return type is wide enough that overflow is impossible</p></li>
+</ul>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="c c-Singleline">// (*) Overflow that produces undefined</span>
+<span class="go">&gt; </span><span class="m">128</span>:<span class="kt">u8</span> <span class="o">*</span> <span class="m">2</span>
+<span class="go">undefined:u8</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">65</span>:<span class="kt">i8</span> <span class="o">*</span> <span class="m">2</span>
+<span class="go">undefined:i8</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// (*%) Wrapping overflow</span>
+<span class="go">&gt; </span><span class="m">128</span>:<span class="kt">u8</span> <span class="o">*%</span> <span class="m">2</span>
+<span class="go">0:u8</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">65</span>:<span class="kt">i8</span> <span class="o">*%</span> <span class="m">2</span>
+<span class="go">126:i8</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// (*^) Prevent overflow by producing wider result</span>
+<span class="go">&gt; </span><span class="m">128</span>:<span class="kt">u8</span> <span class="o">*</span>^ <span class="m">2</span>
+<span class="go">256:u10</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">65</span>:<span class="kt">i8</span> <span class="o">*</span>^ <span class="m">2</span>
+<span class="go">-130:i10</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="bitwise-operators">
+<h3>Bitwise Operators<a class="headerlink" href="#bitwise-operators" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">&lt;&lt;</span></code> performs a bitwise left shift.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="m">5</span>:<span class="kt">u4</span> <span class="o">&lt;&lt;</span> <span class="m">0</span> <span class="c c-Singleline">// 0b0101</span>
+<span class="go">5:u4</span>
+<span class="go">&gt; </span><span class="m">5</span>:<span class="kt">u4</span> <span class="o">&lt;&lt;</span> <span class="m">1</span> <span class="c c-Singleline">// 0b1010</span>
+<span class="go">10:u4</span>
+<span class="go">&gt; </span><span class="m">5</span>:<span class="kt">u4</span> <span class="o">&lt;&lt;</span> <span class="m">2</span> <span class="c c-Singleline">// 0b0100</span>
+<span class="go">4:u4</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="m">5</span>:<span class="kt">i4</span> <span class="o">&lt;&lt;</span> <span class="m">0</span> <span class="c c-Singleline">// 0b0101</span>
+<span class="go">5:i4</span>
+<span class="go">&gt; </span><span class="m">5</span>:<span class="kt">i4</span> <span class="o">&lt;&lt;</span> <span class="m">1</span> <span class="c c-Singleline">// 0b1010</span>
+<span class="go">-6:i4</span>
+<span class="go">&gt; </span><span class="m">5</span>:<span class="kt">i4</span> <span class="o">&lt;&lt;</span> <span class="m">2</span> <span class="c c-Singleline">// 0b0100</span>
+<span class="go">4:i4</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">&gt;&gt;</span></code> performs an arithmetic right shift.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="c c-Singleline">// Number is non-negative, so insert 0 at the left end</span>
+<span class="go">&gt; </span><span class="m">10</span>:<span class="kt">u4</span> <span class="o">&gt;&gt;</span> <span class="m">0</span> <span class="c c-Singleline">// 0b1010</span>
+<span class="go">10:u4</span>
+<span class="go">&gt; </span><span class="m">10</span>:<span class="kt">u4</span> <span class="o">&gt;&gt;</span> <span class="m">1</span> <span class="c c-Singleline">// 0b0101</span>
+<span class="go">5:u4</span>
+<span class="go">&gt; </span><span class="m">10</span>:<span class="kt">u4</span> <span class="o">&gt;&gt;</span> <span class="m">2</span> <span class="c c-Singleline">// 0b0010</span>
+<span class="go">2:u4</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Number is negative, so insert 1 at the left end</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">6</span>:<span class="kt">i4</span> <span class="o">&gt;&gt;</span> <span class="m">0</span> <span class="c c-Singleline">// 0b1010</span>
+<span class="go">-6:i4</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">6</span>:<span class="kt">i4</span> <span class="o">&gt;&gt;</span> <span class="m">1</span> <span class="c c-Singleline">// 0b1101</span>
+<span class="go">-3:i4</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">6</span>:<span class="kt">i4</span> <span class="o">&gt;&gt;</span> <span class="m">2</span> <span class="c c-Singleline">// 0b1110</span>
+<span class="go">-2:i4</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">&gt;&gt;&gt;</span></code> performs a logical right shift.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="c c-Singleline">// Always insert 0 at the left end</span>
+<span class="go">&gt; </span><span class="m">10</span>:<span class="kt">u4</span> <span class="o">&gt;&gt;&gt;</span> <span class="m">0</span> <span class="c c-Singleline">// 0b1010</span>
+<span class="go">10:u4</span>
+<span class="go">&gt; </span><span class="m">10</span>:<span class="kt">u4</span> <span class="o">&gt;&gt;&gt;</span> <span class="m">1</span> <span class="c c-Singleline">// 0b0101</span>
+<span class="go">5:u4</span>
+<span class="go">&gt; </span><span class="m">10</span>:<span class="kt">u4</span> <span class="o">&gt;&gt;&gt;</span> <span class="m">2</span> <span class="c c-Singleline">// 0b0010</span>
+<span class="go">2:u4</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Always insert 0 at the left end, even for negative numbers</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">6</span>:<span class="kt">i4</span> <span class="o">&gt;&gt;&gt;</span> <span class="m">0</span> <span class="c c-Singleline">// 0b1010</span>
+<span class="go">-6:i4</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">6</span>:<span class="kt">i4</span> <span class="o">&gt;&gt;&gt;</span> <span class="m">1</span> <span class="c c-Singleline">// 0b0101</span>
+<span class="go">5:i4</span>
+<span class="go">&gt; </span><span class="o">-</span><span class="m">6</span>:<span class="kt">i4</span> <span class="o">&gt;&gt;&gt;</span> <span class="m">2</span> <span class="c c-Singleline">// 0b0010</span>
+<span class="go">2:i4</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">&amp;</span></code> performs bitwise AND.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="m">3</span>:<span class="kt">u4</span> &amp; <span class="m">5</span>:<span class="kt">u4</span> <span class="c c-Singleline">// 0b0011 &amp; 0b0101</span>
+<span class="go">1:u4</span>
+<span class="go">&gt; </span>(<span class="m">3</span>:<span class="kt">i4</span>) &amp; (<span class="o">-</span><span class="m">6</span>:<span class="kt">i4</span>) <span class="c c-Singleline">// 0b0011 &amp; 0b1010</span>
+<span class="go">2:i4</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">|</span></code> performs bitwise OR.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="m">3</span>:<span class="kt">u4</span> | <span class="m">5</span>:<span class="kt">u4</span> <span class="c c-Singleline">// 0b0011 | 0b0101</span>
+<span class="go">7:u4</span>
+<span class="go">&gt; </span>(<span class="m">3</span>:<span class="kt">i4</span>) | (<span class="o">-</span><span class="m">6</span>:<span class="kt">i4</span>) <span class="c c-Singleline">// 0b0011 | 0b1010</span>
+<span class="go">-5:i4</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">~</span></code> performs bitwise NOT.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="m">10</span>:<span class="kt">u4</span>   <span class="c c-Singleline">// 0b1010</span>
+<span class="go">10:u4</span>
+<span class="go">&gt; </span>~<span class="m">10</span>:<span class="kt">u4</span>  <span class="c c-Singleline">// 0b0101</span>
+<span class="go">5:u4</span>
+<span class="go">&gt; </span>~~<span class="m">10</span>:<span class="kt">u4</span> <span class="c c-Singleline">// 0b1010</span>
+<span class="go">10:u4</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span>(<span class="o">-</span><span class="m">6</span>:<span class="kt">i4</span>)   <span class="c c-Singleline">// 0b1010</span>
+<span class="go">-6:i4</span>
+<span class="go">&gt; </span>~(<span class="o">-</span><span class="m">6</span>:<span class="kt">i4</span>)  <span class="c c-Singleline">// 0b0101</span>
+<span class="go">5:i4</span>
+<span class="go">&gt; </span>~~(<span class="o">-</span><span class="m">6</span>:<span class="kt">i4</span>) <span class="c c-Singleline">// 0b1010</span>
+<span class="go">-6:i4</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="booleans.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Booleans</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="tuples.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Tuples</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unsigned-integers">Unsigned Integers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#signed-integers">Signed Integers</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integer-literals">Integer Literals</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-integer-operations">Built-In Integer Operations</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#converting-between-integer-types">Converting Between Integer Types</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#arithmetic-operators">Arithmetic Operators</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#addition">Addition</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#subtraction">Subtraction</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#multiplication">Multiplication</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#bitwise-operators">Bitwise Operators</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Louis Hildebrand
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Louis Hildebrand.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

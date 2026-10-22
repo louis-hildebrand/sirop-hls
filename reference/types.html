@@ -46,7 +46,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'reference/types';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Functions" href="functions.html" />
+    <link rel="next" title="Booleans" href="booleans.html" />
     <link rel="prev" title="Example with Static Scheduling: FIR Filter" href="../getting-started/example-fir.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -148,9 +148,13 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Types in Sirop</a></li>
+<li class="toctree-l1"><a class="reference internal" href="booleans.html">Booleans</a></li>
+<li class="toctree-l1"><a class="reference internal" href="integers.html">Integers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tuples.html">Tuples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="functions.html">Functions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="vectors.html">Vectors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="streams.html">Streams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="binary.html">Binary Conversion</a></li>
 </ul>
 
     </div>
@@ -337,9 +341,7 @@
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <i class="fa-solid fa-magnifying-glass fa-lg"></i>
 </button>
-<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
-    <span class="fa-solid fa-list"></span>
-</button>
+
 </div></div>
       
     </div>
@@ -355,14 +357,6 @@
     <div id="print-main-content">
         <div id="jb-print-toc">
             
-            <div>
-                <h2> Contents </h2>
-            </div>
-            <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#note">Note</a></li>
-</ul>
-            </nav>
         </div>
     </div>
 </div>
@@ -383,19 +377,19 @@
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bool</span></code></p></td>
-<td><p>Boolean</p></td>
+<td><p><a class="reference internal" href="booleans.html"><span class="doc">Boolean</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">u0</span></code>, <code class="docutils literal notranslate"><span class="pre">u1</span></code>, <code class="docutils literal notranslate"><span class="pre">u2</span></code>, …</p></td>
-<td><p>Unsigned integer with the given bitwidth</p></td>
+<td><p>Unsigned <a class="reference internal" href="integers.html"><span class="doc">integer</span></a> with the given bitwidth</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">i1</span></code>, <code class="docutils literal notranslate"><span class="pre">i2</span></code>, <code class="docutils literal notranslate"><span class="pre">i3</span></code>, …</p></td>
-<td><p>Signed integer with the given bitwidth</p></td>
+<td><p>Signed <a class="reference internal" href="integers.html"><span class="doc">integer</span></a> with the given bitwidth</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">(A,</span> <span class="pre">B,</span> <span class="pre">...)</span></code></p></td>
+<td><p><a class="reference internal" href="tuples.html"><span class="doc">Tuple</span></a> whose elements have type <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code>, etc.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span></code></p></td>
 <td><p><a class="reference internal" href="functions.html"><span class="doc">Function</span></a> with input of type <code class="docutils literal notranslate"><span class="pre">A</span></code> and output of type <code class="docutils literal notranslate"><span class="pre">B</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">(A,</span> <span class="pre">B,</span> <span class="pre">...)</span></code></p></td>
-<td><p>Tuple whose elements have type <code class="docutils literal notranslate"><span class="pre">A</span></code>, <code class="docutils literal notranslate"><span class="pre">B</span></code>, etc.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Vec[T,</span> <span class="pre">n]</span></code></p></td>
 <td><p><a class="reference internal" href="vectors.html"><span class="doc">Vector</span></a> of length <code class="docutils literal notranslate"><span class="pre">n</span></code> whose elements have type <code class="docutils literal notranslate"><span class="pre">T</span></code></p></td>
@@ -406,21 +400,6 @@
 </tbody>
 </table>
 </div>
-<section id="note">
-<h2>Note<a class="headerlink" href="#note" title="Link to this heading">#</a></h2>
-<ul class="simple">
-<li><p>The minimum bitwidth for unsigned integers is 0. There is only one value of type <code class="docutils literal notranslate"><span class="pre">u0</span></code>, namely 0.</p></li>
-<li><p>The minimum bitwidth for signed integers is 1.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span> <span class="pre">-&gt;</span> <span class="pre">C</span></code> is interpreted as <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">(B</span> <span class="pre">-&gt;</span> <span class="pre">C)</span></code>, i.e., a function that takes an input of type <code class="docutils literal notranslate"><span class="pre">A</span></code> and returns a function of type <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">-&gt;</span> <span class="pre">C</span></code>.
-See <a class="reference external" href="https://en.wikipedia.org/wiki/Currying">Currying</a>.
-In practice, the Sirop compiler will ensure no such functions remain in the final program, using one of the following approaches:</p>
-<ul>
-<li><p>inlining (e.g., replacing <code class="docutils literal notranslate"><span class="pre">(x</span> <span class="pre">=&gt;</span> <span class="pre">y</span> <span class="pre">=&gt;</span> <span class="pre">x</span> <span class="pre">+</span> <span class="pre">y)(a)(b)</span></code> by <code class="docutils literal notranslate"><span class="pre">a</span> <span class="pre">+</span> <span class="pre">b</span></code>)</p></li>
-<li><p>“uncurrying” (e.g., replacing <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=&gt;</span> <span class="pre">y</span> <span class="pre">=&gt;</span> <span class="pre">x</span> <span class="pre">+</span> <span class="pre">y</span></code> by <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=&gt;</span> <span class="pre">x.0</span> <span class="pre">+</span> <span class="pre">x.1</span></code>)</p></li>
-</ul>
-</li>
-</ul>
-</section>
 </section>
 
 
@@ -444,11 +423,11 @@ In practice, the Sirop compiler will ensure no such functions remain in the fina
       </div>
     </a>
     <a class="right-next"
-       href="functions.html"
+       href="booleans.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Functions</p>
+        <p class="prev-next-title">Booleans</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -458,23 +437,6 @@ In practice, the Sirop compiler will ensure no such functions remain in the fina
             </div>
             
             
-              
-                <dialog id="pst-secondary-sidebar-modal"></dialog>
-                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
-
-
-  <div class="sidebar-secondary-item"><div
-    id="pst-page-navigation-heading-2"
-    class="page-toc tocsection onthispage">
-    <i class="fa-solid fa-list"></i> Contents
-  </div>
-  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#note">Note</a></li>
-</ul>
-  </nav></div>
-
-</div></div>
               
             
           </div>

@@ -148,9 +148,13 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="types.html">Types in Sirop</a></li>
+<li class="toctree-l1"><a class="reference internal" href="booleans.html">Booleans</a></li>
+<li class="toctree-l1"><a class="reference internal" href="integers.html">Integers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tuples.html">Tuples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="functions.html">Functions</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Vectors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="streams.html">Streams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="binary.html">Binary Conversion</a></li>
 </ul>
 
     </div>
@@ -360,7 +364,7 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-vector-functions">Built-In Vector Functions</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-vector-operators">Built-In Vector Operators</a><ul class="visible nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-vectors">Creating Vectors</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transforming-vectors-elementwise">Transforming Vectors Elementwise</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#combining-multiple-vectors">Combining Multiple Vectors</a></li>
@@ -385,9 +389,14 @@
 <h1>Vectors<a class="headerlink" href="#vectors" title="Link to this heading">#</a></h1>
 <p>As described in <a class="reference internal" href="../getting-started/language-intro.html"><span class="doc">Overview</span></a>, a vector is a combinational collection.
 Elements of a vector can be accessed all at once, in the same clock cycle.</p>
-<section id="built-in-vector-functions">
-<h2>Built-In Vector Functions<a class="headerlink" href="#built-in-vector-functions" title="Link to this heading">#</a></h2>
-<p>The following vector operators are provided as part of the Sirop language.</p>
+<p>Unlike tuples, vectors are homogeneous; every element in a given vector has the same type.</p>
+<section id="built-in-vector-operators">
+<h2>Built-In Vector Operators<a class="headerlink" href="#built-in-vector-operators" title="Link to this heading">#</a></h2>
+<p>The following vector-related operators are built into the Sirop language.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="booleans.html#relational-operators"><span class="std std-ref">Relational operators</span></a>, which accept vectors as input</p>
+</div>
 <section id="creating-vectors">
 <h3>Creating Vectors<a class="headerlink" href="#creating-vectors" title="Link to this heading">#</a></h3>
 <dl class="sirop function">
@@ -901,7 +910,7 @@ The sum is performed with the same type as the inputs.</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-vector-functions">Built-In Vector Functions</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-vector-operators">Built-In Vector Operators</a><ul class="visible nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-vectors">Creating Vectors</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transforming-vectors-elementwise">Transforming Vectors Elementwise</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#combining-multiple-vectors">Combining Multiple Vectors</a></li>

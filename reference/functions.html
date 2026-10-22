@@ -47,7 +47,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Vectors" href="vectors.html" />
-    <link rel="prev" title="Types in Sirop" href="types.html" />
+    <link rel="prev" title="Tuples" href="tuples.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="" />
@@ -148,9 +148,13 @@
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="types.html">Types in Sirop</a></li>
+<li class="toctree-l1"><a class="reference internal" href="booleans.html">Booleans</a></li>
+<li class="toctree-l1"><a class="reference internal" href="integers.html">Integers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tuples.html">Tuples</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Functions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="vectors.html">Vectors</a></li>
 <li class="toctree-l1"><a class="reference internal" href="streams.html">Streams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="binary.html">Binary Conversion</a></li>
 </ul>
 
     </div>
@@ -361,6 +365,7 @@
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unpacking-the-input">Unpacking the Input</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#calling-a-function">Calling a Function</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#omitting-the-input-type-annotation">Omitting the Input Type Annotation</a></li>
 </ul>
             </nav>
@@ -387,6 +392,15 @@ For example, the following function takes as input <code class="docutils literal
 </div>
 <p>The example above creates a vector of three integers.
 A straightforward translation to VHDL would therefore instantiate three copies of <code class="docutils literal notranslate"><span class="pre">f</span></code>, i.e., three adders.</p>
+<p>If the function’s input has type <code class="docutils literal notranslate"><span class="pre">A</span></code> and its output has type <code class="docutils literal notranslate"><span class="pre">B</span></code>, then the type of the function is <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span></code>.
+This can be repeated; <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span> <span class="pre">-&gt;</span> <span class="pre">C</span></code> is interpreted as <code class="docutils literal notranslate"><span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">(B</span> <span class="pre">-&gt;</span> <span class="pre">C)</span></code>, i.e., a function that takes an input of type <code class="docutils literal notranslate"><span class="pre">A</span></code> and returns a function of type <code class="docutils literal notranslate"><span class="pre">B</span> <span class="pre">-&gt;</span> <span class="pre">C</span></code>.
+See <a class="reference external" href="https://en.wikipedia.org/wiki/Currying">Currying</a>.
+In practice, the Sirop compiler will try to eliminate such functions (except the top-level function).
+It does so using the following approaches:</p>
+<ul class="simple">
+<li><p>inlining (e.g., replacing <code class="docutils literal notranslate"><span class="pre">(x</span> <span class="pre">=&gt;</span> <span class="pre">y</span> <span class="pre">=&gt;</span> <span class="pre">x</span> <span class="pre">+</span> <span class="pre">y)(a)(b)</span></code> by <code class="docutils literal notranslate"><span class="pre">a</span> <span class="pre">+</span> <span class="pre">b</span></code>)</p></li>
+<li><p>“uncurrying” (e.g., replacing <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=&gt;</span> <span class="pre">y</span> <span class="pre">=&gt;</span> <span class="pre">x</span> <span class="pre">+</span> <span class="pre">y</span></code> by <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=&gt;</span> <span class="pre">x.0</span> <span class="pre">+</span> <span class="pre">x.1</span></code>)</p></li>
+</ul>
 <section id="unpacking-the-input">
 <span id="pattern-functions"></span><h2>Unpacking the Input<a class="headerlink" href="#unpacking-the-input" title="Link to this heading">#</a></h2>
 <p>For functions that take as input a tuple, it is often convenient to name each part of the input.
@@ -396,6 +410,50 @@ For example, the following function:</p>
 </div>
 <p>can also be written as</p>
 <div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span>@(<span class="n">x</span>: <span class="kt">u8</span>, <span class="n">y</span>: <span class="kt">u8</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+</pre></div>
+</div>
+</section>
+<section id="calling-a-function">
+<h2>Calling a Function<a class="headerlink" href="#calling-a-function" title="Link to this heading">#</a></h2>
+<p>Functions can be called in one of two ways: “function-style” notation and “method-style” notation.</p>
+<p>For example, suppose <code class="docutils literal notranslate"><span class="pre">f</span></code> is a function that takes as input a 2-tuple.
+Then we can pass arguments <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code> to <code class="docutils literal notranslate"><span class="pre">f</span></code> as follows:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">f(x,</span> <span class="pre">y)</span></code> (function-style)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">x.f(y)</span></code> (method-style)</p></li>
+</ol>
+<p>These two notations are exactly equivalent.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Unlike in many object-oriented programming languages, method-style notation in Sirop does not come with any overhead (e.g., <a class="reference external" href="https://en.wikipedia.org/wiki/Dynamic_dispatch">dynamic dispatch</a>).</p>
+</div>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="c c-Singleline">// Function style</span>
+<span class="go">&gt; </span><span class="k">let</span> <span class="n">f</span> = @(<span class="n">x</span>: <span class="kt">u8</span>, <span class="n">y</span>: <span class="kt">u8</span>) <span class="p">=&gt;</span> (<span class="n">x</span>, <span class="n">y</span>, <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>) <span class="k">in</span> <span class="n">f</span>(<span class="m">42</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>)
+<span class="go">(42:u8, 5:u8, 47:u8)</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Method style</span>
+<span class="go">&gt; </span><span class="k">let</span> <span class="n">f</span> = @(<span class="n">x</span>: <span class="kt">u8</span>, <span class="n">y</span>: <span class="kt">u8</span>) <span class="p">=&gt;</span> (<span class="n">x</span>, <span class="n">y</span>, <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>) <span class="k">in</span> (<span class="m">42</span>:<span class="kt">u8</span>).<span class="n">f</span>(<span class="m">5</span>:<span class="kt">u8</span>)
+<span class="go">(42:u8, 5:u8, 47:u8)</span>
+</pre></div>
+</div>
+<p>The same syntax can be used for stream and vector operators, like <a class="reference internal" href="streams.html#StmMap" title="StmMap"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">StmMap</span></code></a> and <a class="reference internal" href="vectors.html#VecMap" title="VecMap"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecMap</span></code></a>.
+Method-style notation is especially convenient for expressing long sequences of stream transformations, since the stages of computation are laid out left-to-right (or top-to-bottom, if there are line breaks) rather than inside-out.</p>
+<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="n">u</span> = <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>
+<span class="go">&gt; </span><span class="n">v</span> = <span class="p">[</span><span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">s</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Function style (read inside-out)</span>
+<span class="go">&gt; </span><span class="nb">StmSum</span>(<span class="nb">StmMap</span>(<span class="nb">StmZip</span>(<span class="n">u</span>, <span class="n">v</span>), @(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span>))
+<span class="go">[70:u8]s</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Method style (read left-to-right)</span>
+<span class="go">&gt; </span><span class="n">u</span>.<span class="nb">StmZip</span>(<span class="n">v</span>).<span class="nb">StmMap</span>(@(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span>).<span class="nb">StmSum</span>()
+<span class="go">[70:u8]s</span>
+<span class="go">&gt;</span>
+<span class="go">&gt; </span><span class="c c-Singleline">// Likewise for vectors</span>
+<span class="go">&gt; </span><span class="n">u</span> = <span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>
+<span class="go">&gt; </span><span class="n">v</span> = <span class="p">[</span><span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>
+<span class="go">&gt; </span><span class="nb">VecSum</span>(<span class="nb">VecMap</span>(<span class="nb">VecZip</span>(<span class="n">u</span>, <span class="n">v</span>), @(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span>))
+<span class="go">70:u8</span>
+<span class="go">&gt; </span><span class="n">u</span>.<span class="nb">VecZip</span>(<span class="n">v</span>).<span class="nb">VecMap</span>(@(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">*</span> <span class="n">y</span>).<span class="nb">VecSum</span>()
+<span class="go">70:u8</span>
 </pre></div>
 </div>
 </section>
@@ -441,12 +499,12 @@ For example:</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="types.html"
+       href="tuples.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Types in Sirop</p>
+        <p class="prev-next-title">Tuples</p>
       </div>
     </a>
     <a class="right-next"
@@ -477,6 +535,7 @@ For example:</p>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#unpacking-the-input">Unpacking the Input</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#calling-a-function">Calling a Function</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#omitting-the-input-type-annotation">Omitting the Input Type Annotation</a></li>
 </ul>
   </nav></div>
