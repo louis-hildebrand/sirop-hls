@@ -33,6 +33,7 @@ For example, a `dot product <https://en.wikipedia.org/wiki/Dot_product>`__ can b
     reference/types
     reference/booleans
     reference/integers
+    reference/tuples
     reference/functions
     reference/vectors
     reference/streams

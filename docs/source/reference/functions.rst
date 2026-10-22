@@ -16,6 +16,15 @@ The functions themselves are anonymous, but they can be bound to a name using ``
 The example above creates a vector of three integers.
 A straightforward translation to VHDL would therefore instantiate three copies of ``f``, i.e., three adders.
 
+If the function's input has type ``A`` and its output has type ``B``, then the type of the function is ``A -> B``.
+This can be repeated; ``A -> B -> C`` is interpreted as ``A -> (B -> C)``, i.e., a function that takes an input of type ``A`` and returns a function of type ``B -> C``.
+See `Currying <https://en.wikipedia.org/wiki/Currying>`__.
+In practice, the Sirop compiler will try to eliminate such functions (except the top-level function).
+It does so using the following approaches:
+
+* inlining (e.g., replacing ``(x => y => x + y)(a)(b)`` by ``a + b``)
+* "uncurrying" (e.g., replacing ``x => y => x + y`` by ``x => x.0 + x.1``)
+
 .. _pattern-functions:
 
 Unpacking the Input
