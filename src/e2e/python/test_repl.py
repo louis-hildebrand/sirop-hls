@@ -7,6 +7,7 @@ Script for checking a REPL session, similar to Python's doctest.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import time
@@ -49,6 +50,16 @@ class ReplTest:
     When checking the actual output, the goodbye message should be ignored.
     """
 
+    sirop_version_with_hash: str
+    """
+    The full Sirop compiler version, possibly including the commit hash (e.g., "2.3.0-f6383969").
+    """
+
+    simple_sirop_version: str
+    """
+    The Sirop compiler version, without the commit hash (e.g., "2.3.0").
+    """
+
     @classmethod
     def parse_expected(cls, expected_session: str, sirop_version: str) -> ReplTest:
         """
@@ -64,16 +75,25 @@ class ReplTest:
         ]
         expected_output_lines = []
         for line in all_lines:
-            if line.startswith(">"):
+            if line == "$ sirop":
+                pass
+            elif line.startswith(">"):
                 # Notice that we always expect a trailing space even if the file omits it
                 expected_output_lines.append("> ")
             else:
                 expected_output_lines.append(line.replace("${COMPILER_VERSION}", sirop_version))
+        simple_sirop_version = sirop_version
+        if (m := re.fullmatch(r"([0-9]+\.[0-9]+\.[0-9]+)-[a-zA-Z0-9]+", sirop_version)):
+            simple_sirop_version = m[1]
+        else:
+            simple_sirop_version = sirop_version
         return ReplTest(
             input_lines=input_lines,
             expected_output_lines=expected_output_lines,
             omit_welcome=(not all_lines or all_lines[0].startswith(">")),
             omit_goodbye=(not all_lines or all_lines[-1] != "Goodbye"),
+            sirop_version_with_hash=sirop_version,
+            simple_sirop_version=simple_sirop_version,
         )
 
     def parse_actual(self, output: str) -> list[str]:
@@ -115,6 +135,20 @@ class ReplTest:
             else:
                 session_lines.append(line)
         return "".join(line + "\n" for line in session_lines)
+
+    def matches_expected(self, actual_output_lines: list[str]) -> bool:
+        for (actual_line, expected_line) in zip(actual_output_lines, self.expected_output_lines):
+            if actual_line != expected_line:
+                # Maybe it's just the compiler version that differs.
+                # See if replacing the version+commit_hash with just the version fixes it.
+                # (It would be really annoying to need to update the docs on every single commit.)
+                simplified_actual_line = actual_line.replace(
+                    self.sirop_version_with_hash,
+                    self.simple_sirop_version,
+                )
+                if simplified_actual_line != expected_line:
+                    return False
+        return True
 
 
 def run_test(
@@ -163,7 +197,7 @@ def run_test(
         actual_file.parent.mkdir(exist_ok=True, parents=True)
     actual_file.write_text(actual_session, encoding="utf-8")
 
-    if actual_output_lines != test.expected_output_lines:
+    if not test.matches_expected(actual_output_lines):
         if save:
             expected_session.write_text(actual_session, encoding="utf-8")
         else:
