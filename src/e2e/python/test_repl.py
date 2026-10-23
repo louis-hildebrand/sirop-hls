@@ -14,6 +14,7 @@ from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
 from pathlib import Path
 
+import colorama
 from colorama import Fore, Style
 
 import constants as c
@@ -118,14 +119,18 @@ class ReplTest:
 
 def run_test(
     name: str,
-    expected_session: str,
+    expected_session: Path,
     actual_file: Path,
     sirop_version: str,
     cli_args: list[str],
+    save: bool,
 ) -> bool:
     print(f"{name} (REPL) ... ", end="", flush=True)
 
-    test = ReplTest.parse_expected(expected_session, sirop_version=sirop_version)
+    test = ReplTest.parse_expected(
+        expected_session.read_text(encoding="utf-8"),
+        sirop_version=sirop_version,
+    )
 
     result = subprocess.run(
         [
@@ -158,15 +163,18 @@ def run_test(
         actual_file.parent.mkdir(exist_ok=True, parents=True)
     actual_file.write_text(actual_session, encoding="utf-8")
 
-    if actual_output_lines == test.expected_output_lines:
-        print(Fore.RED + "WRONG OUTPUT" + Style.RESET_ALL)
-        return False
+    if actual_output_lines != test.expected_output_lines:
+        if save:
+            expected_session.write_text(actual_session, encoding="utf-8")
+        else:
+            print(Fore.RED + "WRONG OUTPUT" + Style.RESET_ALL)
+            return False
 
     print(Fore.GREEN + "OK" + Style.RESET_ALL)
     return True
 
 
-def main(files: list[Path], actual_dir: Path) -> None:
+def main(files: list[Path], actual_dir: Path, save: bool) -> None:
     start_timestamp = time.monotonic()
     # Find compiler version
     sirop_version = subprocess.run(
@@ -196,10 +204,11 @@ def main(files: list[Path], actual_dir: Path) -> None:
         actual_file.parent.mkdir(exist_ok=True, parents=True)
         ok = run_test(
             name=name,
-            expected_session=p.read_text(encoding="utf-8"),
+            expected_session=p,
             actual_file=actual_file,
             sirop_version=sirop_version,
             cli_args=[],
+            save=save,
         )
         if not ok:
             errors += 1
@@ -232,6 +241,16 @@ def _parse_args() -> Namespace:
         type=Path,
         help="path of the directory to use for storing the actual outputs",
     )
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        help="overwrite the expected results with whatever the compiler currently outputs",
+    )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="suppress colored output",
+    )
     args = parser.parse_args()
     args.files = [p.resolve() for p in args.files]
     return args
@@ -239,4 +258,5 @@ def _parse_args() -> Namespace:
 
 if __name__ == "__main__":
     _args = _parse_args()
-    main(files=_args.files, actual_dir=_args.actual_dir)
+    colorama.init(strip=True if _args.no_color else None)
+    main(files=_args.files, actual_dir=_args.actual_dir, save=_args.save)
