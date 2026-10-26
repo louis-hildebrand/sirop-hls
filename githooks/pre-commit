@@ -160,17 +160,33 @@ fi
 
 ##### Documentation website checks #############################################
 
-if [ -z "${SKIP_DOCS:-}" ]; then
-    echo "Testing documentation website (skip by defining SKIP_DOCS)..."
-    logs="$LOGS_DIR/docs.log"
+if [ -n "${SKIP_DOCS:-}" ]; then
+    SKIP_DOCS_CODE_SAMPLES='1'
+    SKIP_DOCS_MAKE='1'
+fi
+
+if [ -z "${SKIP_DOCS_CODE_SAMPLES:-}" ]; then
+    echo "Testing code samples in documentation website (skip by defining SKIP_DOCS or SKIP_DOCS_CODE_SAMPLES)..."
+    logs="$LOGS_DIR/docs_code_samples.log"
+    ./src/e2e/python/test_repl.py ./docs/source/code-examples/ --actual-dir ./docs/build/repl/ >"$logs" || {
+        echo "Doctests failed."
+        echo "See $logs for details."
+        exit 1
+    }
+    echo ""
+fi
+
+if [ -z "${SKIP_DOCS_MAKE:-}" ]; then
+    echo "Testing building documentation website (skip by defining SKIP_DOCS or SKIP_DOCS_MAKE)..."
+    logs="$LOGS_DIR/docs_make.log"
     cd docs
     make html >"$logs" 2>&1 || {
-        echo "Command 'make html' failed"
+        echo "Command 'make html' failed."
         echo "See $logs for details."
         exit 1
     }
     make linkcheck >>"$logs" 2>&1 || {
-        echo "Command 'make linkcheck' failed"
+        echo "Command 'make linkcheck' failed."
         echo "See $logs for details."
         exit 1
     }
