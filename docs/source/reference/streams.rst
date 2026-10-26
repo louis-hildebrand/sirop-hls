@@ -482,7 +482,7 @@ Discarding Parts of a Stream
 
 .. only:: not handshake
 
-    .. function:: StmTakeRight(s: Stm[T, n], k: I): Stm[T, k] :: I is an integer type
+    .. function:: StmTakeRight(s: Stm[T, n], k: I, head: ~T): Stm[T, k] :: I is an integer type
 
         Returns the last ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``, discarding the rest.
 

@@ -339,6 +339,14 @@ case class Call(
           case (Seq(), Seq(s, k)) => StmTake(s, k)()
           case _                  => error(f)
         }
+      case f @ Param("StmTakeRight", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(s, k)) if !handshake =>
+            mhir.sugar.nohandshake.StmTakeRight(s, k, Undefined(Missing))()
+          case (Seq(), Seq(s, k, head)) if !handshake =>
+            mhir.sugar.nohandshake.StmTakeRight(s, k, head)()
+          case _ => error(f)
+        }
       case f @ Param("StmDrop", -1) =>
         combinedArgs match {
           case (Seq(), Seq(s, k)) if handshake =>
