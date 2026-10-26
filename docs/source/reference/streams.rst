@@ -230,7 +230,7 @@ Combining Multiple Streams
 
 .. only:: not handshake
 
-    .. function:: StmConcat(s1: Stm[T, n], s2: Stm[T, m], head: T = undefined): Stm[T, n+m]
+    .. function:: StmConcat(s1: Stm[T, n], s2: Stm[T, m], head: ~T = undefined): Stm[T, n+m]
 
         Concatenates two streams.
 
@@ -419,7 +419,7 @@ Discarding Parts of a Stream
 
 .. only:: not handshake
 
-    .. function:: StmDrop(s: Stm[T, n], k: I, head: ~T): Stm[T, n-k] :: I is an integer type
+    .. function:: StmDrop(s: Stm[T, n], k: I, head: ~T = undefined): Stm[T, n-k] :: I is an integer type
 
         Discards the first ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
 
@@ -440,7 +440,7 @@ Discarding Parts of a Stream
 
 .. only:: not handshake
 
-    .. function:: StmDropRight(s: Stm[T, n], k: I, head: ~T): Stm[T, n-k] :: I is an integer type
+    .. function:: StmDropRight(s: Stm[T, n], k: I, head: ~T = undefined): Stm[T, n-k] :: I is an integer type
 
         Discards the last ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
 
@@ -461,7 +461,7 @@ Discarding Parts of a Stream
 
 .. only:: not handshake
 
-    .. function:: StmTake(s: Stm[T, n], k: I, head: ~T): Stm[T, k] :: I is an integer type
+    .. function:: StmTake(s: Stm[T, n], k: I, head: ~T = undefined): Stm[T, k] :: I is an integer type
 
         Returns the first ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``, discarding the rest.
 
@@ -482,7 +482,7 @@ Discarding Parts of a Stream
 
 .. only:: not handshake
 
-    .. function:: StmTakeRight(s: Stm[T, n], k: I, head: ~T): Stm[T, k] :: I is an integer type
+    .. function:: StmTakeRight(s: Stm[T, n], k: I, head: ~T = undefined): Stm[T, k] :: I is an integer type
 
         Returns the last ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``, discarding the rest.
 
