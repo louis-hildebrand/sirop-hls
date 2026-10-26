@@ -9,3 +9,19 @@
 [undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
 > ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDropRight(4)
 [undefined:u8, 0:u8]s ++ []s
+>
+> // What about specifying a head?
+> ([0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s).StmDropRight(2, /*head*/ 42:u8)
+[42:u8, 0:u8]s ++ [1:u8, 2:u8]s
+>
+> // What about nested streams?
+> // (recall that the compiler flattens streams)
+> [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s
+[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+> type [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s
+Stm[Stm[u8, 2], 3]
+> // (we drop 1 "row," i.e., 2 integers)
+> type [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s.StmDropRight(1, /*head*/ 42:u8)
+Stm[Stm[u8, 2], 2]
+> [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s.StmDropRight(1, /*head*/ 42:u8)
+[42:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s

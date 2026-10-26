@@ -1390,13 +1390,16 @@ case class StmAppend(stm: Expr /* Stm<A; n> */, e: Expr /* A */ )(
   */
 case class StmTake(
     stm: Expr /* Stm<A; n> */,
-    k: Expr /* Int */
+    k: Expr, /* Int */
+    head: Expr = Undefined(Missing),
+    sourceName: String = "StmTake"
 )(typ: Type = Missing) /* Stm<A; k> */
-    extends ResolvedSyntaxSugar(stm, k)(typ) {
+    extends ResolvedSyntaxSugar(stm, k, head)(typ) {
   override def rebuild(typ: Type, newChildren: Seq[Expr]): StmTake = {
     newChildren match {
-      case Seq(stm, k) => StmTake(stm, k)(typ)
-      case _           => throw new BadRebuildError(this, newChildren)
+      case Seq(stm, k, head) =>
+        StmTake(stm, k, head, sourceName = this.sourceName)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -1406,16 +1409,24 @@ case class StmTake(
   )(implicit c: Canonicalizer): StmTake = {
     val k = this.k.tchk(context, constValues).expectUInt()
     val s = this.stm.tchk(context, constValues)
-    s.typ match {
-      case TyStm(t, _) => this.rebuild(TyStm(t, k), Seq(s, k))
-      case t           => throw new TypeError(s"Stream in StmTake has type $t.")
+    val innerTyp = s.typ match {
+      case TyStm(t, _) => t
+      case t => throw new TypeError(s"Stream in $className has type $t.")
     }
+    val TyStm(elemTyp, _) = s.typ.lower
+    val head = this.head match {
+      case Undefined(Missing) => Undefined(elemTyp)
+      case head =>
+        head.tchk(context, constValues).expectType(elemTyp, constValues)
+    }
+    this.rebuild(TyStm(innerTyp, k), Seq(s, k, head))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val stm = this.stm.lower
     val k = this.k.lower
+    val head = this.head.lower
     val perRow = this.stm.typ.asInstanceOf[TyStm].t.lower match {
       case TyStm(_, n) => n
       case _           => C(1)().tchk()
@@ -1425,14 +1436,14 @@ case class StmTake(
     StmBuild(
       SafeProd(k, perRow)().tchk().lower,
       C(1)(),
-      Undefined(elemTyp),
+      head,
       StmData(s)(),
       True,
       Map(),
       Map[Param, (Expr, Expr, Expr)](
         s -> (stm, True, C(0)())
       )
-    )().annotateWithName(this.className).tchk()
+    )().annotateWithName(this.sourceName).tchk()
   }
 }
 

@@ -440,7 +440,7 @@ Discarding Parts of a Stream
 
 .. only:: not handshake
 
-    .. function:: StmDropRight(s: Stm[T, n], k: I): Stm[T, n-k] :: I is an integer type
+    .. function:: StmDropRight(s: Stm[T, n], k: I, head: ~T): Stm[T, n-k] :: I is an integer type
 
         Discards the last ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
 

@@ -349,6 +349,12 @@ case class Call(
             mhir.sugar.nohandshake.StmDrop(s, k, head)()
           case _ => error(f)
         }
+      case f @ Param("StmDropRight", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(s, k)) => StmDropRight(s, k, Undefined(Missing))()
+          case (Seq(), Seq(s, k, head)) => StmDropRight(s, k, head)()
+          case _                        => error(f)
+        }
       case f @ Param("StmExtendBy", -1) =>
         combinedArgs match {
           case (Seq(), Seq(s, k)) if handshake =>
