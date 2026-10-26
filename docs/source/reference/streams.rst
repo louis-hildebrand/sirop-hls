@@ -442,6 +442,8 @@ Discarding Parts of a Stream
 
     .. function:: StmDropRight(s: Stm[T, n], k: I, head: ~T = undefined): Stm[T, n-k] :: I is an integer type
 
+        .. versionadded:: 2.4.0
+
         Discards the last ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
 
         .. literalinclude:: /code-examples/reference/StmDropRight.repl.txt
@@ -463,6 +465,9 @@ Discarding Parts of a Stream
 
     .. function:: StmTake(s: Stm[T, n], k: I, head: ~T = undefined): Stm[T, k] :: I is an integer type
 
+        .. versionchanged:: 2.4.0
+            Added the ``head`` parameter.
+
         Returns the first ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``, discarding the rest.
 
         .. literalinclude:: /code-examples/reference/StmTake.repl.txt
@@ -483,6 +488,8 @@ Discarding Parts of a Stream
 .. only:: not handshake
 
     .. function:: StmTakeRight(s: Stm[T, n], k: I, head: ~T = undefined): Stm[T, k] :: I is an integer type
+
+        .. versionadded:: 2.4.0
 
         Returns the last ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``, discarding the rest.
 
