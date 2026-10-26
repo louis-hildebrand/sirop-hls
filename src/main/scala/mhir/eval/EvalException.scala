@@ -51,3 +51,7 @@ case class DelayMismatch(msg: String) extends EvalException(msg)
   * evaluated to [[mhir.ir.Undefined]]).
   */
 case class MissingRequiredValue(msg: String) extends EvalException(msg)
+
+/** The absolute latency of an [[mhir.ir.StmBuild]] expression is invalid.
+  */
+case class InvalidLatency(msg: String) extends EvalException(msg)

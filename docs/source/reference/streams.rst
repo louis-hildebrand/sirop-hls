@@ -495,6 +495,16 @@ Discarding Parts of a Stream
 
         .. literalinclude:: /code-examples/reference/StmTakeRight.repl.txt
 
+        .. WARNING::
+            If ``k`` is greater than the total length of the stream including the physical prefix, it is an error.
+
+            If ``k`` is greater than the length of the logical part but less than or equal to the total length, you may be able to get away with it.
+            However, the compiler makes no effort to preserve the length of the physical prefix.
+            Ideally, avoid taking more than the length of the logical stream.
+            If you absolutely, positively, definitely need to, then disable optimizations that may shrink the physical prefix (e.g., fusion, shift register shrinking).
+
+        .. literalinclude:: /code-examples/reference/StmTakeRight_too_many.repl.txt
+
         .. seealso::
 
             :func:`StmDrop`, if it is easier to say how many elements to *discard* than to say how many to *keep*

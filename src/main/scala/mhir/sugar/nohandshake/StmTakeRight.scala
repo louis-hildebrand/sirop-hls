@@ -43,7 +43,9 @@ case class StmTakeRight(s: Expr, k: Expr, head: Expr)(typ: Type = Missing)
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
     val TyStm(_, n) = this.s.typ
-    val numToDrop = SmartDiff(n, this.k)().tchk().lower
-    StmDrop(this.s, numToDrop, this.head)().tchk().lower
+    val numToDrop = SafeDiff(n, this.k)().tchk().lower
+    StmDrop(this.s, numToDrop, this.head, sourceName = this.className)()
+      .tchk()
+      .lower
   }
 }
