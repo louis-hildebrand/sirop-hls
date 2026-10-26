@@ -137,18 +137,60 @@ class ReplTest:
         return "".join(line + "\n" for line in session_lines)
 
     def matches_expected(self, actual_output_lines: list[str]) -> bool:
-        for (actual_line, expected_line) in zip(actual_output_lines, self.expected_output_lines):
+        remove_whitespace = False
+        i = 0 # actual
+        j = 0 # expected
+        while True:
+            # Skip any comments in the expected output sequence
+            while j < len(self.expected_output_lines):
+                expected_line = self.expected_output_lines[j]
+                if expected_line.startswith("/// test_repl: remove_whitespace"):
+                    remove_whitespace = True
+                    j += 1
+                elif expected_line.startswith("///"):
+                    j += 1
+                else:
+                    break
+
+            # Check if we're done
+            if i >= len(actual_output_lines) and j >= len(self.expected_output_lines):
+                # Both sequences exhausted at the same time: good!
+                return True
+            if j >= len(self.expected_output_lines):
+                # Expected sequence is empty but actual sequence is still non-empty: bad!
+                assert i < len(actual_output_lines)
+                return False
+            if i >= len(actual_output_lines):
+                # Actual sequence is empty but expected sequence is still non-empty: bad!
+                assert j < len(self.expected_output_lines)
+                return False
+
+            actual_line = actual_output_lines[i]
+            expected_line = self.expected_output_lines[j]
+            if expected_line.startswith(">"):
+                # Reset directives at each prompt
+                remove_whitespace = False
+            # Apply directives
+            if remove_whitespace:
+                actual_line = re.sub(r"\s+", "", actual_line)
+                expected_line = re.sub(r"\s+", "", expected_line)
+
+            # Compare lines
             if actual_line != expected_line:
                 # Maybe it's just the compiler version that differs.
                 # See if replacing the version+commit_hash with just the version fixes it.
-                # (It would be really annoying to need to update the docs on every single commit.)
+                #
+                # It would be really annoying to need to update the docs on every single commit.
+                # However, it would still be nice to keep the version up to date.
                 simplified_actual_line = actual_line.replace(
                     self.sirop_version_with_hash,
                     self.simple_sirop_version,
                 )
                 if simplified_actual_line != expected_line:
                     return False
-        return True
+
+            i += 1
+            j += 1
 
 
 def run_test(
