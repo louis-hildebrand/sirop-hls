@@ -336,8 +336,9 @@ case class Call(
         }
       case f @ Param("StmTake", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s, k)) => StmTake(s, k)()
-          case _                  => error(f)
+          case (Seq(), Seq(s, k))       => StmTake(s, k)()
+          case (Seq(), Seq(s, k, head)) => StmTake(s, k, head)()
+          case _                        => error(f)
         }
       case f @ Param("StmTakeRight", -1) =>
         combinedArgs match {

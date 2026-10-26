@@ -419,7 +419,7 @@ Discarding Parts of a Stream
 
 .. only:: not handshake
 
-    .. function:: StmDrop(s: Stm[T, n], k: I): Stm[T, n-k] :: I is an integer type
+    .. function:: StmDrop(s: Stm[T, n], k: I, head: ~T): Stm[T, n-k] :: I is an integer type
 
         Discards the first ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
 
@@ -461,7 +461,7 @@ Discarding Parts of a Stream
 
 .. only:: not handshake
 
-    .. function:: StmTake(s: Stm[T, n], k: I): Stm[T, k] :: I is an integer type
+    .. function:: StmTake(s: Stm[T, n], k: I, head: ~T): Stm[T, k] :: I is an integer type
 
         Returns the first ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``, discarding the rest.
 
