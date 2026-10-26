@@ -193,7 +193,7 @@ class ReplTest:
             j += 1
 
 
-def run_test(
+def run(
     name: str,
     expected_session: Path,
     actual_file: Path,
@@ -278,7 +278,7 @@ def main(files: list[Path], actual_dir: Path, save: bool) -> None:
         name = p.relative_to(common_directory).as_posix()
         actual_file = actual_dir.joinpath(name).resolve()
         actual_file.parent.mkdir(exist_ok=True, parents=True)
-        ok = run_test(
+        ok = run(
             name=name,
             expected_session=p,
             actual_file=actual_file,
