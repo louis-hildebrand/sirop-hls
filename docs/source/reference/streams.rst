@@ -421,7 +421,7 @@ Discarding Parts of a Stream
 
     .. function:: StmDrop(s: Stm[T, n], k: I): Stm[T, n-k] :: I is an integer type
 
-        Discards ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
+        Discards the first ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
 
         .. literalinclude:: /code-examples/reference/StmDrop.repl.txt
 
@@ -432,13 +432,38 @@ Discarding Parts of a Stream
 
         .. seealso::
 
+            :func:`StmTakeRight`, if it is easier to say how many elements to *keep* than to say how many to *discard*
+
+            :func:`StmDropRight`, for discarding elements from the end of a stream
+
             :func:`StmTake`, for discarding elements from the end of a stream
+
+.. only:: not handshake
+
+    .. function:: StmDropRight(s: Stm[T, n], k: I): Stm[T, n-k] :: I is an integer type
+
+        Discards the last ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
+
+        .. literalinclude:: /code-examples/reference/StmDropRight.repl.txt
+
+        .. WARNING::
+            It is an error to drop more than the available number of elements.
+
+        .. literalinclude:: /code-examples/reference/StmDropRight_too_many.repl.txt
+
+        .. seealso::
+
+            :func:`StmTake`, if it is easier to say how many elements to *keep* than to say how many to *discard*
+
+            :func:`StmDrop`, for discarding elements from the beginning of a stream
+
+            :func:`StmTakeRight`, for discarding elements from the beginning of a stream
 
 .. only:: not handshake
 
     .. function:: StmTake(s: Stm[T, n], k: I): Stm[T, k] :: I is an integer type
 
-        Changes the length of stream ``s`` to ``k``.
+        Returns the first ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``, discarding the rest.
 
         .. literalinclude:: /code-examples/reference/StmTake.repl.txt
 
@@ -449,7 +474,27 @@ Discarding Parts of a Stream
 
         .. seealso::
 
+            :func:`StmDropRight`, if it is easier to say how many elements to *discard* than to say how many to *keep*
+
+            :func:`StmTakeRight`, for discarding elements from the beginning of a stream
+
             :func:`StmDrop`, for discarding elements from the beginning of a stream
+
+.. only:: not handshake
+
+    .. function:: StmTakeRight(s: Stm[T, n], k: I): Stm[T, k] :: I is an integer type
+
+        Returns the last ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``, discarding the rest.
+
+        .. literalinclude:: /code-examples/reference/StmTakeRight.repl.txt
+
+        .. seealso::
+
+            :func:`StmDrop`, if it is easier to say how many elements to *discard* than to say how many to *keep*
+
+            :func:`StmTake`, for discarding elements from the end of a stream
+
+            :func:`StmDropRight`, for discarding elements from the end of a stream
 
 Using Dedicated DSP Blocks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
