@@ -1,5 +1,6 @@
 > __handshake = false
 > __show_prefix = true
+>
 > StmCount(5:u3)
 [undefined:u3]s ++ [0:u3, 1:u3, 2:u3, 3:u3, 4:u3]s
 > StmCount(4, 42:u32)
