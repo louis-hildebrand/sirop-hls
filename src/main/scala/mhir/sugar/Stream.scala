@@ -3,6 +3,7 @@ package mhir.sugar
 import com.typesafe.scalalogging.Logger
 import mhir.ir.{ExprPrinter => EP, _}
 import mhir.optimize.StmAccRemovalPass
+import mhir.sem.SemanticError
 import mhir.typecheck._
 
 import scala.annotation.elidable
@@ -1073,20 +1074,24 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
   }
 }
 
-case class StmMapDot(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
+case class StmMapDotTree(
+    s1: Expr,
+    s2: Expr,
+    delay: Expr
+)(typ: Type = Missing)
     extends ResolvedSyntaxSugar(s1, s2, delay)(typ) {
 
-  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmMapDot = {
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s1, s2, delay) => StmMapDot(s1, s2, delay)(typ)
-      case _                  => throw new BadRebuildError(this, newChildren)
+      case Seq(s1, s2, d) => StmMapDotTree(s1, s2, d)(typ)
+      case _              => throw new BadRebuildError(this, newChildren)
     }
   }
 
   override def typecheck(
       context: Map[Param, Type],
       constValues: Map[Param, Expr]
-  )(implicit c: Canonicalizer): StmMapDot = {
+  )(implicit c: Canonicalizer): Expr = {
     val s1 = this.s1.tchk(context, constValues)
     val (elemTyp1, n, m) = s1.typ match {
       case TyStm(TyVec(t: TyAnyInt, m), n) =>
@@ -1142,17 +1147,160 @@ case class StmMapDot(s1: Expr, s2: Expr, delay: Expr)(typ: Type = Missing)
         TypeChecker.relevantBindings(constValues, elemTyp2, outElemTyp)
       )
     }
-    this.rebuild(TyStm(outElemTyp, n), Seq(s1, s2, delay))
+    // Note that the output length will be greater than the input length if m == 0.
+    // I don't think that's a big deal though, and it makes the length a bit simpler.
+    val outLen =
+      ToUnsigned(SafeSum(n, SafeProd(C(-1)(), m)(), C(1)())())().tchk()
+    this.rebuild(TyStm(outElemTyp, outLen), Seq(s1, s2, delay))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
-    StmMapDotCascaded(
-      StmCascade(this.s1)(),
-      StmCascade(this.s2)(),
-      this.delay
-    )()
-      .tchk()
-      .lower
+    requireType()
+    val TyStm(TyVec(int1, m1), _) = this.s1.typ
+    val TyStm(TyVec(int2, m2), _) = this.s2.typ
+    val TyStm(intOut, _) = this.typ
+    Call(
+      Param("StmMap2", -1)(Missing),
+      Seq(),
+      Seq(
+        StmDelay(this.s1, this.delay)(),
+        StmDelay(this.s2, this.delay)(), {
+          val v1 = Param("v1")(TyVec(int1, m1))
+          val v2 = Param("v2")(TyVec(int2, m2))
+          Function(
+            v1,
+            Function(
+              v2,
+              VecFold(
+                VecMap2(
+                  v1,
+                  v2, {
+                    val x = Param("x")(int1)
+                    val y = Param("y")(int2)
+                    Function(
+                      x,
+                      Function(
+                        y,
+                        SmartProd(
+                          ReshapeData(x, intOut)(),
+                          ReshapeData(y, intOut)()
+                        )()
+                      )()
+                    )()
+                  }
+                )(),
+                C(0)(intOut), {
+                  val x = Param("x")(TyTuple(intOut, intOut))
+                  Function(x, Sum(x.__0, x.__1)())()
+                }
+              )()
+            )()
+          )()
+        }
+      )
+    ).tchk().lower
+  }
+}
+
+case class StmMapDot(
+    s1: Expr,
+    s2: Expr,
+    delay: Expr,
+    cascade: Expr = True
+)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(s1, s2, delay, cascade)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): StmMapDot = {
+    newChildren match {
+      case Seq(s1, s2, delay, cascade) => StmMapDot(s1, s2, delay, cascade)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): StmMapDot = {
+    val s1 = this.s1.tchk(context, constValues)
+    val (elemTyp1, n, m) = s1.typ match {
+      case TyStm(TyVec(t: TyAnyInt, m), n) =>
+        // TODO: Enforce constraint on bitwidth (18 bits?)
+        (t, n, m)
+      case t =>
+        throw new TypeError(
+          s"First stream in $className has type $t."
+            + s" Expected a stream of vectors."
+        )
+    }
+    val s2 = this.s2.tchk(context, constValues)
+    val elemTyp2 = s2.typ match {
+      case TyStm(TyVec(t: TyAnyInt, m2), n2) =>
+        // TODO: Enforce constraint on bitwidth (18 bits?)
+        if (!c.sameLen(n, n2, constValues)) {
+          throw new TypeError(
+            s"Second stream in $className has length $n2."
+              + s" Expected a stream of length $n.",
+            TypeChecker.relevantBindingsE(constValues, n, n2)
+          )
+        }
+        if (!c.sameLen(m, m2, constValues)) {
+          throw new TypeError(
+            s"Second stream in $className contains vectors of length $m2."
+              + s" Expected vectors of length $m.",
+            TypeChecker.relevantBindingsE(constValues, m, m2)
+          )
+        }
+        t
+      case t =>
+        throw new TypeError(
+          s"Second stream in $className has type $t." +
+            s" Expected a stream of vectors."
+        )
+    }
+    val delay = this.delay.tchk(context, constValues).expectUInt()
+    val cascade = this.cascade.tchk(context, constValues).expectBool()
+    val outElemTyp = (elemTyp1, elemTyp2) match {
+      case (_: TyUInt, _: TyUInt) => U44
+      case _                      => I44
+      // TODO: What if the operands don't fit in u44/i44?
+      //       Or what if we're not targeting an Agilex 7 device and therefore 44 bits is not applicable?
+    }
+    if (!ReshapeData.canReshape(elemTyp1, outElemTyp, constValues)) {
+      throw new TypeError(
+        s"Elements of type $elemTyp1 in first stream cannot be reshaped to $outElemTyp.",
+        TypeChecker.relevantBindings(constValues, elemTyp1, outElemTyp)
+      )
+    }
+    if (!ReshapeData.canReshape(elemTyp2, outElemTyp, constValues)) {
+      throw new TypeError(
+        s"Elements of type $elemTyp2 in second stream cannot be reshaped to $outElemTyp.",
+        TypeChecker.relevantBindings(constValues, elemTyp2, outElemTyp)
+      )
+    }
+    this.rebuild(TyStm(outElemTyp, n), Seq(s1, s2, delay, cascade))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    val cascadeExpr = if (this.cascade.freeVars.isEmpty) {
+      mhir.eval.eval(this.cascade)
+    } else {
+      this.cascade
+    }
+    val cascade = cascadeExpr match {
+      case False => false
+      case True  => true
+      case e =>
+        throw SemanticError(s"value for parameter 'cascade' is not static: $e")
+    }
+    if (cascade) {
+      StmMapDotCascaded(
+        StmCascade(this.s1)(),
+        StmCascade(this.s2)(),
+        this.delay
+      )().tchk().lower
+    } else {
+      StmMapDotTree(this.s1, this.s2, this.delay)().tchk().lower
+    }
   }
 }
 
@@ -1704,7 +1852,7 @@ case class StmDelay(
       Map[Param, (Expr, Expr, Expr)](
         p -> (stm, True, 0)
       )
-    )().tchk()
+    )().annotateWithName("StmDelay").annotate(SinkAnnotation(buf)).tchk()
   }
 }
 

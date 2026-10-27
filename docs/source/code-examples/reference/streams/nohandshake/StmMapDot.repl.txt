@@ -5,7 +5,9 @@
 > v = [[-1:i16, 2:i16, 3:i16]v, [4:i16, -2:i16, 4:i16]v]s
 > // dot([1, 2, 3], [-1, 2, 3]) = 12
 > // dot([4, 5, 6], [4, -2, 4]) = 30
-> StmMapDot(u, v, 0)
+>
+> // Cascaded (i.e., using the DSPs in systolic mode)
+> StmMapDot(u, v, /*delay*/ 0, /*cascade*/ true)
 [
   undefined:i44,
   undefined:i44,
@@ -18,7 +20,8 @@
   12:i44,
   30:i44
 ]s
-> StmMapDot(u, v, 1)
+> // notice how latency increases by 1
+> StmMapDot(u, v, /*delay*/ 1, /*cascade*/ true)
 [
   undefined:i44,
   undefined:i44,
@@ -32,3 +35,10 @@
   12:i44,
   30:i44
 ]s
+>
+> // Non-cascaded (i.e., straightforward multiplications followed by adder tree)
+> StmMapDot(u, v, /*delay*/ 0, /*cascade*/ false)
+[undefined:i44, undefined:i44]s ++ [12:i44, 30:i44]s
+> // notice how latency increases by 1
+> StmMapDot(u, v, /*delay*/ 1, /*cascade*/ false)
+[undefined:i44, undefined:i44, undefined:i44]s ++ [12:i44, 30:i44]s
