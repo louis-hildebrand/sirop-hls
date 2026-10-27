@@ -1,0 +1,52 @@
+> __handshake = false
+> __show_prefix = false
+>
+> // EXAMPLE 1: constant streams ===============================
+> v = StmCst(2, [3:u8, 2:u8, 1:u8]v)
+> v.StmCascade()
+/// Extra whitespace has been manually added for legibility.
+/// The actual REPL output will not be aligned so nicely.
+/// test_repl: remove_whitespace
+[
+  [        3:u8, undefined:u8, undefined:u8]v,
+  [        3:u8,         2:u8, undefined:u8]v,
+  [undefined:u8,         2:u8,         1:u8]v,
+  [undefined:u8, undefined:u8,         1:u8]v
+]s
+> // Equivalent output can be produced with less overhead.
+> // In the value below, the undefined elements above have
+> // been replaced by concrete values, but that's fine.
+> StmCst(2, v)
+[
+  [3:u8, 2:u8, 1:u8]v,
+  [3:u8, 2:u8, 1:u8]v,
+  [3:u8, 2:u8, 1:u8]v,
+  [3:u8, 2:u8, 1:u8]v
+]s
+>
+> // EXAMPLE 2: StmSlide =======================================
+> u = [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s
+> u.StmSlide(3)
+[[1:u8, 2:u8, 3:u8]v, [2:u8, 3:u8, 4:u8]v, [3:u8, 4:u8, 5:u8]v]s
+> u.StmSlide(3).StmCascade()
+/// Extra whitespace has been manually added for legibility.
+/// The actual REPL output will not be aligned so nicely.
+/// test_repl: remove_whitespace
+[
+  [        1:u8,         1:u8,         1:u8]v,
+  [        2:u8,         2:u8,         2:u8]v,
+  [        3:u8,         3:u8,         3:u8]v,
+  [undefined:u8,         4:u8,         4:u8]v,
+  [undefined:u8, undefined:u8,         5:u8]v
+]s
+> // Equivalent output can be produced with less overhead.
+> // In the value below, the undefined elements above have
+> // been replaced by concrete values, but that's fine.
+> u.StmExtendBy(2).StmSlide(3).StmMap(v => VecCst(3, v[0]))
+[
+  [1:u8, 1:u8, 1:u8]v,
+  [2:u8, 2:u8, 2:u8]v,
+  [3:u8, 3:u8, 3:u8]v,
+  [4:u8, 4:u8, 4:u8]v,
+  [5:u8, 5:u8, 5:u8]v
+]s

@@ -517,28 +517,72 @@ Using Dedicated DSP Blocks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 FPGAs generally have dedicated digital signal processing (DSP) blocks to perform multiplication and accumulation.
-The following stream operators are helpful for taking advantage of this functionality, especially the "systolic mode" on Agilex FPGAs (e.g., https://docs.altera.com/r/docs/683037/24.3.1/agilextm-7-variable-precision-dsp-blocks-user-guide/agilextm-7-variable-precision-dsp-blocks-overview).
+The following stream operators are helpful for taking advantage of this functionality, especially on `Agilex FPGAs <https://docs.altera.com/r/docs/683037/24.3.1/agilextm-7-variable-precision-dsp-blocks-user-guide/agilextm-7-variable-precision-dsp-blocks-overview)>`__.
 
-.. function:: StmMapDot(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n] :: I, J, and K are unsigned integer types
-              StmMapDot(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[i44, n] :: I and J are integer types, and K is an unsigned integer type
+.. function:: StmMapDot(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K, cascade: bool = true): Stm[u44, n] :: I, J, and K are unsigned integer types
+              StmMapDot(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K, cascade: bool = true): Stm[i44, n] :: I and J are integer types, and K is an unsigned integer type
 
     Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
-    This is defined so that the generated VHDL uses the DSPs in systolic mode.
-    ``delay`` is the number of internal registers to enable in the DSPs; increasing this number will increase latency and increase the maximum clock frequency.
+
+    ``delay`` is the number of internal registers to enable in the DSPs.
+    Increasing this number will increase the design's latency and increase its maximum clock frequency.
+    It may also affect the design's resource usage, depending on the context.
+
+    ``cascade`` selects between two implementations:
+
+    * :func:`StmMapDotCascaded`, which maps to the ``m18x18_systolic`` mode for the Agilex DSPs;
+    * :func:`StmMapDotTree`, which maps to the ``m18x18_sumof2`` mode for the Agilex DSPs followed by an adder tree.
 
     .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDot.repl.txt
 
-.. function:: StmMapDotCascaded(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n] :: I and J are unsigned integer types, K is any integer type
-              StmMapDotCascaded(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n] :: I, J, and K are integer types
+    .. seealso::
 
-    Like :func:`StmMapDot`, but the input should be cascaded (like the output from :func:`StmCascade`).
-    In other words, :func:`StmMapDot` is equivalent to :func:`StmCascade` followed by :func:`StmMapDotCascaded`.
+        :func:`StmMapDotTree`, for the ``m18x18_sumof2`` case
 
-    In systolic mode, each input to the DSP chain must be delayed by one cycle relative to the previous input.
-    :func:`StmMapDotCascaded` behaves the same way.
-    :func:`StmMapDot` is more user-friendly, but :func:`StmMapDotCascaded` gives you more control in case you want to create the input cascade without :func:`StmCascade`.
+        :func:`StmMapDotCascaded`, for the ``m18x18_systolic`` case
 
-.. function:: StmCascade(s: Stm[Vec[T, m], n]): Stm[Vec[T, m], n]
+.. function:: StmMapDotTree(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n] :: I, J, and K are unsigned integer types
+              StmMapDotTree(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[i44, n] :: I and J are integer types, and K is an unsigned integer type
+
+    Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
+
+    ``delay`` is the number of internal registers to enable in the DSPs.
+    Increasing this number will increase the design's latency and increase its maximum clock frequency.
+    It may also affect the design's resource usage, depending on the context.
+
+    :func:`StmMapDotTree` is implemented so that it maps to the ``m18x18_sumof2`` mode for the Agilex DSPs followed by an adder tree.
+
+    .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDotTree.repl.txt
+
+    .. seealso::
+        :func:`StmMapDot`, which supports other DSP modes
+
+.. function:: StmMapDotCascaded(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n+1-m] :: I, J, and K are unsigned integer types
+              StmMapDotCascaded(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[i44, n+1-m] :: I and J are integer types, and K is an unsigned integer type
+
+    Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
+    ``s1`` and ``s2`` must be cascaded, like the output of :func:`StmCascade`.
+
+    ``delay`` is the number of internal registers to enable in the DSPs.
+    Increasing this number will increase the design's latency and increase its maximum clock frequency.
+    It may also affect the design's resource usage, depending on the context.
+
+    :func:`StmMapDotCascaded` is implemented so that it maps to the ``m18x18_systolic`` mode for the Agilex DSPs.
+    In this mode, each input to the DSPs must be delayed by one clock cycle relative to the previous input.
+
+    .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDotCascaded.repl.txt
+
+    :func:`StmMapDot` (with ``cascade = true``) is equivalent to :func:`StmCascade` followed by :func:`StmMapDotCascaded`.
+    It is therefore easier to understand the inputs and outputs of :func:`StmMapDot`.
+    However, in some cases you may be able to find a more resource-efficient way of creating the input cascade.
+    That is why :func:`StmMapDotCascaded` is sometimes useful.
+
+    .. literalinclude:: /code-examples/reference/streams/nohandshake/cascade_without_StmCascade.repl.txt
+
+    .. seealso::
+        :func:`StmMapDot`, which is more user-friendly
+
+.. function:: StmCascade(s: Stm[Vec[T, m], n]): Stm[Vec[T, m], n+m-1]
 
     Delays each element of the vector by 1 cycle relative to the previous element.
 

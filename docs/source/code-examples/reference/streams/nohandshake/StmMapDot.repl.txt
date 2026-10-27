@@ -20,7 +20,7 @@
   12:i44,
   30:i44
 ]s
-> // notice how latency increases by 1
+> // (notice how the latency increases by 1 when increasing the delay argument)
 > StmMapDot(u, v, /*delay*/ 1, /*cascade*/ true)
 [
   undefined:i44,
@@ -39,6 +39,6 @@
 > // Non-cascaded (i.e., straightforward multiplications followed by adder tree)
 > StmMapDot(u, v, /*delay*/ 0, /*cascade*/ false)
 [undefined:i44, undefined:i44]s ++ [12:i44, 30:i44]s
-> // notice how latency increases by 1
+> // (notice how the latency increases by 1 when increasing the delay argument)
 > StmMapDot(u, v, /*delay*/ 1, /*cascade*/ false)
 [undefined:i44, undefined:i44, undefined:i44]s ++ [12:i44, 30:i44]s

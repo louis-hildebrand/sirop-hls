@@ -384,6 +384,11 @@ case class Call(
           case (Seq(), Seq(s1, s2, delay)) => StmMapDotCascaded(s1, s2, delay)()
           case _                           => error(f)
         }
+      case f @ Param("StmMapDotTree", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(s1, s2, delay)) => StmMapDotTree(s1, s2, delay)()
+          case _                           => error(f)
+        }
       case f @ Param("StmMapDot", -1) =>
         combinedArgs match {
           case (Seq(), Seq(s1, s2, delay)) =>
