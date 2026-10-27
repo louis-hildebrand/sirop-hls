@@ -16,12 +16,12 @@
 >
 > // What about nested streams?
 > // (recall that the compiler flattens streams)
-> [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s
+>      [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s
 [1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
 > type [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s
 Stm[Stm[u8, 2], 3]
 > // (we take 1 "row," i.e., 2 integers)
 > type [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s.StmTakeRight(1, /*head*/ 42:u8)
 Stm[Stm[u8, 2], 1]
-> [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s.StmTakeRight(1, /*head*/ 42:u8)
+>      [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s.StmTakeRight(1, /*head*/ 42:u8)
 [42:u8, 1:u8, 2:u8, 3:u8, 4:u8]s ++ [5:u8, 6:u8]s

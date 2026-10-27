@@ -205,7 +205,8 @@ private[eval] object StmPipeline {
         nextByAccumulator = s.accumulators
           .map({ case (x, (_, next, _)) => x -> next }),
         readyByInput = readyByInput,
-        typ = s.typ.asInstanceOf[TyStm]
+        typ = s.typ.asInstanceOf[TyStm],
+        nameAnnotation = s.nameAnnotation
       ),
       n = n,
       acc = s.accumulators.map({ case (x, (z, _, _)) => x -> eval(z) }),
