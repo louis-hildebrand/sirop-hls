@@ -169,7 +169,7 @@ Creating Streams
 
         Creates a stream of length ``n`` whose elements are all the constant ``k``.
 
-        .. literalinclude:: /code-examples/reference/StmCst.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmCst.repl.txt
 
 .. only:: not handshake
 
@@ -177,7 +177,7 @@ Creating Streams
 
         Creates a stream of ``n`` integers starting at ``init`` and increasing by ``delta``.
 
-        .. literalinclude:: /code-examples/reference/StmCount.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmCount.repl.txt
 
 .. only:: not handshake
 
@@ -189,7 +189,7 @@ Creating Streams
         ..
             TODO: try to fit example on one line
 
-        .. literalinclude:: /code-examples/reference/StmCount2D.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmCount2D.repl.txt
 
         .. NOTE::
             The REPL prints a 1-dimensional stream due to :ref:`stream flattening <stream-flattening>`.
@@ -219,7 +219,7 @@ Transforming Streams Elementwise
 
         Applies function ``f`` elementwise to stream ``s``.
 
-        .. literalinclude:: /code-examples/reference/StmMap.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMap.repl.txt
 
         .. seealso::
 
@@ -230,11 +230,11 @@ Combining Multiple Streams
 
 .. only:: not handshake
 
-    .. function:: StmConcat(s1: Stm[T, n], s2: Stm[T, m], head: T = undefined): Stm[T, n+m]
+    .. function:: StmConcat(s1: Stm[T, n], s2: Stm[T, m], head: ~T = undefined): Stm[T, n+m]
 
         Concatenates two streams.
 
-        .. literalinclude:: /code-examples/reference/StmConcat.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmConcat.repl.txt
 
 .. only:: not handshake
 
@@ -242,7 +242,7 @@ Combining Multiple Streams
 
         Pairs up the elements of two streams.
 
-        .. literalinclude:: /code-examples/reference/StmZip.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmZip.repl.txt
 
         .. seealso::
 
@@ -257,7 +257,7 @@ Combining Multiple Streams
         ..
             TODO: simplify example so it fits on one line?
 
-        .. literalinclude:: /code-examples/reference/StmMap2.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMap2.repl.txt
 
         .. seealso::
 
@@ -273,7 +273,7 @@ Sliding Windows
         Produces a stream of sliding windows over stream ``s``.
         Each window has size ``w``.
 
-        .. literalinclude:: /code-examples/reference/StmSlide.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmSlide.repl.txt
 
 Aggregation
 ^^^^^^^^^^^
@@ -284,11 +284,11 @@ Aggregation
 
         Returns ``true`` if all elements in the :ref:`logical part <physical-logical-stream>` of stream ``s`` are ``true``.
 
-        .. literalinclude:: /code-examples/reference/StmAll.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmAll.repl.txt
 
         When applied to an empty stream, :func:`StmAll` returns ``true``.
 
-        .. literalinclude:: /code-examples/reference/StmAll_empty.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmAll_empty.repl.txt
 
         .. seealso::
 
@@ -300,11 +300,11 @@ Aggregation
 
         Returns ``true`` if any elements in the :ref:`logical part <physical-logical-stream>` of stream ``s`` are ``true``.
 
-        .. literalinclude:: /code-examples/reference/StmAny.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmAny.repl.txt
 
         When applied to an empty stream, :func:`StmAny` returns ``false``.
 
-        .. literalinclude:: /code-examples/reference/StmAny_empty.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmAny_empty.repl.txt
 
         .. seealso::
 
@@ -316,17 +316,17 @@ Aggregation
 
         Returns the sum of the elements in the :ref:`logical part <physical-logical-stream>` of stream ``s``.
 
-        .. literalinclude:: /code-examples/reference/StmSum.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmSum.repl.txt
 
         When applied to an empty stream, :func:`StmSum` returns 0.
 
-        .. literalinclude:: /code-examples/reference/StmSum_empty.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmSum_empty.repl.txt
 
         .. WARNING::
             Beware of `overflow <https://en.wikipedia.org/wiki/Integer_overflow>`!
             The sum is performed with the same type as the inputs.
 
-        .. literalinclude:: /code-examples/reference/StmSum_overflow.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmSum_overflow.repl.txt
 
         .. seealso::
 
@@ -341,11 +341,11 @@ Aggregation
 
         For example, for a 3-element stream ``[x1, x2, x3]s``, the result will be ``[ f(f(f(z, x1), x2), x3) ]s``
 
-        .. literalinclude:: /code-examples/reference/StmFold.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmFold.repl.txt
 
         Unlike with :func:`StmReduce`, the input stream can be empty.
 
-        .. literalinclude:: /code-examples/reference/StmFold_empty.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmFold_empty.repl.txt
 
         .. seealso::
 
@@ -365,12 +365,12 @@ Aggregation
 
         For example, for a 3-element stream ``[x1, x2, x3]s``, the result will be ``[ f(f(x1, x2), x3) ]s``
 
-        .. literalinclude:: /code-examples/reference/StmReduce.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmReduce.repl.txt
 
         .. WARNING::
             The input stream must be non-empty.
 
-        .. literalinclude:: /code-examples/reference/StmReduce_empty.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmReduce_empty.repl.txt
 
         .. seealso::
 
@@ -385,7 +385,7 @@ Nested Streams
 
         Removes the outermost level of nesting from the given stream.
 
-        .. literalinclude:: /code-examples/reference/StmJoin.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmJoin.repl.txt
 
         .. NOTE::
             The REPL prints 1-dimensional streams in each case due to :ref:`stream flattening <stream-flattening>`.
@@ -400,7 +400,7 @@ Nested Streams
 
         Increases the level of nesting in the given stream.
 
-        .. literalinclude:: /code-examples/reference/StmSplit.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmSplit.repl.txt
 
         .. NOTE::
             The REPL prints 1-dimensional streams in each case due to :ref:`stream flattening <stream-flattening>`.
@@ -408,7 +408,7 @@ Nested Streams
         .. WARNING::
             If ``m`` does not divide ``n``, the output stream will be shorter than the input stream.
 
-        .. literalinclude:: /code-examples/reference/StmSplit_not_divisible.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmSplit_not_divisible.repl.txt
 
         .. seealso::
 
@@ -419,37 +419,99 @@ Discarding Parts of a Stream
 
 .. only:: not handshake
 
-    .. function:: StmDrop(s: Stm[T, n], k: I): Stm[T, n-k] :: I is an integer type
+    .. function:: StmDrop(s: Stm[T, n], k: I, head: ~T = undefined): Stm[T, n-k] :: I is an integer type
 
-        Discards ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
+        Discards the first ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
 
-        .. literalinclude:: /code-examples/reference/StmDrop.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmDrop.repl.txt
 
         .. WARNING::
             It is an error to drop more than the available number of elements.
 
-        .. literalinclude:: /code-examples/reference/StmDrop_too_many.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmDrop_too_many.repl.txt
 
         .. seealso::
+
+            :func:`StmTakeRight`, if it is easier to say how many elements to *keep* than to say how many to *discard*
+
+            :func:`StmDropRight`, for discarding elements from the end of a stream
 
             :func:`StmTake`, for discarding elements from the end of a stream
 
 .. only:: not handshake
 
-    .. function:: StmTake(s: Stm[T, n], k: I): Stm[T, k] :: I is an integer type
+    .. function:: StmDropRight(s: Stm[T, n], k: I, head: ~T = undefined): Stm[T, n-k] :: I is an integer type
 
-        Changes the length of stream ``s`` to ``k``.
+        .. versionadded:: 2.4.0
 
-        .. literalinclude:: /code-examples/reference/StmTake.repl.txt
+        Discards the last ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``.
+
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmDropRight.repl.txt
+
+        .. WARNING::
+            It is an error to drop more than the available number of elements.
+
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmDropRight_too_many.repl.txt
+
+        .. seealso::
+
+            :func:`StmTake`, if it is easier to say how many elements to *keep* than to say how many to *discard*
+
+            :func:`StmDrop`, for discarding elements from the beginning of a stream
+
+            :func:`StmTakeRight`, for discarding elements from the beginning of a stream
+
+.. only:: not handshake
+
+    .. function:: StmTake(s: Stm[T, n], k: I, head: ~T = undefined): Stm[T, k] :: I is an integer type
+
+        .. versionchanged:: 2.4.0
+            Added the ``head`` parameter.
+
+        Returns the first ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``, discarding the rest.
+
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmTake.repl.txt
 
         .. WARNING::
             If ``k`` is greater than ``n``, the extra elements will be undefined.
 
-        .. literalinclude:: /code-examples/reference/StmTake_too_many.repl.txt
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmTake_too_many.repl.txt
 
         .. seealso::
 
+            :func:`StmDropRight`, if it is easier to say how many elements to *discard* than to say how many to *keep*
+
+            :func:`StmTakeRight`, for discarding elements from the beginning of a stream
+
             :func:`StmDrop`, for discarding elements from the beginning of a stream
+
+.. only:: not handshake
+
+    .. function:: StmTakeRight(s: Stm[T, n], k: I, head: ~T = undefined): Stm[T, k] :: I is an integer type
+
+        .. versionadded:: 2.4.0
+
+        Returns the last ``k`` elements from the :ref:`logical part <physical-logical-stream>` of stream ``s``, discarding the rest.
+
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmTakeRight.repl.txt
+
+        .. WARNING::
+            If ``k`` is greater than the total length of the stream including the physical prefix, it is an error.
+
+            If ``k`` is greater than the length of the logical part but less than or equal to the total length, you may be able to get away with it.
+            However, the compiler makes no effort to preserve the length of the physical prefix.
+            Ideally, avoid taking more than the length of the logical stream.
+            If you absolutely, positively, definitely need to, then disable optimizations that may shrink the physical prefix (e.g., fusion, shift register shrinking).
+
+        .. literalinclude:: /code-examples/reference/streams/nohandshake/StmTakeRight_too_many.repl.txt
+
+        .. seealso::
+
+            :func:`StmDrop`, if it is easier to say how many elements to *discard* than to say how many to *keep*
+
+            :func:`StmTake`, for discarding elements from the end of a stream
+
+            :func:`StmDropRight`, for discarding elements from the end of a stream
 
 Using Dedicated DSP Blocks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -464,7 +526,7 @@ The following stream operators are helpful for taking advantage of this function
     This is defined so that the generated VHDL uses the DSPs in systolic mode.
     ``delay`` is the number of internal registers to enable in the DSPs; increasing this number will increase latency and increase the maximum clock frequency.
 
-    .. literalinclude:: /code-examples/reference/StmMapDot.repl.txt
+    .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDot.repl.txt
 
 .. function:: StmMapDotCascaded(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n] :: I and J are unsigned integer types, K is any integer type
               StmMapDotCascaded(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n] :: I, J, and K are integer types
@@ -480,4 +542,4 @@ The following stream operators are helpful for taking advantage of this function
 
     Delays each element of the vector by 1 cycle relative to the previous element.
 
-    .. literalinclude:: /code-examples/reference/StmCascade.repl.txt
+    .. literalinclude:: /code-examples/reference/streams/nohandshake/StmCascade.repl.txt

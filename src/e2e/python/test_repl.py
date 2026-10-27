@@ -228,15 +228,18 @@ def run(
         encoding="utf-8",
         check=False,
     )
+
+    if not actual_file.parent.exists():
+        actual_file.parent.mkdir(exist_ok=True, parents=True)
+
     if result.returncode != 0:
+        actual_file.write_text(result.stdout, encoding="utf-8")
         print(Fore.RED + f"NONZERO EXIT CODE ({result.returncode})" + Style.RESET_ALL)
         return False
 
     actual_output_lines = test.parse_actual(result.stdout)
     actual_session = test.reconstruct_session(actual_output_lines)
 
-    if not actual_file.parent.exists():
-        actual_file.parent.mkdir(exist_ok=True, parents=True)
     actual_file.write_text(actual_session, encoding="utf-8")
 
     if not test.matches_expected(actual_output_lines):
@@ -335,4 +338,9 @@ def _parse_args() -> Namespace:
 if __name__ == "__main__":
     _args = _parse_args()
     colorama.init(strip=True if _args.no_color else None)
-    main(files=_args.files, actual_dir=_args.actual_dir, save=_args.save)
+    try:
+        main(files=_args.files, actual_dir=_args.actual_dir, save=_args.save)
+    except KeyboardInterrupt:
+        print()
+        print("Cancelled")
+        sys.exit(1)

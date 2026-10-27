@@ -1,5 +1,6 @@
 > __handshake = false
 > __show_prefix = false
+>
 > ([0:u8]s ++ [4:u8, 9:u8, 1:u8, 3:u8]s).StmReduce(@(x, y) => min(x, y))
 [1:u8]s
 > ([0:u8]s ++ [4:u8, 9:u8, 1:u8, 3:u8]s).StmReduce(@(x, y) => max(x, y))

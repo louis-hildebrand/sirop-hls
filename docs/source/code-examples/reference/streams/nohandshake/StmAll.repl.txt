@@ -1,5 +1,6 @@
 > __handshake = false
 > __show_prefix = false
+>
 > ([false]s ++ [true, true, true]s).StmAll()
 [true]s
 > ([false]s ++ [true, true, false]s).StmAll()

@@ -1,4 +1,5 @@
 > __handshake = false
 > __show_prefix = true
+>
 > ([]s:Stm[u8,0]).StmReduce(@(x, y) => x + y)
 [undefined:u8]s

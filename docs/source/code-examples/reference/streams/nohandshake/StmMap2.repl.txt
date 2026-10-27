@@ -1,5 +1,6 @@
 > __handshake = false
 > __show_prefix = true
+>
 > u = [0:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8]s
 > v = [-1:i16]s ++ [-9:i16, -8:i16, -7:i16, -6:i16]s
 > StmMap2(u, v, x => y => (x, y, x*y))

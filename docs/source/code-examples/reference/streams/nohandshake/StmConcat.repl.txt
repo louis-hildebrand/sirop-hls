@@ -1,0 +1,22 @@
+> __handshake = false
+> __show_prefix = true
+>
+> StmConcat([0:u8]s ++ [1:u8, 2:u8, 3:u8]s, [9:u8]s ++ [8:u8, 7:u8]s)
+[undefined:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 8:u8, 7:u8]s
+>
+> // What about specifying a head?
+> StmConcat([0:u8]s ++ [1:u8, 2:u8, 3:u8]s, [9:u8]s ++ [8:u8, 7:u8]s, /*head*/ 42:u8)
+[42:u8, 0:u8]s ++ [1:u8, 2:u8, 3:u8, 8:u8, 7:u8]s
+>
+> // What about nested streams?
+> // (notice how head is still an integer, not a stream)
+> u = [1:u8, 2:u8, 3:u8, 4:u8]s
+> v = [8:u8, 7:u8]s
+> type u.StmSplit(2)
+Stm[Stm[u8, 2], 2]
+> type v.StmSplit(2)
+Stm[Stm[u8, 2], 1]
+> StmConcat(u.StmSplit(2), v.StmSplit(2), /*head*/ 42:u8)
+[42:u8, undefined:u8]s ++ [1:u8, 2:u8, 3:u8, 4:u8, 8:u8, 7:u8]s
+> StmConcat(u.StmSplit(2), v.StmSplit(2), /*head*/ [42:u8, 43:u8]s)
+TypeError: expected type u8 but found Stm[u8, 2]

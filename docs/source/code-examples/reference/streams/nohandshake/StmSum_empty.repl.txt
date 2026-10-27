@@ -1,2 +1,4 @@
+> __handshake = false
+>
 > ([]s:Stm[u2,0]).StmSum()
 [0:u2]s
