@@ -338,4 +338,9 @@ def _parse_args() -> Namespace:
 if __name__ == "__main__":
     _args = _parse_args()
     colorama.init(strip=True if _args.no_color else None)
-    main(files=_args.files, actual_dir=_args.actual_dir, save=_args.save)
+    try:
+        main(files=_args.files, actual_dir=_args.actual_dir, save=_args.save)
+    except KeyboardInterrupt:
+        print()
+        print("Cancelled")
+        sys.exit(1)
