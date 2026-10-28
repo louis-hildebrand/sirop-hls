@@ -118,6 +118,7 @@ class SiropLexer(RegexLexer):
             (r"\bStmCst\b", token.Name.Builtin),
             (r"\bStmDrop\b", token.Name.Builtin),
             (r"\bStmDropRight\b", token.Name.Builtin),
+            (r"\bStmExtendBy\b", token.Name.Builtin),
             (r"\bStmFold\b", token.Name.Builtin),
             (r"\bStmJoin\b", token.Name.Builtin),
             (r"\bStmMap\b", token.Name.Builtin),
