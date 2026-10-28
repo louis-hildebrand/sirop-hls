@@ -4,17 +4,20 @@ import mhir.ir._
 import mhir.sem.SemanticError
 import mhir.typecheck._
 
+// TODO: Generalize to include pre-adder?
 case class StmMapDot(
     s1: Expr,
     s2: Expr,
     delay: Expr,
-    cascade: Expr = True
+    cascade: Expr = True,
+    targetTyp: Type = TyTuple()
 )(typ: Type = Missing)
     extends ResolvedSyntaxSugar(s1, s2, delay, cascade)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): StmMapDot = {
     newChildren match {
-      case Seq(s1, s2, delay, cascade) => StmMapDot(s1, s2, delay, cascade)(typ)
+      case Seq(s1, s2, delay, cascade) =>
+        StmMapDot(s1, s2, delay, cascade, this.targetTyp)(typ)
       case _ => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -26,7 +29,6 @@ case class StmMapDot(
     val s1 = this.s1.tchk(context, constValues)
     val (elemTyp1, n, m) = s1.typ match {
       case TyStm(TyVec(t: TyAnyInt, m), n) =>
-        // TODO: Enforce constraint on bitwidth (18 bits?)
         (t, n, m)
       case t =>
         throw new TypeError(
@@ -37,7 +39,6 @@ case class StmMapDot(
     val s2 = this.s2.tchk(context, constValues)
     val elemTyp2 = s2.typ match {
       case TyStm(TyVec(t: TyAnyInt, m2), n2) =>
-        // TODO: Enforce constraint on bitwidth (18 bits?)
         if (!c.sameLen(n, n2, constValues)) {
           throw new TypeError(
             s"Second stream in $className has length $n2."
@@ -61,21 +62,25 @@ case class StmMapDot(
     }
     val delay = this.delay.tchk(context, constValues).expectUInt()
     val cascade = this.cascade.tchk(context, constValues).expectBool()
-    val outElemTyp = (elemTyp1, elemTyp2) match {
-      case (_: TyUInt, _: TyUInt) => U44
-      case _                      => I44
-      // TODO: What if the operands don't fit in u44/i44?
-      //       Or what if we're not targeting an Agilex 7 device and therefore 44 bits is not applicable?
+    val outElemTyp = this.targetTyp match {
+      case TyTuple() =>
+        (elemTyp1, elemTyp2) match {
+          case (_: TyUInt, _: TyUInt) => U44
+          case _                      => I44
+        }
+      case int: TyAnyInt => int
+      case typ =>
+        throw new TypeError(s"invalid output type for $className: $typ")
     }
     if (!ReshapeData.canReshape(elemTyp1, outElemTyp, constValues)) {
       throw new TypeError(
-        s"Elements of type $elemTyp1 in first stream cannot be reshaped to $outElemTyp.",
+        s"Elements of type $elemTyp1 in first stream of $className cannot be reshaped to $outElemTyp.",
         TypeChecker.relevantBindings(constValues, elemTyp1, outElemTyp)
       )
     }
     if (!ReshapeData.canReshape(elemTyp2, outElemTyp, constValues)) {
       throw new TypeError(
-        s"Elements of type $elemTyp2 in second stream cannot be reshaped to $outElemTyp.",
+        s"Elements of type $elemTyp2 in second stream of $className cannot be reshaped to $outElemTyp.",
         TypeChecker.relevantBindings(constValues, elemTyp2, outElemTyp)
       )
     }
@@ -83,6 +88,8 @@ case class StmMapDot(
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val TyStm(outElemTyp, _) = this.typ
     val cascadeExpr = if (this.cascade.freeVars.isEmpty) {
       mhir.eval.eval(this.cascade)
     } else {
@@ -98,23 +105,31 @@ case class StmMapDot(
       StmMapDotCascaded(
         StmCascade(this.s1)(),
         StmCascade(this.s2)(),
-        this.delay
+        this.delay,
+        targetTyp = outElemTyp
       )().tchk().lower
     } else {
-      StmMapDotTree(this.s1, this.s2, this.delay)().tchk().lower
+      StmMapDotTree(
+        this.s1,
+        this.s2,
+        this.delay,
+        targetTyp = outElemTyp
+      )().tchk().lower
     }
   }
 }
 
-// TODO: Generalize to include pre-adder?
-// TODO: Generalize to allow 27-bit systolic mode?
-case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
-    typ: Type = Missing
-) extends ResolvedSyntaxSugar(s1, s2, delay)(typ) {
+case class StmMapDotCascaded(
+    s1: Expr,
+    s2: Expr,
+    delay: Expr,
+    targetTyp: Type = TyTuple()
+)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(s1, s2, delay)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): StmMapDotCascaded = {
     newChildren match {
-      case Seq(s1, s2, d) => StmMapDotCascaded(s1, s2, d)(typ)
+      case Seq(s1, s2, d) => StmMapDotCascaded(s1, s2, d, this.targetTyp)(typ)
       case _              => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -126,7 +141,6 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
     val s1 = this.s1.tchk(context, constValues)
     val (elemTyp1, n, m) = s1.typ match {
       case TyStm(TyVec(t: TyAnyInt, m), n) =>
-        // TODO: Enforce constraint on bitwidth (18 bits?)
         (t, n, m)
       case t =>
         throw new TypeError(
@@ -137,7 +151,6 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
     val s2 = this.s2.tchk(context, constValues)
     val elemTyp2 = s2.typ match {
       case TyStm(TyVec(t: TyAnyInt, m2), n2) =>
-        // TODO: Enforce constraint on bitwidth (18 bits?)
         if (!c.sameLen(n, n2, constValues)) {
           throw new TypeError(
             s"Second stream in $className has length $n2."
@@ -160,21 +173,25 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
         )
     }
     val delay = this.delay.tchk(context, constValues).expectUInt()
-    val outElemTyp = (elemTyp1, elemTyp2) match {
-      case (_: TyUInt, _: TyUInt) => U44
-      case _                      => I44
-      // TODO: What if the operands don't fit in u44/i44?
-      //       Or what if we're not targeting an Agilex 7 device and therefore 44 bits is not applicable?
+    val outElemTyp = this.targetTyp match {
+      case TyTuple() =>
+        (elemTyp1, elemTyp2) match {
+          case (_: TyUInt, _: TyUInt) => U44
+          case _                      => I44
+        }
+      case int: TyAnyInt => int
+      case typ =>
+        throw new TypeError(s"invalid output type for $className: $typ")
     }
     if (!ReshapeData.canReshape(elemTyp1, outElemTyp, constValues)) {
       throw new TypeError(
-        s"Elements of type $elemTyp1 in first stream cannot be reshaped to $outElemTyp.",
+        s"Elements of type $elemTyp1 in first stream of $className cannot be reshaped to $outElemTyp.",
         TypeChecker.relevantBindings(constValues, elemTyp1, outElemTyp)
       )
     }
     if (!ReshapeData.canReshape(elemTyp2, outElemTyp, constValues)) {
       throw new TypeError(
-        s"Elements of type $elemTyp2 in second stream cannot be reshaped to $outElemTyp.",
+        s"Elements of type $elemTyp2 in second stream of $className cannot be reshaped to $outElemTyp.",
         TypeChecker.relevantBindings(constValues, elemTyp2, outElemTyp)
       )
     }
@@ -295,13 +312,14 @@ case class StmMapDotCascaded(s1: Expr, s2: Expr, delay: Expr)(
 case class StmMapDotTree(
     s1: Expr,
     s2: Expr,
-    delay: Expr
+    delay: Expr,
+    targetTyp: Type = TyTuple()
 )(typ: Type = Missing)
     extends ResolvedSyntaxSugar(s1, s2, delay)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s1, s2, d) => StmMapDotTree(s1, s2, d)(typ)
+      case Seq(s1, s2, d) => StmMapDotTree(s1, s2, d, this.targetTyp)(typ)
       case _              => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -313,7 +331,6 @@ case class StmMapDotTree(
     val s1 = this.s1.tchk(context, constValues)
     val (elemTyp1, n, m) = s1.typ match {
       case TyStm(TyVec(t: TyAnyInt, m), n) =>
-        // TODO: Enforce constraint on bitwidth (18 bits?)
         (t, n, m)
       case t =>
         throw new TypeError(
@@ -324,7 +341,6 @@ case class StmMapDotTree(
     val s2 = this.s2.tchk(context, constValues)
     val elemTyp2 = s2.typ match {
       case TyStm(TyVec(t: TyAnyInt, m2), n2) =>
-        // TODO: Enforce constraint on bitwidth (18 bits?)
         if (!c.sameLen(n, n2, constValues)) {
           throw new TypeError(
             s"Second stream in $className has length $n2."
@@ -347,29 +363,29 @@ case class StmMapDotTree(
         )
     }
     val delay = this.delay.tchk(context, constValues).expectUInt()
-    val outElemTyp = (elemTyp1, elemTyp2) match {
-      case (_: TyUInt, _: TyUInt) => U44
-      case _                      => I44
-      // TODO: What if the operands don't fit in u44/i44?
-      //       Or what if we're not targeting an Agilex 7 device and therefore 44 bits is not applicable?
+    val outElemTyp = this.targetTyp match {
+      case TyTuple() =>
+        (elemTyp1, elemTyp2) match {
+          case (_: TyUInt, _: TyUInt) => U44
+          case _                      => I44
+        }
+      case int: TyAnyInt => int
+      case typ =>
+        throw new TypeError(s"invalid output type for $className: $typ")
     }
     if (!ReshapeData.canReshape(elemTyp1, outElemTyp, constValues)) {
       throw new TypeError(
-        s"Elements of type $elemTyp1 in first stream cannot be reshaped to $outElemTyp.",
+        s"Elements of type $elemTyp1 in first stream of $className cannot be reshaped to $outElemTyp.",
         TypeChecker.relevantBindings(constValues, elemTyp1, outElemTyp)
       )
     }
     if (!ReshapeData.canReshape(elemTyp2, outElemTyp, constValues)) {
       throw new TypeError(
-        s"Elements of type $elemTyp2 in second stream cannot be reshaped to $outElemTyp.",
+        s"Elements of type $elemTyp2 in second stream of $className cannot be reshaped to $outElemTyp.",
         TypeChecker.relevantBindings(constValues, elemTyp2, outElemTyp)
       )
     }
-    // Note that the output length will be greater than the input length if m == 0.
-    // I don't think that's a big deal though, and it makes the length a bit simpler.
-    val outLen =
-      ToUnsigned(SafeSum(n, SafeProd(C(-1)(), m)(), C(1)())())().tchk()
-    this.rebuild(TyStm(outElemTyp, outLen), Seq(s1, s2, delay))
+    this.rebuild(TyStm(outElemTyp, n), Seq(s1, s2, delay))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
