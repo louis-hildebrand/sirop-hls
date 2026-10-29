@@ -21,3 +21,9 @@
   12:i44,
   30:i44
 ]s
+>
+> // By default, the output type is either i44 (see above) or u44 (if both
+> // input streams contain unsigned integers).
+> // But you can also specify the output type.
+> StmMapDotTree:[i39](u, v, /*delay*/ 0)
+[undefined:i39, undefined:i39]s ++ [12:i39, 30:i39]s
