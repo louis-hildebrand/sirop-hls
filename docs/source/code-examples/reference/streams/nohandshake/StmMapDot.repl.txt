@@ -42,3 +42,22 @@
 > // (notice how the latency increases by 1 when increasing the delay argument)
 > StmMapDot(u, v, /*delay*/ 1, /*cascade*/ false)
 [undefined:i44, undefined:i44, undefined:i44]s ++ [12:i44, 30:i44]s
+>
+> // By default, the output type is either i44 (see above) or u44 (if both
+> // input streams contain unsigned integers).
+> // But you can also specify the output type.
+> StmMapDot:[i40](u, v, /*delay*/ 0, /*cascade*/ true)
+[
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40
+]s ++ [
+  12:i40,
+  30:i40
+]s
+> StmMapDot:[i39](u, v, /*delay*/ 0, /*cascade*/ false)
+[undefined:i39, undefined:i39]s ++ [12:i39, 30:i39]s

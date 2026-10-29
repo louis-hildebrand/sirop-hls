@@ -1,0 +1,13 @@
+> __handshake = false
+> __show_prefix = true
+>
+> u = [[ 1:i16, 2:i16, 3:i16]v, [4:i16,  5:i16, 6:i16]v]s
+> v = [[-1:i16, 2:i16, 3:i16]v, [4:i16, -2:i16, 4:i16]v]s
+>
+> // Can't produce an unsigned output when the inputs are signed
+> StmMapDotCascaded:[u44](u, v, /*delay*/ 0)
+TypeError: Elements of type i16 in first stream of StmMapDotCascaded cannot be reshaped to u44.
+>
+> // Can't produce a 15-bit output when the inputs are 16 bits.
+> StmMapDotCascaded:[i15](u, v, /*delay*/ 0)
+TypeError: Elements of type i16 in first stream of StmMapDotCascaded cannot be reshaped to i15.

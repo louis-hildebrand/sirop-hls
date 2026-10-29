@@ -519,8 +519,14 @@ Using Dedicated DSP Blocks
 FPGAs generally have dedicated digital signal processing (DSP) blocks to perform multiplication and accumulation.
 The following stream operators are helpful for taking advantage of this functionality, especially on `Agilex FPGAs <https://docs.altera.com/r/docs/683037/24.3.1/agilextm-7-variable-precision-dsp-blocks-user-guide/agilextm-7-variable-precision-dsp-blocks-overview)>`__.
 
-.. function:: StmMapDot(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K, cascade: bool = true): Stm[u44, n] :: I, J, and K are unsigned integer types
-              StmMapDot(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K, cascade: bool = true): Stm[i44, n] :: I and J are integer types, and K is an unsigned integer type
+.. function:: StmMapDot:[T = u44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K, cascade: bool = true): Stm[T, n] :: I, J, and K are unsigned integer types; T is an integer type
+              StmMapDot:[T = i44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K, cascade: bool = true): Stm[T, n] :: I, J, and T are integer types; K is an unsigned integer type
+
+    .. versionchanged:: 2.4.0
+        Added the ``cascade`` parameter to select between :func:`StmMapDotCascaded` and :func:`StmMapDotTree`.
+
+    .. versionchanged:: 2.4.0
+        Added the type parameter ``T`` to control the type of the output stream.
 
     Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
 
@@ -535,14 +541,21 @@ The following stream operators are helpful for taking advantage of this function
 
     .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDot.repl.txt
 
+    .. WARNING::
+        It must be possible to losslessly convert the input integers to the target type.
+
+    .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDot_invalid_type.repl.txt
+
     .. seealso::
 
         :func:`StmMapDotTree`, for the ``m18x18_sumof2`` case
 
         :func:`StmMapDotCascaded`, for the ``m18x18_systolic`` case
 
-.. function:: StmMapDotTree(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n] :: I, J, and K are unsigned integer types
-              StmMapDotTree(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[i44, n] :: I and J are integer types, and K is an unsigned integer type
+.. function:: StmMapDotTree:[T = u44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[T, n] :: I, J, and K are unsigned integer types; T is an integer type
+              StmMapDotTree:[T = i44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[T, n] :: I, J, and T are integer types; K is an unsigned integer type
+
+    .. versionadded:: 2.4.0
 
     Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
 
@@ -554,11 +567,19 @@ The following stream operators are helpful for taking advantage of this function
 
     .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDotTree.repl.txt
 
+    .. WARNING::
+        It must be possible to losslessly convert the input integers to the target type.
+
+    .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDotTree_invalid_type.repl.txt
+
     .. seealso::
         :func:`StmMapDot`, which supports other DSP modes
 
-.. function:: StmMapDotCascaded(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[u44, n+1-m] :: I, J, and K are unsigned integer types
-              StmMapDotCascaded(s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[i44, n+1-m] :: I and J are integer types, and K is an unsigned integer type
+.. function:: StmMapDotCascaded:[T = u44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[T, n+1-m] :: I, J, and K are unsigned integer types; T is an integer type
+              StmMapDotCascaded:[T = i44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[T, n+1-m] :: I, J, and T are integer types; K is an unsigned integer type
+
+    .. versionchanged:: 2.4.0
+        Added the type parameter ``T`` to control the type of the output stream.
 
     Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
     ``s1`` and ``s2`` must be cascaded, like the output of :func:`StmCascade`.
@@ -579,8 +600,13 @@ The following stream operators are helpful for taking advantage of this function
 
     .. literalinclude:: /code-examples/reference/streams/nohandshake/cascade_without_StmCascade.repl.txt
 
+    .. WARNING::
+        It must be possible to losslessly convert the input integers to the target type.
+
+    .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDotCascaded_invalid_type.repl.txt
+
     .. seealso::
-        :func:`StmMapDot`, which is more user-friendly
+        :func:`StmMapDot`, which is more user-friendly, but may require more registers
 
 .. function:: StmCascade(s: Stm[Vec[T, m], n]): Stm[Vec[T, m], n+m-1]
 

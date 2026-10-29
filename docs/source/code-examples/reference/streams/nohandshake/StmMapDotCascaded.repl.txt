@@ -49,3 +49,20 @@
   12:i44,
   30:i44
 ]s
+>
+> // By default, the output type is either i44 (see above) or u44 (if both
+> // input streams contain unsigned integers).
+> // But you can also specify the output type.
+> StmMapDotCascaded:[i40](u.StmCascade(), v.StmCascade(), /*delay*/ 0)
+[
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40
+]s ++ [
+  12:i40,
+  30:i40
+]s
