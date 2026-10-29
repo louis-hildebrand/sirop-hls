@@ -2,7 +2,7 @@
 
 set -u
 
-DEFAULT_TIMEOUT='10s'
+DEFAULT_TIMEOUT='0' # 0 means no timeout
 SHOW_WAVES='true'
 TIME_RESOLUTION='100ps'
 LIBRARY='%{LIBRARY}%'

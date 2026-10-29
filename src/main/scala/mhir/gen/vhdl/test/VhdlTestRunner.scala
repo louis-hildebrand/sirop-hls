@@ -62,7 +62,8 @@ object VhdlTestRunner {
   def testExpr(
       e: Expr,
       inputs: Seq[Seq[DirectTestInput]] = Seq(Seq()),
-      options: VhdlGeneratorOptions = VhdlGeneratorOptions()
+      options: VhdlGeneratorOptions = VhdlGeneratorOptions(),
+      timeLimit: String = "5m"
   ): TestResult = {
     require(inputs.nonEmpty)
     os.remove.all(VHDL_TEST_DIR)
@@ -83,14 +84,15 @@ object VhdlTestRunner {
       )
     }
     time("running simulation", Level.DEBUG) {
-      testExistingProject(VHDL_TEST_DIR, options)
+      testExistingProject(VHDL_TEST_DIR, options, timeLimit = timeLimit)
     }
   }
 
   def testWithoutHandshake(
       e: Expr,
       io: TestSuiteIO,
-      options: VhdlGeneratorOptions = VhdlGeneratorOptions()
+      options: VhdlGeneratorOptions = VhdlGeneratorOptions(),
+      timeLimit: String = "5m"
   ): TestResult = {
     val updatedOptions = options.copy(handshake = false)
     os.remove.all(VHDL_TEST_DIR)
@@ -107,7 +109,7 @@ object VhdlTestRunner {
       )
     }
     time("running simulation", Level.DEBUG) {
-      testExistingProject(VHDL_TEST_DIR, options)
+      testExistingProject(VHDL_TEST_DIR, options, timeLimit = timeLimit)
     }
   }
 
