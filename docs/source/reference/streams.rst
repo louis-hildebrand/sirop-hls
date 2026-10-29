@@ -522,6 +522,12 @@ The following stream operators are helpful for taking advantage of this function
 .. function:: StmMapDot:[T = u44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K, cascade: bool = true): Stm[T, n] :: I, J, and K are unsigned integer types; T is an integer type
               StmMapDot:[T = i44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K, cascade: bool = true): Stm[T, n] :: I, J, and T are integer types; K is an unsigned integer type
 
+    .. versionchanged:: 2.4.0
+        Added the ``cascade`` parameter to select between :func:`StmMapDotCascaded` and :func:`StmMapDotTree`.
+
+    .. versionchanged:: 2.4.0
+        Added the type parameter ``T`` to control the type of the output stream.
+
     Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
 
     ``delay`` is the number of internal registers to enable in the DSPs.
@@ -549,6 +555,8 @@ The following stream operators are helpful for taking advantage of this function
 .. function:: StmMapDotTree:[T = u44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[T, n] :: I, J, and K are unsigned integer types; T is an integer type
               StmMapDotTree:[T = i44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[T, n] :: I, J, and T are integer types; K is an unsigned integer type
 
+    .. versionadded:: 2.4.0
+
     Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
 
     ``delay`` is the number of internal registers to enable in the DSPs.
@@ -569,6 +577,9 @@ The following stream operators are helpful for taking advantage of this function
 
 .. function:: StmMapDotCascaded:[T = u44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[T, n+1-m] :: I, J, and K are unsigned integer types; T is an integer type
               StmMapDotCascaded:[T = i44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[T, n+1-m] :: I, J, and T are integer types; K is an unsigned integer type
+
+    .. versionchanged:: 2.4.0
+        Added the type parameter ``T`` to control the type of the output stream.
 
     Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
     ``s1`` and ``s2`` must be cascaded, like the output of :func:`StmCascade`.
