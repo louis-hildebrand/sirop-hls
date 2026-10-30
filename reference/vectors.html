@@ -46,7 +46,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'reference/vectors';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Streams" href="streams.html" />
+    <link rel="next" title="Creating a Vector" href="vectors/constructors.html" />
     <link rel="prev" title="Functions" href="functions.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -152,8 +152,18 @@
 <li class="toctree-l1"><a class="reference internal" href="integers.html">Integers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tuples.html">Tuples</a></li>
 <li class="toctree-l1"><a class="reference internal" href="functions.html">Functions</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Vectors</a></li>
-<li class="toctree-l1"><a class="reference internal" href="streams.html">Streams</a></li>
+<li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Vectors</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="vectors/constructors.html">Creating a Vector</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vectors/destructors.html">Reading a Vector</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vectors/builtins.html">Built-In Vector Operators</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="streams.html">Streams</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="streams/delay-annotations.html">Input Stream Delay Annotations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="streams/flattening.html">Stream Flattening</a></li>
+<li class="toctree-l2"><a class="reference internal" href="streams/builtins.html">Built-In Stream Operators</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1"><a class="reference internal" href="binary.html">Binary Conversion</a></li>
 </ul>
 
@@ -364,16 +374,7 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-vector-operators">Built-In Vector Operators</a><ul class="visible nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-vectors">Creating Vectors</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transforming-vectors-elementwise">Transforming Vectors Elementwise</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#combining-multiple-vectors">Combining Multiple Vectors</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#aggregation">Aggregation</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-vectors">Nested Vectors</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reordering-vectors">Reordering Vectors</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discarding-parts-of-a-vector">Discarding Parts of a Vector</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#learn-more">Learn More</a></li>
 </ul>
             </nav>
         </div>
@@ -390,476 +391,15 @@
 <p>As described in <a class="reference internal" href="../getting-started/language-intro.html"><span class="doc">Overview</span></a>, a vector is a combinational collection.
 Elements of a vector can be accessed all at once, in the same clock cycle.</p>
 <p>Unlike tuples, vectors are homogeneous; every element in a given vector has the same type.</p>
-<section id="built-in-vector-operators">
-<h2>Built-In Vector Operators<a class="headerlink" href="#built-in-vector-operators" title="Link to this heading">#</a></h2>
-<p>The following vector-related operators are built into the Sirop language.</p>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="booleans.html#relational-operators"><span class="std std-ref">Relational operators</span></a>, which accept vectors as input</p>
+<section id="learn-more">
+<h2>Learn More<a class="headerlink" href="#learn-more" title="Link to this heading">#</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="vectors/constructors.html">Creating a Vector</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vectors/destructors.html">Reading a Vector</a></li>
+<li class="toctree-l1"><a class="reference internal" href="vectors/builtins.html">Built-In Vector Operators</a></li>
+</ul>
 </div>
-<section id="creating-vectors">
-<h3>Creating Vectors<a class="headerlink" href="#creating-vectors" title="Link to this heading">#</a></h3>
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecCst">
-<span class="sig-name descname"><span class="pre">VecCst</span></span><span class="sig-paren">(</span><span class="pre">n:</span> <span class="pre">I,</span> <span class="pre">k:</span> <span class="pre">T</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecCst" title="Link to this definition">#</a></dt>
-<dd><p>Creates a vector of length <code class="docutils literal notranslate"><span class="pre">n</span></code> whose elements are all the constant <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="nb">VecCst</span>(<span class="m">3</span>, (<span class="m">42</span>:<span class="kt">u8</span>, <span class="l">true</span>))
-<span class="go">[(42:u8, true), (42:u8, true), (42:u8, true)]v</span>
-</pre></div>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecCount">
-<span class="sig-name descname"><span class="pre">VecCount</span></span><span class="sig-paren">(</span><span class="pre">n:</span> <span class="pre">I,</span> <span class="pre">init:</span> <span class="pre">J,</span> <span class="pre">delta:</span> <span class="pre">J</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[J,</span> <span class="pre">n]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span> <span class="pre">and</span> <span class="pre">J</span> <span class="pre">is</span> <span class="pre">any</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecCount" title="Link to this definition">#</a></dt>
-<dd><p>Creates a vector of <code class="docutils literal notranslate"><span class="pre">n</span></code> integers starting at <code class="docutils literal notranslate"><span class="pre">init</span></code> and increasing by <code class="docutils literal notranslate"><span class="pre">delta</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="nb">VecCount</span>(<span class="m">5</span>:<span class="kt">u3</span>)
-<span class="go">[0:u3, 1:u3, 2:u3, 3:u3, 4:u3]v</span>
-<span class="go">&gt; </span><span class="nb">VecCount</span>(<span class="m">4</span>, <span class="m">42</span>:<span class="kt">u32</span>)
-<span class="go">[42:u32, 43:u32, 44:u32, 45:u32]v</span>
-<span class="go">&gt; </span><span class="nb">VecCount</span>(<span class="m">3</span>, <span class="o">-</span><span class="m">9</span>:<span class="kt">i8</span>, <span class="o">-</span><span class="m">2</span>:<span class="kt">i8</span>)
-<span class="go">[-9:i8, -11:i8, -13:i8]v</span>
-</pre></div>
-</div>
-</dd></dl>
-
-</section>
-<section id="transforming-vectors-elementwise">
-<h3>Transforming Vectors Elementwise<a class="headerlink" href="#transforming-vectors-elementwise" title="Link to this heading">#</a></h3>
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecMap">
-<span class="sig-name descname"><span class="pre">VecMap</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[A,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[B,</span> <span class="pre">n]</span><a class="headerlink" href="#VecMap" title="Link to this definition">#</a></dt>
-<dd><p>Applies function <code class="docutils literal notranslate"><span class="pre">f</span></code> elementwise to vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecMap</span>(<span class="n">x</span> <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="m">5</span>)
-<span class="go">[6:u8, 7:u8, 8:u8, 9:u8]v</span>
-</pre></div>
-</div>
-</dd></dl>
-
-</section>
-<section id="combining-multiple-vectors">
-<h3>Combining Multiple Vectors<a class="headerlink" href="#combining-multiple-vectors" title="Link to this heading">#</a></h3>
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecConcat">
-<span class="sig-name descname"><span class="pre">VecConcat</span></span><span class="sig-paren">(</span><span class="pre">v1:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">v2:</span> <span class="pre">Vec[T,</span> <span class="pre">m]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n+m]</span><a class="headerlink" href="#VecConcat" title="Link to this definition">#</a></dt>
-<dd><p>Concatenates two vectors.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecConcat</span>(<span class="p">[</span><span class="m">8</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>)
-<span class="go">[1:u8, 2:u8, 3:u8, 8:u8, 7:u8]v</span>
-</pre></div>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecZip">
-<span class="sig-name descname"><span class="pre">VecZip</span></span><span class="sig-paren">(</span><span class="pre">v1:</span> <span class="pre">Vec[A,</span> <span class="pre">n],</span> <span class="pre">v2:</span> <span class="pre">Vec[B,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[(A,</span> <span class="pre">B),</span> <span class="pre">n]</span><a class="headerlink" href="#VecZip" title="Link to this definition">#</a></dt>
-<dd><p>Pairs up the elements of two vectors.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="n">u</span> = <span class="p">[</span> <span class="m">1</span>:<span class="kt">u6</span>,  <span class="m">2</span>:<span class="kt">u6</span>,  <span class="m">3</span>:<span class="kt">u6</span><span class="p">]</span><span class="n">v</span>
-<span class="go">&gt; </span><span class="n">v</span> = <span class="p">[</span><span class="o">-</span><span class="m">9</span>:<span class="kt">i8</span>, <span class="o">-</span><span class="m">8</span>:<span class="kt">i8</span>, <span class="o">-</span><span class="m">7</span>:<span class="kt">i8</span><span class="p">]</span><span class="n">v</span>
-<span class="go">&gt; </span><span class="nb">VecZip</span>(<span class="n">u</span>, <span class="n">v</span>)
-<span class="go">[(1:u6, -9:i8), (2:u6, -8:i8), (3:u6, -7:i8)]v</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecMap2" title="VecMap2"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecMap2</span></code></a>, which zips two vectors with an arbitrary function</p>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecMap2">
-<span class="sig-name descname"><span class="pre">VecMap2</span></span><span class="sig-paren">(</span><span class="pre">v1:</span> <span class="pre">Vec[A,</span> <span class="pre">n],</span> <span class="pre">v2:</span> <span class="pre">Vec[B,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">A</span> <span class="pre">-&gt;</span> <span class="pre">B</span> <span class="pre">-&gt;</span> <span class="pre">C</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[C,</span> <span class="pre">n]</span><a class="headerlink" href="#VecMap2" title="Link to this definition">#</a></dt>
-<dd><p>Like <a class="reference internal" href="#VecMap" title="VecMap"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecMap</span></code></a>, but for two streams at once.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="n">u</span> = <span class="p">[</span> <span class="m">1</span>:<span class="kt">u6</span>,  <span class="m">2</span>:<span class="kt">u6</span>,  <span class="m">3</span>:<span class="kt">u6</span><span class="p">]</span><span class="n">v</span>
-<span class="go">&gt; </span><span class="n">v</span> = <span class="p">[</span><span class="o">-</span><span class="m">9</span>:<span class="kt">i8</span>, <span class="o">-</span><span class="m">8</span>:<span class="kt">i8</span>, <span class="o">-</span><span class="m">7</span>:<span class="kt">i8</span><span class="p">]</span><span class="n">v</span>
-<span class="go">&gt; </span><span class="nb">VecMap2</span>(<span class="n">u</span>, <span class="n">v</span>, <span class="n">x</span> <span class="p">=&gt;</span> <span class="n">y</span> <span class="p">=&gt;</span> (<span class="n">x</span>, <span class="n">y</span>, <span class="n">x</span><span class="o">*</span><span class="n">y</span>))
-<span class="go">[(1:u6, -9:i8, -9:i8), (2:u6, -8:i8, -16:i8), (3:u6, -7:i8, -21:i8)]v</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecZip" title="VecZip"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecZip</span></code></a>, the special case where <code class="docutils literal notranslate"><span class="pre">f</span></code> is simply <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">=&gt;</span> <span class="pre">y</span> <span class="pre">=&gt;</span> <span class="pre">(x,</span> <span class="pre">y)</span></code></p>
-</div>
-</dd></dl>
-
-</section>
-<section id="aggregation">
-<h3>Aggregation<a class="headerlink" href="#aggregation" title="Link to this heading">#</a></h3>
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecAll">
-<span class="sig-name descname"><span class="pre">VecAll</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[bool,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span><a class="headerlink" href="#VecAll" title="Link to this definition">#</a></dt>
-<dd><p>Returns <code class="docutils literal notranslate"><span class="pre">true</span></code> if all elements of vector <code class="docutils literal notranslate"><span class="pre">v</span></code> are <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="l">true</span>, <span class="l">true</span>, <span class="l">true</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecAll</span>()
-<span class="go">true</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="l">true</span>, <span class="l">true</span>, <span class="l">false</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecAll</span>()
-<span class="go">false</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="l">true</span>, <span class="l">false</span>, <span class="l">true</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecAll</span>()
-<span class="go">false</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="l">false</span>, <span class="l">true</span>, <span class="l">true</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecAll</span>()
-<span class="go">false</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="l">false</span>, <span class="l">false</span>, <span class="l">false</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecAll</span>()
-<span class="go">false</span>
-</pre></div>
-</div>
-<p>When applied to an empty vector, <a class="reference internal" href="#VecAll" title="VecAll"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecAll</span></code></a> returns <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>(<span class="p">[]</span><span class="n">v</span>:<span class="kt">Vec</span><span class="p">[</span><span class="kt">bool</span>,<span class="m">0</span><span class="p">]</span>).<span class="nb">VecAll</span>()
-<span class="go">true</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a>, for aggregation with an arbitrary function</p>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecAny">
-<span class="sig-name descname"><span class="pre">VecAny</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[bool,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span><a class="headerlink" href="#VecAny" title="Link to this definition">#</a></dt>
-<dd><p>Returns <code class="docutils literal notranslate"><span class="pre">true</span></code> if any elements of vector <code class="docutils literal notranslate"><span class="pre">v</span></code> are <code class="docutils literal notranslate"><span class="pre">true</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="l">false</span>, <span class="l">false</span>, <span class="l">false</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecAny</span>()
-<span class="go">false</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="l">false</span>, <span class="l">false</span>, <span class="l">true</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecAny</span>()
-<span class="go">true</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="l">false</span>, <span class="l">true</span>, <span class="l">false</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecAny</span>()
-<span class="go">true</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="l">true</span>, <span class="l">false</span>, <span class="l">false</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecAny</span>()
-<span class="go">true</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="l">true</span>, <span class="l">true</span>, <span class="l">true</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecAny</span>()
-<span class="go">true</span>
-</pre></div>
-</div>
-<p>When applied to an empty vector, <a class="reference internal" href="#VecAny" title="VecAny"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecAny</span></code></a> returns <code class="docutils literal notranslate"><span class="pre">false</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>(<span class="p">[]</span><span class="n">v</span>:<span class="kt">Vec</span><span class="p">[</span><span class="kt">bool</span>,<span class="m">0</span><span class="p">]</span>).<span class="nb">VecAny</span>()
-<span class="go">false</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a>, for aggregation with an arbitrary function</p>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecSum">
-<span class="sig-name descname"><span class="pre">VecSum</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[I,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">I</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecSum" title="Link to this definition">#</a></dt>
-<dd><p>Returns the sum of the elements in vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecSum</span>()
-<span class="go">10:u8</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="o">-</span><span class="m">9</span>:<span class="kt">i16</span>, <span class="o">-</span><span class="m">8</span>:<span class="kt">i16</span>, <span class="o">-</span><span class="m">7</span>:<span class="kt">i16</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecSum</span>()
-<span class="go">-24:i16</span>
-</pre></div>
-</div>
-<p>When applied to an empty vector, <a class="reference internal" href="#VecSum" title="VecSum"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecSum</span></code></a> returns 0.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>(<span class="p">[]</span><span class="n">v</span>:<span class="kt">Vec</span><span class="p">[</span><span class="kt">u2</span>,<span class="m">0</span><span class="p">]</span>).<span class="nb">VecSum</span>()
-<span class="go">0:u2</span>
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>Beware of <a class="reference external" href="https://en.wikipedia.org/wiki/Integer_overflow">overflow</a>!
-The sum is performed with the same type as the inputs.</p>
-</div>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">255</span>:<span class="kt">u8</span>, <span class="m">1</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecSum</span>()
-<span class="go">0:u8</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">255</span>:<span class="kt">u8</span>, <span class="m">1</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecMap</span>(<span class="n">x</span> <span class="p">=&gt;</span> <span class="nb">pad9</span>(<span class="n">x</span>)).<span class="nb">VecSum</span>()
-<span class="go">256:u9</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a>, for aggregation with an arbitrary function</p>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecFold">
-<span class="sig-name descname"><span class="pre">VecFold</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[A,</span> <span class="pre">n],</span> <span class="pre">z:</span> <span class="pre">B,</span> <span class="pre">f:</span> <span class="pre">(B,</span> <span class="pre">A)</span> <span class="pre">-&gt;</span> <span class="pre">B</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">B</span><a class="headerlink" href="#VecFold" title="Link to this definition">#</a></dt>
-<dd><p>Combines the elements in vector <code class="docutils literal notranslate"><span class="pre">v</span></code> to a single value using function <code class="docutils literal notranslate"><span class="pre">f</span></code> and initial value <code class="docutils literal notranslate"><span class="pre">z</span></code>.</p>
-<p>For example, for a 3-element stream <code class="docutils literal notranslate"><span class="pre">[a,</span> <span class="pre">b,</span> <span class="pre">c]v</span></code>, the result will be <code class="docutils literal notranslate"><span class="pre">f(f(f(z,</span> <span class="pre">a),</span> <span class="pre">b),</span> <span class="pre">c)</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">i8</span>, <span class="m">2</span>:<span class="kt">i8</span>, <span class="m">8</span>:<span class="kt">i8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecFold</span>(<span class="m">9</span>:<span class="kt">i8</span>, @(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span>) <span class="c c-Singleline">// 9 - 1 - 2 - 8</span>
-<span class="go">-2:i8</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">2</span>:<span class="kt">u16</span>, <span class="m">0</span>:<span class="kt">u16</span>, <span class="m">2</span>:<span class="kt">u16</span>, <span class="m">6</span>:<span class="kt">u16</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecFold</span>(<span class="m">0</span>:<span class="kt">u16</span>, @(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="m">10</span><span class="o">*</span><span class="n">x</span> <span class="o">+</span> <span class="n">y</span>)
-<span class="go">2026:u16</span>
-</pre></div>
-</div>
-<p>Unlike with <a class="reference internal" href="#VecReduce" title="VecReduce"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecReduce</span></code></a>, the input vector can be empty.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>(<span class="p">[]</span><span class="n">v</span>:<span class="kt">Vec</span><span class="p">[</span><span class="kt">u8</span>,<span class="m">0</span><span class="p">]</span>).<span class="nb">VecFold</span>(<span class="m">42</span>:<span class="kt">u8</span>, @(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>)
-<span class="go">42:u8</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecAll" title="VecAll"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecAll</span></code></a>, the special case of <a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a> with logical AND</p>
-<p><a class="reference internal" href="#VecAny" title="VecAny"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecAny</span></code></a>, the special case of <a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a> with logical OR</p>
-<p><a class="reference internal" href="#VecSum" title="VecSum"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecSum</span></code></a>, the special case of <a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a> with addition</p>
-<p><a class="reference internal" href="#VecReduce" title="VecReduce"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecReduce</span></code></a>, for aggregation of a non-empty vector without needing to specify an initial value</p>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecReduce">
-<span class="sig-name descname"><span class="pre">VecReduce</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">f:</span> <span class="pre">(T,</span> <span class="pre">T)</span> <span class="pre">-&gt;</span> <span class="pre">T</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">1]</span><a class="headerlink" href="#VecReduce" title="Link to this definition">#</a></dt>
-<dd><p>Combines the elements in vector <code class="docutils literal notranslate"><span class="pre">v</span></code> to a single value using function <code class="docutils literal notranslate"><span class="pre">f</span></code>.</p>
-<p>For example, for a 3-element vector <code class="docutils literal notranslate"><span class="pre">[a,</span> <span class="pre">b,</span> <span class="pre">c]v</span></code>, the result will be <code class="docutils literal notranslate"><span class="pre">f(f(a,</span> <span class="pre">b),</span> <span class="pre">c)</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">9</span>:<span class="kt">u8</span>, <span class="m">1</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecReduce</span>(@(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="nb">min</span>(<span class="n">x</span>, <span class="n">y</span>))
-<span class="go">1:u8</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">9</span>:<span class="kt">u8</span>, <span class="m">1</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecReduce</span>(@(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="nb">max</span>(<span class="n">x</span>, <span class="n">y</span>))
-<span class="go">9:u8</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">4</span>:<span class="kt">i8</span>, <span class="m">9</span>:<span class="kt">i8</span>, <span class="m">1</span>:<span class="kt">i8</span>, <span class="m">3</span>:<span class="kt">i8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecReduce</span>(@(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span>) <span class="c c-Singleline">// 4 - 9 - 1 - 3</span>
-<span class="go">-9:i8</span>
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>The input vector must be non-empty.</p>
-</div>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>(<span class="p">[]</span><span class="n">v</span>:<span class="kt">Vec</span><span class="p">[</span><span class="kt">u8</span>,<span class="m">0</span><span class="p">]</span>).<span class="nb">VecReduce</span>(@(<span class="n">x</span>, <span class="n">y</span>) <span class="p">=&gt;</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>)
-<span class="go">undefined:u8</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecFold" title="VecFold"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecFold</span></code></a>, for aggregation of a possibly empty vector with a given initial value</p>
-</div>
-</dd></dl>
-
-</section>
-<section id="nested-vectors">
-<h3>Nested Vectors<a class="headerlink" href="#nested-vectors" title="Link to this heading">#</a></h3>
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecJoin">
-<span class="sig-name descname"><span class="pre">VecJoin</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[Vec[T,</span> <span class="pre">m],</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n*m]</span><a class="headerlink" href="#VecJoin" title="Link to this definition">#</a></dt>
-<dd><p>Removes the outermost level of nesting from vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="c c-Singleline">// 2 dimensions</span>
-<span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecJoin</span>()
-<span class="go">[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]v</span>
-<span class="go">&gt;</span>
-<span class="go">&gt; </span><span class="c c-Singleline">// 3 dimensions</span>
-<span class="go">&gt; </span><span class="p">[[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">v</span>, <span class="p">[[</span><span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecJoin</span>()
-<span class="go">[[1:u8, 2:u8]v, [3:u8, 4:u8]v, [5:u8, 6:u8]v, [7:u8, 8:u8]v]v</span>
-<span class="go">&gt; </span><span class="p">[[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">v</span>, <span class="p">[[</span><span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecMap</span>(<span class="n">v</span> <span class="p">=&gt;</span> <span class="n">v</span>.<span class="nb">VecJoin</span>())
-<span class="go">[[1:u8, 2:u8, 3:u8, 4:u8]v, [5:u8, 6:u8, 7:u8, 8:u8]v]v</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecSplit" title="VecSplit"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecSplit</span></code></a>, for converting a flat vector back to a nested vector</p>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecSplit">
-<span class="sig-name descname"><span class="pre">VecSplit</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">m:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[Vec[T,</span> <span class="pre">m],</span> <span class="pre">n/m]</span><a class="headerlink" href="#VecSplit" title="Link to this definition">#</a></dt>
-<dd><p>Increases the level of nesting of vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="c c-Singleline">// 2 dimensions</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecSplit</span>(<span class="m">2</span>)
-<span class="go">[[1:u8, 2:u8]v, [3:u8, 4:u8]v, [5:u8, 6:u8]v]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecSplit</span>(<span class="m">3</span>)
-<span class="go">[[1:u8, 2:u8, 3:u8]v, [4:u8, 5:u8, 6:u8]v]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecSplit</span>(<span class="m">6</span>)
-<span class="go">[[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]v]v</span>
-<span class="go">&gt;</span>
-<span class="go">&gt; </span><span class="c c-Singleline">// 3 dimensions</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span>, <span class="m">8</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecSplit</span>(<span class="m">2</span>).<span class="nb">VecSplit</span>(<span class="m">2</span>)
-<span class="go">[[[1:u8, 2:u8]v, [3:u8, 4:u8]v]v, [[5:u8, 6:u8]v, [7:u8, 8:u8]v]v]v</span>
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>If <code class="docutils literal notranslate"><span class="pre">m</span></code> does not divide <code class="docutils literal notranslate"><span class="pre">n</span></code>, some elements will be discarded.</p>
-</div>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span>, <span class="m">7</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecSplit</span>(<span class="m">2</span>)
-<span class="go">[[1:u8, 2:u8]v, [3:u8, 4:u8]v, [5:u8, 6:u8]v]v</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecJoin" title="VecJoin"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecJoin</span></code></a>, for converting a nested vector back to a flat vector</p>
-</div>
-</dd></dl>
-
-</section>
-<section id="reordering-vectors">
-<h3>Reordering Vectors<a class="headerlink" href="#reordering-vectors" title="Link to this heading">#</a></h3>
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecShiftLeft">
-<span class="sig-name descname"><span class="pre">VecShiftLeft</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">input:</span> <span class="pre">T</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n]</span><a class="headerlink" href="#VecShiftLeft" title="Link to this definition">#</a></dt>
-<dd><p>Shifts vector <code class="docutils literal notranslate"><span class="pre">v</span></code> left and inserts <code class="docutils literal notranslate"><span class="pre">input</span></code> at the end.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecShiftLeft</span>(<span class="m">42</span>:<span class="kt">u8</span>)
-<span class="go">[2:u8, 3:u8, 4:u8, 42:u8]v</span>
-</pre></div>
-</div>
-<p>If <code class="docutils literal notranslate"><span class="pre">v</span></code> is empty, <code class="docutils literal notranslate"><span class="pre">input</span></code> is unused.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span>(<span class="p">[]</span><span class="n">v</span>:<span class="kt">Vec</span><span class="p">[</span><span class="kt">u8</span>,<span class="m">0</span><span class="p">]</span>).<span class="nb">VecShiftLeft</span>(<span class="m">42</span>:<span class="kt">u8</span>)
-<span class="go">[]v:Vec[u8, 0]</span>
-</pre></div>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecReverse">
-<span class="sig-name descname"><span class="pre">VecReverse</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n]</span><a class="headerlink" href="#VecReverse" title="Link to this definition">#</a></dt>
-<dd><p>Reverses vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecReverse</span>()
-<span class="go">[4:u8, 3:u8, 2:u8, 1:u8]v</span>
-<span class="go">&gt;</span>
-<span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecReverse</span>()
-<span class="go">[[3:u8, 4:u8]v, [1:u8, 2:u8]v]v</span>
-</pre></div>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecTranspose">
-<span class="sig-name descname"><span class="pre">VecTranspose</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[Vec[T,</span> <span class="pre">m],</span> <span class="pre">n]</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[Vec[T,</span> <span class="pre">n],</span> <span class="pre">m]</span><a class="headerlink" href="#VecTranspose" title="Link to this definition">#</a></dt>
-<dd><p>Transposes vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>, <span class="p">[</span><span class="m">5</span>:<span class="kt">u8</span>, <span class="m">6</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTranspose</span>()
-<span class="go">[[1:u8, 3:u8, 5:u8]v, [2:u8, 4:u8, 6:u8]v]v</span>
-</pre></div>
-</div>
-</dd></dl>
-
-</section>
-<section id="discarding-parts-of-a-vector">
-<h3>Discarding Parts of a Vector<a class="headerlink" href="#discarding-parts-of-a-vector" title="Link to this heading">#</a></h3>
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecDrop">
-<span class="sig-name descname"><span class="pre">VecDrop</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n-k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecDrop" title="Link to this definition">#</a></dt>
-<dd><p>Discards the first <code class="docutils literal notranslate"><span class="pre">k</span></code> elements from vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecDrop</span>(<span class="m">2</span>)
-<span class="go">[3:u8, 4:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecDrop</span>(<span class="m">1</span>)
-<span class="go">[2:u8, 3:u8, 4:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecDrop</span>(<span class="m">0</span>)
-<span class="go">[1:u8, 2:u8, 3:u8, 4:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecDrop</span>(<span class="m">4</span>)
-<span class="go">[]v:Vec[u8, 0]</span>
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>It is an error to drop more than the available number of elements.</p>
-</div>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecDrop</span>(<span class="m">5</span>)
-<span class="go">undefined:Vec[u8, undefined:u3]</span>
-<span class="go">&gt; </span><span class="m">4</span>:<span class="kt">u3</span> <span class="o">-</span> <span class="m">5</span>:<span class="kt">u3</span> <span class="c c-Singleline">// Output length is 4:u3 - 5:u3, which is undefined</span>
-<span class="go">undefined:u3</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecTakeRight" title="VecTakeRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTakeRight</span></code></a>, if it is easier to say how many elements to <em>keep</em> than to say how many to <em>discard</em></p>
-<p><a class="reference internal" href="#VecDropRight" title="VecDropRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDropRight</span></code></a>, for discarding elements from the end of a vector</p>
-<p><a class="reference internal" href="#VecTake" title="VecTake"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTake</span></code></a>, for discarding elements from the end of a vector</p>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecDropRight">
-<span class="sig-name descname"><span class="pre">VecDropRight</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">n-k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecDropRight" title="Link to this definition">#</a></dt>
-<dd><p>Discards the last <code class="docutils literal notranslate"><span class="pre">k</span></code> elements from vector <code class="docutils literal notranslate"><span class="pre">v</span></code>.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecDropRight</span>(<span class="m">2</span>)
-<span class="go">[1:u8, 2:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecDropRight</span>(<span class="m">1</span>)
-<span class="go">[1:u8, 2:u8, 3:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecDropRight</span>(<span class="m">0</span>)
-<span class="go">[1:u8, 2:u8, 3:u8, 4:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecDropRight</span>(<span class="m">4</span>)
-<span class="go">[]v:Vec[u8, 0]</span>
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>It is an error to drop more than the available number of elements.</p>
-</div>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecDropRight</span>(<span class="m">5</span>)
-<span class="go">undefined:Vec[u8, undefined:u3]</span>
-<span class="go">&gt; </span><span class="m">4</span>:<span class="kt">u3</span> <span class="o">-</span> <span class="m">5</span>:<span class="kt">u3</span> <span class="c c-Singleline">// Output length is 4:u3 - 5:u3, which is undefined</span>
-<span class="go">undefined:u3</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecTake" title="VecTake"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTake</span></code></a>, if it is easier to say how many elements to <em>keep</em> than to say how many to <em>discard</em></p>
-<p><a class="reference internal" href="#VecDrop" title="VecDrop"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDrop</span></code></a>, for discarding elements from the beginning of a vector</p>
-<p><a class="reference internal" href="#VecTakeRight" title="VecTakeRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTakeRight</span></code></a>, for discarding elements from the beginning of a vector</p>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecTake">
-<span class="sig-name descname"><span class="pre">VecTake</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecTake" title="Link to this definition">#</a></dt>
-<dd><p>Returns the first <code class="docutils literal notranslate"><span class="pre">k</span></code> elements of vector <code class="docutils literal notranslate"><span class="pre">v</span></code>, discarding the rest.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTake</span>(<span class="m">2</span>)
-<span class="go">[1:u8, 2:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTake</span>(<span class="m">3</span>)
-<span class="go">[1:u8, 2:u8, 3:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTake</span>(<span class="m">4</span>)
-<span class="go">[1:u8, 2:u8, 3:u8, 4:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTake</span>(<span class="m">0</span>)
-<span class="go">[]v:Vec[u8, 0]</span>
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>If <code class="docutils literal notranslate"><span class="pre">k</span></code> is greater than <code class="docutils literal notranslate"><span class="pre">n</span></code>, the extra elements will be undefined.</p>
-</div>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTake</span>(<span class="m">5</span>)
-<span class="go">[1:u8, 2:u8, 3:u8, 4:u8, undefined:u8]v</span>
-<span class="go">&gt;</span>
-<span class="go">&gt; </span><span class="c c-Singleline">// Taking 4 elements from a vector of length 2 (!!!)</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTake</span>(<span class="m">2</span>).<span class="nb">VecTake</span>(<span class="m">4</span>)
-<span class="go">[1:u8, 2:u8, undefined:u8, undefined:u8]v</span>
-<span class="go">&gt; </span><span class="c c-Singleline">// Taking 4 directly would have been fine</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span>, <span class="m">5</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTake</span>(<span class="m">4</span>)
-<span class="go">[1:u8, 2:u8, 3:u8, 4:u8]v</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecDropRight" title="VecDropRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDropRight</span></code></a>, if it is easier to say how many elements to <em>discard</em> than to say how many to <em>keep</em></p>
-<p><a class="reference internal" href="#VecTakeRight" title="VecTakeRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTakeRight</span></code></a>, for discarding elements from the beginning of a vector</p>
-<p><a class="reference internal" href="#VecDrop" title="VecDrop"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDrop</span></code></a>, for discarding elements from the beginning of a vector</p>
-</div>
-</dd></dl>
-
-<dl class="sirop function">
-<dt class="sig sig-object sirop" id="VecTakeRight">
-<span class="sig-name descname"><span class="pre">VecTakeRight</span></span><span class="sig-paren">(</span><span class="pre">v:</span> <span class="pre">Vec[T,</span> <span class="pre">n],</span> <span class="pre">k:</span> <span class="pre">I</span><span class="sig-paren">)</span><span><span class="pre">:</span></span><span class="w"> </span><span class="pre">Vec[T,</span> <span class="pre">k]</span><em><span class="pre">,</span> <span class="pre">where</span> <span class="pre">I</span> <span class="pre">is</span> <span class="pre">an</span> <span class="pre">unsigned</span> <span class="pre">integer</span> <span class="pre">type</span></em><a class="headerlink" href="#VecTakeRight" title="Link to this definition">#</a></dt>
-<dd><p>Returns the last <code class="docutils literal notranslate"><span class="pre">k</span></code> elements of vector <code class="docutils literal notranslate"><span class="pre">v</span></code>, discarding the rest.</p>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTakeRight</span>(<span class="m">2</span>)
-<span class="go">[3:u8, 4:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTakeRight</span>(<span class="m">3</span>)
-<span class="go">[2:u8, 3:u8, 4:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTakeRight</span>(<span class="m">4</span>)
-<span class="go">[1:u8, 2:u8, 3:u8, 4:u8]v</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTakeRight</span>(<span class="m">0</span>)
-<span class="go">[]v:Vec[u8, 0]</span>
-</pre></div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>If <code class="docutils literal notranslate"><span class="pre">k</span></code> is greater than <code class="docutils literal notranslate"><span class="pre">n</span></code>, the extra elements will be undefined.</p>
-</div>
-<div class="highlight-sirop notranslate"><div class="highlight"><pre><span></span><span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTakeRight</span>(<span class="m">5</span>)
-<span class="go">[undefined:u8, 1:u8, 2:u8, 3:u8, 4:u8]v</span>
-<span class="go">&gt;</span>
-<span class="go">&gt; </span><span class="c c-Singleline">// Taking 4 elements from a vector of length 2 (!!!)</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTakeRight</span>(<span class="m">2</span>).<span class="nb">VecTakeRight</span>(<span class="m">4</span>)
-<span class="go">[undefined:u8, undefined:u8, 3:u8, 4:u8]v</span>
-<span class="go">&gt; </span><span class="c c-Singleline">// Taking 4 elements directly would have been fine</span>
-<span class="go">&gt; </span><span class="p">[</span><span class="m">1</span>:<span class="kt">u8</span>, <span class="m">2</span>:<span class="kt">u8</span>, <span class="m">3</span>:<span class="kt">u8</span>, <span class="m">4</span>:<span class="kt">u8</span><span class="p">]</span><span class="n">v</span>.<span class="nb">VecTakeRight</span>(<span class="m">4</span>)
-<span class="go">[1:u8, 2:u8, 3:u8, 4:u8]v</span>
-</pre></div>
-</div>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<p><a class="reference internal" href="#VecDrop" title="VecDrop"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDrop</span></code></a>, if it is easier to say how many elements to <em>discard</em> than to say how many to <em>keep</em></p>
-<p><a class="reference internal" href="#VecTake" title="VecTake"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecTake</span></code></a>, for discarding elements from the end of a vector</p>
-<p><a class="reference internal" href="#VecDropRight" title="VecDropRight"><code class="xref sirop sirop-func docutils literal notranslate"><span class="pre">VecDropRight</span></code></a>, for discarding elements from the end of a vector</p>
-</div>
-</dd></dl>
-
-</section>
 </section>
 </section>
 
@@ -884,11 +424,11 @@ The sum is performed with the same type as the inputs.</p>
       </div>
     </a>
     <a class="right-next"
-       href="streams.html"
+       href="vectors/constructors.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Streams</p>
+        <p class="prev-next-title">Creating a Vector</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -910,16 +450,7 @@ The sum is performed with the same type as the inputs.</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#built-in-vector-operators">Built-In Vector Operators</a><ul class="visible nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-vectors">Creating Vectors</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#transforming-vectors-elementwise">Transforming Vectors Elementwise</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#combining-multiple-vectors">Combining Multiple Vectors</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#aggregation">Aggregation</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-vectors">Nested Vectors</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#reordering-vectors">Reordering Vectors</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#discarding-parts-of-a-vector">Discarding Parts of a Vector</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#learn-more">Learn More</a></li>
 </ul>
   </nav></div>
 
