@@ -23,6 +23,7 @@ import mhir.sugar.{
   AllZero,
   ExprLowering,
   ParamLowering,
+  SafeSum,
   StmDelay,
   StmLiteralUtilsImplicit
 }
@@ -419,14 +420,8 @@ object Compiler {
         inputDelays = Map()
       )
       (e: Expr, delay: Option[Long], head: Expr) => {
-        val e0 = delay match {
-          case None        => e
-          case Some(delay) => StmDelay(e, C(delay)(), head)().tchk().lower
-        }
+        val e0 = delay.map(delayStream(e, _, head)).getOrElse(e)
         val e1 = PartialEvalPass.partialEval(e0)()
-        // TODO: Add special cases to speed up tests?
-        //       If e is StmCst(n, k), then use StmDrop instead of StmDelay.
-        //       If e is a stream literal, then just extend the physical prefix.
         // Need to run latency matching and shrink all the letstm buffers
         // to avoid errors and warnings during evaluation
         val e2 = latencyMatcher.matchLatencies(
@@ -500,6 +495,45 @@ object Compiler {
         )
         adjustedDelta
     })
+  }
+
+  /** Increase the latency of stream `e` by `delay + 1` clock cycles.
+    */
+  private def delayStream(e: Expr, delay: Long, head: Expr): Expr = {
+    e match {
+      // These special cases are not strictly necessary, but they
+      // sometimes speed up the tests a lot compared to the general
+      // approach of adding StmDelay (containing a huge shift register)
+      case s: StmBuild
+          if s.accumulators.isEmpty
+            && s.producers.isEmpty
+            && s.nextData == s.initData
+            && (head.isInstanceOf[Undefined] || head == s.initData) =>
+        // StmCst
+        StmBuild(
+          n = s.n,
+          delay = SafeSum(s.delay, C(delay + 1)())().tchk().lower,
+          initData = s.initData,
+          nextData = s.nextData,
+          valid = s.valid,
+          accumulators = s.accumulators,
+          producers = s.producers
+        )().tchk()
+      case s @ StmLiteral(physical, logical) =>
+        val typecheckedHead = head match {
+          case Undefined(Missing) =>
+            val TyStm(elemTyp, _) = s.typ
+            Undefined(elemTyp)
+          case head => head.tchk()
+        }
+        StmLiteral(
+          // Add delay+1 elements because that's what StmDelay (the default case) does
+          (1 to (delay.toInt + 1)).map(_ => typecheckedHead) ++ physical,
+          logical
+        )(s.typ)
+      case e =>
+        StmDelay(e, C(delay)(), head)().tchk().lower
+    }
   }
 
   private def generateCode(
