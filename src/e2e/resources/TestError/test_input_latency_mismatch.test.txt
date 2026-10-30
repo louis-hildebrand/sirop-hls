@@ -1,0 +1,5 @@
+[INFO ] the design has a latency of 2 cycles
+[WARN ] test 0: INPUT LATENCY MISMATCH
+  a: expected 0, actual 0 (delta 0)
+  b: expected 1, actual 0 (delta -1)
+TestError: 1/1 test failed.

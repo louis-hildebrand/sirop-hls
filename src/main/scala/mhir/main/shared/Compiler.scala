@@ -376,7 +376,7 @@ object Compiler {
       optimizeMain(prog, optFlags)
     }
     val (newProg2, testDuration) = time2("simplifying tests", Level.DEBUG) {
-      optimizeTests(newProg1)
+      optimizeTests(newProg1, optFlags)
     }
     (newProg2, mainDuration.plus(testDuration))
   }
@@ -400,7 +400,10 @@ object Compiler {
     )
   }
 
-  private def optimizeTests(prog: Program): Program = {
+  private def optimizeTests(
+      prog: Program,
+      optFlags: OptimizerOptions
+  ): Program = {
     val latencyAnalysis = new LatencyAnalysis(handshake = prog.handshake)
     val transform = if (prog.handshake) { (e: Expr, _: Option[Long], _: Expr) =>
       PartialEvalPass.partialEval(e)()
@@ -439,7 +442,12 @@ object Compiler {
         val delayToAddByInput =
           getDelayToAddByInput(inputs, prog.accel.inputDelays, latencyAnalysis)
         val newInputs = inputs.map({ case (x, e) =>
-          val delay = delayToAddByInput.flatMap(_.get(x))
+          val delay = if (optFlags.matchLatencyInTests) {
+            delayToAddByInput.flatMap(_.get(x))
+          } else {
+            // Don't adjust the delays if the user specifically says not to
+            None
+          }
           val head = prog.headByParam.getOrElse(x, Undefined(Missing))
           x -> transform(e, delay, head)
         })
