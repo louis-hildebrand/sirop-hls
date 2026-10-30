@@ -85,7 +85,7 @@ if [ -z "${SKIP_E2E_TESTS:-}" ]; then
     logs="$LOGS_DIR/e2e_tests.log"
     # I don't want to have to check out the Quartus license for each and every
     # commit, so just skip the vsim-related tests here
-    ./src/e2e/python/run.py --skip-vsim >"$logs" 2>&1 || {
+    ./src/e2e/python/run.py --skip-vsim --failfast >"$logs" 2>&1 || {
         echo "End-to-end tests failed."
         echo "See $logs for details."
         exit 1

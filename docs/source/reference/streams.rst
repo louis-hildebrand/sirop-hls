@@ -95,6 +95,10 @@ This can be expressed as follows.
 .. literalinclude:: /code-examples/reference/delay_annotations_explicit.sirop
     :name: delay-annotations-explicit
 
+.. versionchanged:: 2.4.0
+    The compiler will now automatically adjust the latency of the test inputs (in an ``assert`` declaration) so they match the delay annotations.
+    Previously, the compiler would raise an error if the relative latencies of the test inputs did not match the delay annotations.
+
 This program is described by the following timing diagram.
 
 .. image:: /figures/dark/delay-annotations-explicit.*

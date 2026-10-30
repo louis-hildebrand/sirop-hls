@@ -1,4 +1,5 @@
-[WARN ] no head specified for input stream 'valid_i'. The latency matcher will delay the stream by prepending undefined elements. To dismiss this warning, add 'head(valid_i)=undefined' to the top-level annotations. To choose a different value, add the same annotation but using your value instead of undefined.
+[WARN ] no head is specified for input stream 'data_i'. If the compiler needs to delay the stream, it will prepend undefined elements. To dismiss this warning, add 'head(data_i)=undefined' to the top-level annotations. To prepend a different value, add 'head(data_i)=SOME_OTHER_EXPRESSION' instead.
+[WARN ] no head is specified for input stream 'valid_i'. If the compiler needs to delay the stream, it will prepend undefined elements. To dismiss this warning, add 'head(valid_i)=undefined' to the top-level annotations. To prepend a different value, add 'head(valid_i)=SOME_OTHER_EXPRESSION' instead.
 [INFO ] the design has a latency of 3 cycles
 [INFO ] test 0: PASSED
 [INFO ] 1/1 test passed!

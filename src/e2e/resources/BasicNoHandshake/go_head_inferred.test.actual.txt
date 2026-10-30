@@ -3,6 +3,7 @@
   (undefined:u8, false),
   (undefined:u8, false),
   (undefined:u8, false),
+  (undefined:u8, false),
   (undefined:u8, false)
 ]s ++ [
   (6:u8, true),

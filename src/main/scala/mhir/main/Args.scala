@@ -68,6 +68,7 @@ object Args {
     var fuse = true
     var fission = true
     var matchLatency = true
+    var matchLatencyInTests = true
     var removeUnusedData = true
     var staticallyShrinkLetStmBuffers = true
     var maxLetStmBufSize: Option[Int] = None
@@ -295,6 +296,8 @@ object Args {
           fission = false
         case "--opt:no-latmatch" =>
           matchLatency = false
+        case "--opt:no-latmatch-in-tests" =>
+          matchLatencyInTests = false
         case "--opt:no-remove-unused-data" =>
           removeUnusedData = false
         case "--opt:no-static-buf-shrink" =>
@@ -487,6 +490,7 @@ object Args {
         fuse = fuse,
         fission = fission,
         matchLatency = matchLatency,
+        matchLatencyInTests = matchLatencyInTests,
         removeUnusedData = removeUnusedData,
         staticallyShrinkLetStmBuffers = staticallyShrinkLetStmBuffers,
         maxLetStmBufSize = maxLetStmBufSize,

@@ -225,14 +225,9 @@ class EnabledLatencyMatcher(
         case x: Param =>
           headByVar.get(x) match {
             case Some(e) => e
-            case None =>
-              val warning = (
-                s"no head specified for input stream '$x'."
-                  + " The latency matcher will delay the stream by prepending undefined elements."
-                  + s" To dismiss this warning, add 'head($x)=undefined' to the top-level annotations."
-                  + " To choose a different value, add the same annotation but using your value instead of undefined."
-              )
-              Head(Undefined(Missing), Some(warning))
+            case None    =>
+              // No need for a warning here; the compiler should have already emitted one earlier
+              Head(Undefined(Missing), None)
           }
         case LetStm(_, x, in, out) =>
           val inHead = findInitData(in, headByVar)

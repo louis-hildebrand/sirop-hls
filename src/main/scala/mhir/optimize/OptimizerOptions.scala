@@ -14,6 +14,9 @@ package mhir.optimize
   *   whether to perform stream fission.
   * @param matchLatency
   *   whether to perform latency matching.
+  * @param matchLatencyInTests
+  *   whether to automatically adjust the test input streams' latencies to match
+  *   the delay annotations.
   * @param removeUnusedData
   *   whether to perform the unused data removal pass.
   * @param balanceBinOpTrees
@@ -34,6 +37,7 @@ case class OptimizerOptions(
     fuse: Boolean,
     fission: Boolean,
     matchLatency: Boolean,
+    matchLatencyInTests: Boolean,
     removeUnusedData: Boolean,
     staticallyShrinkLetStmBuffers: Boolean,
     maxLetStmBufSize: Option[Int],
@@ -60,6 +64,7 @@ object OptimizerOptions {
       fuse = true,
       fission = true,
       matchLatency = true,
+      matchLatencyInTests = true,
       removeUnusedData = true,
       staticallyShrinkLetStmBuffers = true,
       maxLetStmBufSize = maxLetStmBufSize,
@@ -82,6 +87,7 @@ object OptimizerOptions {
       fuse = false,
       fission = false,
       matchLatency = false,
+      matchLatencyInTests = false,
       removeUnusedData = false,
       staticallyShrinkLetStmBuffers = false,
       maxLetStmBufSize = None,
