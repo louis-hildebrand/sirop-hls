@@ -1,4 +1,4 @@
-accelerator[no_handshake]
+accelerator[no_handshake, head(s)=undefined]
 top = (s: Stm[u8, 4]) =>
     s.StmMap(x => x + 5).StmZip(s)
 
