@@ -150,7 +150,7 @@ class SiropLexer(RegexLexer):
             (r"\bVecTranspose\b", token.Name.Builtin),
             (r"\bVecZip\b", token.Name.Builtin),
             # Literals
-            (r"[0-9]+", token.Literal.Number),
+            (r"\b[0-9]+\b", token.Literal.Number),
             (r"\btrue\b", token.Literal),
             (r"\bfalse\b", token.Literal),
             (r"\bundefined\b", token.Literal),

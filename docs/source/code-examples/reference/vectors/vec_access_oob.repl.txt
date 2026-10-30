@@ -1,0 +1,6 @@
+> my_vec = [42:u8, 43:u8, 44:u8, 45:u8]v
+>
+> my_vec[4]
+undefined:u8
+> my_vec[999]
+undefined:u8

@@ -1,0 +1,8 @@
+> my_vec = [42:u8, 43:u8, 44:u8, 45:u8, 46:u8, 47:u8, 48:u8]v
+>
+> my_vec[:4:2] // default start: 0
+[42:u8, 44:u8, 46:u8, 48:u8]v
+> my_vec[:4:-2] // default start: 6 (last index)
+[48:u8, 46:u8, 44:u8, 42:u8]v
+> my_vec[:4:] // default step: 1, default start: 0
+[42:u8, 43:u8, 44:u8, 45:u8]v
