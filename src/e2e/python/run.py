@@ -235,7 +235,7 @@ def test_eval(eval_output: Path, cli_args: list[str], save: bool) -> bool:
         return False
 
 
-def main(test_sources: list[Path], skip_vsim: bool, save: bool) -> None:
+def main(test_sources: list[Path], skip_vsim: bool, save: bool, fail_fast: bool) -> None:
     """
     Script entry point.
     """
@@ -258,6 +258,8 @@ def main(test_sources: list[Path], skip_vsim: bool, save: bool) -> None:
     print()
     error_count = 0
     for test in test_sources:
+        if fail_fast and error_count > 0:
+            break
         ran = False
         os.chdir(test.parent)
         cli_args = []
@@ -363,6 +365,11 @@ def _parse_args() -> Namespace:
         help="overwrite the expected results with whatever the compiler currently outputs",
     )
     parser.add_argument(
+        "--failfast",
+        action="store_true",
+        help="exit immediately when one test fails; don't run the remaining tests",
+    )
+    parser.add_argument(
         "--no-color",
         action="store_true",
         help="suppress colored output",
@@ -385,7 +392,12 @@ if __name__ == "__main__":
     _args = _parse_args()
     colorama.init(strip=True if _args.no_color else None)
     try:
-        main(_args.test_sources, skip_vsim=_args.skip_vsim, save=_args.save)
+        main(
+            _args.test_sources,
+            skip_vsim=_args.skip_vsim,
+            save=_args.save,
+            fail_fast=_args.failfast,
+        )
     except KeyboardInterrupt:
         print()
         print("Cancelled")
