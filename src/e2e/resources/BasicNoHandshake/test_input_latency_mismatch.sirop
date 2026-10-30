@@ -1,4 +1,4 @@
-accelerator[no_handshake]
+accelerator[no_handshake, head(a)=undefined, head(b)=undefined]
 top = (a: Stm[u8, 3] @ 0) => (b: Stm[bool, 3] @ 0) =>
     StmZip(a, b)
 
@@ -15,3 +15,9 @@ assert {
     b = []s ++ [true, false, true]s
 }
 yields [(1:u8, true), (2:u8, false), (3:u8, true)]s
+
+assert {
+    a = [42:u8, 43:u8, 44:u8]s,
+    b = StmCount(3).StmMap(x => x < 2)
+}
+yields [(42:u8, true), (43:u8, true), (44:u8, false)]s

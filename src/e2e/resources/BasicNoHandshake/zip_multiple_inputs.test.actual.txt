@@ -8,6 +8,7 @@
   undefined:u16,
   undefined:u16,
   undefined:u16,
+  undefined:u16,
   undefined:u16
 ]s ++ [
   0:u16,
@@ -30,6 +31,7 @@
 
 /* Test 1 */
 [
+  undefined:u16,
   undefined:u16,
   undefined:u16,
   undefined:u16,
