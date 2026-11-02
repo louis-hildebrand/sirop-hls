@@ -1,4 +1,4 @@
-package mhir.optimize
+package mhir.delay
 
 import mhir.ir._
 
@@ -11,12 +11,12 @@ sealed trait LatencyNode {
     * of this node will become logically valid 8 clock cycles after reset is
     * de-asserted.
     */
-  def latency: Option[Int]
+  def latency: Latency
 }
 
 /** The latency of a stream "source": a parameter, a stream literal, etc.
   */
-case class LatencySource(latency: Option[Int]) extends LatencyNode
+case class LatencySource(latency: Latency) extends LatencyNode
 
 /** The latency of a [[mhir.ir.StmBuild]] expression.
   *
@@ -35,7 +35,7 @@ case class LatencySource(latency: Option[Int]) extends LatencyNode
   *   the latency of the producers that feed into this node.
   */
 case class LatencyStmBuild(
-    latency: Option[Int],
+    latency: Latency,
     localEpoch: Option[Int],
     producers: Map[Param, LatencyNode]
 ) extends LatencyNode
@@ -50,7 +50,7 @@ case class LatencyStmBuild(
   *   the latency of the output stream.
   */
 case class LatencyLetStm(
-    latency: Option[Int],
+    latency: Latency,
     in: LatencyNode,
     out: LatencyNode
 ) extends LatencyNode

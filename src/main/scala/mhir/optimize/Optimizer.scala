@@ -1,6 +1,7 @@
 package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
+import mhir.delay.{Latency, LatencyAnalysis, LatencyMatcher}
 import mhir.ir._
 import mhir.logging.time
 import mhir.optimize.cost.SimpleDelayCostModel
@@ -23,7 +24,7 @@ class Optimizer(
     binOpBalancer: BinOpTreeBalancingPass,
     unusedDataRemover: UnusedDataRemover,
     headByParam: Map[Param, Expr],
-    inputDelays: Map[Param, Expr]
+    latencyByParam: Map[Param, Latency]
 ) {
 
   private implicit val logger: Logger = Logger(getClass.getName)
@@ -87,7 +88,7 @@ class Optimizer(
       val s4_1 = latencyMatcher.matchLatencies(
         s4,
         headByParam = headByParam,
-        inputDelays = inputDelays
+        latencyByParam = latencyByParam
       )
       // In no_handshake mode, some new shift registers may have appeared and
       // it may be possible to merge these with existing ones
@@ -130,7 +131,7 @@ object Optimizer {
       options: OptimizerOptions,
       handshake: Boolean,
       headByParam: Map[Param, Expr],
-      inputDelays: Map[Param, Expr]
+      latencyByParam: Map[Param, Latency]
   ): Optimizer = {
     val stmBuildSimplifier =
       StmBuildSimplifier(enabled = options.simplifyStmBuild)
@@ -178,7 +179,7 @@ object Optimizer {
             latencyAnalysis = latencyAnalysis,
             handshake = handshake,
             assumeThroughputsMatch = options.assumeThroughputsMatch,
-            inputDelays = inputDelays
+            latencyByParam = latencyByParam
           )
         )
       } else {
@@ -200,7 +201,7 @@ object Optimizer {
       binOpBalancerWithLogging,
       unusedDataRemover,
       headByParam = headByParam,
-      inputDelays = inputDelays
+      latencyByParam = latencyByParam
     )
   }
 }

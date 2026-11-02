@@ -1,10 +1,11 @@
-package mhir.optimize
+package mhir.delay
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.eval.{CycleCounter, DelayMismatch}
 import mhir.ir._
-import mhir.logging.{LogEntry, LoggerStub}
+import mhir.logging.LoggerStub
+import mhir.optimize.UnusedDataRemover
 import mhir.sugar._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
@@ -78,7 +79,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     val optimized = env.pass.matchLatencies(
       original,
       headByParam = Map(),
-      inputDelays = Map()
+      latencyByParam = Map()
     )
 
     // Correct behaviour
@@ -111,7 +112,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     val optimized = env.pass.matchLatencies(
       original,
       headByParam = Map(),
-      inputDelays = Map()
+      latencyByParam = Map()
     )
 
     // Correct behaviour
@@ -176,7 +177,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     val optimized = env.pass.matchLatencies(
       original,
       headByParam = Map(),
-      inputDelays = Map()
+      latencyByParam = Map()
     )
 
     // Correct behaviour
@@ -272,7 +273,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     val optimized = env.pass.matchLatencies(
       original,
       headByParam = Map(),
-      inputDelays = Map()
+      latencyByParam = Map()
     )
 
     // Correct behaviour
@@ -304,7 +305,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     val optimized = env.pass.matchLatencies(
       original,
       headByParam = Map(),
-      inputDelays = Map()
+      latencyByParam = Map()
     )
 
     // Correct behaviour
@@ -335,7 +336,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     val optimized = env.pass.matchLatencies(
       original,
       headByParam = Map(),
-      inputDelays = Map()
+      latencyByParam = Map()
     )
 
     // Correct behaviour
@@ -368,7 +369,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     val optimized = env.pass.matchLatencies(
       original,
       headByParam = Map(sA -> Undefined(Missing), sB -> Undefined(Missing)),
-      inputDelays = Map(sA -> 0, sB -> 0)
+      latencyByParam = Map(sA -> LatencyConcrete(0), sB -> LatencyConcrete(0))
     )
 
     // Correct behaviour
@@ -448,7 +449,7 @@ class LatencyMatcherTests extends AnyFunSuite {
     val actual = env.pass.matchLatencies(
       original,
       headByParam = Map(),
-      inputDelays = Map(input -> 0)
+      latencyByParam = Map(input -> LatencyConcrete(0))
     )
 
     val inputs = Map(
@@ -536,7 +537,8 @@ class LatencyMatcherTests extends AnyFunSuite {
     val Function(_, Function(_, actualBody)) = env.pass.matchLatencies(
       original,
       headByParam = Map(),
-      inputDelays = Map(input1 -> 0, input2 -> 0)
+      latencyByParam =
+        Map(input1 -> LatencyConcrete(0), input2 -> LatencyConcrete(0))
     )
 
     val inputs = Map(
@@ -608,7 +610,8 @@ class LatencyMatcherTests extends AnyFunSuite {
       env.pass.matchLatencies(
         original,
         headByParam = Map(input2 -> False),
-        inputDelays = Map(input1 -> 0, input2 -> 0)
+        latencyByParam =
+          Map(input1 -> LatencyConcrete(0), input2 -> LatencyConcrete(0))
       )
 
     val inputs = Map(

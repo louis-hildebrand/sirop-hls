@@ -1,11 +1,16 @@
-package mhir.optimize
+package mhir.delay
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.logging.time
 import mhir.optimize.StreamFuser.StmBuildFusion
-import mhir.sem.SemanticError
+import mhir.optimize.{
+  AllUsed,
+  PartialEvalPass,
+  UnusedDataAnalysis,
+  UnusedDataRemover
+}
 import mhir.sugar.nohandshake.StmMap
 import mhir.sugar.{ExprLowering, StmDelay}
 import mhir.typecheck._
@@ -18,7 +23,7 @@ trait LatencyMatcher {
   def matchLatencies(
       e: Expr,
       headByParam: Map[Param, Expr],
-      inputDelays: Map[Param, Expr]
+      latencyByParam: Map[Param, Latency]
   ): Expr
 }
 
@@ -72,28 +77,12 @@ class EnabledLatencyMatcher(
   def matchLatencies(
       e: Expr,
       headByParam: Map[Param, Expr],
-      inputDelays: Map[Param, Expr]
+      latencyByParam: Map[Param, Latency]
   ): Expr = {
     time("latency matching", Level.DEBUG) {
       // TODO: move this unwrapping and wrapping out of this method?
       val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
-      val intInputDelays = inputs
-        .map({ x =>
-          inputDelays.get(x) match {
-            case Some(IntCst(d)) => x -> Some(d.toInt)
-            case Some(delay) =>
-              throw SemanticError(
-                s"latency matching does not currently support non-constant delay $delay for input $x"
-              )
-            case None =>
-              logger.debug(
-                s"assuming delay of ${TypeChecker.DEFAULT_DELAY_ANNOTATION} for input '$x'"
-              )
-              x -> Some(TypeChecker.DEFAULT_DELAY_ANNOTATION)
-          }
-        })
-        .toMap
-      val lat = latencyAnalysis.idealLatency(body, intInputDelays)
+      val lat = latencyAnalysis.idealLatency(body, latencyByParam)
       val newBody = matchLatencies(
         body,
         lat,
@@ -134,7 +123,11 @@ class EnabledLatencyMatcher(
           .mapProducers({ case (x, (p0, ready, delayExpr)) =>
             val p = matchLatencies(p0, producersLat(x), headByVar)
             (localEpoch, delayExpr, producersLat(x).latency) match {
-              case (Some(localEpoch), IntCst(delay), Some(actualLatency)) =>
+              case (
+                    Some(localEpoch),
+                    IntCst(delay),
+                    LatencyConcrete(actualLatency)
+                  ) =>
                 // TODO: be smarter about where to insert the delay. Maybe the bitwidth of the stream will be lower at an earlier point in the pipeline
                 val expectedLatency = localEpoch + delay.toInt
                 assert(
@@ -303,7 +296,7 @@ object DisabledLatencyMatcher extends LatencyMatcher {
   override def matchLatencies(
       e: Expr,
       headByParam: Map[Param, Expr],
-      inputDelays: Map[Param, Expr]
+      latencyByParam: Map[Param, Latency]
   ): Expr = {
     if (!hasLogged) {
       hasLogged = true

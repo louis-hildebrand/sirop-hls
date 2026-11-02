@@ -1,4 +1,4 @@
-package mhir.optimize
+package mhir.delay
 
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
@@ -30,7 +30,7 @@ class LatencyAnalysis(handshake: Boolean) {
     */
   def actualLatency(
       e: Expr,
-      inputLatencies: Map[Param, Option[Int]]
+      inputLatencies: Map[Param, Latency]
   ): LatencyNode = {
     val aggregator = (xs: Iterable[Int]) =>
       if (xs.toSet.size > 1) None else xs.headOption
@@ -46,14 +46,14 @@ class LatencyAnalysis(handshake: Boolean) {
     */
   def idealLatency(
       e: Expr,
-      inputLatencies: Map[Param, Option[Int]]
+      inputLatencies: Map[Param, Latency]
   ): LatencyNode = {
     latency(e, inputLatencies, xs => Some(xs.max))
   }
 
   private def latency(
       e: Expr,
-      latencyByVar: Map[Param, Option[Int]],
+      latencyByVar: Map[Param, Latency],
       sbuildAggregator: Iterable[Int] => Option[Int]
   ): LatencyNode = {
     e match {
@@ -62,23 +62,29 @@ class LatencyAnalysis(handshake: Boolean) {
           case Some(lat) => LatencySource(lat)
           case None =>
             logger.warn(s"delay is unknown for input $x")
-            LatencySource(None)
+            LatencySource(LatencyUnknown)
         }
       case StmLiteral(physical, _) =>
-        LatencySource(Some(physical.length))
+        LatencySource(LatencyConcrete(physical.length))
       case LetStm(_, x, in, out) =>
         val inLatency = latency(in, latencyByVar, sbuildAggregator)
         val selfLatency = this.letStmLatency
+        val inPlusSelfLatency = inLatency.latency match {
+          case LatencyConcrete(n) => LatencyConcrete(n + selfLatency)
+          case LatencyUnknown     => LatencyUnknown
+        }
         val outLatency = latency(
           out,
-          latencyByVar + (x -> inLatency.latency.map(_ + selfLatency)),
+          latencyByVar + (x -> inPlusSelfLatency),
           sbuildAggregator
         )
         LatencyLetStm(outLatency.latency, inLatency, outLatency)
       case s: StmBuild =>
+        // Recurse
         val latencyChildren = s.producers.map({ case (x, (p, _, _)) =>
           x -> latency(p, latencyByVar, sbuildAggregator)
         })
+        // Collect the delay annotations
         val delayAnnotations = s.producers.map({
           case (x, (_, _, IntCst(delay)))            => x -> Some(delay.toInt)
           case (x, (_, _, delay)) if !this.handshake =>
@@ -88,30 +94,6 @@ class LatencyAnalysis(handshake: Boolean) {
             )
           case (x, p) => x -> guessProducerDelay(p)
         })
-        // For each producer, we can work out what the local epoch should be
-        // knowing that the absolute latency of that producer should equal the
-        // local epoch plus the corresponding delay annotation...
-        val localEpochByProducer = s.producers.map({ case (x, _) =>
-          val epoch = latencyChildren(x).latency
-            .zip(delayAnnotations(x))
-            .map({ case (latency, delayAnnotation) =>
-              latency - delayAnnotation
-            })
-            .headOption
-          x -> epoch
-        })
-        // ... then we aggregate those answers using the given function (take
-        // the maximum, insist they all be the same, etc.)
-        val localEpoch = if (localEpochByProducer.isEmpty) {
-          // Assume "internal source nodes" have local epoch 0
-          Some(0)
-        } else if (localEpochByProducer.values.forall(_.nonEmpty)) {
-          sbuildAggregator(localEpochByProducer.values.map(_.get))
-        } else {
-          // At least one of the producers are missing a latency or a delay
-          // annotation, so I have no idea what the epoch of this sbuild is
-          None
-        }
         val outDelay = s.delay match {
           case IntCst(delay)            => Some(delay.toInt)
           case delay if !this.handshake =>
@@ -121,10 +103,44 @@ class LatencyAnalysis(handshake: Boolean) {
             )
           case _ => guessOutDelay(s)
         }
+        // Assume "internal source nodes" have local epoch 0
+        if (s.producers.isEmpty) {
+          return LatencyStmBuild(
+            outDelay match {
+              case Some(n) => LatencyConcrete(n)
+              case None    => LatencyUnknown
+            },
+            Some(0),
+            Map()
+          )
+        }
+        // For each producer, we can work out what the local epoch should be
+        // knowing that the absolute latency of that producer should equal the
+        // local epoch plus the corresponding delay annotation...
+        val localEpochByProducer = s.producers.map({ case (x, _) =>
+          val epoch = (latencyChildren(x).latency, delayAnnotations(x)) match {
+            case (LatencyConcrete(latency), Some(delay)) =>
+              Some(latency - delay)
+            case _ => None
+          }
+          x -> epoch
+        })
+        // ... then we aggregate those answers using the given function (take
+        // the maximum, insist they all be the same, etc.)
+        val localEpoch = if (localEpochByProducer.values.forall(_.nonEmpty)) {
+          sbuildAggregator(localEpochByProducer.values.map(_.get))
+        } else {
+          // At least one of the producers are missing a latency or a delay
+          // annotation, so I have no idea what the epoch of this sbuild is
+          None
+        }
         val outLatency = localEpoch
           .zip(outDelay)
           .map({ case (localEpoch, outDelay) => localEpoch + outDelay })
-          .headOption
+          .headOption match {
+          case Some(n) => LatencyConcrete(n)
+          case None    => LatencyUnknown
+        }
         LatencyStmBuild(outLatency, localEpoch, latencyChildren)
       case e =>
         throw new IllegalArgumentException(s"cannot find latency for $e")
