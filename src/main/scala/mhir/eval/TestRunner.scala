@@ -99,7 +99,7 @@ class TestRunner(testIdx: Int, handshake: Boolean, showPhysical: Boolean) {
       expectedPath: Option[Path],
       actualPath: Option[Path],
       headByParam: Map[Param, Expr],
-      inputDelays: Map[Param, Expr]
+      inputDelays: Map[Param, InputDelay]
   ): Unit = {
     logger.debug(s"running test $testIdx ... ")
     val rawExpectedOutput = eval("expected output", expectedPath) {
@@ -159,8 +159,9 @@ class TestRunner(testIdx: Int, handshake: Boolean, showPhysical: Boolean) {
         val actual = actualInputLatencies.get(x)
         val expected = inputDelays.get(x)
         val delta = (expected, actual) match {
-          case (Some(IntCst(expected)), Some(actual)) => Some(actual - expected)
-          case _                                      => None
+          case (Some(InputDelayConcrete(IntCst(expected))), Some(actual)) =>
+            Some(actual - expected)
+          case _ => None
         }
         x -> (actual, expected, delta)
       })
@@ -171,9 +172,10 @@ class TestRunner(testIdx: Int, handshake: Boolean, showPhysical: Boolean) {
         .map({ case (x, (actual, expected, delta)) =>
           val actualStr = actual.map(_.toString).getOrElse("???")
           val expectedStr = expected match {
-            case Some(IntCst(n)) => n.toString // Omit the type annotation
-            case Some(e)         => e.toString
-            case None            => "???"
+            case Some(InputDelayConcrete(IntCst(n))) =>
+              n.toString // Omit the type annotation
+            case Some(e) => e.toString
+            case None    => "???"
           }
           val deltaStr = delta.map(_.toString).getOrElse("???")
           s"  $x: expected $expectedStr, actual $actualStr (delta $deltaStr)"

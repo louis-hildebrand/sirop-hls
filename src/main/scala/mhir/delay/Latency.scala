@@ -1,5 +1,7 @@
 package mhir.delay
 
+/** The latency at a certain point in the program.
+  */
 sealed trait Latency
 
 /** The latency is a concrete number of clock cycles after the global epoch.

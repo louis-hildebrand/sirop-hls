@@ -5,7 +5,7 @@ import mhir.canonicalize._
 import mhir.ir._
 import mhir.parse.{SourcePoint, SyntaxError}
 import mhir.sugar._
-import mhir.typecheck.{NameError, TypeCheck, TypeChecker}
+import mhir.typecheck.{NameError, TypeCheck}
 import os.Path
 
 import scala.annotation.tailrec
@@ -14,6 +14,8 @@ import scala.collection.immutable.Queue
 object Parser {
 
   private implicit val logger: Logger = Logger(getClass.getName)
+
+  private val DEFAULT_DELAY_ANNOTATION: Int = 0
 
   def parse(f: Path, constOverrides: Map[String, String] = Map()): Program = {
     parse(Lexer.lex(f), constOverrides)
@@ -197,8 +199,6 @@ object Parser {
       constants.map({ case ConstDecl(x, _) => x -> x.typ }).toMap
     val (inputs, rest5) = parseAcceleratorInputs(rest4, constTypes, Seq())
     val (body, rest6) = parseExpr(rest5, constTypes)
-    val inputDelays =
-      inputs.flatMap({ case (x, delay) => delay.map(x -> _) }).toMap
     val bodyWithInputs = inputs
       .map({ case (x, _) => x })
       .foldRight(body)({ case (x, body) => Function(x, body)() })
@@ -207,7 +207,7 @@ object Parser {
       bodyWithInputs,
       annotations,
       annotationsByParam,
-      inputDelays
+      inputs.toMap
     )
     (accel, rest6)
   }
@@ -272,8 +272,8 @@ object Parser {
   private def parseAcceleratorInputs(
       tokens: Seq[Token],
       constants: Map[Param, Type],
-      inputsSoFar: Seq[(Param, Option[Expr])]
-  ): (Seq[(Param, Option[Expr])], Seq[Token]) = {
+      inputsSoFar: Seq[(Param, InputDelay)]
+  ): (Seq[(Param, InputDelay)], Seq[Token]) = {
     tokens.headOption match {
       case Some(_: LeftParToken) =>
         val rest1 = tokens.tail
@@ -288,8 +288,12 @@ object Parser {
                   case Some(_: AtToken) =>
                     val rest4_1 = rest4.tail
                     val (delay, rest4_2) = parseExpr(rest4_1, constants)
-                    (Some(delay), rest4_2)
-                  case _ => (None, rest4)
+                    (InputDelayConcrete(delay), rest4_2)
+                  case _ =>
+                    logger.debug(
+                      s"using default delay of $DEFAULT_DELAY_ANNOTATION for input '$x'"
+                    )
+                    (InputDelayConcrete(C(DEFAULT_DELAY_ANNOTATION)()), rest4)
                 }
                 val (_, rest6) = expect(RightParToken, rest5)
                 val (_, rest7) = expect(DoubleArrowToken, rest6)
@@ -1215,10 +1219,9 @@ object Parser {
               case _ =>
                 (None, Seq(), rest2)
             }
-            val (lpar, rest4) = expect(LeftParToken, rest3)
+            val (_, rest4) = expect(LeftParToken, rest3)
             val (args, rest5) = parseExprList(rest4, constants)
             val (_, rest6) = expect(RightParToken, rest5)
-            val loc = lsq.map(_.loc).getOrElse(lpar.loc)
             val call = Call(Param(op, -1)(Missing), typArgs, e +: args)
             parseExpr100Prime(call, rest6, constants)
           case Some(tok) =>

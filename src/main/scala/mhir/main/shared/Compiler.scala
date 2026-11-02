@@ -123,8 +123,8 @@ object Compiler {
       val (_, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
       val analysis = new LatencyAnalysis(handshake = finalProgram.handshake)
       val latencyByParam = finalProgram.accel.inputDelays.map({
-        case (x, IntCst(d)) => x -> LatencyConcrete(d.toInt)
-        case (x, delay) =>
+        case (x, InputDelayConcrete(IntCst(d))) => x -> LatencyConcrete(d.toInt)
+        case (x, InputDelayConcrete(delay)) =>
           throw SemanticError(
             s"latency matching does not currently support non-constant delay $delay for input $x"
           )
@@ -287,7 +287,8 @@ object Compiler {
     time2("lowering", Level.DEBUG) {
       val inlinedProg = inlineConstants(prog)
       val newInputDelays = inlinedProg.accel.inputDelays.map({
-        case (x, delay) => x -> delay.lower
+        case (x, InputDelayConcrete(delay)) =>
+          x -> InputDelayConcrete(delay.lower)
       })
       val loweredExpr = translateStmLiteral(inlinedProg.accel.body.lower)
       val loweredTests =
@@ -320,8 +321,9 @@ object Compiler {
       .toMap[Expr, Expr]
     val newAccel = prog.accel.copy(
       body = prog.accel.body.subPreserveType(mainConstVals),
-      inputDelays = prog.accel.inputDelays.map({ case (x, delay) =>
-        x -> delay.subPreserveType(mainConstVals)
+      inputDelays = prog.accel.inputDelays.map({
+        case (x, InputDelayConcrete(delay)) =>
+          x -> InputDelayConcrete(delay.subPreserveType(mainConstVals))
       })
     )
     val (_, newTestSuite) =
@@ -388,13 +390,14 @@ object Compiler {
       prog: Program,
       optFlags: OptimizerOptions
   ): Program = {
-    val newInputDelays = prog.accel.inputDelays.map({ case (x, delay) =>
-      x -> PartialEvalPass.partialEval(delay)
+    val newInputDelays = prog.accel.inputDelays.map({
+      case (x, InputDelayConcrete(delay)) =>
+        x -> InputDelayConcrete(PartialEvalPass.partialEval(delay))
     })
     // TODO: deduplicate this code
     val latencyByParam = newInputDelays.map({
-      case (x, IntCst(d)) => x -> LatencyConcrete(d.toInt)
-      case (x, delay) =>
+      case (x, InputDelayConcrete(IntCst(d))) => x -> LatencyConcrete(d.toInt)
+      case (x, InputDelayConcrete(delay)) =>
         throw SemanticError(
           s"latency matching does not currently support non-constant delay $delay for input $x"
         )
@@ -469,7 +472,7 @@ object Compiler {
 
   private def getDelayToAddByInput(
       inputs: Map[Param, Expr],
-      expected: Map[Param, Expr],
+      expected: Map[Param, InputDelay],
       latencyAnalysis: LatencyAnalysis
   ): Option[Map[Param, Long]] = {
     val init: Option[Map[Param, Int]] = Some(Map[Param, Int]())
@@ -492,10 +495,10 @@ object Compiler {
         assert(actual.keySet == expected.keySet)
         // expected - actual
         val delta = expected.map({
-          case (x, IntCst(expectedDelay)) =>
+          case (x, InputDelayConcrete(IntCst(expectedDelay))) =>
             val actualLatency = actual(x)
             x -> (expectedDelay - actualLatency)
-          case (x, e) =>
+          case (x, InputDelayConcrete(e)) =>
             throw SemanticError(
               s"non-static delay annotation for input $x is not supported: $e"
             )
