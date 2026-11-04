@@ -51,10 +51,11 @@ class LatencyAnalysis(handshake: Boolean) {
 
   def solveForAutoDelays(
       e: Expr,
-      latencyWithAuto: LatencyNode
+      latencyWithAuto: LatencyNode,
+      latencyByParam: Map[Param, Latency]
   ): Map[Param, Int] = {
     val outLatency = latencyWithAuto.latency match {
-      case LatencyConcrete(n) => n
+      case LatencyConcrete(n) => Some(n)
       case LatencyAuto        =>
         // Apparently the latency of the pipeline entirely depends on inputs
         // with "auto" delay.
@@ -62,19 +63,42 @@ class LatencyAnalysis(handshake: Boolean) {
         // delays.
         // With the output of the pipeline at t = 0, the input stream
         // latencies will probably end up being negative, but that's fine.
-        0
+        Some(0)
       case LatencyUnknown =>
         logger.debug(
           "cannot solve for auto delays because final latency is unknown"
         )
         // TODO: should I choose arbitrary values for the params that have auto delay?
-        return Map()
+        None
     }
-    val backPass = new BackwardLatencyAnalysis(handshake = this.handshake)
-    backPass.runAndRecordDelays(outLatency, e, latencyWithAuto)
+    val delayUpdates = outLatency
+      .map({ outLatency =>
+        val backPass = new BackwardLatencyAnalysis(handshake = this.handshake)
+        backPass.runAndRecordDelays(outLatency, e, latencyWithAuto)
+        backPass.delayUpdates
+      })
+      .getOrElse(Map())
     // TODO: I may need to add some more entries in the delayUpdates map if
     //       some inputs are unused
-    backPass.delayUpdates
+    assert(
+      delayUpdates.keySet.subsetOf(latencyByParam.keySet), {
+        val extraParams = delayUpdates.keySet
+          .diff(latencyByParam.keySet)
+          .toSeq
+          .sortBy(_.name)
+          .mkString(", ")
+        s"delayUpdates has unknown params: $extraParams"
+      }
+    )
+    latencyByParam
+      .flatMap({
+        case (x, LatencyAuto) =>
+          // If an input does not appear in delayUpdates, it means its delay
+          // doesn't matter.
+          // Therefore, arbitrarily choose 0 for the delay.
+          Some(x -> delayUpdates.getOrElse(x, 0))
+        case _ => None
+      })
   }
 
   private def latencyForward(

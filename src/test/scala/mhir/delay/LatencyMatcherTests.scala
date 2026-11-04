@@ -1044,4 +1044,50 @@ class LatencyMatcherTests extends AnyFunSuite {
     // No warnings
     assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
   }
+
+  test("NoHandshake:AutoDelay:CompletelyUnusedInput") {
+    val env = new Env(handshake = false)
+    val n = 10
+    val original @ Function(x, Function(y, originalBody)) = {
+      val x = Param("x", -1)(TyStm(U8, n)) // @ ?
+      val y = Param("y", -1)(TyStm(U8, n)) // @ ?
+      Function(x, Function(y, x)())().tchk()
+    }
+    // TODO: set buffer size to 0 in LetStm (see ShiftRegisterShrinkerTests.postProcess)
+    val (Function(_, Function(_, actualBody)), delayUpdates) =
+      env.pass.matchLatencies(
+        original,
+        headByParam = Map(x -> Undefined(U8), y -> Undefined(U8)),
+        latencyByParam = Map(x -> LatencyAuto, y -> LatencyAuto)
+      )
+
+    // Correct choice of delay
+    assert(delayUpdates.size == 2)
+    assert(delayUpdates.contains(x)) // value doesn't really matter
+    assert(delayUpdates.contains(y)) // value doesn't really matter
+
+    // There should NOT be a latency mismatch (not that it's really possible
+    // to mess it up in this case)
+    {
+      val InputDelayConcrete(IntCst(xDelay)) = delayUpdates(x)
+      val InputDelayConcrete(IntCst(yDelay)) = delayUpdates(y)
+      val minDelay = math.min(xDelay, yDelay)
+      val xVal = StmLiteral(
+        (0 until (xDelay - minDelay).toInt).map(_ => Undefined(U8)),
+        (0 until n).map(C(_)(U8))
+      )(Missing).tchk()
+      val yVal = StmLiteral(
+        (0 until (yDelay - minDelay).toInt).map(_ => Undefined(U8)),
+        (0 until n).map(_ + 42).map(C(_)(U8))
+      )(Missing).tchk()
+      val inputs = Map(x -> xVal, y -> yVal)
+      val expectedVal = xVal
+      val actualVal =
+        mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
+      assert(actualVal == expectedVal)
+    }
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
+  }
 }

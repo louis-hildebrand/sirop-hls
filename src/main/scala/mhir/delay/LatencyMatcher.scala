@@ -87,7 +87,8 @@ class EnabledLatencyMatcher(
         latencyAnalysis.idealLatency(body, latencyByParam)
       val delayUpdates = latencyAnalysis.solveForAutoDelays(
         body,
-        latencyWithAuto
+        latencyWithAuto,
+        latencyByParam
       )
       val latencyConcrete =
         latencyAnalysis.idealLatency(
@@ -321,7 +322,8 @@ class DisabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
     val latencyWithAuto = latencyAnalysis.idealLatency(body, latencyByParam)
     val delayUpdates = latencyAnalysis.solveForAutoDelays(
       body,
-      latencyWithAuto
+      latencyWithAuto,
+      latencyByParam
     )
     val newE = TypeChecker.wrapTopLevelFunction(inputs, body)
     (newE, delayUpdates.map({ case (x, d) => x -> InputDelayConcrete(d) }))
