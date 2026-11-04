@@ -1,2 +1,6 @@
-[INFO ] the design has a latency of 1 cycle
+[INFO ] schedule:
+[INFO ]   a @ 0
+[INFO ]   b @ 0
+[INFO ]   go @ 0
+[INFO ]   output @ 1
 [INFO ] VHDL testbench passed!

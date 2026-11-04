@@ -112,31 +112,7 @@ object Compiler {
       logger.debug("skipping name simplification")
       optimizedProgram
     }
-    val latency = {
-      val (_, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
-      val analysis = new LatencyAnalysis(handshake = finalProgram.handshake)
-      val latencyByParam = finalProgram.accel.inputDelays
-        .map({ case (x, d) => x -> Latency(d) })
-      analysis.actualLatency(body, latencyByParam).latency
-    }
-    latency match {
-      case LatencyConcrete(n) =>
-        val cycleOrCycles = if (n == 1) "cycle" else "cycles"
-        val msg = s"the design has a latency of $n $cycleOrCycles"
-        if (finalProgram.handshake) {
-          logger.debug(msg)
-        } else {
-          logger.info(msg)
-        }
-      case lat =>
-        if (finalProgram.handshake) {
-          logger.debug(s"the latency of the design is unknown ($lat)")
-        } else {
-          throw SemanticError(
-            "there is a latency mismatch and automatic latency matching is disabled"
-          )
-        }
-    }
+    reportLatency(finalProgram)
     time("post-optimization semantic analysis", Level.DEBUG) {
       SemanticAnalyzer.check(finalProgram)
     }
@@ -540,6 +516,47 @@ object Compiler {
         )(s.typ)
       case e =>
         StmDelay(e, C(delay)(), head)().tchk().lower
+    }
+  }
+
+  private def reportLatency(prog: Program): Unit = {
+    // TODO: Make this a separate target, rather than handling it here?
+    val outLatency = {
+      val (_, body) = TypeChecker.unwrapTopLevelFunction(prog.body)
+      val analysis = new LatencyAnalysis(handshake = prog.handshake)
+      val latencyByParam = prog.accel.inputDelays
+        .map({ case (x, d) => x -> Latency(d) })
+      analysis.actualLatency(body, latencyByParam).latency
+    }
+    outLatency match {
+      case _: LatencyConcrete => ()
+      case _ =>
+        if (!prog.handshake) {
+          throw SemanticError(
+            "there is a latency mismatch and automatic latency matching is disabled"
+          )
+        }
+    }
+    val linesToReport = prog.accel.inputDelays.toSeq
+      .map({ case (x, d) => s"${x.name} @ $d" })
+      .sorted
+      .:+({
+        // TODO: Be consistent here; check VHDL generator
+        val name = prog.outName.getOrElse("output")
+        val latencyStr = outLatency match {
+          case LatencyConcrete(n) => n.toString
+          case LatencyUnknown     => "unknown"
+          case LatencyAuto        => "?"
+        }
+        s"$name @ $latencyStr"
+      })
+    if (prog.handshake) {
+      logger.debug(s"schedule: ${linesToReport.mkString(" ; ")}")
+    } else {
+      logger.info("schedule:")
+      for (line <- linesToReport) {
+        logger.info("  " + line)
+      }
     }
   }
 
