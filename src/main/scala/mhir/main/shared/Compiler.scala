@@ -352,7 +352,6 @@ object Compiler {
   ): Program = {
     val newInputDelays = prog.accel.inputDelays
       .map({ case (x, d) => x -> d.map(PartialEvalPass.partialEval) })
-    // TODO: deduplicate this code
     val latencyByParam = newInputDelays.map({ case (x, d) => x -> Latency(d) })
     val optimizer = Optimizer(
       optFlags,
@@ -520,7 +519,6 @@ object Compiler {
   }
 
   private def reportLatency(prog: Program): Unit = {
-    // TODO: Make this a separate target, rather than handling it here?
     val outLatency = {
       val (_, body) = TypeChecker.unwrapTopLevelFunction(prog.body)
       val analysis = new LatencyAnalysis(handshake = prog.handshake)

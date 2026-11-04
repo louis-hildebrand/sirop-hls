@@ -68,7 +68,6 @@ class LatencyAnalysis(handshake: Boolean) {
         logger.debug(
           "cannot solve for auto delays because final latency is unknown"
         )
-        // TODO: should I choose arbitrary values for the params that have auto delay?
         None
     }
     val delayUpdates = outLatency
@@ -78,8 +77,6 @@ class LatencyAnalysis(handshake: Boolean) {
         backPass.delayUpdates
       })
       .getOrElse(Map())
-    // TODO: I may need to add some more entries in the delayUpdates map if
-    //       some inputs are unused
     assert(
       delayUpdates.keySet.subsetOf(latencyByParam.keySet), {
         val extraParams = delayUpdates.keySet
