@@ -408,9 +408,10 @@ object Compiler {
       headByParam = prog.headByParam,
       latencyByParam = latencyByParam
     )
-    val newBody = optimizer.optimize(prog.body)
+    val (newBody, delayUpdates) = optimizer.optimize(prog.body)
     prog.copy(accel =
-      prog.accel.copy(body = newBody, inputDelays = newInputDelays)
+      prog.accel
+        .copy(body = newBody, inputDelays = newInputDelays ++ delayUpdates)
     )
   }
 
@@ -441,10 +442,14 @@ object Compiler {
         val e1 = PartialEvalPass.partialEval(e0)()
         // Need to run latency matching and shrink all the letstm buffers
         // to avoid errors and warnings during evaluation
-        val e2 = latencyMatcher.matchLatencies(
+        val (e2, delayUpdates) = latencyMatcher.matchLatencies(
           e1,
           headByParam = Map(),
           latencyByParam = Map()
+        )
+        assert(
+          delayUpdates.isEmpty,
+          "there should be no delay updates, since no input streams were given"
         )
         val e3 = letBufShrinker.shrinkBuffers(e2)
         e3

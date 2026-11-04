@@ -23,8 +23,9 @@ trait LatencyMatcher {
   def matchLatencies(
       e: Expr,
       headByParam: Map[Param, Expr],
+      // TODO: Maybe this should be a Map[Param, InputDelay] rather than a Map[Param, Latency]
       latencyByParam: Map[Param, Latency]
-  ): Expr
+  ): (Expr, Map[Param, InputDelayConcrete])
 }
 
 object LatencyMatcher {
@@ -42,7 +43,7 @@ object LatencyMatcher {
         handshake = handshake
       )
     } else {
-      DisabledLatencyMatcher
+      DisabledLatencyMatcher(latencyAnalysis)
     }
   }
 }
@@ -78,18 +79,31 @@ class EnabledLatencyMatcher(
       e: Expr,
       headByParam: Map[Param, Expr],
       latencyByParam: Map[Param, Latency]
-  ): Expr = {
+  ): (Expr, Map[Param, InputDelayConcrete]) = {
     time("latency matching", Level.DEBUG) {
       // TODO: move this unwrapping and wrapping out of this method?
       val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
-      val lat = latencyAnalysis.idealLatency(body, latencyByParam)
+      val latencyWithAuto =
+        latencyAnalysis.idealLatency(body, latencyByParam)
+      val delayUpdates = latencyAnalysis.solveForAutoDelays(
+        body,
+        latencyWithAuto
+      )
+      val latencyConcrete =
+        latencyAnalysis.idealLatency(
+          body,
+          latencyByParam ++ delayUpdates.map({ case (x, d) =>
+            x -> LatencyConcrete(d)
+          })
+        )
       val newBody = matchLatencies(
         body,
-        lat,
+        latencyConcrete,
         headByParam.map({ case (x, v) => x -> Head(v, None) })
       )
       this.logAndClearWarnings()
-      TypeChecker.wrapTopLevelFunction(inputs, newBody)
+      val newE = TypeChecker.wrapTopLevelFunction(inputs, newBody)
+      (newE, delayUpdates.map({ case (x, d) => x -> InputDelayConcrete(d) }))
     }
   }
 
@@ -286,7 +300,8 @@ object EnabledLatencyMatcher {
   }
 }
 
-object DisabledLatencyMatcher extends LatencyMatcher {
+class DisabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
+    extends LatencyMatcher {
 
   private val logger: Logger = Logger(getClass.getName)
   private var hasLogged: Boolean = false
@@ -297,11 +312,25 @@ object DisabledLatencyMatcher extends LatencyMatcher {
       e: Expr,
       headByParam: Map[Param, Expr],
       latencyByParam: Map[Param, Latency]
-  ): Expr = {
+  ): (Expr, Map[Param, InputDelayConcrete]) = {
     if (!hasLogged) {
       hasLogged = true
       logger.debug("latency matching is disabled")
     }
-    e
+    val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
+    val latencyWithAuto = latencyAnalysis.idealLatency(body, latencyByParam)
+    val delayUpdates = latencyAnalysis.solveForAutoDelays(
+      body,
+      latencyWithAuto
+    )
+    val newE = TypeChecker.wrapTopLevelFunction(inputs, body)
+    (newE, delayUpdates.map({ case (x, d) => x -> InputDelayConcrete(d) }))
+  }
+}
+
+object DisabledLatencyMatcher {
+
+  def apply(latencyAnalysis: LatencyAnalysis): DisabledLatencyMatcher = {
+    new DisabledLatencyMatcher(latencyAnalysis)
   }
 }

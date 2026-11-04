@@ -172,8 +172,12 @@ object Repl {
             Some(x -> LatencyConcrete(physical.length))
           case _ => None
         })
-      val afterLatencyMatching =
+      val (afterLatencyMatching, delayUpdates) =
         latencyMatcher.matchLatencies(simplified, headByParam, latencyByParam)
+      assert(
+        delayUpdates.isEmpty,
+        "there should be no delay updates, since every param was already assigned a concrete delay"
+      )
       val letBufShrinker = new StaticLetStmBufferShrinker(
         latencyAnalysis,
         handshake = state.handshake,

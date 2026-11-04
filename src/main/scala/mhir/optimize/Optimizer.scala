@@ -1,7 +1,7 @@
 package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
-import mhir.delay.{Latency, LatencyAnalysis, LatencyMatcher}
+import mhir.delay.{Latency, LatencyAnalysis, LatencyConcrete, LatencyMatcher}
 import mhir.ir._
 import mhir.logging.time
 import mhir.optimize.cost.SimpleDelayCostModel
@@ -29,7 +29,7 @@ class Optimizer(
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
-  def optimize(s: Expr): Expr = {
+  def optimize(s: Expr): (Expr, Map[Param, InputDelayConcrete]) = {
     logger.trace(s"optimizing expression: $s")
 
     // No flag to skip this step because
@@ -84,8 +84,8 @@ class Optimizer(
       s3_3
     }
 
-    val s5 = {
-      val s4_1 = latencyMatcher.matchLatencies(
+    val (s5, delayUpdates) = {
+      val (s4_1, delayUpdates) = latencyMatcher.matchLatencies(
         s4,
         headByParam = headByParam,
         latencyByParam = latencyByParam
@@ -93,7 +93,7 @@ class Optimizer(
       // In no_handshake mode, some new shift registers may have appeared and
       // it may be possible to merge these with existing ones
       val s4_2 = simplifier.simplify(s4_1)
-      s4_2
+      (s4_2, delayUpdates)
     }
 
     val s6 = unusedDataRemover.removeUnusedData(s5)
@@ -122,7 +122,7 @@ class Optimizer(
       )
     }
 
-    s9
+    (s9, delayUpdates)
   }
 }
 

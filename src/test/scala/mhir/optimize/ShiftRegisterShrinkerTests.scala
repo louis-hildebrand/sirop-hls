@@ -56,7 +56,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
       unusedDataRemover,
       handshake = handshake
     )
-    val afterLatencyMatching =
+    val (afterLatencyMatching, _) =
       latencyMatcher.matchLatencies(simplified, headByParam, latencyByParam)
     val letBufShrinker = new StaticLetStmBufferShrinker(
       latencyAnalysis,

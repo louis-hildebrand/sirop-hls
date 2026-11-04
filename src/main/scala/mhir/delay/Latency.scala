@@ -14,3 +14,8 @@ case class LatencyConcrete(n: Int) extends Latency
   * compiler was not smart enough to figure it out from the source code, etc.
   */
 object LatencyUnknown extends Latency
+
+/** The latency depends entirely on one or more [[mhir.ir.InputDelay]] values
+  * that the compiler must choose.
+  */
+object LatencyAuto extends Latency

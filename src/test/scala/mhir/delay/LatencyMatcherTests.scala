@@ -76,11 +76,13 @@ class LatencyMatcherTests extends AnyFunSuite {
       }
       LetStm(1, s, count, delay)().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(
+    val (optimized, delayUpdates) = env.pass.matchLatencies(
       original,
       headByParam = Map(),
       latencyByParam = Map()
     )
+
+    assert(delayUpdates.isEmpty)
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -109,11 +111,13 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(sA, sB, timesTwo)
       LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(
+    val (optimized, delayUpdates) = env.pass.matchLatencies(
       original,
       headByParam = Map(),
       latencyByParam = Map()
     )
+
+    assert(delayUpdates.isEmpty)
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -174,11 +178,13 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(delay, plusOne)
       LetStm(1, s, count, zip)().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(
+    val (optimized, delayUpdates) = env.pass.matchLatencies(
       original,
       headByParam = Map(),
       latencyByParam = Map()
     )
+
+    assert(delayUpdates.isEmpty)
 
     // Correct behaviour
     val expectedVal = mhir.eval.eval(original)
@@ -270,11 +276,13 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zipped = SimpleZip(sumPlusFive, stm2Vec)
       LetStm(1, x, count, zipped)().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(
+    val (optimized, delayUpdates) = env.pass.matchLatencies(
       original,
       headByParam = Map(),
       latencyByParam = Map()
     )
+
+    assert(delayUpdates.isEmpty)
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -302,11 +310,13 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(s0, plusFive)
       LetStm(1, s1, LetStm(1, s0, count, zip)(), s1)().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(
+    val (optimized, delayUpdates) = env.pass.matchLatencies(
       original,
       headByParam = Map(),
       latencyByParam = Map()
     )
+
+    assert(delayUpdates.isEmpty)
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -333,11 +343,13 @@ class LatencyMatcherTests extends AnyFunSuite {
         SimpleConcatHandshake(s0, SimpleMap(s0, x => Sum(C(5)(U8), x)()))
       LetStm(n, s0, count, concat)().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(
+    val (optimized, delayUpdates) = env.pass.matchLatencies(
       original,
       headByParam = Map(),
       latencyByParam = Map()
     )
+
+    assert(delayUpdates.isEmpty)
 
     // Correct behaviour
     val originalVal = mhir.eval.eval(original)
@@ -366,11 +378,13 @@ class LatencyMatcherTests extends AnyFunSuite {
       val zip = SimpleZip(sA, sB, timesTwo)
       LetStm(1, sA, count, LetStm(1, sB, plusFive, zip)())().tchk().lower
     }
-    val optimized = env.pass.matchLatencies(
+    val (optimized, delayUpdates) = env.pass.matchLatencies(
       original,
       headByParam = Map(sA -> Undefined(Missing), sB -> Undefined(Missing)),
       latencyByParam = Map(sA -> LatencyConcrete(0), sB -> LatencyConcrete(0))
     )
+
+    assert(delayUpdates.isEmpty)
 
     // Correct behaviour
     val expectedVal = StmLiteral(
@@ -446,11 +460,13 @@ class LatencyMatcherTests extends AnyFunSuite {
       }
       Function(input, zip)().tchk()
     }
-    val actual = env.pass.matchLatencies(
+    val (Function(_, actualBody), delayUpdates) = env.pass.matchLatencies(
       original,
       headByParam = Map(),
       latencyByParam = Map(input -> LatencyConcrete(0))
     )
+
+    assert(delayUpdates.isEmpty)
 
     val inputs = Map(
       input -> StmCount(n, C(42)(U8), C(1)(U8))().tchk().lower
@@ -483,11 +499,8 @@ class LatencyMatcherTests extends AnyFunSuite {
         Tuple(C(46)(U8), C(49)(U8))()
       )
     )(Missing).tchk()
-    val actualVal = mhir.eval.eval(
-      actual.asInstanceOf[Function].body,
-      handshake = false,
-      inputs = inputs
-    )
+    val actualVal =
+      mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
     assert(actualVal == expectedVal)
 
     // No warnings
@@ -534,12 +547,15 @@ class LatencyMatcherTests extends AnyFunSuite {
       }
       Function(input1, Function(input2, zip)())().tchk()
     }
-    val Function(_, Function(_, actualBody)) = env.pass.matchLatencies(
-      original,
-      headByParam = Map(),
-      latencyByParam =
-        Map(input1 -> LatencyConcrete(0), input2 -> LatencyConcrete(0))
-    )
+    val (Function(_, Function(_, actualBody)), delayUpdates) =
+      env.pass.matchLatencies(
+        original,
+        headByParam = Map(),
+        latencyByParam =
+          Map(input1 -> LatencyConcrete(0), input2 -> LatencyConcrete(0))
+      )
+
+    assert(delayUpdates.isEmpty)
 
     val inputs = Map(
       input1 -> StmCount(n, C(1)(U16), C(1)(U16))().tchk().lower,
@@ -606,13 +622,15 @@ class LatencyMatcherTests extends AnyFunSuite {
       }
       Function(input1, Function(input2, zip)())().tchk()
     }
-    val Function(_, Function(_, actualBody)) =
+    val (Function(_, Function(_, actualBody)), delayUpdates) =
       env.pass.matchLatencies(
         original,
         headByParam = Map(input2 -> False),
         latencyByParam =
           Map(input1 -> LatencyConcrete(0), input2 -> LatencyConcrete(0))
       )
+
+    assert(delayUpdates.isEmpty)
 
     val inputs = Map(
       input1 -> StmCount(n, C(1)(U16), C(1)(U16))().tchk().lower,
@@ -646,6 +664,382 @@ class LatencyMatcherTests extends AnyFunSuite {
     val actualVal =
       mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
     assert(actualVal == expectedVal)
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
+  }
+
+  test("NoHandshake:AutoDelay:Simple") {
+    val env = new Env(handshake = false)
+    val n = 10
+    val original @ Function(sA, Function(sB, Function(sC, originalBody))) = {
+      val sA = Param("a")(TyStm(U8, n)) // @ 0
+      val sB = Param("b")(TyStm(U8, n)) // @ ?
+      val sC = Param("c")(TyStm(U8, n)) // @ ?
+      val aPlusFive = SimpleMap(sA, x => Sum(C(5)(U8), x)())
+      val aPlusFiveTimesThree = SimpleMap(aPlusFive, x => Prod(C(3)(U8), x)())
+      val cPlusThree = SimpleMap(
+        SimpleMap(
+          SimpleMap(sC, x => Sum(C(1)(U8), x)()),
+          x => Sum(C(1)(U8), x)()
+        ),
+        x => Sum(C(1)(U8), x)()
+      )
+      val zipABC = SimpleZip(aPlusFiveTimesThree, sB, cPlusThree)
+      Function(sA, Function(sB, Function(sC, SimpleNop(zipABC))())())().tchk()
+    }
+    val (Function(_, Function(_, Function(_, actualBody))), delayUpdates) =
+      env.pass.matchLatencies(
+        original,
+        headByParam =
+          Map(sA -> Undefined(U8), sB -> Undefined(U8), sC -> Undefined(U8)),
+        latencyByParam =
+          Map(sA -> LatencyConcrete(0), sB -> LatencyAuto, sC -> LatencyAuto)
+      )
+
+    // Correct choice of delay
+    assert(delayUpdates.size == 2)
+    assert(delayUpdates(sB) == InputDelayConcrete(C(2)()))
+    assert(delayUpdates(sC) == InputDelayConcrete(C(-1)()))
+
+    // There should be a latency mismatch when the input delays are wrong
+    {
+      val inputs = Map(
+        sA -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(C(_)(U8))
+        )(Missing).tchk(),
+        sB -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(_ + 42).map(C(_)(U8))
+        )(Missing).tchk(),
+        sC -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(20 - _).map(C(_)(U8))
+        )(Missing).tchk()
+      )
+      assertThrows[DelayMismatch](
+        mhir.eval.eval(originalBody, handshake = false, inputs = inputs)
+      )
+    }
+
+    // There should NOT be a latency mismatch when the input delays are correct
+    {
+      val InputDelayConcrete(IntCst(bDelay)) = delayUpdates(sB)
+      val InputDelayConcrete(IntCst(cDelay)) = delayUpdates(sC)
+      val inputs = Map(
+        sA -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(C(_)(U8))
+        )(Missing).tchk(),
+        sB -> StmLiteral(
+          (0 until (1 + bDelay.toInt)).map(_ => Undefined(U8)),
+          (0 until n).map(_ + 42).map(C(_)(U8))
+        )(Missing).tchk(),
+        sC -> StmLiteral(
+          (0 until (1 + cDelay.toInt)).map(_ => Undefined(U8)),
+          (0 until n).map(20 - _).map(C(_)(U8))
+        )(Missing).tchk()
+      )
+      val expectedVal = StmLiteral(
+        Seq(
+          Undefined(TyTuple(U8, U8, U8)),
+          Undefined(TyTuple(U8, U8, U8)),
+          Undefined(TyTuple(U8, U8, U8)),
+          Undefined(TyTuple(U8, U8, U8)),
+          Undefined(TyTuple(U8, U8, U8))
+        ),
+        (0 until n)
+          .map(t => (t, t + 42, 20 - t))
+          .map({ case (a, b, c) => (3 * (a + 5), b, c + 3) })
+          .map({ case (x, y, z) => Tuple(C(x)(U8), C(y)(U8), C(z)(U8))() })
+      )(Missing).tchk()
+      val actualVal =
+        mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
+      assert(actualVal == expectedVal)
+    }
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
+  }
+
+  test("NoHandshake:AutoDelay:AllAuto") {
+    val env = new Env(handshake = false)
+    val n = 10
+    val original @ Function(sA, Function(sB, originalBody)) = {
+      val sA = Param("a")(TyStm(U8, n)) // @ ?
+      val sB = Param("b")(TyStm(U8, n)) // @ ?
+      val aPlusFive = SimpleMap(sA, x => Sum(C(5)(U8), x)())
+      val zipAB = SimpleZip(aPlusFive, sB)
+      Function(sA, Function(sB, zipAB)())().tchk()
+    }
+    val (Function(_, Function(_, actualBody)), delayUpdates) =
+      env.pass.matchLatencies(
+        original,
+        headByParam = Map(sA -> Undefined(U8), sB -> Undefined(U8)),
+        latencyByParam = Map(sA -> LatencyAuto, sB -> LatencyAuto)
+      )
+
+    // Correct choice of delay
+    assert(delayUpdates.size == 2)
+    val IntCst(delayA) = delayUpdates(sA).n
+    val IntCst(delayB) = delayUpdates(sB).n
+    assert(delayB == delayA + 1)
+
+    // There should be a latency mismatch when the input delays are wrong
+    {
+      val inputs = Map(
+        sA -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(C(_)(U8))
+        )(Missing).tchk(),
+        sB -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(_ + 42).map(C(_)(U8))
+        )(Missing).tchk()
+      )
+      assertThrows[DelayMismatch](
+        mhir.eval.eval(originalBody, handshake = false, inputs = inputs)
+      )
+    }
+
+    // There should NOT be a latency mismatch when the input delays are correct
+    {
+      val InputDelayConcrete(IntCst(aDelay)) = delayUpdates(sA)
+      val InputDelayConcrete(IntCst(bDelay)) = delayUpdates(sB)
+      val inputs = Map(
+        sA -> StmLiteral(
+          (0 until math.max(0, aDelay - bDelay).toInt).map(_ => Undefined(U8)),
+          (0 until n).map(C(_)(U8))
+        )(Missing).tchk(),
+        sB -> StmLiteral(
+          (0 until math.max(0, bDelay - aDelay).toInt).map(_ => Undefined(U8)),
+          (0 until n).map(_ + 42).map(C(_)(U8))
+        )(Missing).tchk()
+      )
+      val expectedVal = StmLiteral(
+        Seq(
+          Undefined(TyTuple(U8, U8)),
+          Undefined(TyTuple(U8, U8))
+        ),
+        (0 until n)
+          .map(t => (t, t + 42))
+          .map({ case (a, b) => (a + 5, b) })
+          .map({ case (x, y) => Tuple(C(x)(U8), C(y)(U8))() })
+      )(Missing).tchk()
+      val actualVal =
+        mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
+      assert(actualVal == expectedVal)
+    }
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
+  }
+
+  test("NoHandshake:AutoDelay:AutoInLetStm") {
+    val env = new Env(handshake = false)
+    val n = 10
+    val original @ Function(x, Function(y, Function(z, originalBody))) = {
+      val x = Param("x", -1)(TyStm(U8, n)) // @ ?
+      val y = Param("y", -1)(TyStm(U8, n)) // @ ?
+      val z = Param("z", -1)(TyStm(U8, n)) // @ ?
+      val x1 = Param("x", -1)(TyStm(U8, n))
+      val x2 = Param("x", -1)(TyStm(TyTuple(U8, U8, U8), n))
+      val w = Param("w", -1)(TyStm(U8, n))
+      val body = LetStm(
+        n,
+        x1,
+        x,
+        LetStm(
+          n,
+          w,
+          x1,
+          LetStm(
+            n,
+            x2, {
+              SimpleZip(x1, SimpleMap(x1, x => Sum(C(5)(U8), x)()), y)
+            }, {
+              SimpleZip(
+                w,
+                x2,
+                SimpleMap(x2, x => Sum(x.__0, x.__1, x.__2)()),
+                z
+              )
+            }
+          )()
+        )()
+      )()
+      Function(x, Function(y, Function(z, body)())())().tchk()
+    }
+    // TODO: set buffer size to 0 in LetStm (see ShiftRegisterShrinkerTests.postProcess)
+    val (Function(_, Function(_, Function(_, actualBody))), delayUpdates) =
+      env.pass.matchLatencies(
+        original,
+        headByParam =
+          Map(x -> Undefined(U8), y -> Undefined(U8), z -> Undefined(U8)),
+        latencyByParam =
+          Map(x -> LatencyAuto, y -> LatencyAuto, z -> LatencyAuto)
+      )
+
+    // Correct choice of delay
+    assert(delayUpdates.size == 3)
+    val IntCst(delayX) = delayUpdates(x).n
+    val IntCst(delayY) = delayUpdates(y).n
+    val IntCst(delayZ) = delayUpdates(z).n
+    assert(delayY == delayX + 1)
+    assert(delayZ == delayX + 3)
+
+    // There should be a latency mismatch when the input delays are wrong
+    {
+      val inputs = Map(
+        x -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(C(_)(U8))
+        )(Missing).tchk(),
+        y -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(_ + 42).map(C(_)(U8))
+        )(Missing).tchk(),
+        z -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(20 - _).map(C(_)(U8))
+        )(Missing).tchk()
+      )
+      assertThrows[DelayMismatch](
+        mhir.eval.eval(originalBody, handshake = false, inputs = inputs)
+      )
+    }
+
+    // There should NOT be a latency mismatch when the input delays are correct
+    {
+      val InputDelayConcrete(IntCst(xDelay)) = delayUpdates(x)
+      val InputDelayConcrete(IntCst(yDelay)) = delayUpdates(y)
+      val InputDelayConcrete(IntCst(zDelay)) = delayUpdates(z)
+      val minDelay = Seq(xDelay, yDelay, zDelay).min
+      val inputs = Map(
+        x -> StmLiteral(
+          (0 until (xDelay - minDelay).toInt).map(_ => Undefined(U8)),
+          (0 until n).map(C(_)(U8))
+        )(Missing).tchk(),
+        y -> StmLiteral(
+          (0 until (yDelay - minDelay).toInt).map(_ => Undefined(U8)),
+          (0 until n).map(_ + 42).map(C(_)(U8))
+        )(Missing).tchk(),
+        z -> StmLiteral(
+          (0 until (zDelay - minDelay).toInt).map(_ => Undefined(U8)),
+          (0 until n).map(20 - _).map(C(_)(U8))
+        )(Missing).tchk()
+      )
+      val outElemTyp = TyTuple(U8, TyTuple(U8, U8, U8), U8, U8)
+      val expectedVal = StmLiteral(
+        Seq(
+          Undefined(outElemTyp),
+          Undefined(outElemTyp),
+          Undefined(outElemTyp),
+          Undefined(outElemTyp)
+        ),
+        (0 until n)
+          .map(t => (t, t + 42, 20 - t))
+          .map({ case (x, y, z) => (x, (x, x + 5, y), x + x + 5 + y, z) })
+          .map({ case (a, (b0, b1, b2), c, d) =>
+            Tuple(
+              C(a)(U8),
+              Tuple(C(b0)(U8), C(b1)(U8), C(b2)(U8))(),
+              C(c)(U8),
+              C(d)(U8)
+            )()
+          })
+      )(Missing).tchk()
+      val actualVal =
+        mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
+      assert(actualVal == expectedVal)
+    }
+
+    // No warnings
+    assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
+  }
+
+  test("NoHandshake:AutoDelay:UnusedVariables") {
+    val env = new Env(handshake = false)
+    val n = 10
+    val original @ Function(x, Function(y, Function(z, originalBody))) = {
+      val x = Param("x", -1)(TyStm(U8, n)) // @ ?
+      val y = Param("y", -1)(TyStm(U8, n)) // @ ?
+      val z = Param("z", -1)(TyStm(U8, n)) // @ ?
+      val w = Param("w", -1)(TyStm(TyTuple(U8, U8), n))
+      val body = LetStm(
+        n,
+        w, // unused!
+        // y and z are used to calculate w, but w is unused
+        SimpleZip(SimpleMap(y, x => Sum(C(5)(U8), x)()), z),
+        x
+      )()
+      Function(x, Function(y, Function(z, body)())())().tchk()
+    }
+    // TODO: set buffer size to 0 in LetStm (see ShiftRegisterShrinkerTests.postProcess)
+    val (Function(_, Function(_, Function(_, actualBody))), delayUpdates) =
+      env.pass.matchLatencies(
+        original,
+        headByParam =
+          Map(x -> Undefined(U8), y -> Undefined(U8), z -> Undefined(U8)),
+        latencyByParam =
+          Map(x -> LatencyAuto, y -> LatencyAuto, z -> LatencyAuto)
+      )
+
+    // Correct choice of delay
+    assert(delayUpdates.size == 3)
+    assert(delayUpdates.contains(x)) // value doesn't really matter
+    val IntCst(delayY) = delayUpdates(y).n
+    val IntCst(delayZ) = delayUpdates(z).n
+    assert(delayZ == delayY + 1)
+
+    // There should be a latency mismatch when the input delays are wrong
+    {
+      val inputs = Map(
+        x -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(C(_)(U8))
+        )(Missing).tchk(),
+        y -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(_ + 42).map(C(_)(U8))
+        )(Missing).tchk(),
+        z -> StmLiteral(
+          Seq(Undefined(U8)),
+          (0 until n).map(20 - _).map(C(_)(U8))
+        )(Missing).tchk()
+      )
+      assertThrows[DelayMismatch](
+        mhir.eval.eval(originalBody, handshake = false, inputs = inputs)
+      )
+    }
+
+    // There should NOT be a latency mismatch when the input delays are correct
+    {
+      val InputDelayConcrete(IntCst(xDelay)) = delayUpdates(x)
+      val InputDelayConcrete(IntCst(yDelay)) = delayUpdates(y)
+      val InputDelayConcrete(IntCst(zDelay)) = delayUpdates(z)
+      val minDelay = Seq(xDelay, yDelay, zDelay).min
+      val xVal = StmLiteral(
+        (0 until (xDelay - minDelay).toInt).map(_ => Undefined(U8)),
+        (0 until n).map(C(_)(U8))
+      )(Missing).tchk()
+      val inputs = Map(
+        x -> xVal,
+        y -> StmLiteral(
+          (0 until (yDelay - minDelay).toInt).map(_ => Undefined(U8)),
+          (0 until n).map(_ + 42).map(C(_)(U8))
+        )(Missing).tchk(),
+        z -> StmLiteral(
+          (0 until (zDelay - minDelay).toInt).map(_ => Undefined(U8)),
+          (0 until n).map(20 - _).map(C(_)(U8))
+        )(Missing).tchk()
+      )
+      val expectedVal = xVal
+      val actualVal =
+        mhir.eval.eval(actualBody, handshake = false, inputs = inputs)
+      assert(actualVal == expectedVal)
+    }
 
     // No warnings
     assert(env.loggerStub.getEntries(Level.WARN).isEmpty)
