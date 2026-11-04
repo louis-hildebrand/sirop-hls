@@ -1,0 +1,13 @@
+> my_vec = [42:u8, 43:u8, 44:u8, 45:u8, 46:u8, 47:u8, 48:u8]v
+>
+> // Starting at index 1, read 3 elements, taking every 2nd element
+> my_vec[1:3:2]
+[43:u8, 45:u8, 47:u8]v
+> // Equivalently...
+> [ my_vec[1], my_vec[3], my_vec[5] ]v
+[43:u8, 45:u8, 47:u8]v
+>
+> // The step can be negative!
+> // Starting at index 3, take 4 elements, reading backwards
+> my_vec[3:4:-1]
+[45:u8, 44:u8, 43:u8, 42:u8]v

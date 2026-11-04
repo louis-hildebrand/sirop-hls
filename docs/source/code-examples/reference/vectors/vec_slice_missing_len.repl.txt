@@ -1,0 +1,12 @@
+> my_vec = [42:u8, 43:u8, 44:u8, 45:u8, 46:u8, 47:u8, 48:u8]v
+>
+> my_vec[2::2] // default len: 3
+[44:u8, 46:u8, 48:u8]v
+> my_vec[3::2] // default len: 2
+[45:u8, 47:u8]v
+> my_vec[4::] // default step: 1, default len: 3
+[46:u8, 47:u8, 48:u8]v
+> my_vec[::-1] // default start: 7, default len: 7
+[48:u8, 47:u8, 46:u8, 45:u8, 44:u8, 43:u8, 42:u8]v
+> my_vec[::] // default step: 1, default start: 0, default len: 7
+[42:u8, 43:u8, 44:u8, 45:u8, 46:u8, 47:u8, 48:u8]v
