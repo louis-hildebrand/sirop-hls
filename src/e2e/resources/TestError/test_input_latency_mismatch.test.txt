@@ -1,4 +1,7 @@
-[INFO ] the design has a latency of 2 cycles
+[INFO ] schedule:
+[INFO ]   a @ 0
+[INFO ]   b @ 1
+[INFO ]   c @ 2
 [WARN ] test 0: INPUT LATENCY MISMATCH
   a: expected 0, actual 0 (delta 0)
   b: expected 1, actual 0 (delta -1)

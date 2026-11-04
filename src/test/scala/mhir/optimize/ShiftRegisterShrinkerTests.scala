@@ -1,6 +1,12 @@
 package mhir.optimize
 
 import mhir.canonicalize._
+import mhir.delay.{
+  EnabledLatencyMatcher,
+  Latency,
+  LatencyAnalysis,
+  LatencyConcrete
+}
 import mhir.ir._
 import mhir.optimize.cost.SimpleDelayCostModel
 import mhir.sugar._
@@ -28,7 +34,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
       e: Expr,
       handshake: Boolean = false,
       headByParam: Map[Param, Expr] = Map(),
-      inputDelays: Map[Param, Expr] = Map()
+      latencyByParam: Map[Param, Latency] = Map()
   ): Expr = {
     // TODO: I think this basic sequence of transformations appears in three places: the main compiler, the REPL, and here. See if I can deduplicate it.
     // Certain transformations are needed when the handshake protocol is
@@ -50,13 +56,13 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
       unusedDataRemover,
       handshake = handshake
     )
-    val afterLatencyMatching =
-      latencyMatcher.matchLatencies(simplified, headByParam, inputDelays)
+    val (afterLatencyMatching, _) =
+      latencyMatcher.matchLatencies(simplified, headByParam, latencyByParam)
     val letBufShrinker = new StaticLetStmBufferShrinker(
       latencyAnalysis,
       handshake = handshake,
       assumeThroughputsMatch = false,
-      inputDelays = inputDelays
+      latencyByParam = latencyByParam
     )
     val afterLetBufShrinking =
       letBufShrinker.shrinkBuffers(afterLatencyMatching)
@@ -96,7 +102,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     val simplified = this.postProcess(
       pass.applyOnce(original),
       headByParam = Map(input -> Undefined(U8)),
-      inputDelays = Map(input -> 0)
+      latencyByParam = Map(input -> LatencyConcrete(0))
     )
 
     // Same behaviour
@@ -142,7 +148,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     val simplified = this.postProcess(
       pass.applyOnce(original),
       headByParam = Map(input -> Undefined(U8)),
-      inputDelays = Map(input -> 0)
+      latencyByParam = Map(input -> LatencyConcrete(0))
     )
 
     // Same behaviour
@@ -187,7 +193,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     val simplified = this.postProcess(
       pass.applyOnce(original),
       headByParam = Map(input -> Undefined(U8)),
-      inputDelays = Map(input -> 0)
+      latencyByParam = Map(input -> LatencyConcrete(0))
     )
 
     // Same behaviour
@@ -229,7 +235,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     val simplified = this.postProcess(
       pass.applyOnce(original),
       headByParam = Map(input -> Undefined(U8)),
-      inputDelays = Map(input -> 0)
+      latencyByParam = Map(input -> LatencyConcrete(0))
     )
 
     // Same behaviour
@@ -275,7 +281,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
       this.postProcess(
         simplified,
         headByParam = Map(input -> Undefined(Missing)),
-        inputDelays = Map(input -> 0)
+        latencyByParam = Map(input -> LatencyConcrete(0))
       ),
       original,
       handshake = false,
@@ -303,7 +309,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     val simplified = this.postProcess(
       pass.applyOnce(original),
       headByParam = Map(),
-      inputDelays = Map()
+      latencyByParam = Map()
     )
 
     // Same behaviour
@@ -341,7 +347,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     val simplified = this.postProcess(
       pass.applyOnce(original),
       headByParam = Map(input -> Undefined(U8)),
-      inputDelays = Map(input -> 0)
+      latencyByParam = Map(input -> LatencyConcrete(0))
     )
 
     // Same behaviour
@@ -379,7 +385,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     val simplified = this.postProcess(
       pass.applyOnce(original),
       headByParam = Map(input -> Undefined(U8)),
-      inputDelays = Map(input -> 0)
+      latencyByParam = Map(input -> LatencyConcrete(0))
     )
 
     // Same behaviour
@@ -448,7 +454,7 @@ class ShiftRegisterShrinkerTests extends SiropFunSuite {
     val simplified = this.postProcess(
       pass.applyOnce(original),
       headByParam = Map(input -> Undefined(U8)),
-      inputDelays = Map(input -> 0)
+      latencyByParam = Map(input -> LatencyConcrete(0))
     )
 
     // Same behaviour

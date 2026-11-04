@@ -3,7 +3,6 @@ package mhir.typecheck
 import com.typesafe.scalalogging.Logger
 import mhir.ir._
 import mhir.sem.SemanticError
-import mhir.typecheck.TypeChecker.DEFAULT_DELAY_ANNOTATION
 
 import scala.annotation.tailrec
 
@@ -898,18 +897,10 @@ trait TypeChecker {
         s"input delay map seems to have invalid keys (${this.prog.accel.inputDelays.keySet})"
           + s" that are not in input set ($accelInputs)"
       )
-      val newInputDelays = accelInputs
-        .map({ x =>
-          this.prog.accel.inputDelays.get(x) match {
-            case Some(delay) => x -> delay.tchk(mainConstTypes, mainConstVals)
-            case None =>
-              logger.debug(
-                s"assuming delay of $DEFAULT_DELAY_ANNOTATION for input $x"
-              )
-              x -> C(DEFAULT_DELAY_ANNOTATION)(U0)
-          }
+      val newInputDelays = this.prog.accel.inputDelays
+        .map({ case (x, d) =>
+          x -> d.map(_.tchk(mainConstTypes, mainConstVals))
         })
-        .toMap
       val newAccel =
         this.prog.accel.copy(body = newBody, inputDelays = newInputDelays)
       val (_, _, newTestSuite) =
@@ -1039,8 +1030,6 @@ trait TypeChecker {
 }
 
 object TypeChecker {
-
-  val DEFAULT_DELAY_ANNOTATION: Int = 0
 
   def relevantBindings(
       constValues: Map[Param, Expr],

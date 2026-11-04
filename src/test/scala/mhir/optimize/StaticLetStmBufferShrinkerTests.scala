@@ -1,6 +1,7 @@
 package mhir.optimize
 
 import mhir.canonicalize._
+import mhir.delay.{LatencyAnalysis, LatencyConcrete}
 import mhir.ir._
 import mhir.sugar._
 import mhir.typecheck._
@@ -13,14 +14,14 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       latencyAnalysis = new LatencyAnalysis(handshake = true),
       handshake = true,
       assumeThroughputsMatch = true,
-      inputDelays = Map()
+      latencyByParam = Map()
     )
   private val passWithoutHandshake: LetStmBufferShrinker =
     new StaticLetStmBufferShrinker(
       latencyAnalysis = new LatencyAnalysis(handshake = false),
       handshake = false,
       assumeThroughputsMatch = true,
-      inputDelays = Map()
+      latencyByParam = Map()
     )
 
   private def assertAllBufSizesEqual(e: Expr, expected: IntCst): Unit = {
@@ -276,7 +277,7 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       latencyAnalysis = new LatencyAnalysis(handshake = true),
       handshake = true,
       assumeThroughputsMatch = false,
-      inputDelays = Map()
+      latencyByParam = Map()
     )
     val optimized = pass.shrinkBuffers(original)
 
@@ -395,10 +396,10 @@ class StaticLetStmBufferShrinkerTests extends AnyFunSuite {
       latencyAnalysis = new LatencyAnalysis(handshake = false),
       handshake = false,
       assumeThroughputsMatch = true,
-      inputDelays = Map(
-        a -> delayA,
-        b -> delayB,
-        go -> delayGo
+      latencyByParam = Map(
+        a -> LatencyConcrete(delayA),
+        b -> LatencyConcrete(delayB),
+        go -> LatencyConcrete(delayGo)
       )
     )
     val Function(_, Function(_, Function(_, optimized))) =
