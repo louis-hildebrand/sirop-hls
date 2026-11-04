@@ -14,7 +14,8 @@ accel_annotations ::= ""
 accel_annotation  ::= ident [ "(" ident ")" ] [ "=" expr ]
 accel_inputs      ::= ""
                     | accel_input accel_input*
-accel_input       ::= "(" ident ":" typ [ "@" expr ] ")" "=>"
+accel_input       ::= "(" ident ":" typ [ delay_annotation ] ")" "=>"
+delay_annotation  ::= "@" ( expr | "?" )
 
 test_decl         ::= const_decl
                     | assertion

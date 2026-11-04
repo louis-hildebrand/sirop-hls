@@ -287,8 +287,14 @@ object Parser {
                 val (delay, rest5) = rest4.headOption match {
                   case Some(_: AtToken) =>
                     val rest4_1 = rest4.tail
-                    val (delay, rest4_2) = parseExpr(rest4_1, constants)
-                    (InputDelayConcrete(delay), rest4_2)
+                    rest4_1.headOption match {
+                      case Some(_: QuestionToken) =>
+                        val rest4_1_1 = rest4_1.tail
+                        (InputDelayAuto, rest4_1_1)
+                      case _ =>
+                        val (e, rest4_1_1) = parseExpr(rest4_1, constants)
+                        (InputDelayConcrete(e), rest4_1_1)
+                    }
                   case _ =>
                     logger.debug(
                       s"using default delay of $DEFAULT_DELAY_ANNOTATION for input '$x'"

@@ -3,14 +3,7 @@ package mhir.main.shared
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.debug.{DotPrinter, NameSimplifier, Tracer}
-import mhir.delay.{
-  DiscardAccumulatorDelays,
-  DiscardAccumulatorDelaysUsingPrefixAnalysis,
-  EnabledLatencyMatcher,
-  LatencyAnalysis,
-  LatencyConcrete,
-  ReplaceAccumulatorDelaysWithGo
-}
+import mhir.delay._
 import mhir.eval.{Evaluator, TestError, TestRunner}
 import mhir.gen._
 import mhir.gen.vhdl.test._
@@ -122,13 +115,8 @@ object Compiler {
     val latency = {
       val (_, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
       val analysis = new LatencyAnalysis(handshake = finalProgram.handshake)
-      val latencyByParam = finalProgram.accel.inputDelays.map({
-        case (x, InputDelayConcrete(IntCst(d))) => x -> LatencyConcrete(d.toInt)
-        case (x, InputDelayConcrete(delay)) =>
-          throw SemanticError(
-            s"latency matching does not currently support non-constant delay $delay for input $x"
-          )
-      })
+      val latencyByParam = finalProgram.accel.inputDelays
+        .map({ case (x, d) => x -> Latency(d) })
       analysis.actualLatency(body, latencyByParam).latency
     }
     latency match {
@@ -286,10 +274,8 @@ object Compiler {
   private def lower(prog: Program): (Program, Duration) = {
     time2("lowering", Level.DEBUG) {
       val inlinedProg = inlineConstants(prog)
-      val newInputDelays = inlinedProg.accel.inputDelays.map({
-        case (x, InputDelayConcrete(delay)) =>
-          x -> InputDelayConcrete(delay.lower)
-      })
+      val newInputDelays = inlinedProg.accel.inputDelays
+        .map({ case (x, d) => x -> d.map(_.lower) })
       val loweredExpr = translateStmLiteral(inlinedProg.accel.body.lower)
       val loweredTests =
         inlinedProg.test.map({
@@ -321,10 +307,8 @@ object Compiler {
       .toMap[Expr, Expr]
     val newAccel = prog.accel.copy(
       body = prog.accel.body.subPreserveType(mainConstVals),
-      inputDelays = prog.accel.inputDelays.map({
-        case (x, InputDelayConcrete(delay)) =>
-          x -> InputDelayConcrete(delay.subPreserveType(mainConstVals))
-      })
+      inputDelays = prog.accel.inputDelays
+        .map({ case (x, d) => x -> d.map(_.subPreserveType(mainConstVals)) })
     )
     val (_, newTestSuite) =
       prog.test.foldLeft(mainConstVals, Seq[Assertion]())({
@@ -390,18 +374,10 @@ object Compiler {
       prog: Program,
       optFlags: OptimizerOptions
   ): Program = {
-    val newInputDelays = prog.accel.inputDelays.map({
-      case (x, InputDelayConcrete(delay)) =>
-        x -> InputDelayConcrete(PartialEvalPass.partialEval(delay))
-    })
+    val newInputDelays = prog.accel.inputDelays
+      .map({ case (x, d) => x -> d.map(PartialEvalPass.partialEval) })
     // TODO: deduplicate this code
-    val latencyByParam = newInputDelays.map({
-      case (x, InputDelayConcrete(IntCst(d))) => x -> LatencyConcrete(d.toInt)
-      case (x, InputDelayConcrete(delay)) =>
-        throw SemanticError(
-          s"latency matching does not currently support non-constant delay $delay for input $x"
-        )
-    })
+    val latencyByParam = newInputDelays.map({ case (x, d) => x -> Latency(d) })
     val optimizer = Optimizer(
       optFlags,
       handshake = prog.handshake,
@@ -506,6 +482,10 @@ object Compiler {
           case (x, InputDelayConcrete(e)) =>
             throw SemanticError(
               s"non-static delay annotation for input $x is not supported: $e"
+            )
+          case (x, InputDelayAuto) =>
+            throw new AssertionError(
+              s"auto delays should have been sorted out by now (but delay for $x is still auto)"
             )
         })
         val minDelta = delta.values.min

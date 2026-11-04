@@ -1,8 +1,25 @@
 package mhir.delay
 
+import mhir.ir._
+import mhir.sem.SemanticError
+
 /** The latency at a certain point in the program.
   */
 sealed trait Latency
+
+object Latency {
+
+  def apply(d: InputDelay): Latency = {
+    d match {
+      case InputDelayConcrete(IntCst(n)) => LatencyConcrete(n.toInt)
+      case InputDelayConcrete(delay) =>
+        throw SemanticError(
+          s"latency matching does not currently support non-constant delay $delay"
+        )
+      case InputDelayAuto => LatencyAuto
+    }
+  }
+}
 
 /** The latency is a concrete number of clock cycles after the global epoch.
   */

@@ -899,10 +899,9 @@ trait TypeChecker {
       )
       val newInputDelays = accelInputs
         .map({ x =>
-          this.prog.accel.inputDelays(x) match {
-            case InputDelayConcrete(delay) =>
-              x -> InputDelayConcrete(delay.tchk(mainConstTypes, mainConstVals))
-          }
+          x -> this.prog.accel
+            .inputDelays(x)
+            .map(_.tchk(mainConstTypes, mainConstVals))
         })
         .toMap
       val newAccel =

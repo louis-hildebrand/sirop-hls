@@ -1005,3 +1005,14 @@ case class AtToken(loc: SourcePoint) extends Token {
 /** Category of [[AtToken]].
   */
 object AtToken extends SymbolCategory("@")
+
+/** The symbol "?".
+  */
+case class QuestionToken(loc: SourcePoint) extends Token {
+  override def category: TokenCategory = QuestionToken
+  override def original: String = "?"
+}
+
+/** Category of [[QuestionToken]].
+  */
+object QuestionToken extends SymbolCategory("?")

@@ -104,7 +104,12 @@ class EnabledLatencyMatcher(
       )
       this.logAndClearWarnings()
       val newE = TypeChecker.wrapTopLevelFunction(inputs, newBody)
-      (newE, delayUpdates.map({ case (x, d) => x -> InputDelayConcrete(d) }))
+      (
+        newE,
+        delayUpdates.map({ case (x, d) =>
+          x -> InputDelayConcrete(C(d)().tchk())
+        })
+      )
     }
   }
 
@@ -326,7 +331,12 @@ class DisabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
       latencyByParam
     )
     val newE = TypeChecker.wrapTopLevelFunction(inputs, body)
-    (newE, delayUpdates.map({ case (x, d) => x -> InputDelayConcrete(d) }))
+    (
+      newE,
+      delayUpdates.map({ case (x, d) =>
+        x -> InputDelayConcrete(C(d)().tchk())
+      })
+    )
   }
 }
 
