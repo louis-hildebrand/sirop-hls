@@ -897,13 +897,10 @@ trait TypeChecker {
         s"input delay map seems to have invalid keys (${this.prog.accel.inputDelays.keySet})"
           + s" that are not in input set ($accelInputs)"
       )
-      val newInputDelays = accelInputs
-        .map({ x =>
-          x -> this.prog.accel
-            .inputDelays(x)
-            .map(_.tchk(mainConstTypes, mainConstVals))
+      val newInputDelays = this.prog.accel.inputDelays
+        .map({ case (x, d) =>
+          x -> d.map(_.tchk(mainConstTypes, mainConstVals))
         })
-        .toMap
       val newAccel =
         this.prog.accel.copy(body = newBody, inputDelays = newInputDelays)
       val (_, _, newTestSuite) =
