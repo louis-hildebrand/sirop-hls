@@ -1,4 +1,4 @@
-accelerator[no_handshake] cascade = (s: Stm[Vec[u8, 3], 5]) => s.StmCascade()
+accelerator[no_handshake, head(s)=undefined] cascade = (s: Stm[Vec[u8, 3], 5]) => s.StmCascade()
 
 const undef: u8 = undefined:u8
 const no: u8 = zeros:[u8]()

@@ -19,6 +19,7 @@ import colorama
 from helpers import assert_equals, TestFailed
 import constants as c
 import test_pretty_print as pp
+import test_repl as repl
 import test_test as stest
 import test_vhdl as vhdl
 import test_vsim as vsim
@@ -43,6 +44,8 @@ def look_for_unused_files() -> None:
                 continue
             if f.name.endswith(".sirop"):
                 continue
+            if f.name.endswith(".repl.txt"):
+                continue
             if f.name.endswith(".swp"):
                 # Vim swap file (in case the file is being edited)
                 continue
@@ -55,11 +58,6 @@ def look_for_unused_files() -> None:
                 continue
             if (
                 f.name.endswith(".eval.txt")
-                and c.is_valid_source(f.with_suffix("").with_suffix(".sirop"))
-            ):
-                continue
-            if (
-                f.name.endswith(".repl.txt")
                 and c.is_valid_source(f.with_suffix("").with_suffix(".sirop"))
             ):
                 continue
@@ -237,62 +235,7 @@ def test_eval(eval_output: Path, cli_args: list[str], save: bool) -> bool:
         return False
 
 
-def test_repl(repl_output: Path, compiler_version: str, cli_args: list[str]) -> bool:
-    """
-    Test that an interactive session produces the expected output from the given file.
-    """
-    name = repl_output.with_suffix("").with_suffix("").relative_to(c.RESOURCES).as_posix()
-    print(f"{name} (REPL) ... ", end="", flush=True)
-    source_path = repl_output.with_suffix("").with_suffix(".sirop")
-    with open(source_path, "r", encoding="utf-8") as f:
-        result = subprocess.run(
-            [
-                "java",
-                # If this argument is omitted, the JVM emits a warning "An illegal reflective
-                # access operation has occurred".
-                # Yet when the argument --illegal-access=deny is passed, everything works fine (?!)
-                # What's also strange is that I am unable to reproduce this behaviour in bash using
-                #     cat file.sirop | java -jar sirop.jar
-                # or
-                #     java -jar sirop.jar < file.sirop
-                # No warning is printed in either case.
-                "--illegal-access=deny",
-                "-jar", c.JAR.as_posix()
-            ] + cli_args,
-            encoding="utf-8",
-            stdin=f,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
-        )
-    actual_out_file = c.ACTUAL_OUTPUTS / f"{name}.repl.txt"
-    if not actual_out_file.parent.exists():
-        actual_out_file.parent.mkdir(exist_ok=True, parents=True)
-    actual_out_file.write_text(result.stdout, encoding="utf-8")
-    try:
-        # Check status code
-        expected_code = 0
-        if result.returncode != expected_code:
-            raise TestFailed(f"WRONG STATUS (expected {expected_code} but got {result.returncode})")
-        # Check output
-        expected = (
-            repl_output.read_text(encoding="utf-8")
-                .replace("${COMPILER_VERSION}", compiler_version)
-        )
-        if result.stdout.rstrip() != expected.rstrip():
-            raise TestFailed(
-                f"WRONG OUTPUT (compare {repl_output.relative_to(c.ROOT)}"
-                f" with {actual_out_file.relative_to(c.ROOT)})"
-            )
-        actual_out_file.unlink(missing_ok=True)
-        print(Fore.GREEN + "OK" + Style.RESET_ALL)
-        return True
-    except TestFailed as e:
-        print(Fore.RED + str(e) + Style.RESET_ALL)
-        return False
-
-
-def main(test_sources: list[Path], skip_vsim: bool, save: bool) -> None:
+def main(test_sources: list[Path], skip_vsim: bool, save: bool, fail_fast: bool) -> None:
     """
     Script entry point.
     """
@@ -315,23 +258,42 @@ def main(test_sources: list[Path], skip_vsim: bool, save: bool) -> None:
     print()
     error_count = 0
     for test in test_sources:
+        if fail_fast and error_count > 0:
+            break
         ran = False
         os.chdir(test.parent)
         cli_args = []
         if (cli_args_file := test.parent.joinpath(".cliargs.txt")).is_file():
             # Common CLI args
-            cli_args += cli_args_file.read_text(encoding="utf-8").splitlines()
+            cli_args += [
+                line.strip()
+                for line in cli_args_file.read_text(encoding="utf-8").splitlines()
+                if not line.lstrip().startswith("#")
+            ]
         if (cli_args_file := test.with_suffix(".cliargs.txt")).is_file():
             # Test-specific CLI args
-            cli_args = cli_args_file.read_text(encoding="utf-8").splitlines()
+            cli_args += [
+                line.strip()
+                for line in cli_args_file.read_text(encoding="utf-8").splitlines()
+                if not line.lstrip().startswith("#")
+            ]
+        if test.name.endswith(".repl.txt"):
+            ran = True
+            name = test.with_suffix("").with_suffix("").relative_to(c.RESOURCES).as_posix()
+            actual_file = c.ACTUAL_OUTPUTS / f"{name}.repl.txt"
+            ok = repl.run(
+                name=name,
+                expected_session=test,
+                actual_file=actual_file,
+                sirop_version=compiler_version,
+                cli_args=cli_args,
+                save=save,
+            )
+            if not ok:
+                error_count += 1
         if (eval_output := test.with_suffix(".eval.txt")).is_file():
             ran = True
             ok = test_eval(eval_output, cli_args=cli_args, save=save)
-            if not ok:
-                error_count += 1
-        if (repl_output := test.with_suffix(".repl.txt")).is_file():
-            ran = True
-            ok = test_repl(repl_output, compiler_version, cli_args=cli_args)
             if not ok:
                 error_count += 1
         if (stderr_file := test.with_suffix(".stderr.txt")).is_file():
@@ -403,6 +365,11 @@ def _parse_args() -> Namespace:
         help="overwrite the expected results with whatever the compiler currently outputs",
     )
     parser.add_argument(
+        "--failfast",
+        action="store_true",
+        help="exit immediately when one test fails; don't run the remaining tests",
+    )
+    parser.add_argument(
         "--no-color",
         action="store_true",
         help="suppress colored output",
@@ -416,8 +383,8 @@ def _parse_args() -> Namespace:
     for p in args.test_sources:
         if not p.is_file() and not p in c.MISSING_FILES:
             parser.error(f"file {p} does not exist or is not a file")
-        if not p.name.endswith(".sirop"):
-            parser.error(f"invalid path {p}: all paths should end in .sirop")
+        if not (p.name.endswith(".sirop") or p.name.endswith(".repl.txt")):
+            parser.error(f"invalid path {p}: all paths should end in .sirop or .repl.txt")
     return args
 
 
@@ -425,7 +392,13 @@ if __name__ == "__main__":
     _args = _parse_args()
     colorama.init(strip=True if _args.no_color else None)
     try:
-        main(_args.test_sources, skip_vsim=_args.skip_vsim, save=_args.save)
+        main(
+            _args.test_sources,
+            skip_vsim=_args.skip_vsim,
+            save=_args.save,
+            fail_fast=_args.failfast,
+        )
     except KeyboardInterrupt:
         print()
         print("Cancelled")
+        sys.exit(1)

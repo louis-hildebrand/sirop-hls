@@ -3,7 +3,7 @@ const DEPTH: u32 = 5
 // Number of pipeline registers to insert at the inputs to the DSPs.
 const PIPELINE: u32 = 2
 
-accelerator[no_handshake] top =
+accelerator[no_handshake, head(s1)=undefined, head(s2)=undefined] top =
 (s1: Stm[u18, N]) =>
 (s2: Stm[u18, N]) =>
     StmMapDot(

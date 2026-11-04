@@ -2,6 +2,7 @@ package mhir.gen.vhdl
 package agilex7
 
 import mhir.canonicalize._
+import mhir.delay.LatencyConcrete
 import mhir.gen.vhdl.ir.FlattenPipeline
 import mhir.gen.vhdl.transform.ApplyTransformations
 import mhir.ir._
@@ -50,12 +51,13 @@ class DspSelectionTests extends AnyFunSuite {
                   .copy(madd = true),
                 handshake = true,
                 headByParam = Map(),
-                inputDelays = p1 match {
-                  case p1: Param => Map(p1 -> 0, p2 -> 0)
-                  case _         => Map(p2 -> 0)
+                latencyByParam = p1 match {
+                  case p1: Param =>
+                    Map(p1 -> LatencyConcrete(0), p2 -> LatencyConcrete(0))
+                  case _ => Map(p2 -> LatencyConcrete(0))
                 }
               )
-              val f = p1 match {
+              val (f, delayUpdates) = p1 match {
                 case p1: Param =>
                   optimizer.optimize(
                     Function(p1, Function(p2, sbuild)())().tchk()
@@ -63,6 +65,10 @@ class DspSelectionTests extends AnyFunSuite {
                 case _ =>
                   optimizer.optimize(Function(p2, sbuild)().tchk())
               }
+              assert(
+                delayUpdates.isEmpty,
+                "there should be no delay updates, since every param was already assigned a concrete delay"
+              )
               FlattenPipeline(f, options)
             }
             val actual = {

@@ -3,11 +3,7 @@ package mhir.main.shared
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.debug.{DotPrinter, NameSimplifier, Tracer}
-import mhir.delay.{
-  DiscardAccumulatorDelays,
-  DiscardAccumulatorDelaysUsingPrefixAnalysis,
-  ReplaceAccumulatorDelaysWithGo
-}
+import mhir.delay._
 import mhir.eval.{Evaluator, TestError, TestRunner}
 import mhir.gen._
 import mhir.gen.vhdl.test._
@@ -23,6 +19,8 @@ import mhir.sugar.{
   AllZero,
   ExprLowering,
   ParamLowering,
+  SafeSum,
+  StmDelay,
   StmLiteralUtilsImplicit
 }
 import mhir.typecheck.{TypeCheck, TypeCheckProgram, TypeChecker}
@@ -102,11 +100,7 @@ object Compiler {
       SemanticAnalyzer.checkForWarnings(synthesizable)
     }
     val (optimizedProgram, optimTime) =
-      optimize(
-        synthesizable,
-        options.optFlags,
-        handshake = lowered.handshake
-      )
+      optimize(synthesizable, options.optFlags)
     val finalProgram = if (options.simplifyNames) {
       time("simplifying variable names", Level.DEBUG) {
         val newBody = NameSimplifier.simplify(optimizedProgram.body)
@@ -118,36 +112,7 @@ object Compiler {
       logger.debug("skipping name simplification")
       optimizedProgram
     }
-    val latency = {
-      val (_, body) = TypeChecker.unwrapTopLevelFunction(finalProgram.body)
-      val analysis = new LatencyAnalysis(handshake = finalProgram.handshake)
-      val intInputDelays = finalProgram.accel.inputDelays.map({
-        case (x, IntCst(d)) => x -> Some(d.toInt)
-        case (x, delay) =>
-          throw SemanticError(
-            s"latency matching does not currently support non-constant delay $delay for input $x"
-          )
-      })
-      analysis.actualLatency(body, intInputDelays).latency
-    }
-    latency match {
-      case None =>
-        if (finalProgram.handshake) {
-          logger.debug(s"the latency of the design is unknown")
-        } else {
-          throw SemanticError(
-            "there is a latency mismatch and automatic latency matching is disabled"
-          )
-        }
-      case Some(n) =>
-        val cycleOrCycles = if (n == 1) "cycle" else "cycles"
-        val msg = s"the design has a latency of $n $cycleOrCycles"
-        if (finalProgram.handshake) {
-          logger.debug(msg)
-        } else {
-          logger.info(msg)
-        }
-    }
+    reportLatency(finalProgram)
     time("post-optimization semantic analysis", Level.DEBUG) {
       SemanticAnalyzer.check(finalProgram)
     }
@@ -285,9 +250,8 @@ object Compiler {
   private def lower(prog: Program): (Program, Duration) = {
     time2("lowering", Level.DEBUG) {
       val inlinedProg = inlineConstants(prog)
-      val newInputDelays = inlinedProg.accel.inputDelays.map({
-        case (x, delay) => x -> delay.lower
-      })
+      val newInputDelays = inlinedProg.accel.inputDelays
+        .map({ case (x, d) => x -> d.map(_.lower) })
       val loweredExpr = translateStmLiteral(inlinedProg.accel.body.lower)
       val loweredTests =
         inlinedProg.test.map({
@@ -319,9 +283,8 @@ object Compiler {
       .toMap[Expr, Expr]
     val newAccel = prog.accel.copy(
       body = prog.accel.body.subPreserveType(mainConstVals),
-      inputDelays = prog.accel.inputDelays.map({ case (x, delay) =>
-        x -> delay.subPreserveType(mainConstVals)
-      })
+      inputDelays = prog.accel.inputDelays
+        .map({ case (x, d) => x -> d.map(_.subPreserveType(mainConstVals)) })
     )
     val (_, newTestSuite) =
       prog.test.foldLeft(mainConstVals, Seq[Assertion]())({
@@ -372,69 +335,227 @@ object Compiler {
 
   private def optimize(
       prog: Program,
-      optFlags: OptimizerOptions,
-      handshake: Boolean
+      optFlags: OptimizerOptions
   ): (Program, Duration) = {
-    val ((newBody, newInputDelays), mainDuration) =
-      time2("optimization", Level.DEBUG) {
-        val newInputDelays = prog.accel.inputDelays.map({ case (x, delay) =>
-          x -> PartialEvalPass.partialEval(delay)
-        })
-        val optimizer = Optimizer(
-          optFlags,
-          handshake = handshake,
-          headByParam = prog.headByParam,
-          inputDelays = newInputDelays
-        )
-        val newBody = optimizer.optimize(prog.body)
-        (newBody, newInputDelays)
-      }
-    val (newTests, testDuration) = time2("optimization (test)", Level.DEBUG) {
-      val transform = if (prog.handshake) { (e: Expr) =>
-        PartialEvalPass.partialEval(e)()
-      } else {
-        val latencyAnalysis = new LatencyAnalysis(handshake = prog.handshake)
-        // Unused data removal doesn't really matter in this case, since we're
-        // dealing with test inputs rather than the main program
-        val unusedDataRemover = UnusedDataRemover(enabled = false)
-        val latencyMatcher = EnabledLatencyMatcher(
-          latencyAnalysis,
-          unusedDataRemover,
-          handshake = prog.handshake
-        )
-        val letBufShrinker = new StaticLetStmBufferShrinker(
-          latencyAnalysis,
-          handshake = prog.handshake,
-          assumeThroughputsMatch = optFlags.assumeThroughputsMatch,
-          inputDelays = Map()
-        )
-        (e: Expr) => {
-          val e0 = PartialEvalPass.partialEval(e)()
-          // Need to run latency matching and shrink all the letstm buffers
-          // to avoid errors and warnings during evaluation
-          val e1 = latencyMatcher.matchLatencies(
-            e0,
-            headByParam = Map(),
-            inputDelays = Map()
-          )
-          val e2 = letBufShrinker.shrinkBuffers(e1)
-          e2
-        }
-      }
-      prog.test.map({
-        case cd: ConstDecl => cd
-        case Assertion(inputs, expectedOutput, ignore, prefixCondition) =>
-          val newInputs = inputs.map({ case (x, e) =>
-            x -> transform(e)
-          })
-          Assertion(newInputs, expectedOutput, ignore, prefixCondition)
-      })
+    val (newProg1, mainDuration) = time2("optimization", Level.DEBUG) {
+      optimizeMain(prog, optFlags)
     }
-    val newProg = prog.copy(
-      accel = prog.accel.copy(body = newBody, inputDelays = newInputDelays),
-      test = newTests
+    val (newProg2, testDuration) = time2("simplifying tests", Level.DEBUG) {
+      optimizeTests(newProg1, optFlags)
+    }
+    (newProg2, mainDuration.plus(testDuration))
+  }
+
+  private def optimizeMain(
+      prog: Program,
+      optFlags: OptimizerOptions
+  ): Program = {
+    val newInputDelays = prog.accel.inputDelays
+      .map({ case (x, d) => x -> d.map(PartialEvalPass.partialEval) })
+    val latencyByParam = newInputDelays.map({ case (x, d) => x -> Latency(d) })
+    val optimizer = Optimizer(
+      optFlags,
+      handshake = prog.handshake,
+      headByParam = prog.headByParam,
+      latencyByParam = latencyByParam
     )
-    (newProg, mainDuration.plus(testDuration))
+    val (newBody, delayUpdates) = optimizer.optimize(prog.body)
+    prog.copy(accel =
+      prog.accel
+        .copy(body = newBody, inputDelays = newInputDelays ++ delayUpdates)
+    )
+  }
+
+  private def optimizeTests(
+      prog: Program,
+      optFlags: OptimizerOptions
+  ): Program = {
+    val latencyAnalysis = new LatencyAnalysis(handshake = prog.handshake)
+    val transform = if (prog.handshake) { (e: Expr, _: Option[Long], _: Expr) =>
+      PartialEvalPass.partialEval(e)()
+    } else {
+      // Unused data removal doesn't really matter in this case, since we're
+      // dealing with test inputs rather than the main program
+      val unusedDataRemover = UnusedDataRemover(enabled = false)
+      val latencyMatcher = EnabledLatencyMatcher(
+        latencyAnalysis,
+        unusedDataRemover,
+        handshake = prog.handshake
+      )
+      val letBufShrinker = new StaticLetStmBufferShrinker(
+        latencyAnalysis,
+        handshake = prog.handshake,
+        assumeThroughputsMatch = false,
+        latencyByParam = Map()
+      )
+      (e: Expr, delay: Option[Long], head: Expr) => {
+        val e0 = delay.map(delayStream(e, _, head)).getOrElse(e)
+        val e1 = PartialEvalPass.partialEval(e0)()
+        // Need to run latency matching and shrink all the letstm buffers
+        // to avoid errors and warnings during evaluation
+        val (e2, delayUpdates) = latencyMatcher.matchLatencies(
+          e1,
+          headByParam = Map(),
+          latencyByParam = Map()
+        )
+        assert(
+          delayUpdates.isEmpty,
+          "there should be no delay updates, since no input streams were given"
+        )
+        val e3 = letBufShrinker.shrinkBuffers(e2)
+        e3
+      }
+    }
+    val newTests = prog.test.map({
+      case cd: ConstDecl => cd
+      case Assertion(inputs, expectedOutput, ignore, prefixCondition) =>
+        val delayToAddByInput =
+          getDelayToAddByInput(inputs, prog.accel.inputDelays, latencyAnalysis)
+        val newInputs = inputs.map({ case (x, e) =>
+          val delay = if (optFlags.matchLatencyInTests) {
+            delayToAddByInput.flatMap(_.get(x))
+          } else {
+            // Don't adjust the delays if the user specifically says not to
+            None
+          }
+          val head = prog.headByParam.getOrElse(x, Undefined(Missing))
+          x -> transform(e, delay, head)
+        })
+        Assertion(newInputs, expectedOutput, ignore, prefixCondition)
+    })
+    prog.copy(test = newTests)
+  }
+
+  private def getDelayToAddByInput(
+      inputs: Map[Param, Expr],
+      expected: Map[Param, InputDelay],
+      latencyAnalysis: LatencyAnalysis
+  ): Option[Map[Param, Long]] = {
+    val init: Option[Map[Param, Int]] = Some(Map[Param, Int]())
+    val actual = inputs.foldLeft(init)({
+      case (None, _) => None
+      case (Some(acc), (x, e)) =>
+        val latency =
+          latencyAnalysis.idealLatency(e, inputLatencies = Map()).latency
+        latency match {
+          case LatencyConcrete(latency) => Some(acc + (x -> latency))
+          case _                        => None
+        }
+    })
+    actual.map({
+      case actual if actual.isEmpty =>
+        // The other branch uses .min, which doesn't work when the sequence
+        // is empty
+        Map()
+      case actual =>
+        assert(actual.keySet == expected.keySet)
+        // expected - actual
+        val delta = expected.map({
+          case (x, InputDelayConcrete(IntCst(expectedDelay))) =>
+            val actualLatency = actual(x)
+            x -> (expectedDelay - actualLatency)
+          case (x, InputDelayConcrete(e)) =>
+            throw SemanticError(
+              s"non-static delay annotation for input $x is not supported: $e"
+            )
+          case (x, InputDelayAuto) =>
+            throw new AssertionError(
+              s"auto delays should have been sorted out by now (but delay for $x is still auto)"
+            )
+        })
+        val minDelta = delta.values.min
+        val adjustedDelta = delta.map({ case (x, delta) =>
+          x -> (delta - minDelta)
+        })
+        assert(
+          adjustedDelta.values.forall(_ >= 0),
+          "adjusted delta latency should be non-negative"
+        )
+        assert(
+          adjustedDelta.values.exists(_ == 0),
+          "smallest adjusted delta latency should be 0"
+        )
+        adjustedDelta
+    })
+  }
+
+  /** Increase the latency of stream `e` by `delay + 1` clock cycles.
+    */
+  private def delayStream(e: Expr, delay: Long, head: Expr): Expr = {
+    e match {
+      // These special cases are not strictly necessary, but they
+      // sometimes speed up the tests a lot compared to the general
+      // approach of adding StmDelay (containing a huge shift register)
+      case s: StmBuild
+          if s.accumulators.isEmpty
+            && s.producers.isEmpty
+            && s.nextData == s.initData
+            && (head.isInstanceOf[Undefined] || head == s.initData) =>
+        // StmCst
+        StmBuild(
+          n = s.n,
+          delay = SafeSum(s.delay, C(delay + 1)())().tchk().lower,
+          initData = s.initData,
+          nextData = s.nextData,
+          valid = s.valid,
+          accumulators = s.accumulators,
+          producers = s.producers
+        )().tchk()
+      case s @ StmLiteral(physical, logical) =>
+        val typecheckedHead = head match {
+          case Undefined(Missing) =>
+            val TyStm(elemTyp, _) = s.typ
+            Undefined(elemTyp)
+          case head => head.tchk()
+        }
+        StmLiteral(
+          // Add delay+1 elements because that's what StmDelay (the default case) does
+          (1 to (delay.toInt + 1)).map(_ => typecheckedHead) ++ physical,
+          logical
+        )(s.typ)
+      case e =>
+        StmDelay(e, C(delay)(), head)().tchk().lower
+    }
+  }
+
+  private def reportLatency(prog: Program): Unit = {
+    val outLatency = {
+      val (_, body) = TypeChecker.unwrapTopLevelFunction(prog.body)
+      val analysis = new LatencyAnalysis(handshake = prog.handshake)
+      val latencyByParam = prog.accel.inputDelays
+        .map({ case (x, d) => x -> Latency(d) })
+      analysis.actualLatency(body, latencyByParam).latency
+    }
+    outLatency match {
+      case _: LatencyConcrete => ()
+      case _ =>
+        if (!prog.handshake) {
+          throw SemanticError(
+            "there is a latency mismatch and automatic latency matching is disabled"
+          )
+        }
+    }
+    val linesToReport = prog.accel.inputDelays.toSeq
+      .map({ case (x, d) => s"${x.name} @ $d" })
+      .sorted
+      .:+({
+        // TODO: Be consistent here; check VHDL generator
+        val name = prog.outName.getOrElse("output")
+        val latencyStr = outLatency match {
+          case LatencyConcrete(n) => n.toString
+          case LatencyUnknown     => "unknown"
+          case LatencyAuto        => "?"
+        }
+        s"$name @ $latencyStr"
+      })
+    if (prog.handshake) {
+      logger.debug(s"schedule: ${linesToReport.mkString(" ; ")}")
+    } else {
+      logger.info("schedule:")
+      for (line <- linesToReport) {
+        logger.info("  " + line)
+      }
+    }
   }
 
   private def generateCode(
@@ -529,8 +650,8 @@ object Compiler {
               .eval(e, handshake = options.handshake)
               .asInstanceOf[StmLiteral]
           })
-          val inputLatencies = inputValues.map({ case (x, s) =>
-            x -> Some(s.physical.length)
+          val latencyByParam = inputValues.map({ case (x, s) =>
+            x -> LatencyConcrete(s.physical.length)
           })
           val inputs = inputValues.map({ case (x, s) =>
             // TODO: Enforce rule that inputs must be streams while type checking program
@@ -551,10 +672,10 @@ object Compiler {
             val latency = {
               val analysis = new LatencyAnalysis(handshake = options.handshake)
               val (_, body) = TypeChecker.unwrapTopLevelFunction(prog.body)
-              analysis.actualLatency(body, inputLatencies).latency
+              analysis.actualLatency(body, latencyByParam).latency
             }
             latency match {
-              case Some(latency) if !options.handshake =>
+              case LatencyConcrete(latency) if !options.handshake =>
                 logger.debug(
                   s"adding $latency invalids at the beginning of the expected output to account for latency"
                 )

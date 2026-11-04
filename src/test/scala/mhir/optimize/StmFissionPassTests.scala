@@ -9,7 +9,10 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class StmFissionPassTests extends AnyFunSuite {
 
-  private val delay = SimpleDelayCostModel(madd = false)
+  private val delay = SimpleDelayCostModel(
+    targetFmaxMHz = 480 /* TODO: does this matter? */,
+    madd = false
+  )
   private val pass = EnabledStmFissionPass(
     StmOutputScheduler(EnabledBinOpTreeBalancingPass, delay)
   )
@@ -51,9 +54,9 @@ class StmFissionPassTests extends AnyFunSuite {
 
     // Effective optimization
     val originalDelayCost = delay.cost(original)
-    assert(originalDelayCost > delay.FullCycleDelay)
+    assert(originalDelayCost > delay.MaxCost)
     val optimizedDelayCost = delay.cost(optimized)
-    assert(optimizedDelayCost <= delay.FullCycleDelay)
+    assert(optimizedDelayCost <= delay.MaxCost)
   }
 
   test("ProdReductionTree:Nested") {
@@ -90,9 +93,9 @@ class StmFissionPassTests extends AnyFunSuite {
 
     // Effective optimization
     val originalDelayCost = delay.cost(original)
-    assert(originalDelayCost > delay.FullCycleDelay)
+    assert(originalDelayCost > delay.MaxCost)
     val optimizedDelayCost = delay.cost(optimized)
-    assert(optimizedDelayCost <= delay.FullCycleDelay)
+    assert(optimizedDelayCost <= delay.MaxCost)
   }
 
   /** Avoid infinite loops when an expression doesn't fit anywhere even when all
@@ -136,9 +139,9 @@ class StmFissionPassTests extends AnyFunSuite {
 
     // Effective optimization
     val originalDelayCost = delay.cost(original)
-    assert(originalDelayCost > delay.FullCycleDelay)
+    assert(originalDelayCost > delay.MaxCost)
     val optimizedDelayCost = delay.cost(optimized)
-    assert(optimizedDelayCost <= delay.FullCycleDelay)
+    assert(optimizedDelayCost <= delay.MaxCost)
   }
 
   test("ProdReductionTree:VecReduce") {
@@ -173,8 +176,8 @@ class StmFissionPassTests extends AnyFunSuite {
 
     // Effective optimization
     val originalDelayCost = delay.cost(original)
-    assert(originalDelayCost > delay.FullCycleDelay)
+    assert(originalDelayCost > delay.MaxCost)
     val optimizedDelayCost = delay.cost(optimized)
-    assert(optimizedDelayCost <= delay.FullCycleDelay)
+    assert(optimizedDelayCost <= delay.MaxCost)
   }
 }

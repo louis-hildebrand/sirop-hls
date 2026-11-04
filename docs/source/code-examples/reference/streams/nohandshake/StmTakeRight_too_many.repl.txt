@@ -1,0 +1,15 @@
+> __handshake = false
+> __show_prefix = true
+>
+> // If there are elements available in the physical prefix, those will be
+> // brought into the logical part
+> ([99:u8, 98:u8]s ++ [1:u8, 2:u8, 3:u8]s).StmTakeRight(4, /*head*/ 42:u8)
+[42:u8, 99:u8]s ++ [98:u8, 1:u8, 2:u8, 3:u8]s
+> ([99:u8, 98:u8]s ++ [1:u8, 2:u8, 3:u8]s).StmTakeRight(5, /*head*/ 42:u8)
+[42:u8]s ++ [99:u8, 98:u8, 1:u8, 2:u8, 3:u8]s
+> ([99:u8, 98:u8]s ++ [1:u8, 2:u8, 3:u8]s).StmTakeRight(6, /*head*/ 42:u8)
+[42:u8, 99:u8, 98:u8, 1:u8, 2:u8, 3:u8]s
+>
+> // If there are not enough elements in the physical prefix, it is an error
+> ([99:u8, 98:u8]s ++ [1:u8, 2:u8, 3:u8]s).StmTakeRight(7, /*head*/ 42:u8)
+EvalError: the absolute latency in StmTakeRight is -1. The absolute latency must be non-negative.

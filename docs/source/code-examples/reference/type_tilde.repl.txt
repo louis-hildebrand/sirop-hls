@@ -1,0 +1,13 @@
+> __handshake = false
+> __show_prefix = true
+>
+> // T = u8, so ~T = u8
+> [1:u8, 2:u8, 3:u8, 4:u8]s.StmTake(3, /*head*/ 42:u8)
+[42:u8]s ++ [1:u8, 2:u8, 3:u8]s
+>
+> // T = Stm[i8, 2], so ~T = i8
+> [[-9:i8, -8:i8]s, [8:i8, 9:i8]s, [0:i8, 1:i8]s]s.StmTake(2, /*head*/ 42:i8)
+[42:i8]s ++ [-9:i8, -8:i8, 8:i8, 9:i8]s
+> // (~T is i8, NOT Stm[i8, 2])
+> [[-9:i8, -8:i8]s, [8:i8, 9:i8]s, [0:i8, 1:i8]s]s.StmTake(2, /*head*/ [42:i8, 43:i8]s)
+TypeError: expected type i8 but found Stm[i8, 2]

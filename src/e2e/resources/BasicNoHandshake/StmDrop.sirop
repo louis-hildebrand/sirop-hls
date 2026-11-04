@@ -1,4 +1,4 @@
-accelerator[no_handshake] drop = (s: Stm[u8, 12]) => s.StmDrop(8)
+accelerator[no_handshake, head(s)=undefined] drop = (s: Stm[u8, 12]) => s.StmDrop(8)
 
 assert {
     s = StmCount(12, 1:u8, 1:u8)

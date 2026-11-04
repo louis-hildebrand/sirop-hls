@@ -1,4 +1,4 @@
-accelerator[no_handshake, go=go]
+accelerator[no_handshake, go=go, head(s)=undefined]
 top = (s: Stm[bool, 3]) => (go: Stm[bool, 3]) =>
     s.StmAll()
 

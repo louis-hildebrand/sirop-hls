@@ -1,0 +1,15 @@
+accelerator[no_handshake, head(x_i)=undefined, head(y_i)=undefined, out_name=result_o]
+foo = (x_i: Stm[u8, 4] @ 0) => (y_i: Stm[i8, 4] @ ?) =>
+    let y = y_i in
+    StmZip(y, StmZip(x_i, y.StmMap(x => x + 5)))
+
+assert {
+    x_i = [  1:u8,   2:u8,  3:u8, 4:u8]s,
+    y_i = [-99:i8, -42:i8, 13:i8, 9:i8]s
+}
+yields [
+    (-99:i8, (1:u8, -94:i8)),
+    (-42:i8, (2:u8, -37:i8)),
+    ( 13:i8, (3:u8,  18:i8)),
+    (  9:i8, (4:u8,  14:i8))
+]s

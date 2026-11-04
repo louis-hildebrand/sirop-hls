@@ -1,0 +1,1 @@
+--opt:no-latmatch-in-tests

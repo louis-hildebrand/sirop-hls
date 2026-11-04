@@ -1,11 +1,23 @@
-Welcome to the Sirop REPL (v${COMPILER_VERSION})!
+Welcome to the Sirop REPL (v2.3.0)!
 Type 'exit' or press Ctrl+D to exit.
-> > [undefined:u8]s
-> [3:u8]s
-> > [11:i16]s
-> > [undefined:bool]s
-> [false]s
-> [true]s
-> [false]s
-> [true]s
-> Goodbye
+> __handshake = false
+> ([]s:Stm[u8,0]).StmReduce(+)
+[undefined:u8]s
+> [1:u8, 2:u8]s.StmReduce(+)
+[3:u8]s
+> x = 3:i16
+> [1:i16, -3:i16, 3:i16, 2:i16]s.StmReduce( @(acc, a) => a + x*acc ) // x^3 - 3x^2 + 3x + 2
+[11:i16]s
+>
+> ([]s:Stm[bool,0]).StmReduce(!=) // xor
+[undefined:bool]s
+> [true, true]s.StmReduce(!=)
+[false]s
+> [true, false]s.StmReduce(!=)
+[true]s
+> [true, false, true]s.StmReduce(!=)
+[false]s
+> [true, false, false]s.StmReduce(!=)
+[true]s
+> exit
+Goodbye

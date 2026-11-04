@@ -227,6 +227,8 @@ object Lexer {
         lex(tail, tokens :+ TildeToken(p), p.moveRightBy(1))
       case '@' =>
         lex(tail, tokens :+ AtToken(p), p.moveRightBy(1))
+      case '?' =>
+        lex(tail, tokens :+ QuestionToken(p), p.moveRightBy(1))
       case c =>
         throw SyntaxError(s"unexpected character: '$c'", p)
     }

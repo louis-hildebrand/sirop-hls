@@ -1,3 +1,5 @@
-[INFO ] the design has a latency of 1 cycle
+[INFO ] schedule:
+[INFO ]   s @ 0
+[INFO ]   output @ 1
 [WARN ] test 0: WRONG PHYSICAL PREFIX
 TestError: 1/1 test failed.

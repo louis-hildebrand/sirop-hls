@@ -1,0 +1,22 @@
+> __handshake = true
+>
+> [1:u8, 2:u8, 3:u8, 4:u8]s.StmTake(2)
+[1:u8, 2:u8]s
+> [1:u8, 2:u8, 3:u8, 4:u8]s.StmTake(3)
+[1:u8, 2:u8, 3:u8]s
+> [1:u8, 2:u8, 3:u8, 4:u8]s.StmTake(4)
+[1:u8, 2:u8, 3:u8, 4:u8]s
+> [1:u8, 2:u8, 3:u8, 4:u8]s.StmTake(0)
+[]s:Stm[u8, 0]
+>
+> // What about nested streams?
+> // (recall that the compiler flattens streams)
+>      [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s
+[1:u8, 2:u8, 3:u8, 4:u8, 5:u8, 6:u8]s
+> type [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s
+Stm[Stm[u8, 2], 3]
+> // (we take 1 "row," i.e., 2 integers)
+> type [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s.StmTake(1)
+Stm[Stm[u8, 2], 1]
+>      [[1:u8, 2:u8]s, [3:u8, 4:u8]s, [5:u8, 6:u8]s]s.StmTake(1)
+[1:u8, 2:u8]s

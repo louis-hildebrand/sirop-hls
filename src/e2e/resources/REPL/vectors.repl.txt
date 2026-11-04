@@ -1,8 +1,19 @@
-Welcome to the Sirop REPL (v${COMPILER_VERSION})!
+Welcome to the Sirop REPL (v2.3.0)!
 Type 'exit' or press Ctrl+D to exit.
-> > [1:u16, 2:u16, 3:u16, 4:u16]v
-> > [5:u16, 6:u16, 7:u16, 8:u16]v
-> > [(1:u16, 5:u16), (2:u16, 6:u16), (3:u16, 7:u16), (4:u16, 8:u16)]v
-> > [5:u16, 12:u16, 21:u16, 32:u16]v
-> > 70:u16
-> Goodbye
+> v1 = [1:u16, 2:u16, 3:u16, 4:u16]v
+> v1
+[1:u16, 2:u16, 3:u16, 4:u16]v
+> v2 = v1.VecMap((x) => x +% 4:u16)
+> v2
+[5:u16, 6:u16, 7:u16, 8:u16]v
+> v3 = VecZip(v1, v2)
+> v3
+[(1:u16, 5:u16), (2:u16, 6:u16), (3:u16, 7:u16), (4:u16, 8:u16)]v
+> v4 = v3.VecMap( (x) => x.0 *% x.1 )
+> v4
+[5:u16, 12:u16, 21:u16, 32:u16]v
+> v5 = v4.VecReduce( @(x, y) => x +% y )
+> v5
+70:u16
+> exit
+Goodbye

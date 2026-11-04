@@ -1,0 +1,7 @@
+$ sirop delay_annotations_default.sirop --opt:no-fuse --out:test
+[INFO ] schedule:
+[INFO ]   a @ 0
+[INFO ]   b @ 0
+[INFO ]   c @ 2
+[INFO ] test 0: PASSED
+[INFO ] 1/1 test passed!

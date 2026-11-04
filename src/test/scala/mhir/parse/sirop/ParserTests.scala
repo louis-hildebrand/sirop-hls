@@ -1674,7 +1674,7 @@ class ParserTests extends AnyFunSuite {
 
   test("TestSuite:OK2") {
     val src =
-      """accelerator top = (a: Stm[u8, 4]) => (b: Stm[bool, 4] @ 0) =>
+      """accelerator top = (a: Stm[u8, 4]) => (b: Stm[bool, 4] @ 5) =>
         |  StmZip(a, b)
         |
         |assert {
@@ -1694,7 +1694,7 @@ class ParserTests extends AnyFunSuite {
           Function(a, Function(b, call("StmZip", a, b))())(),
           Map(),
           Map(),
-          Map(b -> C(0)())
+          Map(a -> InputDelayConcrete(C(0)()), b -> InputDelayConcrete(C(5)()))
         ),
         Seq(
           Assertion(

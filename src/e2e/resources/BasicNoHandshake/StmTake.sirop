@@ -1,7 +1,7 @@
 const N: u32 = 12
 const K: u32 = 4
 
-accelerator[no_handshake]
+accelerator[no_handshake, head(s)=undefined]
 take = (s: Stm[u8, N]) =>
     s.StmTake(K)
 

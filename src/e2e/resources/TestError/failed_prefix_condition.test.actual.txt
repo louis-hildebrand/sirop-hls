@@ -1,6 +1,7 @@
 /* Test 0 */
 [
   undefined:i8  /* does not satisfy prefix condition */,
+  undefined:i8  /* does not satisfy prefix condition */,
   0:i8,
   5:i8          /* does not satisfy prefix condition */
 ]s ++ [

@@ -1,4 +1,4 @@
-accelerator[no_handshake, go=go]
+accelerator[no_handshake, go=go, head(s)=undefined]
 transpose = (go: Stm[bool, 4]) => (s: Stm[Vec[i8, 3], 4]) =>
     s
     .StmVecTranspose()

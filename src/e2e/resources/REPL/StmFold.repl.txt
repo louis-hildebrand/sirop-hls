@@ -1,11 +1,22 @@
 Welcome to the Sirop REPL (v${COMPILER_VERSION})!
 Type 'exit' or press Ctrl+D to exit.
-> > > [42:u8]s
-> [42:u8, 43:u8]s ++ [45:u8]s
-> > [0:i16, 1:i16, 0:i16, 3:i16]s ++ [11:i16]s
-> > [false]s
-> [false, true]s ++ [false]s
-> [false, true]s ++ [true]s
-> [false, true, true]s ++ [false]s
-> [false, true, true]s ++ [true]s
-> Goodbye
+> __handshake = false
+> __show_prefix = true
+> ([]s:Stm[u8,0]).StmFold(42:u8, +)
+[42:u8]s
+> [1:u8, 2:u8]s.StmFold(42:u8, +)
+[42:u8, 43:u8]s ++ [45:u8]s
+> x = 3:i16
+> [1:i16, -3:i16, 3:i16, 2:i16]s.StmFold(0:i16, @(acc, a) => a + x*acc) // x^3 - 3x^2 + 3x + 2
+[0:i16, 1:i16, 0:i16, 3:i16]s ++ [11:i16]s
+>
+> ([]s:Stm[bool,0]).StmFold(false, !=) // xor
+[false]s
+> ([true, true]s).StmFold(false, !=)
+[false, true]s ++ [false]s
+> ([true, false]s).StmFold(false, !=)
+[false, true]s ++ [true]s
+> ([true, false, true]s).StmFold(false, !=)
+[false, true, true]s ++ [false]s
+> ([true, false, false]s).StmFold(false, !=)
+[false, true, true]s ++ [true]s

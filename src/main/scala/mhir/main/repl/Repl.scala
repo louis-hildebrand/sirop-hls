@@ -1,6 +1,7 @@
 package mhir.main.repl
 
 import mhir.canonicalize._
+import mhir.delay.{EnabledLatencyMatcher, LatencyAnalysis, LatencyConcrete}
 import mhir.eval.EvalException
 import mhir.ir._
 import mhir.main.shared.Version
@@ -164,20 +165,24 @@ object Repl {
           case (x, StmLiteral(Seq(head, _*), _)) => x -> head
           case (x, _)                            => x -> Undefined(Missing)
         })
-      val inputDelays = state.env
+      val latencyByParam = state.env
         .filter({ case (x, _) => x.typ.isInstanceOf[TyStm] })
         .flatMap({
           case (x, StmLiteral(physical, _)) =>
-            Some(x -> C(physical.length)().tchk().asInstanceOf[IntCst])
+            Some(x -> LatencyConcrete(physical.length))
           case _ => None
         })
-      val afterLatencyMatching =
-        latencyMatcher.matchLatencies(simplified, headByParam, inputDelays)
+      val (afterLatencyMatching, delayUpdates) =
+        latencyMatcher.matchLatencies(simplified, headByParam, latencyByParam)
+      assert(
+        delayUpdates.isEmpty,
+        "there should be no delay updates, since every param was already assigned a concrete delay"
+      )
       val letBufShrinker = new StaticLetStmBufferShrinker(
         latencyAnalysis,
         handshake = state.handshake,
         assumeThroughputsMatch = false,
-        inputDelays = inputDelays
+        latencyByParam = latencyByParam
       )
       letBufShrinker.shrinkBuffers(afterLatencyMatching)
     } else {

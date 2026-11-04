@@ -1,4 +1,4 @@
-accelerator[no_handshake] top = (s: Stm[i8, 4]) => s.StmMap(x => x + 5)
+accelerator[no_handshake, head(s)=undefined] top = (s: Stm[i8, 4]) => s.StmMap(x => x + 5)
 
 assert {
     s = [-5:i8, 0:i8]s ++ [0:i8, 1:i8, 2:i8, 3:i8]s

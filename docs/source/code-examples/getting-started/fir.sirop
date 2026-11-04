@@ -18,7 +18,8 @@ accelerator[
     // Until we start receiving the real data, the valid bit should be 0.
     // If the Sirop compiler needs to increase the latency of this stream
     // (e.g., for latency matching), it must ensure the valid bit remains 0.
-    head(s)=(undefined:i18, false)
+    head(s)=(undefined:i18, false),
+    head(weights)=undefined
 ]
 fir = (s: Stm[(i18, bool), T]) => (weights: Stm[Vec[i18, DEPTH], T]) =>
     // ----- Compute "data" part of output -------------------------------------

@@ -1,0 +1,6 @@
+> __handshake = false
+>
+> [1:u8, 2:u8, 3:u8]s.StmDropRight(4)
+EvalError: length in StmDropRight evaluated to undefined:u3
+> 3:u3 - 4:u3 // Output length is 3:u3 - 4:u3, which is undefined
+undefined:u3

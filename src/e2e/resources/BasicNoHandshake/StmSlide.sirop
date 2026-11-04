@@ -1,7 +1,7 @@
 const N: u32 = 8
 const W: u32 = 3
 
-accelerator[no_handshake]
+accelerator[no_handshake, head(s)=undefined]
 slide = (s: Stm[u8, N]) =>
     s.StmSlide(W)
 

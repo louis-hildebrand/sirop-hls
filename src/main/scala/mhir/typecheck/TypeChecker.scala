@@ -897,16 +897,10 @@ trait TypeChecker {
         s"input delay map seems to have invalid keys (${this.prog.accel.inputDelays.keySet})"
           + s" that are not in input set ($accelInputs)"
       )
-      val newInputDelays = accelInputs
-        .map({ x =>
-          this.prog.accel.inputDelays.get(x) match {
-            case Some(delay) => x -> delay.tchk(mainConstTypes, mainConstVals)
-            case None =>
-              logger.debug(s"assuming 0 delay for input $x")
-              x -> C(0)(U0)
-          }
+      val newInputDelays = this.prog.accel.inputDelays
+        .map({ case (x, d) =>
+          x -> d.map(_.tchk(mainConstTypes, mainConstVals))
         })
-        .toMap
       val newAccel =
         this.prog.accel.copy(body = newBody, inputDelays = newInputDelays)
       val (_, _, newTestSuite) =
@@ -969,7 +963,7 @@ trait TypeChecker {
     private def checkAccelAnnotationsByParam(
         inputs: Set[Param]
     )(implicit c: Canonicalizer): Map[(String, Param), Expr] = {
-      val annotationsByParam = this.prog.go match {
+      val annotationsByParam1 = this.prog.go match {
         case Some(go) =>
           prog.accel.annotationsByParam.get(("head", go)) match {
             case None | Some(False) => ()
@@ -979,7 +973,26 @@ trait TypeChecker {
           prog.accel.annotationsByParam + (("head", go) -> False)
         case None => prog.accel.annotationsByParam
       }
-      annotationsByParam.map({
+      val headsToAdd = inputs
+        .diff(
+          annotationsByParam1.keySet.collect({ case ("head", x) => x })
+        )
+        .toSeq
+        .sortBy(_.name)
+        .map({ x =>
+          if (!this.prog.handshake) {
+            logger.warn(
+              s"no head is specified for input stream '$x'." +
+                " If the compiler needs to delay the stream, it will prepend undefined elements." +
+                s" To dismiss this warning, add 'head($x)=undefined' to the top-level annotations." +
+                s" To prepend a different value, add 'head($x)=SOME_OTHER_EXPRESSION' instead."
+            )
+          }
+          ("head", x) -> Undefined(Missing)
+        })
+        .toMap
+      val annotationsByParam2 = annotationsByParam1 ++ headsToAdd
+      annotationsByParam2.map({
         case ((key @ "head", x), v) =>
           inputs.find(_ == x) match {
             case Some(xWithType) =>

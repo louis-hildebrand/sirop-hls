@@ -1,0 +1,63 @@
+> __handshake = false
+> __show_prefix = true
+>
+> u = [[ 1:i16, 2:i16, 3:i16]v, [4:i16,  5:i16, 6:i16]v]s
+> v = [[-1:i16, 2:i16, 3:i16]v, [4:i16, -2:i16, 4:i16]v]s
+> // dot([1, 2, 3], [-1, 2, 3]) = 12
+> // dot([4, 5, 6], [4, -2, 4]) = 30
+>
+> // Cascaded (i.e., using the DSPs in systolic mode)
+> StmMapDot(u, v, /*delay*/ 0, /*cascade*/ true)
+[
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44
+]s ++ [
+  12:i44,
+  30:i44
+]s
+> // (notice how the latency increases by 1 when increasing the delay argument)
+> StmMapDot(u, v, /*delay*/ 1, /*cascade*/ true)
+[
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44
+]s ++ [
+  12:i44,
+  30:i44
+]s
+>
+> // Non-cascaded (i.e., straightforward multiplications followed by adder tree)
+> StmMapDot(u, v, /*delay*/ 0, /*cascade*/ false)
+[undefined:i44, undefined:i44]s ++ [12:i44, 30:i44]s
+> // (notice how the latency increases by 1 when increasing the delay argument)
+> StmMapDot(u, v, /*delay*/ 1, /*cascade*/ false)
+[undefined:i44, undefined:i44, undefined:i44]s ++ [12:i44, 30:i44]s
+>
+> // By default, the output type is either i44 (see above) or u44 (if both
+> // input streams contain unsigned integers).
+> // But you can also specify the output type.
+> StmMapDot:[i40](u, v, /*delay*/ 0, /*cascade*/ true)
+[
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40
+]s ++ [
+  12:i40,
+  30:i40
+]s
+> StmMapDot:[i39](u, v, /*delay*/ 0, /*cascade*/ false)
+[undefined:i39, undefined:i39]s ++ [12:i39, 30:i39]s

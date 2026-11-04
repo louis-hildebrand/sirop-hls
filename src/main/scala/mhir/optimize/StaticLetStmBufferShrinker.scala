@@ -2,6 +2,15 @@ package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
+import mhir.delay.{
+  Latency,
+  LatencyAnalysis,
+  LatencyConcrete,
+  LatencyLetStm,
+  LatencyNode,
+  LatencySource,
+  LatencyStmBuild
+}
 import mhir.ir._
 import mhir.logging.time
 import mhir.typecheck._
@@ -11,18 +20,10 @@ class StaticLetStmBufferShrinker(
     latencyAnalysis: LatencyAnalysis,
     private val handshake: Boolean,
     private val assumeThroughputsMatch: Boolean,
-    inputDelays: Map[Param, Expr]
+    latencyByParam: Map[Param, Latency]
 ) extends LetStmBufferShrinker {
 
   private implicit val logger: Logger = Logger(getClass.getName)
-
-  private val intInputDelays = inputDelays.map({
-    case (x, IntCst(n)) => x -> Some(n.toInt)
-    case (x, e) =>
-      throw new IllegalArgumentException(
-        s"${this.getClass.getName} does not currently support non-constant delay $e for input $x"
-      )
-  })
 
   override def enabled: Boolean = true
 
@@ -30,7 +31,7 @@ class StaticLetStmBufferShrinker(
     time("statically shrinking letstm buffers", Level.DEBUG) {
       val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
       val newBody =
-        shrinkBuffers(body, latencyAnalysis.actualLatency(body, intInputDelays))
+        shrinkBuffers(body, latencyAnalysis.actualLatency(body, latencyByParam))
       TypeChecker.wrapTopLevelFunction(inputs, newBody)
     }
   }
@@ -65,22 +66,22 @@ class StaticLetStmBufferShrinker(
             val in1 = shrinkBuffers(in, inLat)
             val out1 = shrinkBuffers(out, outLat)
             val newBufSize = latency match {
-              case Some(_) if !this.handshake =>
+              case LatencyConcrete(_) if !this.handshake =>
                 C(0)(bufSize.typ)
-              case Some(_) if this.assumeThroughputsMatch =>
+              case LatencyConcrete(_) if this.assumeThroughputsMatch =>
                 assert(bufSize.typ.isInstanceOf[TyUInt])
                 assert(bufSize.typ.asInstanceOf[TyUInt].w >= 1)
                 C(1)(bufSize.typ)
-              case Some(_) =>
+              case LatencyConcrete(_) =>
                 logger.debug(
                   s"could not shrink buffer for letstm $x = ... because the" +
                     s" handshake protocol is enabled and assumeThroughputsMatch=false"
                 )
                 bufSize
-              case None =>
+              case lat =>
                 logger.debug(
                   s"could not shrink buffer for letstm $x = ... because" +
-                    s" there appears to be a latency mismatch"
+                    s" there appears to be a latency mismatch (latency is $lat)"
                 )
                 bufSize
             }

@@ -212,10 +212,19 @@ private[handshake] case class StmBuildNode(
     *   valid output.
     */
   private lazy val validInternal: Boolean = {
-    eval(
+    val valid = eval(
       this.hw.valid.subPreserveType(this.accSubs),
       stmData = this.stmData
-    ).toBool
+    )
+    valid match {
+      case False => false
+      case True  => true
+      case e =>
+        val name = this.hw.nameAnnotation.getOrElse("sbuild")
+        throw MissingRequiredValue(
+          s"'valid' expression in $name evaluated to $e"
+        )
+    }
   }
 
   private def accSubs: Map[Expr, Expr] = this.acc.toMap
