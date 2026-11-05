@@ -1,0 +1,24 @@
+entity work.dsp_sumof2_unsigned
+generic map(
+AX_WIDTH => 16,
+AY_WIDTH => 16,
+BX_WIDTH => 16,
+BY_WIDTH => 16,
+PIPELINE => 2,
+RESULT_WIDTH => 33)
+
+entity work.dsp_sumof2_unsigned
+generic map(
+AX_WIDTH => 16,
+AY_WIDTH => 16,
+BX_WIDTH => 16,
+BY_WIDTH => 16,
+PIPELINE => 2,
+RESULT_WIDTH => 33)
+
+entity work.mac_fallback_unsigned
+generic map(
+AX_WIDTH => 16,
+AY_WIDTH => 16,
+B_WIDTH => 33,
+RESULT_WIDTH => 33)

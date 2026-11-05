@@ -13,19 +13,22 @@ from helpers import assert_equals, TestFailed
 import constants as c
 
 
-IP_BLOCK_REGEX = re.compile(r"(entity work\.[a-zA-Z_]+)$")
+IP_BLOCK_REGEX = re.compile(r"(entity work\.[a-zA-Z0-9_]+)$")
 ENTITY_IGNORE_REGEX = re.compile(
     r"entity work\.(?:"
-    # Only used by dsp_systolic_signed.vhd and dsp_systolic_unsigned.vhd.
-    # Other files will use the signed and unsigned variants.
-    "dsp_systolic"
     # Not IP blocks.
-    "|dual_port_ram"
+    "dual_port_ram"
     "|letstm_buf"
     "|multi_consumer_ram"
     "|sbuild.*"
     "|start_delay"
     "|stm_nop"
+    # Only used by dsp_systolic_signed.vhd and dsp_systolic_unsigned.vhd.
+    # Other files will use the signed and unsigned variants.
+    "|dsp_systolic"
+    # Only used by dsp_sumof2_signed.vhd and dsp_sumof2_unsigned.vhd.
+    # Other files will use the signed and unsigned variants.
+    "|dsp_sumof2"
     # Close group
     ")"
 )

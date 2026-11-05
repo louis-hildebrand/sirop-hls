@@ -1,0 +1,20 @@
+.
+├── design
+│   ├── conversions.vhd
+│   ├── dsp_sumof2_unsigned.vhd
+│   ├── dsp_sumof2.vhd
+│   ├── foo.vhd
+│   ├── mac_fallback_unsigned.vhd
+│   ├── sbuild_1.vhd
+│   ├── sbuild_2.vhd
+│   ├── sbuild_3.vhd
+│   └── typedefs.vhd
+├── foo.qpf
+├── foo.qsf
+├── foo.sdc
+├── Makefile
+├── scripts
+│   ├── compile_ip_blocks.sh
+│   └── test_vhdl.sh
+└── test
+    └── test_foo.vhd
