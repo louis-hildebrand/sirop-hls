@@ -306,11 +306,6 @@ def main(test_sources: list[Path], skip_vsim: bool, save: bool, fail_fast: bool)
             ok = pp.run(test, cli_args=cli_args, save=save)
             if not ok:
                 error_count += 1
-        if vhdl.can_run(test):
-            ran = True
-            ok = vhdl.run(test, cli_args=cli_args, save=save)
-            if not ok:
-                error_count += 1
         if stest.can_run(test):
             ran = True
             ok = stest.run(test, cli_args=cli_args, save=save)
@@ -319,6 +314,11 @@ def main(test_sources: list[Path], skip_vsim: bool, save: bool, fail_fast: bool)
         if vsim.can_run(test):
             ran = True
             ok = skip_vsim or vsim.run(test, cli_args=cli_args, save=save)
+            if not ok:
+                error_count += 1
+        if vhdl.can_run(test):
+            ran = True
+            ok = vhdl.run(test, cli_args=cli_args, save=save)
             if not ok:
                 error_count += 1
         if not ran and test not in c.IGNORE_FILES:
