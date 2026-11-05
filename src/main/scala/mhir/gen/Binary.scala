@@ -3,6 +3,8 @@ package mhir.gen
 import mhir.ir._
 import mhir.sugar.AllZero
 
+import scala.annotation.tailrec
+
 /** Helper methods for converting to binary.
   */
 object Binary {
@@ -27,23 +29,7 @@ object Binary {
         case False          => "0"
         case True           => "1"
         case c: IntCst =>
-          val w = c.typ.asInstanceOf[TyAnyInt].w
-          if (c.i < 0) {
-            val bin = c.i.toBinaryString
-            assert(bin.head == '1')
-            assert(bin.length == 64)
-            val truncated = bin.takeRight(w)
-            assert(truncated.head == '1')
-            truncated
-          } else {
-            val bin = c.i.toBinaryString
-            assert(bin.length <= w)
-            val padded = ("0" * (w - bin.length)) + bin
-            if (c.typ.isInstanceOf[TySInt]) {
-              assert(padded.head == '0')
-            }
-            padded
-          }
+          int2bin(c)
         case c: FixCst =>
           str(C(c.numer)(c.typ.t))
         case Tuple(elems @ _*) =>
@@ -58,7 +44,30 @@ object Binary {
     binaryStringToBytes(binaryStr)
   }
 
-  /** Creates a mask to ignore [[mhir.gen.Undefined]] values.
+  def int2bin(c: IntCst): String = {
+    val TyAnyInt(w) = c.typ
+    val result = if (c.i < 0) {
+      val bin = c.i.toBinaryString
+      assert(bin.head == '1')
+      assert(bin.length == 64)
+      val truncated = bin.takeRight(w)
+      assert(truncated.head == '1')
+      val padded = ("1" * math.max(0, w - 64)) + truncated
+      padded
+    } else {
+      val bin = c.i.toBinaryString
+      assert(bin.length <= w)
+      val padded = ("0" * (w - bin.length)) + bin
+      if (c.typ.isInstanceOf[TySInt]) {
+        assert(padded.head == '0')
+      }
+      padded
+    }
+    assert(result.length == w, "length of binary string should match bitwidth")
+    result
+  }
+
+  /** Creates a mask to ignore [[mhir.ir.Undefined]] values.
     *
     * @note
     *   if padding is required for the length of the binary string to be a
@@ -67,7 +76,7 @@ object Binary {
     *
     * @param expected
     *   the expression for which to create a mask, which may contain
-    *   [[mhir.gen.Undefined]] elements.
+    *   [[mhir.ir.Undefined]] elements.
     */
   def mask(expected: Expr): Array[Byte] = {
     def getMask(expected: Expr): String = {
