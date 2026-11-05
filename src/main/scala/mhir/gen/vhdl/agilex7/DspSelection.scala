@@ -5,6 +5,7 @@ import mhir.canonicalize._
 import mhir.gen.vhdl.ir._
 import mhir.gen.vhdl.transform.RemoveUnused
 import mhir.ir._
+import mhir.matchers.VecAccesses
 import mhir.optimize.{InConsumer, StmOutputScheduler}
 import mhir.typecheck.TypeCheck
 
@@ -84,6 +85,16 @@ case class DspSelection(scheduler: StmOutputScheduler) {
 
   private def selectBasic(s: GenStmBuild): GenStmBuild = {
     val newIntermediates = s.accumulators.flatMap({
+      case (acc, SumOf2Products(ax, ay, bx, by)) =>
+        (ax.typ, ay.typ, bx.typ, by.typ) match {
+          case (TySInt(axw), TySInt(ayw), TySInt(bxw), TySInt(byw))
+              if axw <= 18 && ayw <= 19 && bxw <= 18 && byw <= 19 =>
+            Some(acc -> AgilexMadd(ax, ay, bx, by, pipeline = 0))
+          case (TyUInt(axw), TyUInt(ayw), TyUInt(bxw), TyUInt(byw))
+              if axw <= 18 && ayw <= 18 && bxw <= 18 && byw <= 18 =>
+            Some(acc -> AgilexMadd(ax, ay, bx, by, pipeline = 0))
+          case _ => None
+        }
       case (acc, BasicMac(x, y, chainin)) =>
         (x.typ, y.typ, chainin.typ) match {
           case (TySInt(wx), TySInt(wy), TySInt(wz))
@@ -240,6 +251,30 @@ case class DspSelection(scheduler: StmOutputScheduler) {
             )
             x -> newMac
           }
+        case intermediate @ (x, AgilexMadd(ax, ay, bx, by, pipeline)) =>
+          assert(pipeline >= 0)
+          assert(pipeline <= 0)
+          // How long is the shift register before each input?
+          // TODO: Delete this
+          val availableRegisters =
+            Seq(ax, ay, bx, by).map(countAvailableRegisters(s, _))
+          val gobble = math.min(
+            3 - pipeline,
+            Seq(ax, ay, bx, by).map(countAvailableRegisters(s, _)).min
+          )
+          // Perform the transformation
+          if (gobble <= 0) {
+            intermediate
+          } else {
+            val newMadd = AgilexMadd(
+              ax = shortenShiftRegister(s, ax, gobble),
+              ay = shortenShiftRegister(s, ay, gobble),
+              bx = shortenShiftRegister(s, bx, gobble),
+              by = shortenShiftRegister(s, by, gobble),
+              pipeline + gobble
+            )
+            x -> newMadd
+          }
         case i =>
           i
       })
@@ -249,7 +284,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   private def countAvailableRegisters(s: GenStmBuild, input: Expr): Int = {
     input match {
       case _: IntCst => Int.MaxValue
-      case VecAccess(v: Param, IntCst(i)) =>
+      case VecAccesses(v: Param, Seq(IntCst(i), _*)) =>
         s.accumulators
           .get(v)
           .collect({ case VecShiftLeftAccumulator(n, None, _) =>
@@ -267,7 +302,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   ): Expr = {
     input match {
       case i: IntCst => i
-      case VecAccess(pipe: Param, IntCst(i)) =>
+      case VecAccesses(pipe: Param, Seq(IntCst(i), otherIndices @ _*)) =>
         val (len, pipeInput) = s.accumulators
           .get(pipe)
           .collect({ case VecShiftLeftAccumulator(len, None, pipeInput) =>
@@ -278,12 +313,18 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         assert(len >= 0)
         assert(newIndex >= 0)
         assert(newIndex <= len)
-        if (newIndex == len) {
+        val newInput = if (newIndex == len) {
           // Bypass the shift register altogether
-          pipeInput
+          VecAccesses(pipeInput, otherIndices).tchk()
         } else {
-          VecAccess(pipe, C(newIndex)())().tchk()
+          VecAccesses(pipe, C(newIndex)() +: otherIndices).tchk()
         }
+        assert(input.hasType, s"missing type for input")
+        assert(
+          newInput.typ == input.typ,
+          s"input started with type ${input.typ} but now has type ${newInput.typ}"
+        )
+        newInput
       case e =>
         throw new IllegalArgumentException(
           s"invalid argument to shortenShiftRegister: $e"
@@ -292,11 +333,19 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   }
 }
 
-private object Shift {
-  def unapply(arg: (Param, Accumulator)): Option[(Long, Expr)] = {
+private object SumOf2Products {
+  def unapply(arg: Accumulator): Option[(Expr, Expr, Expr, Expr)] = {
     arg match {
-      case (_, VecShiftLeftAccumulator(len, None, next)) =>
-        Some((len, next))
+      case ExprAccumulator(
+            None,
+            ExprIntermediate(
+              Sum(
+                Prod(PadOrIntCst(ax), PadTo(ay, _)),
+                Prod(PadOrIntCst(bx), PadTo(by, _))
+              )
+            )
+          ) =>
+        Some((ax, ay, bx, by))
       case _ =>
         None
     }

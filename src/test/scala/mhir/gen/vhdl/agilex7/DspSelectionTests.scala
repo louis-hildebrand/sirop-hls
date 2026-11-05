@@ -7,13 +7,22 @@ import mhir.gen.vhdl.ir.FlattenPipeline
 import mhir.gen.vhdl.transform.ApplyTransformations
 import mhir.ir._
 import mhir.optimize.{Optimizer, OptimizerOptions}
-import mhir.sugar.{ExprLowering, SimpleMap, StmCst, StmMapDotCascaded}
+import mhir.sugar.{
+  ExprLowering,
+  SimpleMap,
+  StmCst,
+  StmMapDotCascaded,
+  StmMapDotTree
+}
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
 
 class DspSelectionTests extends AnyFunSuite {
 
   private val primes = Seq(3, 5, 7, 11, 13, 17)
+
+  // ===== M18X18_SYSTOLIC =====================================================
+
   for (depth <- Seq(1, 2, 3, 4, 5, 6)) {
     for ((inTyp, outTyp) <- Seq((I16, I44), (U16, U44))) {
       for (pipeline <- Seq(0, 1, 2, 3, 4)) {
@@ -54,7 +63,8 @@ class DspSelectionTests extends AnyFunSuite {
                 latencyByParam = p1 match {
                   case p1: Param =>
                     Map(p1 -> LatencyConcrete(0), p2 -> LatencyConcrete(0))
-                  case _ => Map(p2 -> LatencyConcrete(0))
+                  case _ =>
+                    Map(p2 -> LatencyConcrete(0))
                 }
               )
               val (f, delayUpdates) = p1 match {
@@ -110,6 +120,90 @@ class DspSelectionTests extends AnyFunSuite {
             assert(actualStats == expectedStats)
           }
 
+        }
+      }
+    }
+  }
+
+  // ===== M18X18_SUMOF2 =======================================================
+
+  for (depth <- Seq(1, 2, 3, 4, 5, 6)) {
+    for ((inTyp, outTyp) <- Seq((I16, I38), (U16, U38))) {
+      for (pipeline <- Seq(0, 1, 2, 3, 4)) {
+        for (const <- Seq(false, true)) {
+
+          val name =
+            s"Tree:$inTyp->$outTyp,$depth-tap,$pipeline pipeline stages," +
+              (if (const) "const" else "non-const")
+          test(name) {
+            val options = VhdlGeneratorOptions()
+            val original = {
+              val p1 = if (const) {
+                StmCst(
+                  8,
+                  VecLiteral(primes.take(depth).map(C(_)(inTyp)): _*)()
+                )().tchk().lower
+              } else {
+                Param("p1")(TyStm(TyVec(inTyp, depth), 8))
+              }
+              val p2 = Param("p2")(TyStm(TyVec(inTyp, depth), 8))
+              val sbuild = SimpleMap(
+                StmMapDotTree(p1, p2, pipeline)().tchk(),
+                x =>
+                  Tuple(
+                    Tuple(TruncateTo(ARShift(x, 2)(), 32)(), True)(),
+                    False
+                  )()
+              ).tchk().lower
+              val optimizer = Optimizer(
+                OptimizerOptions
+                  .all(
+                    assumeThroughputsMatch = false,
+                    maxLetStmBufSize = None
+                  )
+                  .copy(madd = true),
+                handshake = true,
+                headByParam = Map(),
+                latencyByParam = p1 match {
+                  case p1: Param =>
+                    Map(p1 -> LatencyConcrete(0), p2 -> LatencyConcrete(0))
+                  case _ =>
+                    Map(p2 -> LatencyConcrete(0))
+                }
+              )
+              val (f, delayUpdates) = p1 match {
+                case p1: Param =>
+                  optimizer.optimize(
+                    Function(p1, Function(p2, sbuild)())().tchk()
+                  )
+                case _ =>
+                  optimizer.optimize(Function(p2, sbuild)().tchk())
+              }
+              assert(
+                delayUpdates.isEmpty,
+                "there should be no delay updates, since every param was already assigned a concrete delay"
+              )
+              FlattenPipeline(f, options)
+            }
+            val actual = {
+              val pipe = ApplyTransformations(original, options)
+              assert(pipe.lets.isEmpty)
+              pipe.sbuilds.head.s
+            }
+
+            val actualStats = IpStats(actual)
+            println(actualStats)
+            val expectedStats = {
+              val signed = inTyp.isInstanceOf[TySInt]
+              val cappedPipeline = math.min(3, pipeline)
+              Map(
+                s"agilex7_madd(signed=$signed, pipeline=$cappedPipeline)" -> (depth / 2),
+                // Leftovers
+                s"agilex7_mac1(signed=$signed, chainin=false)" -> (depth % 2)
+              ).filter({ case (_, n) => n > 0 })
+            }
+            assert(actualStats == expectedStats)
+          }
         }
       }
     }
