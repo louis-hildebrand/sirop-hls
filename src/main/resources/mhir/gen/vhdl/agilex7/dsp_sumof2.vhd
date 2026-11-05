@@ -43,7 +43,8 @@ entity dsp_sumof2 is
     constant MAXIMUM_AY_WIDTH : natural := ite(USE_SIGNED, 19, 18);
     constant MAXIMUM_BX_WIDTH : natural := 18;
     constant MAXIMUM_BY_WIDTH : natural := ite(USE_SIGNED, 19, 18);
-    constant MAXIMUM_RESULT_WIDTH : natural := 38;
+    constant MAXIMUM_RESULT_WIDTH : natural := 64;
+    constant CLIPPED_RESULT_WIDTH : natural := ite(RESULT_WIDTH > MAXIMUM_RESULT_WIDTH, MAXIMUM_RESULT_WIDTH, RESULT_WIDTH);
     constant MAXIMUM_PIPELINE : natural := 3;
 
 begin
@@ -64,10 +65,6 @@ begin
     report "invalid value for generic BY_WIDTH: " & integer'image(BY_WIDTH) & " (expected value <= " & integer'image(MAXIMUM_BY_WIDTH) & ")"
     severity ERROR;
 
-    assert(RESULT_WIDTH <= MAXIMUM_RESULT_WIDTH)
-    report "invalid value for generic RESULT_WIDTH: " & integer'image(RESULT_WIDTH) & " (expected value <= " & integer'image(MAXIMUM_RESULT_WIDTH) & ")"
-    severity ERROR;
-
     assert(PIPELINE <= MAXIMUM_PIPELINE)
     report "invalid value for generic PIPELINE: " & integer'image(PIPELINE) & " (expected value <= " & integer'image(MAXIMUM_PIPELINE) & ")"
     severity ERROR;
@@ -80,6 +77,7 @@ use tennm.tennm_components.tennm_mac;
 architecture structural of dsp_sumof2 is
 
     signal full_ena : std_logic_vector(2 downto 0);
+    signal clipped_result : std_logic_vector(CLIPPED_RESULT_WIDTH-1 downto 0);
 
 begin
 
@@ -105,14 +103,24 @@ begin
         BY_CLKEN                        => ite(PIPELINE >= 1, "0", "no_reg"),
         -- Chainin
         USE_CHAINADDER                  => "false",
-        CHAIN_INOUT_WIDTH               => 0,
+        -- vopt produces the following error when CHAIN_INOUT_WIDTH is 0:
+        -- "Length of expected is 1; length of actual is 0."
+        CHAIN_INOUT_WIDTH               => 1,
         -- Output
-        RESULT_A_WIDTH                  => RESULT_WIDTH,
+        RESULT_A_WIDTH                  => CLIPPED_RESULT_WIDTH,
         RESULT_B_WIDTH                  => 0,
         OUTPUT_CLKEN                    => "0",
         -- Pipelining
-        INPUT_PIPELINE_CLKEN            => ite(PIPELINE >= 2, "0", "no_reg"),
-        SECOND_PIPELINE_CLKEN           => ite(PIPELINE >= 3, "0", "no_reg"),
+        -- Counterintuitively, if you're only enabling one of these two
+        -- registers, it has to be SECOND_PIPELINE_CLKEN.
+        -- Error(20082): Input pipeline register for DSP block WYSIWYG
+        --     primitive [...] can only be enabled when (1) Pre-adder and/or
+        --     Internal coefficient feature and input register and output
+        --     register are used, OR (2) Input register and second pipeline
+        --     register are used, OR (3) Input register, second pipeline
+        --     register and output register are used.
+        INPUT_PIPELINE_CLKEN            => ite(PIPELINE >= 3, "0", "no_reg"),
+        SECOND_PIPELINE_CLKEN           => ite(PIPELINE >= 2, "0", "no_reg"),
         INPUT_SYSTOLIC_CLKEN            => "no_reg",
         SUB_SYSTOLIC_REG                => "no_reg",
         NEGATE_SYSTOLIC_REG             => "no_reg",
@@ -200,12 +208,16 @@ begin
         ay                  => ay,
         bx                  => bx,
         by                  => by,
-        resulta             => result,
+        resulta             => clipped_result,
         -- Other parameters (never used)
         chainin             => open,
         chainout            => open,
         accumulate          => open,
-        clr                 => open,
+        -- Quartus produces the following error when clr is left open:
+        -- Error(15360): DSP block WYSIWYG primitive [...] has unconnected port
+        --     CLR[0] -- port must be connected because corresponding register
+        --     is used
+        clr                 => (others => '0'),
         az                  => open,
         bz                  => open,
         cx                  => open,
@@ -229,5 +241,12 @@ begin
         resultb             => open,
         scanout             => open
     );
+
+    gen_result_signed : if USE_SIGNED generate
+        result <= std_logic_vector(resize(signed(clipped_result), RESULT_WIDTH));
+    end generate;
+    gen_result_unsigned : if not USE_SIGNED generate
+        result <= std_logic_vector(resize(unsigned(clipped_result), RESULT_WIDTH));
+    end generate;
 
 end architecture;

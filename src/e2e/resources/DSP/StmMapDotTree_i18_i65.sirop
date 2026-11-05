@@ -4,7 +4,7 @@ const PIPELINE: u32 = 2
 
 accelerator[no_handshake, out_name=z_o, head(x_i)=undefined, head(y_i)=undefined]
 foo = (x_i: Stm[Vec[i18, M], N]) => (y_i: Stm[Vec[i18, M], N]) =>
-    StmMapDotTree:[i45](x_i, y_i, /*delay*/ PIPELINE)
+    StmMapDotTree:[i65](x_i, y_i, /*delay*/ PIPELINE)
 
 assert {
     x_i = [
@@ -21,8 +21,8 @@ assert {
     ]s
 }
 yields [
-    2389171791:i45,
-    -4020666:i45,
-    -4915945465:i45,
-    -12029440080:i45
+    2389171791:i65,
+    -4020666:i65,
+    -4915945465:i65,
+    -12029440080:i65
 ]s
