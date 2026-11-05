@@ -1,0 +1,26 @@
+entity work.dsp_systolic_unsigned
+generic map(
+AX_WIDTH => 16,
+AY_WIDTH => 16,
+BX_WIDTH => 16,
+BY_WIDTH => 16,
+ENABLE_CHAININ => true,
+PIPELINE => 3,
+RESULT_WIDTH => 33)
+
+entity work.dsp_systolic_unsigned
+generic map(
+AX_WIDTH => 16,
+AY_WIDTH => 16,
+BX_WIDTH => 16,
+BY_WIDTH => 16,
+ENABLE_CHAININ => true,
+PIPELINE => 3,
+RESULT_WIDTH => 33)
+
+entity work.mac_fallback_unsigned
+generic map(
+AX_WIDTH => 16,
+AY_WIDTH => 16,
+B_WIDTH => 33,
+RESULT_WIDTH => 33)

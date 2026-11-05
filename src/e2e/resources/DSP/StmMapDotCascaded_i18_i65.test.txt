@@ -1,0 +1,6 @@
+[INFO ] schedule:
+[INFO ]   x_i @ 0
+[INFO ]   y_i @ 0
+[INFO ]   z_o @ 6
+[INFO ] test 0: PASSED
+[INFO ] 1/1 test passed!
