@@ -24,7 +24,7 @@ class DspSelectionTests extends AnyFunSuite {
   // ===== M18X18_SYSTOLIC =====================================================
 
   for (depth <- Seq(1, 2, 3, 4, 5, 6)) {
-    for ((inTyp, outTyp) <- Seq((I16, I44), (U16, U44))) {
+    for ((inTyp, outTyp) <- Seq((I16, I43), (U16, U43))) {
       for (pipeline <- Seq(0, 1, 2, 3, 4)) {
         for (const <- Seq(false, true)) {
 
@@ -44,7 +44,7 @@ class DspSelectionTests extends AnyFunSuite {
               }
               val p2 = Param("p2")(TyStm(TyVec(inTyp, depth), 8))
               val sbuild = SimpleMap(
-                StmMapDotCascaded(p1, p2, pipeline)().tchk(),
+                StmMapDotCascaded(p1, p2, pipeline, outTyp)().tchk(),
                 x =>
                   Tuple(
                     Tuple(TruncateTo(ARShift(x, 2)(), 32)(), True)(),

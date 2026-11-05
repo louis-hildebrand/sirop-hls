@@ -20,6 +20,11 @@ case class AgilexMac2(
   assert(this.bx.typ.isInstanceOf[TyAnyInt])
   assert(this.by.typ.isInstanceOf[TyAnyInt])
   assert(this.chainin.typ.isInstanceOf[TyAnyInt])
+  assert(
+    this.chainin.typ.asInstanceOf[TyAnyInt].w == 44,
+    s"chainin for ${this.getClass.getName} must have a bitwidth of 44"
+      + s" (found type ${this.chainin.typ} for ${this.chainin})"
+  )
   assert(this.pipeline >= 0 && this.pipeline <= 3)
 
   override def freeVars: Set[Param] = {

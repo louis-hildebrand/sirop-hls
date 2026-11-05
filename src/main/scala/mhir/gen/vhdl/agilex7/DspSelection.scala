@@ -6,7 +6,8 @@ import mhir.gen.vhdl.ir._
 import mhir.gen.vhdl.transform.RemoveUnused
 import mhir.ir._
 import mhir.matchers.VecAccesses
-import mhir.optimize.{InConsumer, StmOutputScheduler}
+import mhir.optimize.{InConsumer, PartialEvalPass, StmOutputScheduler}
+import mhir.sugar.{ExprLowering, ReshapeData}
 import mhir.typecheck.TypeCheck
 
 /** Maps multiplications to native Agilex 7 DSP blocks, where possible.
@@ -120,11 +121,21 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   private def combineDsps(s: GenStmBuild): GenStmBuild = {
     val newIntermediates = s.intermediates.map({
       case i @ (x, AgilexMac1(bx, by, chaininB: Param)) =>
-        s.intermediates.get(chaininB) match {
-          case Some(AgilexMac1(ax, ay, chaininA)) =>
-            x -> AgilexMac2(ax, ay, bx, by, chaininA, pipeline = 0)
-          case _ =>
-            i
+        chaininB.typ match {
+          case TyAnyInt(w) if w <= 44 =>
+            s.intermediates.get(chaininB) match {
+              case Some(AgilexMac1(ax, ay, chaininA)) =>
+                chaininA.typ match {
+                  case typ @ TyAnyInt(w) if w <= 44 =>
+                    val chainin = PartialEvalPass.partialEval(
+                      ReshapeData(chaininA, typ.withWidth(44))().tchk().lower
+                    )
+                    x -> AgilexMac2(ax, ay, bx, by, chainin, pipeline = 0)
+                  case _ => i
+                }
+              case _ => i
+            }
+          case _ => i
         }
       case i => i
     })
@@ -140,20 +151,23 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   private def enableChainInOut(s: GenStmBuild): GenStmBuild = {
     val renamings = s.intermediates
       .flatMap({
-        case (_, AgilexMac2(_, _, _, _, chainin: Param, _)) =>
-          s.intermediates.get(chainin) match {
-            case Some(_: AgilexMac2) =>
-              val chainInOutTyp = chainin.typ.asInstanceOf[TyAnyInt] match {
-                case _: TySInt => TySInt(44)
-                case _: TyUInt => TyUInt(44)
-              }
-              val newTarget =
-                chainin.freshCopy
-                  .rebuild(TyTuple(chainin.typ, chainInOutTyp))
-                  .asInstanceOf[Param]
-              Some(chainin -> newTarget)
-            case _ => None
+        case (_, AgilexMac2(_, _, _, _, chaininExpr, _)) =>
+          val chaininParam = chaininExpr match {
+            case x: Param           => Some(x)
+            case PadTo(x: Param, _) => Some(x)
+            case _                  => None
           }
+          chaininParam.flatMap(chaininParam =>
+            s.intermediates.get(chaininParam) match {
+              case Some(_: AgilexMac2) =>
+                // First element is the result, which can be smaller than 44 bits.
+                // Second element is the chainin/out, which must be exactly 44 bits.
+                val newTyp = TyTuple(chaininParam.typ, chaininExpr.typ)
+                val newTarget = Param(chaininParam.prefix)(newTyp)
+                Some(chaininParam -> newTarget)
+              case _ => None
+            }
+          )
         case _ => None
       })
     val s1 = enableChainOut(s, renamings)
