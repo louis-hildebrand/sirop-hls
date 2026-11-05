@@ -4,7 +4,7 @@ AX_WIDTH => 18,
 AY_WIDTH => 18,
 BX_WIDTH => 18,
 BY_WIDTH => 18,
-PIPELINE => 2,
+PIPELINE => 1,
 RESULT_WIDTH => 65)
 
 entity work.dsp_sumof2_signed
@@ -13,5 +13,5 @@ AX_WIDTH => 18,
 AY_WIDTH => 18,
 BX_WIDTH => 18,
 BY_WIDTH => 18,
-PIPELINE => 2,
+PIPELINE => 1,
 RESULT_WIDTH => 65)

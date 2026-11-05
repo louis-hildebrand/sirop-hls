@@ -1,0 +1,27 @@
+entity work.mac_fallback_signed
+generic map(
+AX_WIDTH => 18,
+AY_WIDTH => 18,
+B_WIDTH => 45,
+RESULT_WIDTH => 45)
+
+entity work.mac_fallback_signed
+generic map(
+AX_WIDTH => 18,
+AY_WIDTH => 18,
+B_WIDTH => 45,
+RESULT_WIDTH => 45)
+
+entity work.mac_fallback_signed
+generic map(
+AX_WIDTH => 18,
+AY_WIDTH => 18,
+B_WIDTH => 45,
+RESULT_WIDTH => 45)
+
+entity work.mac_fallback_signed
+generic map(
+AX_WIDTH => 18,
+AY_WIDTH => 18,
+B_WIDTH => 45,
+RESULT_WIDTH => 45)

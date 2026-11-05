@@ -1,9 +1,10 @@
 const N: u32 = 4
 const M: u32 = 4
-const PIPELINE: u32 = 2
+const PIPELINE: u32 = 1
 
 accelerator[no_handshake, out_name=z_o, head(x_i)=undefined, head(y_i)=undefined]
 foo = (x_i: Stm[Vec[i18, M], N]) => (y_i: Stm[Vec[i18, M], N]) =>
+    // i45 is too wide, so this won't actually map to the Agilex DSPs
     StmMapDotCascaded:[i45](x_i.StmCascade(), y_i.StmCascade(), /*delay*/ PIPELINE)
 
 assert {
