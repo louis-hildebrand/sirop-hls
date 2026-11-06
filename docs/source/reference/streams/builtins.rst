@@ -386,6 +386,11 @@ The following stream operators are helpful for taking advantage of this function
     * :func:`StmMapDotCascaded`, which maps to the ``m18x18_systolic`` mode for the Agilex DSPs;
     * :func:`StmMapDotTree`, which maps to the ``m18x18_sumof2`` mode for the Agilex DSPs followed by an adder tree.
 
+    .. WARNING::
+        If the type ``T`` is wider than 44 bits, :func:`StmMapDotCascaded` cannot be implemented using the ``m18x18_systolic`` DSP mode.
+        (44 is the maximum width of the ``chainout`` DSP port in this mode.)
+        In this case, consider setting ``cascade`` to ``false`` instead; :func:`StmMapDotTree` supports wider outputs.
+
     .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDot.repl.txt
 
     .. WARNING::
@@ -437,6 +442,11 @@ The following stream operators are helpful for taking advantage of this function
 
     :func:`StmMapDotCascaded` is implemented so that it maps to the ``m18x18_systolic`` mode for the Agilex DSPs.
     In this mode, each input to the DSPs must be delayed by one clock cycle relative to the previous input.
+
+    .. WARNING::
+        If the type ``T`` is wider than 44 bits, :func:`StmMapDotCascaded` cannot be implemented using the ``m18x18_systolic`` DSP mode.
+        (44 is the maximum width of the ``chainout`` DSP port in this mode.)
+        In this case, consider using :func:`StmMapDotTree` instead, which supports wider outputs.
 
     .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDotCascaded.repl.txt
 

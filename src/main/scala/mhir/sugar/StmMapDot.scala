@@ -179,7 +179,13 @@ case class StmMapDotCascaded(
           case (_: TyUInt, _: TyUInt) => U44
           case _                      => I44
         }
-      case int: TyAnyInt => int
+      case int @ TyAnyInt(w) =>
+        if (w > 44) {
+          SL.logger.warn(
+            s"$className will not use the DSPs when the output type ($int) is wider than 44 bits"
+          )
+        }
+        int
       case typ =>
         throw new TypeError(s"invalid output type for $className: $typ")
     }
