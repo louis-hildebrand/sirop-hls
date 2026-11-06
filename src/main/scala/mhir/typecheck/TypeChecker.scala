@@ -426,6 +426,10 @@ trait TypeChecker {
           assert(newIdx.typ.isInstanceOf[TyAnyInt])
           val newT = t.tchk(context, constValues)
           newT.typ match {
+            case TyTuple(ts @ _*) if idx.i >= ts.length =>
+              throw new TypeError(
+                s"Index ${idx.i} is out of bounds for tuple of length ${ts.length}."
+              )
             case TyTuple(ts @ _*) =>
               ta.rebuild(ts(idx.i.toInt), Seq(newT, newIdx))
             case t =>
