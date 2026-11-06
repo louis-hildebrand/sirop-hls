@@ -23,9 +23,15 @@ class DspSelectionTests extends AnyFunSuite {
 
   // ===== M18X18_SYSTOLIC =====================================================
 
-  for (depth <- Seq(1, 2, 3, 4, 5, 6)) {
-    for ((inTyp, outTyp) <- Seq((I16, I43), (U16, U43))) {
-      for (pipeline <- Seq(0, 1, 2, 3, 4)) {
+  // TODO: Add test to check that DSP selection does not happen at 45+ bits?
+
+  private val depths = Seq(1, 2, 3, 4, 5, 6)
+  private val types = Seq((I16, I43), (U16, U43))
+  private val pipelines = Seq(0, 1, 2, 3, 4)
+
+  for (depth <- depths) {
+    for ((inTyp, outTyp) <- types) {
+      for (pipeline <- pipelines) {
         for (const <- Seq(false, true)) {
 
           val name =
@@ -93,16 +99,19 @@ class DspSelectionTests extends AnyFunSuite {
               val signed = inTyp.isInstanceOf[TySInt]
               val numSingles = depth % 2
               val numDoubles = depth / 2
-              val numDoublesAtStart = if (depth % 2 == 0 && depth >= 4) 1 else 0
-              val numDoublesAtEnd = if (depth >= 3) 1 else 0
-              val numDoublesAtStartAndEnd = if (depth == 2) 1 else 0
+              val numDoublesAtStart = if (depth >= 2) 1 else 0
+              // TODO: Is it important to disable the chainout port when it's not used?
+              // val numDoublesAtEnd = if (depth % 2 == 0 && depth >= 4) 1 else 0
+              // val numDoublesAtStartAndEnd = if (depth == 2) 1 else 0
+              val numDoublesAtEnd = 0
+              val numDoublesAtStartAndEnd = 0
               val numDoublesAtMiddle =
                 numDoubles - numDoublesAtStart - numDoublesAtEnd - numDoublesAtStartAndEnd
+              val numSinglesAtEnd = if (depth % 2 == 1 && depth >= 3) 1 else 0
+              val numSinglesAtStartAndEnd = if (depth == 1) 1 else 0
+              assert(numSinglesAtEnd + numSinglesAtStartAndEnd == numSingles)
               val cappedPipeline = math.min(3, pipeline)
               Map(
-                // Start of the chain
-                s"agilex7_mac1(signed=$signed, chainin=false)"
-                  -> numSingles,
                 // Start of the chain
                 s"agilex7_mac2(signed=$signed, pipeline=$cappedPipeline, chainin=false, chainout=true)"
                   -> numDoublesAtStart,
@@ -114,7 +123,11 @@ class DspSelectionTests extends AnyFunSuite {
                   -> numDoublesAtEnd,
                 // Simultaneously at the start and end of the chain
                 s"agilex7_mac2(signed=$signed, pipeline=$cappedPipeline, chainin=false, chainout=false)"
-                  -> numDoublesAtStartAndEnd
+                  -> numDoublesAtStartAndEnd,
+                // End of the chain
+                s"agilex7_mac1(signed=$signed, chainin=true)" -> numSinglesAtEnd,
+                // Simultaneously at the start and end of the chain
+                s"agilex7_mac1(signed=$signed, chainin=false)" -> numSinglesAtStartAndEnd
               ).filter({ case (_, n) => n > 0 })
             }
             assert(actualStats == expectedStats)
