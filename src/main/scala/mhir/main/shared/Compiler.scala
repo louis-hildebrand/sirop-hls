@@ -291,7 +291,10 @@ object Compiler {
         case ((subs, result), ConstDecl(x, e)) =>
           (subs + (x -> e), result)
         case ((subs, result), Assertion(in, out, ignore, prefixCondition)) =>
-          val newIn = in.map({ case (x, e) => x -> e.subPreserveType(subs) })
+          val newIn = in.map({ case (x, e) =>
+            val newX = Param(x.prefix, x.id)(x.typ.substitute(subs))
+            newX -> e.subPreserveType(subs)
+          })
           val newOut = out.subPreserveType(subs)
           val newIgnore = ignore.map(_.subPreserveType(subs))
           val newPrefixCondition = prefixCondition.map(_.subPreserveType(subs))
