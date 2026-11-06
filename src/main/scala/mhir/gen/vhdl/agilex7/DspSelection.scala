@@ -1,12 +1,14 @@
 package mhir.gen.vhdl
 package agilex7
 
+import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.gen.vhdl.ir._
 import mhir.ir._
 import mhir.optimize.{InConsumer, StmOutputScheduler}
-import mhir.sugar.{Cast, ExprLowering}
 import mhir.typecheck.TypeCheck
+import mhir.logging.time
+import org.slf4j.event.Level
 
 import scala.annotation.tailrec
 
@@ -21,13 +23,17 @@ import scala.annotation.tailrec
   */
 case class DspSelection(scheduler: StmOutputScheduler) {
 
+  private implicit val logger: Logger = Logger(getClass.getName)
+
   def apply(s: GenStmBuild): GenStmBuild = {
-    val s1 = this.moveZeroDelayOpsAfterRegister(s)
-    val s2 = this.recognizeBasicDsps(s1)
-    val s3 = this.combineDsps(s2)
-    // TODO: Remove unnecessary chainout ports?
-    val s4 = DspRegisterPacking.apply(s3)
-    s4
+    time("DSP selection", Level.DEBUG) {
+      val s1 = this.moveZeroDelayOpsAfterRegister(s)
+      val s2 = this.recognizeBasicDsps(s1)
+      val s3 = this.combineDsps(s2)
+      // TODO: Remove unnecessary chainout ports?
+      val s4 = DspRegisterPacking.apply(s3)
+      s4
+    }
   }
 
   /** In cases where the `next` expression in an accumulator is wrapped in
@@ -177,7 +183,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   private def findDspsToCombine(
       s: GenStmBuild
   ): Option[(Expr, Param, Param)] = {
-    // TODO: Need to ensure the following conditions are met:
+    // Need to ensure the following conditions are met:
     //  (C1) Don't merge two instances of agilex_mac1 if the intermediate result
     //       is used elsewhere.
     //       In other words, I want to be able to delete both agilex_mac1 blocks
@@ -189,41 +195,36 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     //  (C3) The width of the result cannot exceed 44 bits.
     s.intermediates
       .flatMap({
-        case (macA, AgilexMac1(_, _, chaininA)) =>
+        case (macB, AgilexMac1(bx, by, macA: Param))
+            if !bx.freeVars.contains(macA) &&
+              !by.freeVars.contains(macA) &&
+              s.intermediates.get(macA).exists(_.isInstanceOf[AgilexMac1]) =>
+          // (C3) Check bitwidths
+          val bitwidthsOk = (macA.typ, macB.typ) match {
+            case (TyAnyInt(wA), TyAnyInt(wB)) => wA <= 44 && wB <= 44
+            case _                            => false
+          }
           // (C2) Check chainin port
+          val AgilexMac1(_, _, chaininA) = s.intermediates(macA)
           val chainin = chaininA match {
             case z @ IntCst(0) =>
               val typ = z.typ.asInstanceOf[TyAnyInt]
               Some(C(0)(typ.withWidth(44)))
             case TupleAccess(x: Param, IntCst(0))
                 if s.intermediates.get(x).exists(_.isInstanceOf[AgilexMac2]) =>
-              // TODO: Also recognize padded version of this case?
-              // (C3) Check that the chainout width is small enough
               x.typ match {
                 case TyTuple(TyAnyInt(w), TyAnyInt(44)) if w <= 44 =>
                   Some(x.__1.tchk())
                 case _ =>
-                  None
+                  throw new AssertionError(s"output from $x has type ${x.typ}")
               }
             case _ =>
               None
           }
-          // TODO: Skip the rest if chaininOk is None?
-          // (C1) Check if result is used elsewhere
-          // TODO: Create a dependency graph beforehand to avoid this O(n^2) behaviour
-          val macB = s.intermediates
-            .find({
-              case (macB, AgilexMac1(bx, by, chainin))
-                  if macB.typ.isInstanceOf[TyAnyInt] =>
-                // (C3) Check that the result width is small enough
-                macB.typ.asInstanceOf[TyAnyInt].w <= 44 &&
-                macB != macA &&
-                chainin == macA &&
-                !bx.freeVars.contains(macA) &&
-                !by.freeVars.contains(macB)
-              case _ => false
-            })
-            .map({ case (y, _) => y })
+          // (C1) Check if macA is used elsewhere
+          // TODO: Create a dependency graph beforehand to avoid this O(n^2) behaviour?
+          //       DSP selection doesn't seem to be particularly slow at the
+          //       moment, so maybe it's not such a big deal
           val usedElsewhere = (
             s.data.freeVars.contains(macA) ||
               s.valid.freeVars.contains(macA) ||
@@ -234,88 +235,17 @@ case class DspSelection(scheduler: StmOutputScheduler) {
                 ready.freeVars.contains(macA)
               }) ||
               s.intermediates.exists({ case (y, i) =>
-                !macB.contains(y) && i.freeVars.contains(macA)
+                y != macB && i.freeVars.contains(macA)
               })
           )
-          if (chainin.nonEmpty && macB.nonEmpty && !usedElsewhere) {
-            Some((chainin.get, macA, macB.get))
+          if (!usedElsewhere && chainin.nonEmpty && bitwidthsOk) {
+            Some((chainin.get, macA, macB))
           } else {
             None
           }
-        case _ =>
-          None
-      })
-      .headOption
-  }
-
-  // TODO: Delete this
-  private def enableChainInOut(s: GenStmBuild): GenStmBuild = {
-    def substitute(
-        chainoutSubs: Map[Expr, Expr],
-        otherSubs: Map[Expr, Expr],
-        i: Intermediate
-    ): Intermediate = {
-      i match {
-        case AgilexMac2(ax, ay, bx, by, chainin, pipeline) =>
-          AgilexMac2(
-            ax.subPreserveType(otherSubs),
-            ay.subPreserveType(otherSubs),
-            bx.subPreserveType(otherSubs),
-            by.subPreserveType(otherSubs),
-            chainin.subPreserveType(chainoutSubs),
-            pipeline
-          )
-        case _: IpBlockInst | _: FunctionIntermediate | _: DataIntermediate =>
-          i.substitute(otherSubs)
-      }
-    }
-    // Decide which ones to activate
-    val renamings = s.intermediates
-      .flatMap({
-        case (_, AgilexMac2(_, _, _, _, chaininExpr, _)) =>
-          val chaininParam = chaininExpr match {
-            case x: Param           => Some(x)
-            case PadTo(x: Param, _) => Some(x)
-            case _                  => None
-          }
-          chaininParam.flatMap(chaininParam =>
-            s.intermediates.get(chaininParam) match {
-              case Some(_: AgilexMac2) =>
-                // First element is the result, which can be smaller than 44 bits.
-                // Second element is the chainin/out, which must be exactly 44 bits.
-                val newTyp = TyTuple(chaininParam.typ, chaininExpr.typ)
-                val newTarget = Param(chaininParam.prefix)(newTyp)
-                Some(chaininParam -> newTarget)
-              case _ => None
-            }
-          )
         case _ => None
       })
-    // Perform the transformation
-    val chainoutSubs =
-      renamings
-        .map({ case (x, y) =>
-          x -> Cast(TupleAccess(y, 1)(), x.typ)().tchk().lower
-        })
-        .toMap[Expr, Expr]
-    val otherSubs =
-      renamings.mapValues(TupleAccess(_, 0)().tchk()).toMap[Expr, Expr]
-    GenStmBuild(
-      data = s.data.subPreserveType(otherSubs),
-      valid = s.valid.subPreserveType(otherSubs),
-      accumulators = s.accumulators.map({ case (x, acc) =>
-        x -> acc.substitute(otherSubs)
-      }),
-      producers = s.producers.map({ case (x, (p, ready)) =>
-        x -> (p, ready.subPreserveType(otherSubs))
-      }),
-      intermediates = s.intermediates.map({
-        case (x, i) if renamings.contains(x) =>
-          renamings(x) -> substitute(chainoutSubs, otherSubs, i)
-        case (x, i) =>
-          x -> substitute(chainoutSubs, otherSubs, i)
-      })
-    )
+      .headOption
   }
 }
 

@@ -23,7 +23,8 @@ class DspSelectionTests extends AnyFunSuite {
 
   // ===== M18X18_SYSTOLIC =====================================================
 
-  // TODO: Add test to check that DSP selection does not happen at 45+ bits?
+  // TODO: Test that DSP selection does not happen at 45+ bits?
+  // TODO: Test that DSP selection won't increase the number of multiplications?
 
   private val depths = Seq(1, 2, 3, 4, 5, 6)
   private val types = Seq((I16, I43), (U16, U43))
