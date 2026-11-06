@@ -1,0 +1,16 @@
+.
+├── design
+│   ├── conversions.vhd
+│   ├── foo.vhd
+│   ├── mac_fallback_signed.vhd
+│   ├── sbuild_1.vhd
+│   └── typedefs.vhd
+├── foo.qpf
+├── foo.qsf
+├── foo.sdc
+├── Makefile
+├── scripts
+│   ├── compile_ip_blocks.sh
+│   └── test_vhdl.sh
+└── test
+    └── test_foo.vhd

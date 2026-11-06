@@ -587,6 +587,14 @@ trait CommonIntTypes {
     */
   val U32: TyUInt = TyUInt(32)
 
+  /** The type of a 38-bit unsigned integer.
+    */
+  val U38: TyUInt = TyUInt(38)
+
+  /** The type of a 43-bit unsigned integer.
+    */
+  val U43: TyUInt = TyUInt(43)
+
   /** The type of a 44-bit unsigned integer.
     */
   val U44: TyUInt = TyUInt(44)
@@ -617,6 +625,14 @@ trait CommonIntTypes {
     * when the input has type [[U32]].)
     */
   val I33: TySInt = TySInt(33)
+
+  /** The type of a 38-bit signed integer.
+    */
+  val I38: TySInt = TySInt(38)
+
+  /** The type of a 43-bit signed integer.
+    */
+  val I43: TySInt = TySInt(43)
 
   /** The type of a 44-bit signed integer.
     */

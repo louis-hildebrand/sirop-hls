@@ -829,23 +829,7 @@ object VhdlTestbenchGenerator {
       case True  => "\"1\""
       case c: IntCst =>
         c.typ.asInstanceOf[TyAnyInt] match {
-          case TyAnyInt(w) if w > 31 =>
-            if (c.i < 0) {
-              val bin = c.i.toBinaryString
-              assert(bin.head == '1')
-              assert(bin.length == 64)
-              val truncated = bin.takeRight(w)
-              assert(truncated.head == '1')
-              truncated
-            } else {
-              val bin = c.i.toBinaryString
-              assert(bin.length <= w)
-              val padded = ("0" * (w - bin.length)) + bin
-              if (c.typ.isInstanceOf[TySInt]) {
-                assert(padded.head == '0')
-              }
-              s"""\"$padded\""""
-            }
+          case TyAnyInt(w) if w > 31 => "\"" + Binary.int2bin(c) + "\""
           case TyUInt(w) => s"std_logic_vector(to_unsigned(${c.i}, $w))"
           case TySInt(w) => s"std_logic_vector(to_signed(${c.i}, $w))"
         }

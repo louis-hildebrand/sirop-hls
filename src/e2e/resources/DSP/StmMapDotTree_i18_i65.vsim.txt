@@ -1,0 +1,5 @@
+[INFO ] schedule:
+[INFO ]   x_i @ 0
+[INFO ]   y_i @ 0
+[INFO ]   z_o @ 3
+[INFO ] VHDL testbench passed!

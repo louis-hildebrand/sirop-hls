@@ -1,6 +1,6 @@
 package mhir.gen.vhdl
 
-import mhir.gen.vhdl.agilex7.{AgilexMac1, AgilexMac2}
+import mhir.gen.vhdl.agilex7.{AgilexMac1, AgilexMac2, AgilexMadd}
 import mhir.gen.vhdl.ir.{GenStmBuild, IpBlockInst}
 import mhir.ir._
 
@@ -28,6 +28,10 @@ object IpStats {
         val chainInEnabled = mac.chainin != C(0)()
         val chainOutEnabled = target.typ.isInstanceOf[TyTuple]
         s"agilex7_mac2(signed=$signed, pipeline=$pipeline, chainin=$chainInEnabled, chainout=$chainOutEnabled)"
+      case madd: AgilexMadd =>
+        val signed = madd.ax.typ.isInstanceOf[TySInt]
+        val pipeline = madd.pipeline
+        s"agilex7_madd(signed=$signed, pipeline=$pipeline)"
     }
   }
 }

@@ -1,34 +1,39 @@
 package mhir.gen.vhdl
 package agilex7
 
+import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.gen.vhdl.ir._
-import mhir.gen.vhdl.transform.RemoveUnused
 import mhir.ir._
 import mhir.optimize.{InConsumer, StmOutputScheduler}
 import mhir.typecheck.TypeCheck
+import mhir.logging.time
+import org.slf4j.event.Level
+
+import scala.annotation.tailrec
 
 /** Maps multiplications to native Agilex 7 DSP blocks, where possible.
   *
   * @note
   *   intermediate insertion should be run (or re-run) <i>after</i> this pass,
   *   since (1) this pass may construct Sirop expressions that are not valid
-  *   VHDL expressions (see [[moveZeroDelayAfterRegister]]) and (2) this pass
+  *   VHDL expressions (see [[moveZeroDelayOpsAfterRegister]]) and (2) this pass
   *   does not guarantee that all inputs of the DSP blocks are names, as
   *   required in VHDL.
   */
 case class DspSelection(scheduler: StmOutputScheduler) {
 
+  private implicit val logger: Logger = Logger(getClass.getName)
+
   def apply(s: GenStmBuild): GenStmBuild = {
-    val s1 = this.moveZeroDelayAfterRegister(s)
-    val s2 = this.selectBasic(s1)
-    val s3 = this.combineDsps(s2)
-    // After combining DSPs, some intermediates might no longer be needed
-    val s4 = RemoveUnused(s3)
-    val s5 = this.enableChainInOut(s4)
-    val s6 = this.mergeRegistersIntoDsps(s5)
-    val s7 = RemoveUnused(s6)
-    s7
+    time("DSP selection", Level.DEBUG) {
+      val s1 = this.moveZeroDelayOpsAfterRegister(s)
+      val s2 = this.recognizeBasicDsps(s1)
+      val s3 = this.combineDsps(s2)
+      // TODO: Remove unnecessary chainout ports?
+      val s4 = DspRegisterPacking.apply(s3)
+      s4
+    }
   }
 
   /** In cases where the `next` expression in an accumulator is wrapped in
@@ -41,7 +46,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     * accumulator should be the output of the multiplier and the truncating,
     * bitshifting, etc. should happen whenever this accumulator is <i>used</i>.
     */
-  private def moveZeroDelayAfterRegister(s: GenStmBuild): GenStmBuild = {
+  private def moveZeroDelayOpsAfterRegister(s: GenStmBuild): GenStmBuild = {
     s.accumulators
       .collect({
         // Don't bother doing this if it won't help with DSP selection.
@@ -82,17 +87,43 @@ case class DspSelection(scheduler: StmOutputScheduler) {
       })
   }
 
-  private def selectBasic(s: GenStmBuild): GenStmBuild = {
+  /** Recognize simple cases of multiplication and addition.
+    *
+    * These basic cases may be combined into larger blocks later (i.e.,
+    * [[combineDsps]]).
+    *
+    * @example
+    *   turn `ax * ay + bx * by` into [[AgilexMadd]].
+    * @example
+    *   turn `ax * ay + b` into [[AgilexMac1]].
+    */
+  private def recognizeBasicDsps(s: GenStmBuild): GenStmBuild = {
     val newIntermediates = s.accumulators.flatMap({
+      case (acc, SumOf2Products(ax, ay, bx, by)) =>
+        val typesOk = (ax.typ, ay.typ, bx.typ, by.typ) match {
+          case (TySInt(axw), TySInt(ayw), TySInt(bxw), TySInt(byw)) =>
+            axw <= 18 && ayw <= 19 && bxw <= 18 && byw <= 19
+          case (TyUInt(axw), TyUInt(ayw), TyUInt(bxw), TyUInt(byw)) =>
+            axw <= 18 && ayw <= 18 && bxw <= 18 && byw <= 18
+          case _ => false
+        }
+        if (typesOk) {
+          Some(acc -> AgilexMadd(ax, ay, bx, by, pipeline = 0))
+        } else {
+          None
+        }
       case (acc, BasicMac(x, y, chainin)) =>
-        (x.typ, y.typ, chainin.typ) match {
-          case (TySInt(wx), TySInt(wy), TySInt(wz))
-              if wx <= 18 && wy <= 19 && wz <= 64 =>
-            Some(acc -> AgilexMac1(x, y, chainin))
-          case (TyUInt(wx), TyUInt(wy), TyUInt(wz))
-              if wx <= 18 && wy <= 18 && wz <= 64 =>
-            Some(acc -> AgilexMac1(x, y, chainin))
-          case _ => None
+        val typesOk = (x.typ, y.typ, chainin.typ) match {
+          case (TySInt(wx), TySInt(wy), TySInt(wz)) =>
+            wx <= 18 && wy <= 19 && wz <= 64
+          case (TyUInt(wx), TyUInt(wy), TyUInt(wz)) =>
+            wx <= 18 && wy <= 18 && wz <= 64
+          case _ => false
+        }
+        if (typesOk) {
+          Some(acc -> AgilexMac1(x, y, chainin))
+        } else {
+          None
         }
       case _ =>
         None
@@ -106,197 +137,131 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     )
   }
 
+  /** Combine chained [[AgilexMac1]] instances into individual [[AgilexMac2]]
+    * instances.
+    */
+  @tailrec
   private def combineDsps(s: GenStmBuild): GenStmBuild = {
-    val newIntermediates = s.intermediates.map({
-      case i @ (x, AgilexMac1(bx, by, chaininB: Param)) =>
-        s.intermediates.get(chaininB) match {
-          case Some(AgilexMac1(ax, ay, chaininA)) =>
-            x -> AgilexMac2(ax, ay, bx, by, chaininA, pipeline = 0)
-          case _ =>
-            i
-        }
-      case i => i
-    })
-    GenStmBuild(
-      data = s.data,
-      valid = s.valid,
-      accumulators = s.accumulators,
-      producers = s.producers,
-      intermediates = newIntermediates
-    )
+    this.findDspsToCombine(s) match {
+      case Some((chainin, macA, macB)) =>
+        combineDsps(combineDsps(s, chainin, macA, macB))
+      case None =>
+        s // nothing left to merge
+    }
   }
 
-  private def enableChainInOut(s: GenStmBuild): GenStmBuild = {
-    val renamings = s.intermediates
-      .flatMap({
-        case (_, AgilexMac2(_, _, _, _, chainin: Param, _)) =>
-          s.intermediates.get(chainin) match {
-            case Some(_: AgilexMac2) =>
-              val chainInOutTyp = chainin.typ.asInstanceOf[TyAnyInt] match {
-                case _: TySInt => TySInt(44)
-                case _: TyUInt => TyUInt(44)
-              }
-              val newTarget =
-                chainin.freshCopy
-                  .rebuild(TyTuple(chainin.typ, chainInOutTyp))
-                  .asInstanceOf[Param]
-              Some(chainin -> newTarget)
-            case _ => None
-          }
-        case _ => None
-      })
-    val s1 = enableChainOut(s, renamings)
-    val s2 = enableChainIn(s1, renamings)
-    s2
-  }
-
-  private def enableChainOut(
+  private def combineDsps(
       s: GenStmBuild,
-      renamings: Map[Param, Param]
+      chainin: Expr,
+      macA: Param,
+      macB: Param
   ): GenStmBuild = {
-    val subs = renamings.mapValues(TupleAccess(_, 0)().tchk()).toMap[Expr, Expr]
+    val AgilexMac1(ax, ay, _) = s.intermediates(macA)
+    val AgilexMac1(bx, by, _) = s.intermediates(macB)
+    val newDsp = AgilexMac2(ax, ay, bx, by, chainin, pipeline = 0)
+    val bTyp = macB.typ.asInstanceOf[TyAnyInt]
+    val newTyp = TyTuple(bTyp /*result*/, bTyp.withWidth(44) /*chainout*/ )
+    val newParam = Param(macB.prefix)(newTyp)
+    val subs = Map[Expr, Expr](macB -> newParam.__0.tchk())
     GenStmBuild(
       data = s.data.subPreserveType(subs),
       valid = s.valid.subPreserveType(subs),
-      accumulators = s.accumulators.map({ case (x, acc) =>
-        x -> acc.substitute(subs)
+      accumulators = s.accumulators.map({ case (x, a) =>
+        x -> a.substitute(subs)
       }),
       producers = s.producers.map({ case (x, (p, ready)) =>
         x -> (p, ready.subPreserveType(subs))
       }),
-      intermediates = s.intermediates.map({
-        case (x, i) if renamings.contains(x) =>
-          renamings(x) -> i.substitute(subs)
-        case (x, i) =>
-          x -> i.substitute(subs)
-      })
+      intermediates = s.intermediates
+        .-(macA)
+        .-(macB)
+        .map({ case (x, i) => x -> i.substitute(subs) })
+        .+(newParam -> newDsp)
     )
   }
 
-  private def enableChainIn(
-      s: GenStmBuild,
-      renamings: Map[Param, Param]
-  ): GenStmBuild = {
-    val newNames = renamings.values.toSet
-    GenStmBuild(
-      data = s.data,
-      valid = s.valid,
-      accumulators = s.accumulators,
-      producers = s.producers,
-      intermediates = s.intermediates.map({
-        case (
-              x,
-              AgilexMac2(
-                ax,
-                ay,
-                bx,
-                by,
-                TupleAccess(chainin: Param, IntCst(0)),
-                pipeline
-              )
-            ) if newNames.contains(chainin) =>
-          x -> AgilexMac2(
-            ax,
-            ay,
-            bx,
-            by,
-            TupleAccess(chainin, 1)().tchk(),
-            pipeline
-          )
-        case i => i
-      })
-    )
-  }
-
-  private def mergeRegistersIntoDsps(s: GenStmBuild): GenStmBuild = {
-    GenStmBuild(
-      data = s.data,
-      valid = s.valid,
-      accumulators = s.accumulators,
-      producers = s.producers,
-      intermediates = s.intermediates.map({
-        case intermediate @ (
-              x,
-              AgilexMac2(ax, ay, bx, by, chainin, pipeline)
-            ) =>
-          assert(pipeline >= 0)
-          assert(pipeline <= 3)
-          // How long is the shift register before each input?
-          val gobble = math.min(
-            3 - pipeline,
-            Seq(ax, ay, bx, by).map(countAvailableRegisters(s, _)).min
-          )
-          // Perform the transformation
-          if (gobble <= 0) {
-            intermediate
-          } else {
-            val newMac = AgilexMac2(
-              ax = shortenShiftRegister(s, ax, gobble),
-              ay = shortenShiftRegister(s, ay, gobble),
-              bx = shortenShiftRegister(s, bx, gobble),
-              by = shortenShiftRegister(s, by, gobble),
-              chainin,
-              pipeline + gobble
-            )
-            x -> newMac
+  private def findDspsToCombine(
+      s: GenStmBuild
+  ): Option[(Expr, Param, Param)] = {
+    // Need to ensure the following conditions are met:
+    //  (C1) Don't merge two instances of agilex_mac1 if the intermediate result
+    //       is used elsewhere.
+    //       In other words, I want to be able to delete both agilex_mac1 blocks
+    //       immediately to be sure I don't accidentally increase the number of
+    //       multiplications.
+    //  (C2) The chainin port of an agilex_mac2 must be either
+    //        (a) open (i.e., 0), or
+    //        (b) connected to the chainout port of another agilex_mac1.
+    //  (C3) The width of the result cannot exceed 44 bits.
+    s.intermediates
+      .flatMap({
+        case (macB, AgilexMac1(bx, by, macA: Param))
+            if !bx.freeVars.contains(macA) &&
+              !by.freeVars.contains(macA) &&
+              s.intermediates.get(macA).exists(_.isInstanceOf[AgilexMac1]) =>
+          // (C3) Check bitwidths
+          val bitwidthsOk = (macA.typ, macB.typ) match {
+            case (TyAnyInt(wA), TyAnyInt(wB)) => wA <= 44 && wB <= 44
+            case _                            => false
           }
-        case i =>
-          i
+          // (C2) Check chainin port
+          val AgilexMac1(_, _, chaininA) = s.intermediates(macA)
+          val chainin = chaininA match {
+            case z @ IntCst(0) =>
+              val typ = z.typ.asInstanceOf[TyAnyInt]
+              Some(C(0)(typ.withWidth(44)))
+            case TupleAccess(x: Param, IntCst(0))
+                if s.intermediates.get(x).exists(_.isInstanceOf[AgilexMac2]) =>
+              x.typ match {
+                case TyTuple(TyAnyInt(w), TyAnyInt(44)) if w <= 44 =>
+                  Some(x.__1.tchk())
+                case _ =>
+                  throw new AssertionError(s"output from $x has type ${x.typ}")
+              }
+            case _ =>
+              None
+          }
+          // (C1) Check if macA is used elsewhere
+          // TODO: Create a dependency graph beforehand to avoid this O(n^2) behaviour?
+          //       DSP selection doesn't seem to be particularly slow at the
+          //       moment, so maybe it's not such a big deal
+          val usedElsewhere = (
+            s.data.freeVars.contains(macA) ||
+              s.valid.freeVars.contains(macA) ||
+              s.accumulators.exists({ case (_, a) =>
+                a.freeVars.contains(macA)
+              }) ||
+              s.producers.exists({ case (_, (_, ready)) =>
+                ready.freeVars.contains(macA)
+              }) ||
+              s.intermediates.exists({ case (y, i) =>
+                y != macB && i.freeVars.contains(macA)
+              })
+          )
+          if (!usedElsewhere && chainin.nonEmpty && bitwidthsOk) {
+            Some((chainin.get, macA, macB))
+          } else {
+            None
+          }
+        case _ => None
       })
-    )
-  }
-
-  private def countAvailableRegisters(s: GenStmBuild, input: Expr): Int = {
-    input match {
-      case _: IntCst => Int.MaxValue
-      case VecAccess(v: Param, IntCst(i)) =>
-        s.accumulators
-          .get(v)
-          .collect({ case VecShiftLeftAccumulator(n, None, _) =>
-            (n - i).toInt
-          })
-          .getOrElse(0)
-      case _ => 0
-    }
-  }
-
-  private def shortenShiftRegister(
-      s: GenStmBuild,
-      input: Expr,
-      gobble: Int
-  ): Expr = {
-    input match {
-      case i: IntCst => i
-      case VecAccess(pipe: Param, IntCst(i)) =>
-        val (len, pipeInput) = s.accumulators
-          .get(pipe)
-          .collect({ case VecShiftLeftAccumulator(len, None, pipeInput) =>
-            (len, pipeInput)
-          })
-          .get
-        val newIndex = i + gobble
-        assert(len >= 0)
-        assert(newIndex >= 0)
-        assert(newIndex <= len)
-        if (newIndex == len) {
-          // Bypass the shift register altogether
-          pipeInput
-        } else {
-          VecAccess(pipe, C(newIndex)())().tchk()
-        }
-      case e =>
-        throw new IllegalArgumentException(
-          s"invalid argument to shortenShiftRegister: $e"
-        )
-    }
+      .headOption
   }
 }
 
-private object Shift {
-  def unapply(arg: (Param, Accumulator)): Option[(Long, Expr)] = {
+private object SumOf2Products {
+  def unapply(arg: Accumulator): Option[(Expr, Expr, Expr, Expr)] = {
     arg match {
-      case (_, VecShiftLeftAccumulator(len, None, next)) =>
-        Some((len, next))
+      case ExprAccumulator(
+            None,
+            ExprIntermediate(
+              Sum(
+                Prod(PadOrIntCst(ax), PadTo(ay, _)),
+                Prod(PadOrIntCst(bx), PadTo(by, _))
+              )
+            )
+          ) =>
+        Some((ax, ay, bx, by))
       case _ =>
         None
     }

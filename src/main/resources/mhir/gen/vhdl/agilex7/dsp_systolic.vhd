@@ -42,33 +42,37 @@ entity dsp_systolic is
         end if;
     end function;
 
+    constant MAXIMUM_AX_WIDTH : natural := 18;
     constant MAXIMUM_AY_WIDTH : natural := ite(USE_SIGNED, 19, 18);
+    constant MAXIMUM_BX_WIDTH : natural := 18;
     constant MAXIMUM_BY_WIDTH : natural := ite(USE_SIGNED, 19, 18);
+    constant MAXIMUM_RESULT_WIDTH : natural := 44;
+    constant MAXIMUM_PIPELINE : natural := 3;
 
 begin
 
-    assert(AX_WIDTH <= 18)
-    report "invalid value for generic AX_WIDTH: " & integer'image(AX_WIDTH) & " (expected value <= 18)"
+    assert(AX_WIDTH <= MAXIMUM_AX_WIDTH)
+    report "invalid value for generic AX_WIDTH: " & integer'image(AX_WIDTH) & " (expected value <= " & integer'image(MAXIMUM_AX_WIDTH) & ")"
     severity ERROR;
 
     assert(AY_WIDTH <= MAXIMUM_AY_WIDTH)
     report "invalid value for generic AY_WIDTH: " & integer'image(AY_WIDTH) & " (expected value <= " & integer'image(MAXIMUM_AY_WIDTH) & ")"
     severity ERROR;
 
-    assert(BX_WIDTH <= 18)
-    report "invalid value for generic BX_WIDTH: " & integer'image(BX_WIDTH) & " (expected value <= 18)"
+    assert(BX_WIDTH <= MAXIMUM_BX_WIDTH)
+    report "invalid value for generic BX_WIDTH: " & integer'image(BX_WIDTH) & " (expected value <= " & integer'image(MAXIMUM_BX_WIDTH) & ")"
     severity ERROR;
 
     assert(BY_WIDTH <= MAXIMUM_BY_WIDTH)
     report "invalid value for generic BY_WIDTH: " & integer'image(BY_WIDTH) & " (expected value <= " & integer'image(MAXIMUM_BY_WIDTH) & ")"
     severity ERROR;
 
-    assert(RESULT_WIDTH <= 44)
-    report "invalid value for generic RESULT_WIDTH: " & integer'image(RESULT_WIDTH) & " (expected value <= 44)"
+    assert(RESULT_WIDTH <= MAXIMUM_RESULT_WIDTH)
+    report "invalid value for generic RESULT_WIDTH: " & integer'image(RESULT_WIDTH) & " (expected value <= " & integer'image(MAXIMUM_RESULT_WIDTH) & ")"
     severity ERROR;
 
-    assert(PIPELINE <= 3)
-    report "invalid value for generic PIPELINE: " & integer'image(PIPELINE) & " (expected value <= 3)"
+    assert(PIPELINE <= MAXIMUM_PIPELINE)
+    report "invalid value for generic PIPELINE: " & integer'image(PIPELINE) & " (expected value <= " & integer'image(MAXIMUM_PIPELINE) &  ")"
     severity ERROR;
 
 end entity;

@@ -1,0 +1,18 @@
+.
+├── design
+│   ├── conversions.vhd
+│   ├── dsp_sumof2_signed.vhd
+│   ├── dsp_sumof2.vhd
+│   ├── foo.vhd
+│   ├── sbuild_1.vhd
+│   ├── sbuild_2.vhd
+│   └── typedefs.vhd
+├── foo.qpf
+├── foo.qsf
+├── foo.sdc
+├── Makefile
+├── scripts
+│   ├── compile_ip_blocks.sh
+│   └── test_vhdl.sh
+└── test
+    └── test_foo.vhd
