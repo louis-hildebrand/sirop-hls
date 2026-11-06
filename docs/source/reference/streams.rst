@@ -39,6 +39,10 @@ The part before the ``++`` is the "physical prefix."
 We will see these outputs if we observe a design running on a physical FPGA, but they are not part of the logical output we care about.
 The part after the ``++`` is the "logical part."
 
+Streams are *homogeneous* collections; all their elements must have the same type.
+
+.. literalinclude:: /code-examples/reference/streams/literal_inconsistent.repl.txt
+
 Controlling the Physical Prefix
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

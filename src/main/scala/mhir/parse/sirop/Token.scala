@@ -1,7 +1,7 @@
-package mhir.parse.sirop
+package mhir.parse
+package sirop
 
 import mhir.ir.{TyAnyInt, TySInt, TyUInt}
-import mhir.parse.SourcePoint
 
 sealed trait TokenCategory {
   def name: String
@@ -426,6 +426,11 @@ object IntToken {
   def unapply(token: Token): Option[TyAnyInt] = {
     token match {
       case UIntToken(w) => Some(TyUInt(w))
+      case SIntToken(0) =>
+        throw SyntaxError(
+          s"i0 is not a valid type; choose a higher bitwidth",
+          token.loc
+        )
       case SIntToken(w) => Some(TySInt(w))
       case _            => None
     }
