@@ -235,7 +235,13 @@ def test_eval(eval_output: Path, cli_args: list[str], save: bool) -> bool:
         return False
 
 
-def main(test_sources: list[Path], skip_vsim: bool, save: bool, fail_fast: bool) -> None:
+def main(
+    test_sources: list[Path],
+    skip_vsim: bool,
+    skip_quartus: bool,
+    save: bool,
+    fail_fast: bool,
+) -> None:
     """
     Script entry point.
     """
@@ -313,12 +319,12 @@ def main(test_sources: list[Path], skip_vsim: bool, save: bool, fail_fast: bool)
                 error_count += 1
         if vsim.can_run(test):
             ran = True
-            ok = skip_vsim or vsim.run(test, cli_args=cli_args, save=save)
+            ok = vsim.run(test, skip=skip_vsim, cli_args=cli_args, save=save)
             if not ok:
                 error_count += 1
         if vhdl.can_run(test):
             ran = True
-            ok = vhdl.run(test, cli_args=cli_args, save=save)
+            ok = vhdl.run(test, skip_quartus=skip_quartus, cli_args=cli_args, save=save)
             if not ok:
                 error_count += 1
         if not ran and test not in c.IGNORE_FILES:
@@ -360,6 +366,11 @@ def _parse_args() -> Namespace:
         help="don't run the tests related to VHDL simulation",
     )
     parser.add_argument(
+        "--skip-quartus",
+        action="store_true",
+        help="don't run the tests related to Quartus synthesis",
+    )
+    parser.add_argument(
         "--save",
         action="store_true",
         help="overwrite the expected results with whatever the compiler currently outputs",
@@ -395,6 +406,7 @@ if __name__ == "__main__":
         main(
             _args.test_sources,
             skip_vsim=_args.skip_vsim,
+            skip_quartus=_args.skip_quartus,
             save=_args.save,
             fail_fast=_args.failfast,
         )

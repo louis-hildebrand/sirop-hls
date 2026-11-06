@@ -31,12 +31,15 @@ def can_run(src: Path) -> bool:
     return src.with_suffix(".vsim.txt").is_file()
 
 
-def run(src: Path, cli_args: list[str], save: bool) -> bool:
+def run(src: Path, skip: bool, cli_args: list[str], save: bool) -> bool:
     """
     Test that generating and running a VHDL testbench produces the expected outputs.
     """
     name = src.with_suffix("").relative_to(c.RESOURCES).as_posix()
     print(f"{name} (VHDL sim) ... ", end="", flush=True)
+    if skip:
+        print(Fore.YELLOW + "SKIP" + Style.RESET_ALL)
+        return True
     vhdl_dir = c.ACTUAL_OUTPUTS / name
     result = subprocess.run(
         [

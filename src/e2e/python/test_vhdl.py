@@ -84,7 +84,7 @@ def can_run(src: Path) -> bool:
     return False
 
 
-def run(src: Path, cli_args: list[str], save: bool) -> bool:
+def run(src: Path, skip_quartus: bool, cli_args: list[str], save: bool) -> bool:
     """
     Test that the VHDL code looks OK (files generated, interface of the top-level entity).
     """
@@ -148,9 +148,12 @@ def run(src: Path, cli_args: list[str], save: bool) -> bool:
         expected_quartus_syn_path = src.with_suffix(".vhdl.quartus_syn.txt")
         if expected_quartus_syn_path.is_file():
             print(f"{name} (vhdl - quartus_syn) ... ", end="", flush=True)
-            actual_quartus_syn_path = c.ACTUAL_OUTPUTS / f"{name}.vhdl.quartus_syn.txt"
-            _check_quartus_syn(vhdl_dir, actual_quartus_syn_path)
-            print(Fore.GREEN + "OK" + Style.RESET_ALL)
+            if skip_quartus:
+                print(Fore.YELLOW + "SKIP" + Style.RESET_ALL)
+            else:
+                actual_quartus_syn_path = c.ACTUAL_OUTPUTS / f"{name}.vhdl.quartus_syn.txt"
+                _check_quartus_syn(vhdl_dir, actual_quartus_syn_path)
+                print(Fore.GREEN + "OK" + Style.RESET_ALL)
 
         return True
 
