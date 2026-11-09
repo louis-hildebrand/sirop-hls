@@ -69,6 +69,12 @@ class ParserTests extends AnyFunSuite {
     assert(actual.typ == U8)
   }
 
+  test("undefined:i0") {
+    val exc = intercept[SyntaxError](Parser.parse("undefined:i0"))
+    assert(exc.getMessage.contains("i0 is not a valid type"))
+    assert(exc.loc.contains(SourcePoint(1, 11)))
+  }
+
   test("undefined:(i16, bool, u8, Vec[u32, 5])") {
     val src = "undefined:(i16, bool, u8, Vec[u32, 5])"
     val expected = Undefined(TyTuple(I16, TyBool, U8, TyVec(U32, 5)))
