@@ -30,8 +30,8 @@ object TopVhdl {
         s"'$name' cannot be used as an input stream name, since it is also used for the output stream"
       )
     }
-    val childComponents = pipe.sbuilds.zipWithIndex.map({
-      case (StmBuildNode(x, s), i) =>
+    val childComponents = pipe.sbuilds.zipWithIndex
+      .map({ case (StmBuildNode(x, s), i) =>
         val inputsOfS = s.producers.values.map(_._1).toSet
         val component = StmBuildVhdl(
           s,
@@ -47,7 +47,8 @@ object TopVhdl {
           ) ++ inputsOfS.map(x => x.name -> x.name)
         )
         VhdlEntityInstantiation(component.name, component, portMap)
-    })
+      })
+      .map(ForGenerate(Seq.empty, Seq.empty, Seq.empty, _))
     val signals = {
       val sbuildOutputs = pipe.sbuilds.flatMap({ case StmBuildNode(x, _) =>
         Seq(

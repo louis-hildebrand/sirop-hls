@@ -48,7 +48,7 @@ case class AgilexMadd(
       target: Param,
       options: VhdlGeneratorOptions,
       enable: String
-  ): VhdlEntityInstantiation = {
+  ): ForGenerate = {
     val component =
       (this.ax.typ, this.ay.typ, this.bx.typ, this.by.typ, target.typ) match {
         case (TySInt(axw), TySInt(ayw), TySInt(bxw), TySInt(byw), TySInt(rw)) =>
@@ -74,18 +74,23 @@ case class AgilexMadd(
             s"the inputs and outputs for ${this.getClass.getName} should all have the same signedness"
           )
       }
-    VhdlEntityInstantiation(
-      name = Param(s"${target.prefix.toUpperCase}_DSP")().name,
-      c = component,
-      args = PortMap(
-        Map(
-          "clk" -> options.clock,
-          "ena" -> enable,
-          "ax" -> VhdlExprGenerator.toVhdl(this.ax),
-          "ay" -> VhdlExprGenerator.toVhdl(this.ay),
-          "bx" -> VhdlExprGenerator.toVhdl(this.bx),
-          "by" -> VhdlExprGenerator.toVhdl(this.by),
-          "result" -> VhdlExprGenerator.toVhdl(target)
+    ForGenerate(
+      Seq.empty,
+      Seq.empty,
+      Seq.empty,
+      VhdlEntityInstantiation(
+        name = Param(s"${target.prefix.toUpperCase}_DSP")().name,
+        c = component,
+        args = PortMap(
+          Map(
+            "clk" -> options.clock,
+            "ena" -> enable,
+            "ax" -> VhdlExprGenerator.toVhdl(this.ax),
+            "ay" -> VhdlExprGenerator.toVhdl(this.ay),
+            "bx" -> VhdlExprGenerator.toVhdl(this.bx),
+            "by" -> VhdlExprGenerator.toVhdl(this.by),
+            "result" -> VhdlExprGenerator.toVhdl(target)
+          )
         )
       )
     )

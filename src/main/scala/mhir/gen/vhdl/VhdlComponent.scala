@@ -89,12 +89,13 @@ private[vhdl] case class CustomVhdlComponent(
     outPorts: Seq[OutPort],
     signals: Seq[Signal],
     functions: Seq[VhdlFunction],
-    children: Seq[VhdlEntityInstantiation]
+    children: Seq[ForGenerate]
 ) extends VhdlComponent {
   checkPortMaps()
 
   private def checkPortMaps(): Unit = {
-    for (VhdlEntityInstantiation(name, child, map) <- children) {
+    for (ForGenerate(_, _, _, entity) <- children) {
+      val VhdlEntityInstantiation(name, child, map) = entity
       val expectedPorts = child match {
         case child: CustomVhdlComponent =>
           (child.inPorts.map(_.name) ++ child.outPorts.map(_.name)).toSet
@@ -171,33 +172,8 @@ private[vhdl] case class CustomVhdlComponent(
     os.write.append(f, "begin\n")
 
     val portMaps = children
-      .map({ case VhdlEntityInstantiation(name, c, pm) =>
-        val assignments =
-          pm.map
-            .map({ case (k, v) => s"$k => $v" })
-            .toSeq
-            .sorted
-            .mkString(",\n" + " ".repeat(12))
-        c match {
-          case c: CustomVhdlComponent =>
-            s"""    $name : entity ${options.library}.${c.name}
-               |        port map(
-               |            $assignments);
-               |""".stripMargin.stripTrailing
-          case c: PredefinedComponent =>
-            val genericAssignments = c.generics
-              .map({ case (k, v) => s"$k => $v" })
-              .toSeq
-              .sorted
-              .mkString(",\n" + " ".repeat(12))
-            s"""    $name : entity ${options.library}.${c.entityName}
-               |        generic map(
-               |            $genericAssignments)
-               |        port map(
-               |            $assignments);
-               |""".stripMargin.stripTrailing
-        }
-      })
+      .map(_.toVhdl(options))
+      .map(indent(_))
       .sortBy(x => x)
       .mkString("\n")
     os.write.append(f, portMaps + "\n\n")

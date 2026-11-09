@@ -214,8 +214,9 @@ object VhdlWriter {
           ++ c.outPorts.map(p => p.typ)
           ++ c.signals.map(s => s.typ)
           ++ c.functions.flatMap(f => findTypesUsedIn(f))
-          ++ c.children.flatMap({ case VhdlEntityInstantiation(_, c, _) =>
-            findTypesUsedIn(c)
+          ++ c.children.flatMap({
+            case ForGenerate(_, _, _, VhdlEntityInstantiation(_, c, _)) =>
+              findTypesUsedIn(c)
           })).toSet
     }
   }
@@ -266,8 +267,9 @@ object VhdlWriter {
           )
         }
         c.children
-          .flatMap({ case VhdlEntityInstantiation(_, child, _) =>
-            writeOperations(child, dir, options)
+          .flatMap({
+            case ForGenerate(_, _, _, VhdlEntityInstantiation(_, child, _)) =>
+              writeOperations(child, dir, options)
           })
           .toMap
           .+(dir / s"${c.name}.vhd" -> Right(c))

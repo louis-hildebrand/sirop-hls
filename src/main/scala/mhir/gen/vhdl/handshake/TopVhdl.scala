@@ -73,7 +73,7 @@ object TopVhdl {
           )
           VhdlEntityInstantiation(component.name, component, portMap)
       })
-      sbuilds ++ lets
+      (sbuilds ++ lets).map(ForGenerate(Seq.empty, Seq.empty, Seq.empty, _))
     }
     val signals = {
       val sbuildOutputs = pipe.sbuilds.flatMap({ case StmBuildNode(x, _) =>

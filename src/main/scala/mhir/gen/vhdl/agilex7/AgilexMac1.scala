@@ -31,7 +31,7 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
       target: Param,
       options: VhdlGeneratorOptions,
       enable: String
-  ): VhdlEntityInstantiation = {
+  ): ForGenerate = {
     // TODO: Actually instantiate an IP block?
     //       Two challenges:
     //         * How do I instantiate it in such a way that Quartus will be able to merge DSPs?
@@ -77,17 +77,22 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
             s"the inputs and outputs for ${this.getClass.getName} should all have the same signedness"
           )
       }
-    VhdlEntityInstantiation(
-      name = Param(s"${target.prefix.toUpperCase}_DSP")().name,
-      c = component,
-      args = PortMap(
-        Map(
-          "clk" -> options.clock,
-          "ena" -> enable,
-          "ax" -> VhdlExprGenerator.toVhdl(this.x),
-          "ay" -> VhdlExprGenerator.toVhdl(this.y),
-          "b" -> VhdlExprGenerator.toVhdl(this.chainin),
-          "result" -> VhdlExprGenerator.toVhdl(target)
+    ForGenerate(
+      Seq.empty,
+      Seq.empty,
+      Seq.empty,
+      VhdlEntityInstantiation(
+        name = Param(s"${target.prefix.toUpperCase}_DSP")().name,
+        c = component,
+        args = PortMap(
+          Map(
+            "clk" -> options.clock,
+            "ena" -> enable,
+            "ax" -> VhdlExprGenerator.toVhdl(this.x),
+            "ay" -> VhdlExprGenerator.toVhdl(this.y),
+            "b" -> VhdlExprGenerator.toVhdl(this.chainin),
+            "result" -> VhdlExprGenerator.toVhdl(target)
+          )
         )
       )
     )

@@ -121,6 +121,57 @@ private[vhdl] case class Signal(
   */
 private[vhdl] case class PortMap(map: Map[String, String])
 
+private[vhdl] case class ForGenerate(
+    loopLabels: Seq[String],
+    loopVars: Seq[String],
+    loopBoundsInclusive: Seq[String],
+    body: VhdlEntityInstantiation
+) {
+  require(
+    loopLabels.length == loopVars.length,
+    s"different number of labels and variables: ${loopLabels.length} vs ${loopVars.length}"
+  )
+  require(
+    loopLabels.length == loopBoundsInclusive.length,
+    s"different number of labels and loop bounds: ${loopLabels.length} vs ${loopBoundsInclusive.length}"
+  )
+
+  def toVhdl(options: VhdlGeneratorOptions): String = {
+    toVhdl(
+      this.loopLabels,
+      this.loopVars,
+      this.loopBoundsInclusive,
+      this.body,
+      options
+    )
+  }
+
+  private def toVhdl(
+      loopLabels: Seq[String],
+      loopVars: Seq[String],
+      loopBounds: Seq[String],
+      body: VhdlEntityInstantiation,
+      options: VhdlGeneratorOptions
+  ): String = {
+    (loopLabels, loopVars, loopBounds) match {
+      case (Seq(), Seq(), Seq()) =>
+        body.toVhdl(options)
+      case (
+            Seq(label, otherLabels @ _*),
+            Seq(iterVar, otherVars @ _*),
+            Seq(bound, otherBounds @ _*)
+          ) =>
+        val inside = toVhdl(otherLabels, otherVars, otherBounds, body, options)
+        s"""$label : for $iterVar in 0 to $bound generate
+           |${indent(inside)}
+           |end generate $label;
+           |""".stripMargin.stripTrailing
+      case _ =>
+        throw new AssertionError("mismatched list lengths")
+    }
+  }
+}
+
 /** An instantiation of a VHDL entity.
   *
   * @param name
@@ -134,4 +185,33 @@ private[vhdl] case class VhdlEntityInstantiation(
     name: String,
     c: VhdlComponent,
     args: PortMap
-)
+) {
+
+  def toVhdl(options: VhdlGeneratorOptions): String = {
+    val assignments =
+      this.args.map
+        .map({ case (k, v) => s"$k => $v" })
+        .toSeq
+        .sorted
+        .mkString(",\n" + " ".repeat(12))
+    this.c match {
+      case c: CustomVhdlComponent =>
+        s"""    ${this.name} : entity ${options.library}.${c.name}
+           |        port map(
+           |            $assignments);
+           |""".stripMargin.stripTrailing
+      case c: PredefinedComponent =>
+        val genericAssignments = c.generics
+          .map({ case (k, v) => s"$k => $v" })
+          .toSeq
+          .sorted
+          .mkString(",\n" + " ".repeat(12))
+        s"""    ${this.name} : entity ${options.library}.${c.entityName}
+           |        generic map(
+           |            $genericAssignments)
+           |        port map(
+           |            $assignments);
+           |""".stripMargin.stripTrailing
+    }
+  }
+}

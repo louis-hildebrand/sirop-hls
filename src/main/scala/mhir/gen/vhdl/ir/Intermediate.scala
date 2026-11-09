@@ -120,7 +120,7 @@ trait IpBlockInst extends Intermediate {
       target: Param,
       options: VhdlGeneratorOptions,
       enable: String
-  ): VhdlEntityInstantiation
+  ): ForGenerate
 
   override def toVhdlDecl(
       target: Target,

@@ -33,7 +33,12 @@ object LetStmVhdl {
           "c_ready" -> "buf_to_consumers_ready"
         )
       )
-      VhdlEntityInstantiation("BUF", component, portMap)
+      ForGenerate(
+        Seq.empty,
+        Seq.empty,
+        Seq.empty,
+        VhdlEntityInstantiation("BUF", component, portMap)
+      )
     }
     val signals = {
       Seq(

@@ -57,7 +57,7 @@ case class AgilexMac2(
       target: Param,
       options: VhdlGeneratorOptions,
       enable: String
-  ): VhdlEntityInstantiation = {
+  ): ForGenerate = {
     val (resultTyp, enableChainOut) = target.typ match {
       case resTyp: TySInt                      => (resTyp, false)
       case resTyp: TyUInt                      => (resTyp, false)
@@ -118,20 +118,25 @@ case class AgilexMac2(
     } else {
       (VhdlExprGenerator.toVhdl(target), "open")
     }
-    VhdlEntityInstantiation(
-      name = Param(s"${target.prefix.toUpperCase}_DSP")().name,
-      c = component,
-      args = PortMap(
-        Map(
-          "clk" -> options.clock,
-          "ena" -> enable,
-          "ax" -> VhdlExprGenerator.toVhdl(this.ax),
-          "ay" -> VhdlExprGenerator.toVhdl(this.ay),
-          "bx" -> VhdlExprGenerator.toVhdl(this.bx),
-          "by" -> VhdlExprGenerator.toVhdl(this.by),
-          "chainin" -> VhdlExprGenerator.toVhdl(this.chainin),
-          "chainout" -> chainOutVhdl,
-          "result" -> resultVhdl
+    ForGenerate(
+      Seq.empty,
+      Seq.empty,
+      Seq.empty,
+      VhdlEntityInstantiation(
+        name = Param(s"${target.prefix.toUpperCase}_DSP")().name,
+        c = component,
+        args = PortMap(
+          Map(
+            "clk" -> options.clock,
+            "ena" -> enable,
+            "ax" -> VhdlExprGenerator.toVhdl(this.ax),
+            "ay" -> VhdlExprGenerator.toVhdl(this.ay),
+            "bx" -> VhdlExprGenerator.toVhdl(this.bx),
+            "by" -> VhdlExprGenerator.toVhdl(this.by),
+            "chainin" -> VhdlExprGenerator.toVhdl(this.chainin),
+            "chainout" -> chainOutVhdl,
+            "result" -> resultVhdl
+          )
         )
       )
     )
