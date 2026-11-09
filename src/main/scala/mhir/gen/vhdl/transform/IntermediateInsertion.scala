@@ -64,9 +64,30 @@ private class IntermediateInsertion(
       case (x, i: DataIntermediate) =>
         val newI = i.map(this.getExprAndMutateIntermediates)
         this.intermediates += (x -> newI)
-      case (x, i: IpBlockInst) =>
-        val newI = i.mapInputs(this.getPortActualAndMutateIntermediates)
-        this.intermediates += (x -> newI)
+      case (x, fgi: ForGenerateIntermediate) =>
+        val subPass = new IntermediateInsertion(ListMap())
+        val newFgi = ForGenerateIntermediate(
+          fgi.loopLabels,
+          fgi.loopVars,
+          fgi.loopBoundsInclusive,
+          fgi.body.mapInputs(subPass.getPortActualAndMutateIntermediates)
+        )
+        val intermediatesUsingLoopVars = subPass.intermediates
+          .filter({ case (_, i) =>
+            fgi.loopVars.toSet.intersect(i.freeVars).nonEmpty
+          })
+        if (intermediatesUsingLoopVars.nonEmpty) {
+          // TODO: I should perhaps add a ListMap[Param, Intermediate] in
+          //       ForGenerate and ForGenerateIntermediate to represent the
+          //       intermediate values that depend on the loop bounds.
+          throw new AssertionError("TODO: handle this case")
+        }
+        val intermediatesNotUsingLoopVars = subPass.intermediates
+          .filterNot({ case (_, i) =>
+            fgi.loopVars.toSet.intersect(i.freeVars).nonEmpty
+          })
+        this.intermediates ++= intermediatesNotUsingLoopVars
+        this.intermediates += (x -> newFgi)
       case (x, f: FunctionIntermediate) =>
         throw new AssertionError(
           s"there should not be any ${f.getClass.getName} yet at this compilation stage"
@@ -134,7 +155,8 @@ private class IntermediateInsertion(
   }
 
   /** Insert intermediates where necessary to turn the given Sirop expression
-    * into
+    * into a valid "actual_part" in a port map (see VHDL-2002 standard, section
+    * 1.1.1.2).
     *
     * @return
     *   an expression that can be used as an "actual part" in a port map.
@@ -201,7 +223,7 @@ private class ExprIntermediateInsertion(
             case i: DataIntermediate     => innerIntermediates += x -> i
             case i: FunctionIntermediate => innerIntermediates += x -> i
             // Not allowed
-            case _: IpBlockInst =>
+            case ForGenerateIntermediate(_, _, _, _: IpBlockInst) =>
               throw new AssertionError(
                 "IP blocks should not be instantiated inside functions"
               )

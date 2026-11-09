@@ -3,12 +3,7 @@ package transform
 
 import mhir.canonicalize._
 import mhir.gen.vhdl.agilex7.AgilexMac1
-import mhir.gen.vhdl.ir.{
-  ExprAccumulator,
-  ExprIntermediate,
-  FunctionIntermediate,
-  GenStmBuild
-}
+import mhir.gen.vhdl.ir._
 import mhir.ir._
 import mhir.typecheck._
 import org.scalatest.funsuite.AnyFunSuite
@@ -50,10 +45,15 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
       ),
       intermediates = ListMap(
         f -> FunctionIntermediate(Seq(x), ListMap(), fBody),
-        prod -> AgilexMac1(
-          FunCall(f, w)().__0.tchk(),
-          FunCall(f, C(3)(U8))().__0.tchk(),
-          C(0)(U8)
+        prod -> ForGenerateIntermediate(
+          Seq.empty,
+          Seq.empty,
+          Seq.empty,
+          AgilexMac1(
+            FunCall(f, w)().__0.tchk(),
+            FunCall(f, C(3)(U8))().__0.tchk(),
+            C(0)(U8)
+          )
         ),
         data -> ExprIntermediate(
           Tuple(FunCall(f, C(42)(U8))(), StmData(p)(), w, prod)().tchk()
@@ -88,10 +88,15 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
       ),
       intermediates = ListMap(
         f2 -> FunctionIntermediate(Seq(x, y, z), ListMap(), f2Body),
-        prod -> AgilexMac1(
-          FunCall(f2, Tuple(w, y, z)())().__0.tchk(),
-          FunCall(f2, Tuple(C(3)(U8), y, z)())().__0.tchk(),
-          C(0)(U8)
+        prod -> ForGenerateIntermediate(
+          Seq.empty,
+          Seq.empty,
+          Seq.empty,
+          AgilexMac1(
+            FunCall(f2, Tuple(w, y, z)())().__0.tchk(),
+            FunCall(f2, Tuple(C(3)(U8), y, z)())().__0.tchk(),
+            C(0)(U8)
+          )
         ),
         data -> ExprIntermediate(
           Tuple(

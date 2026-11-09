@@ -2,7 +2,7 @@ package mhir.gen.vhdl
 package agilex7
 
 import mhir.canonicalize._
-import mhir.gen.vhdl.ir.{Intermediate, IpBlockInst}
+import mhir.gen.vhdl.ir.{Intermediate, IpBlockInst, Target}
 import mhir.ir._
 
 case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
@@ -15,7 +15,7 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
     x.freeVars ++ y.freeVars ++ chainin.freeVars
   }
 
-  override def substitute(subs: Map[Expr, Expr]): Intermediate = {
+  override def substitute(subs: Map[Expr, Expr]): AgilexMac1 = {
     AgilexMac1(
       this.x.subPreserveType(subs),
       this.y.subPreserveType(subs),
@@ -23,15 +23,15 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
     )
   }
 
-  override def mapInputs(f: Expr => Expr): IpBlockInst = {
+  override def mapInputs(f: Expr => Expr): AgilexMac1 = {
     AgilexMac1(f(this.x), f(this.y), f(this.chainin))
   }
 
   override def toVhdlEntityInst(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions,
       enable: String
-  ): ForGenerate = {
+  ): VhdlEntityInstantiation = {
     // TODO: Actually instantiate an IP block?
     //       Two challenges:
     //         * How do I instantiate it in such a way that Quartus will be able to merge DSPs?
@@ -77,22 +77,17 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
             s"the inputs and outputs for ${this.getClass.getName} should all have the same signedness"
           )
       }
-    ForGenerate(
-      Seq.empty,
-      Seq.empty,
-      Seq.empty,
-      VhdlEntityInstantiation(
-        name = Param(s"${target.prefix.toUpperCase}_DSP")().name,
-        c = component,
-        args = PortMap(
-          Map(
-            "clk" -> options.clock,
-            "ena" -> enable,
-            "ax" -> VhdlExprGenerator.toVhdl(this.x),
-            "ay" -> VhdlExprGenerator.toVhdl(this.y),
-            "b" -> VhdlExprGenerator.toVhdl(this.chainin),
-            "result" -> VhdlExprGenerator.toVhdl(target)
-          )
+    VhdlEntityInstantiation(
+      name = Param(s"${target.name.toUpperCase}_DSP")().name,
+      c = component,
+      args = PortMap(
+        Map(
+          "clk" -> options.clock,
+          "ena" -> enable,
+          "ax" -> VhdlExprGenerator.toVhdl(this.x),
+          "ay" -> VhdlExprGenerator.toVhdl(this.y),
+          "b" -> VhdlExprGenerator.toVhdl(this.chainin),
+          "result" -> target.name
         )
       )
     )

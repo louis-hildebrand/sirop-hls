@@ -42,8 +42,19 @@ object MakeFreeVarsIntoParams {
         x -> (p, pass.apply(ready))
       }),
       intermediates = s2.intermediates.map({
-        case (x, i: DataIntermediate)     => x -> i.map(pass.apply)
-        case (x, i: IpBlockInst)          => x -> i.mapInputs(pass.apply)
+        case (x, i: DataIntermediate) => x -> i.map(pass.apply)
+        case (x, ForGenerateIntermediate(labels, vars, bounds, body)) =>
+          // TODO: Rename loop variables to avoid variable capture?
+          assert(
+            vars.toSet.intersect(functionContexts.values.flatten.toSet).isEmpty,
+            s"${this.getClass.getName} may result in variable capture. Maybe the loop variables should be renamed."
+          )
+          x -> ForGenerateIntermediate(
+            labels,
+            vars,
+            bounds,
+            body.mapInputs(pass.apply)
+          )
         case (f, i: FunctionIntermediate) => pass.apply(f, i)
       })
     )
@@ -236,7 +247,13 @@ private object EnsureTupleArgs {
   private def apply(i: Intermediate): Intermediate = {
     i match {
       case i: DataIntermediate => i.map(this.apply)
-      case i: IpBlockInst      => i.mapInputs(this.apply)
+      case ForGenerateIntermediate(labels, vars, bounds, body) =>
+        ForGenerateIntermediate(
+          labels,
+          vars,
+          bounds,
+          body.mapInputs(this.apply)
+        )
       case FunctionIntermediate(params, intermediates, output) =>
         assert(
           params.length == 1,

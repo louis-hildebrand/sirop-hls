@@ -32,8 +32,8 @@ private[vhdl] object StmBuildVhdl {
     val allPorts = defaultOutPort(s.data) +:
       (defaultInPorts(options) ++ producerPorts(s.producers))
     val allChildren = s.intermediates
-      .collect({ case (x, ip: IpBlockInst) =>
-        ip.toVhdlEntityInst(x, options, enable = "'1'")
+      .collect({ case (x, fgi: ForGenerateIntermediate) =>
+        fgi.toVhdl(Target(x), options, enable = "'1'")
       })
       .toSeq
     CustomVhdlComponent(

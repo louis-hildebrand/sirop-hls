@@ -1,7 +1,7 @@
 package mhir.gen.vhdl.handshake
 
 import mhir.gen.vhdl._
-import mhir.gen.vhdl.ir.{Accumulator, GenStmBuild, IpBlockInst, Target}
+import mhir.gen.vhdl.ir._
 import mhir.ir._
 
 /** VHDL converter for [[mhir.ir.StmBuild]].
@@ -40,8 +40,8 @@ private[vhdl] object StmBuildVhdl {
         ++ producerPorts(s.producers)
     )
     val allChildren = s.intermediates
-      .collect({ case (x, ip: IpBlockInst) =>
-        ip.toVhdlEntityInst(x, options, enable = "bool2sl(can_update_acc)")
+      .collect({ case (x, fgi: ForGenerateIntermediate) =>
+        fgi.toVhdl(Target(x), options, enable = "bool2sl(can_update_acc)")
       })
       .toSeq
     CustomVhdlComponent(

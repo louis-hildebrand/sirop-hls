@@ -108,7 +108,10 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           case _ => false
         }
         if (typesOk) {
-          Some(acc -> AgilexMadd(ax, ay, bx, by, pipeline = 0))
+          val madd = AgilexMadd(ax, ay, bx, by, pipeline = 0)
+          val fgi =
+            ForGenerateIntermediate(Seq.empty, Seq.empty, Seq.empty, madd)
+          Some(acc -> fgi)
         } else {
           None
         }
@@ -121,7 +124,10 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           case _ => false
         }
         if (typesOk) {
-          Some(acc -> AgilexMac1(x, y, chainin))
+          val mac = AgilexMac1(x, y, chainin)
+          val fgi =
+            ForGenerateIntermediate(Seq.empty, Seq.empty, Seq.empty, mac)
+          Some(acc -> fgi)
         } else {
           None
         }
@@ -156,28 +162,51 @@ case class DspSelection(scheduler: StmOutputScheduler) {
       macA: Param,
       macB: Param
   ): GenStmBuild = {
-    val AgilexMac1(ax, ay, _) = s.intermediates(macA)
-    val AgilexMac1(bx, by, _) = s.intermediates(macB)
-    val newDsp = AgilexMac2(ax, ay, bx, by, chainin, pipeline = 0)
-    val bTyp = macB.typ.asInstanceOf[TyAnyInt]
-    val newTyp = TyTuple(bTyp /*result*/, bTyp.withWidth(44) /*chainout*/ )
-    val newParam = Param(macB.prefix)(newTyp)
-    val subs = Map[Expr, Expr](macB -> newParam.__0.tchk())
-    GenStmBuild(
-      data = s.data.subPreserveType(subs),
-      valid = s.valid.subPreserveType(subs),
-      accumulators = s.accumulators.map({ case (x, a) =>
-        x -> a.substitute(subs)
-      }),
-      producers = s.producers.map({ case (x, (p, ready)) =>
-        x -> (p, ready.subPreserveType(subs))
-      }),
-      intermediates = s.intermediates
-        .-(macA)
-        .-(macB)
-        .map({ case (x, i) => x -> i.substitute(subs) })
-        .+(newParam -> newDsp)
-    )
+    (s.intermediates(macA), s.intermediates(macB)) match {
+      case (
+            ForGenerateIntermediate(
+              labelsA,
+              varsA,
+              boundsA,
+              AgilexMac1(ax, ay, _)
+            ),
+            ForGenerateIntermediate(
+              _,
+              _,
+              boundsB,
+              AgilexMac1(bx, by, _)
+            )
+          )
+          // The other lengths should match the length of these lists
+          if boundsA == boundsB =>
+        val newForGen = {
+          val labelsAB = labelsA
+          val varsAB = varsA.map(_.freshCopy)
+          val newDsp = AgilexMac2(ax, ay, bx, by, chainin, pipeline = 0)
+          ForGenerateIntermediate(labelsAB, varsAB, boundsA, newDsp)
+        }
+        val bTyp = macB.typ.asInstanceOf[TyAnyInt]
+        val newTyp = TyTuple(bTyp /*result*/, bTyp.withWidth(44) /*chainout*/ )
+        val newParam = Param(macB.prefix)(newTyp)
+        val subs = Map[Expr, Expr](macB -> newParam.__0.tchk())
+        GenStmBuild(
+          data = s.data.subPreserveType(subs),
+          valid = s.valid.subPreserveType(subs),
+          accumulators = s.accumulators.map({ case (x, a) =>
+            x -> a.substitute(subs)
+          }),
+          producers = s.producers.map({ case (x, (p, ready)) =>
+            x -> (p, ready.subPreserveType(subs))
+          }),
+          intermediates = s.intermediates
+            .-(macA)
+            .-(macB)
+            .map({ case (x, i) => x -> i.substitute(subs) })
+            .+(newParam -> newForGen)
+        )
+      case _ =>
+        throw new AssertionError(s"cannot combine DSPs $macA and $macB")
+    }
   }
 
   private def findDspsToCombine(
@@ -195,31 +224,54 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     //  (C3) The width of the result cannot exceed 44 bits.
     s.intermediates
       .flatMap({
-        case (macB, AgilexMac1(bx, by, macA: Param))
+        case (
+              macB,
+              ForGenerateIntermediate(
+                _,
+                _,
+                boundsB,
+                AgilexMac1(bx, by, macA: Param)
+              )
+            )
             if !bx.freeVars.contains(macA) &&
-              !by.freeVars.contains(macA) &&
-              s.intermediates.get(macA).exists(_.isInstanceOf[AgilexMac1]) =>
+              !by.freeVars.contains(macA) =>
+          // (C2) Check chainin port
+          val chainin = s.intermediates.get(macA) match {
+            case Some(
+                  ForGenerateIntermediate(
+                    _,
+                    _,
+                    boundsA,
+                    AgilexMac1(_, _, chaininA)
+                  )
+                ) if boundsA == boundsB =>
+              chaininA match {
+                case z @ IntCst(0) =>
+                  val typ = z.typ.asInstanceOf[TyAnyInt]
+                  Some(C(0)(typ.withWidth(44)))
+                case TupleAccess(x: Param, IntCst(0)) =>
+                  s.intermediates.get(x) match {
+                    case Some(
+                          ForGenerateIntermediate(_, _, _, _: AgilexMac2)
+                        ) =>
+                      x.typ match {
+                        case TyTuple(TyAnyInt(w), TyAnyInt(44)) if w <= 44 =>
+                          Some(x.__1.tchk())
+                        case _ =>
+                          throw new AssertionError(
+                            s"output from $x has type ${x.typ}"
+                          )
+                      }
+                    case _ => None
+                  }
+                case _ => None
+              }
+            case _ => None
+          }
           // (C3) Check bitwidths
           val bitwidthsOk = (macA.typ, macB.typ) match {
             case (TyAnyInt(wA), TyAnyInt(wB)) => wA <= 44 && wB <= 44
             case _                            => false
-          }
-          // (C2) Check chainin port
-          val AgilexMac1(_, _, chaininA) = s.intermediates(macA)
-          val chainin = chaininA match {
-            case z @ IntCst(0) =>
-              val typ = z.typ.asInstanceOf[TyAnyInt]
-              Some(C(0)(typ.withWidth(44)))
-            case TupleAccess(x: Param, IntCst(0))
-                if s.intermediates.get(x).exists(_.isInstanceOf[AgilexMac2]) =>
-              x.typ match {
-                case TyTuple(TyAnyInt(w), TyAnyInt(44)) if w <= 44 =>
-                  Some(x.__1.tchk())
-                case _ =>
-                  throw new AssertionError(s"output from $x has type ${x.typ}")
-              }
-            case _ =>
-              None
           }
           // (C1) Check if macA is used elsewhere
           // TODO: Create a dependency graph beforehand to avoid this O(n^2) behaviour?

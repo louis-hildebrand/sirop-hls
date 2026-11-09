@@ -193,24 +193,24 @@ private[vhdl] case class VhdlEntityInstantiation(
         .map({ case (k, v) => s"$k => $v" })
         .toSeq
         .sorted
-        .mkString(",\n" + " ".repeat(12))
+        .mkString(",\n" + " ".repeat(8))
     this.c match {
       case c: CustomVhdlComponent =>
-        s"""    ${this.name} : entity ${options.library}.${c.name}
-           |        port map(
-           |            $assignments);
+        s"""${this.name} : entity ${options.library}.${c.name}
+           |    port map(
+           |        $assignments);
            |""".stripMargin.stripTrailing
       case c: PredefinedComponent =>
         val genericAssignments = c.generics
           .map({ case (k, v) => s"$k => $v" })
           .toSeq
           .sorted
-          .mkString(",\n" + " ".repeat(12))
-        s"""    ${this.name} : entity ${options.library}.${c.entityName}
-           |        generic map(
-           |            $genericAssignments)
-           |        port map(
-           |            $assignments);
+          .mkString(",\n" + " ".repeat(8))
+        s"""${this.name} : entity ${options.library}.${c.entityName}
+           |    generic map(
+           |        $genericAssignments)
+           |    port map(
+           |        $assignments);
            |""".stripMargin.stripTrailing
     }
   }

@@ -225,32 +225,51 @@ class IntermediateInsertionTests extends AnyFunSuite {
         p -> (p, True)
       ),
       intermediates = ListMap(
-        mul1 -> AgilexMac1(
-          StmData(p)().__0.__0.tchk(),
-          Sum(C(1)(U8), StmData(p)().__0.__1)().tchk(),
-          C(0)(U8)
+        mul1 -> ForGenerateIntermediate(
+          Seq.empty,
+          Seq.empty,
+          Seq.empty,
+          AgilexMac1(
+            StmData(p)().__0.__0.tchk(),
+            Sum(C(1)(U8), StmData(p)().__0.__1)().tchk(),
+            C(0)(U8)
+          )
         ),
-        mul2 -> AgilexMac2(
-          VecAccess(StmData(p)().__1, 0)().tchk(),
-          Sum(C(1)(U8), Mux(b, VecAccess(StmData(p)().__1, 1)(), C(1)(U8))())()
-            .tchk(),
-          VecAccess(StmData(p)().__1, 2)().tchk(),
-          Sum(C(1)(U8), Mux(b, VecAccess(StmData(p)().__1, 3)(), C(1)(U8))())()
-            .tchk(),
-          mul1,
-          pipeline = 2
+        mul2 -> ForGenerateIntermediate(
+          Seq.empty,
+          Seq.empty,
+          Seq.empty,
+          AgilexMac2(
+            VecAccess(StmData(p)().__1, 0)().tchk(),
+            Sum(
+              C(1)(U8),
+              Mux(b, VecAccess(StmData(p)().__1, 1)(), C(1)(U8))()
+            )()
+              .tchk(),
+            VecAccess(StmData(p)().__1, 2)().tchk(),
+            Sum(
+              C(1)(U8),
+              Mux(b, VecAccess(StmData(p)().__1, 3)(), C(1)(U8))()
+            )()
+              .tchk(),
+            mul1,
+            pipeline = 2
+          )
         )
       )
     )
     val actual = IntermediateInsertion(original)
 
     val mac1Count = actual.intermediates.count({
-      case (_, _: AgilexMac1) => true
-      case _                  => false
+      case (_, ForGenerateIntermediate(_, _, _, _: AgilexMac1)) => true
+      case _                                                    => false
     })
     assert(mac1Count == 1)
-    val mac1 =
-      actual.intermediates.collectFirst({ case (_, i: AgilexMac1) => i }).get
+    val mac1 = actual.intermediates
+      .collectFirst({
+        case (_, ForGenerateIntermediate(_, _, _, i: AgilexMac1)) => i
+      })
+      .get
     mac1 match {
       case AgilexMac1(
             // Keep tuple access as-is
@@ -265,12 +284,15 @@ class IntermediateInsertionTests extends AnyFunSuite {
     }
 
     val mac2Count = actual.intermediates.count({
-      case (_, _: AgilexMac2) => true
-      case _                  => false
+      case (_, ForGenerateIntermediate(_, _, _, _: AgilexMac2)) => true
+      case _                                                    => false
     })
     assert(mac2Count == 1)
-    val mac2 =
-      actual.intermediates.collectFirst({ case (_, i: AgilexMac2) => i }).get
+    val mac2 = actual.intermediates
+      .collectFirst({
+        case (_, ForGenerateIntermediate(_, _, _, i: AgilexMac2)) => i
+      })
+      .get
     mac2 match {
       case AgilexMac2(
             VecAccess(TupleAccess(_: Param, IntCst(1)), IntCst(0)),
@@ -285,8 +307,8 @@ class IntermediateInsertionTests extends AnyFunSuite {
     }
 
     val ipBlockCount = actual.intermediates.count({
-      case (_, _: IpBlockInst) => true
-      case _                   => false
+      case (_, ForGenerateIntermediate(_, _, _, _: IpBlockInst)) => true
+      case _                                                     => false
     })
     assert(ipBlockCount == 2)
   }

@@ -29,7 +29,12 @@ object DspRegisterPacking {
       intermediates = s.intermediates.map({
         case intermediate @ (
               x,
-              AgilexMac2(ax, ay, bx, by, chainin, pipeline)
+              ForGenerateIntermediate(
+                labels,
+                vars,
+                bounds,
+                AgilexMac2(ax, ay, bx, by, chainin, pipeline)
+              )
             ) =>
           assert(pipeline >= 0)
           assert(pipeline <= 3)
@@ -50,9 +55,17 @@ object DspRegisterPacking {
               chainin,
               pipeline + gobble
             )
-            x -> newMac
+            x -> ForGenerateIntermediate(labels, vars, bounds, newMac)
           }
-        case intermediate @ (x, AgilexMadd(ax, ay, bx, by, pipeline)) =>
+        case intermediate @ (
+              x,
+              ForGenerateIntermediate(
+                labels,
+                vars,
+                bounds,
+                AgilexMadd(ax, ay, bx, by, pipeline)
+              )
+            ) =>
           assert(pipeline >= 0)
           assert(pipeline <= 0)
           // How long is the shift register before each input?
@@ -71,7 +84,7 @@ object DspRegisterPacking {
               by = shortenShiftRegister(s, by, gobble),
               pipeline + gobble
             )
-            x -> newMadd
+            x -> ForGenerateIntermediate(labels, vars, bounds, newMadd)
           }
         case i =>
           i

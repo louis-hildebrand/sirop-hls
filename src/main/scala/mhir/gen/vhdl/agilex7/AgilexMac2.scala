@@ -2,7 +2,7 @@ package mhir.gen.vhdl
 package agilex7
 
 import mhir.canonicalize._
-import mhir.gen.vhdl.ir.{Intermediate, IpBlockInst}
+import mhir.gen.vhdl.ir.{Intermediate, IpBlockInst, Target}
 import mhir.ir._
 import mhir.typecheck._
 
@@ -31,7 +31,7 @@ case class AgilexMac2(
     ax.freeVars ++ ay.freeVars ++ bx.freeVars ++ by.freeVars ++ chainin.freeVars
   }
 
-  override def substitute(subs: Map[Expr, Expr]): Intermediate = {
+  override def substitute(subs: Map[Expr, Expr]): AgilexMac2 = {
     AgilexMac2(
       this.ax.subPreserveType(subs),
       this.ay.subPreserveType(subs),
@@ -42,7 +42,7 @@ case class AgilexMac2(
     )
   }
 
-  def mapInputs(f: Expr => Expr): IpBlockInst = {
+  def mapInputs(f: Expr => Expr): AgilexMac2 = {
     AgilexMac2(
       f(this.ax),
       f(this.ay),
@@ -54,10 +54,10 @@ case class AgilexMac2(
   }
 
   override def toVhdlEntityInst(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions,
       enable: String
-  ): ForGenerate = {
+  ): VhdlEntityInstantiation = {
     val (resultTyp, enableChainOut) = target.typ match {
       case resTyp: TySInt                      => (resTyp, false)
       case resTyp: TyUInt                      => (resTyp, false)
@@ -112,31 +112,26 @@ case class AgilexMac2(
           )
       }
     val (resultVhdl, chainOutVhdl) = if (enableChainOut) {
-      val r = VhdlExprGenerator.toVhdl(target.__0.tchk())
-      val c = VhdlExprGenerator.toVhdl(target.__1.tchk())
+      val r = VhdlExprGenerator.makeTupleAccess(target.name, 0)
+      val c = VhdlExprGenerator.makeTupleAccess(target.name, 1)
       (r, c)
     } else {
-      (VhdlExprGenerator.toVhdl(target), "open")
+      (target.name, "open")
     }
-    ForGenerate(
-      Seq.empty,
-      Seq.empty,
-      Seq.empty,
-      VhdlEntityInstantiation(
-        name = Param(s"${target.prefix.toUpperCase}_DSP")().name,
-        c = component,
-        args = PortMap(
-          Map(
-            "clk" -> options.clock,
-            "ena" -> enable,
-            "ax" -> VhdlExprGenerator.toVhdl(this.ax),
-            "ay" -> VhdlExprGenerator.toVhdl(this.ay),
-            "bx" -> VhdlExprGenerator.toVhdl(this.bx),
-            "by" -> VhdlExprGenerator.toVhdl(this.by),
-            "chainin" -> VhdlExprGenerator.toVhdl(this.chainin),
-            "chainout" -> chainOutVhdl,
-            "result" -> resultVhdl
-          )
+    VhdlEntityInstantiation(
+      name = Param(s"${target.name.toUpperCase}_DSP")().name,
+      c = component,
+      args = PortMap(
+        Map(
+          "clk" -> options.clock,
+          "ena" -> enable,
+          "ax" -> VhdlExprGenerator.toVhdl(this.ax),
+          "ay" -> VhdlExprGenerator.toVhdl(this.ay),
+          "bx" -> VhdlExprGenerator.toVhdl(this.bx),
+          "by" -> VhdlExprGenerator.toVhdl(this.by),
+          "chainin" -> VhdlExprGenerator.toVhdl(this.chainin),
+          "chainout" -> chainOutVhdl,
+          "result" -> resultVhdl
         )
       )
     )

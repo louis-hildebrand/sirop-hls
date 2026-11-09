@@ -101,9 +101,84 @@ case class FunctionIntermediate(
   }
 }
 
+case class ForGenerateIntermediate(
+    loopLabels: Seq[String],
+    loopVars: Seq[Param],
+    // TODO: Allow the loop bounds to be arbitrary expressions?
+    //       I would then need to be very careful about things like substitution, intermediate
+    //       insertion, etc.
+    //       In fact, this flattened loop representation might not work at all, if loop bounds can
+    //       depend on earlier loop variables.
+    loopBoundsInclusive: Seq[Int],
+    body: IpBlockInst
+) extends Intermediate {
+
+  require(
+    loopLabels.length == loopVars.length,
+    s"different number of labels and variables: ${loopLabels.length} vs ${loopVars.length}"
+  )
+  require(
+    loopLabels.length == loopBoundsInclusive.length,
+    s"different number of labels and loop bounds: ${loopLabels.length} vs ${loopBoundsInclusive.length}"
+  )
+
+  override def freeVars: Set[Param] = {
+    this.body.freeVars.diff(this.loopVars.toSet)
+  }
+
+  override def substitute(subs: Map[Expr, Expr]): ForGenerateIntermediate = {
+    val loopVarSet = this.loopVars.toSet
+    val newSubs = subs.filterKeys(_.freeVars.intersect(loopVarSet).isEmpty)
+    ForGenerateIntermediate(
+      this.loopLabels,
+      this.loopVars,
+      this.loopBoundsInclusive,
+      this.body.substitute(newSubs)
+    )
+  }
+
+  def toVhdl(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): ForGenerate = {
+    val ipBlockTarget = this.loopVars.foldLeft(target)({ case (target, i) =>
+      val TyVec(elemTyp, _) = target.typ
+      Target(s"${target.name}($i)", elemTyp)
+    })
+    ForGenerate(
+      loopLabels = this.loopLabels,
+      loopVars = this.loopVars.map(_.name),
+      loopBoundsInclusive = this.loopBoundsInclusive.map(_.toString),
+      body = this.body.toVhdlEntityInst(ipBlockTarget, options, enable = enable)
+    )
+  }
+
+  override def toVhdlDecl(
+      target: Target,
+      options: VhdlGeneratorOptions
+  ): Decl = {
+    Signal(
+      category = "Intermediate signals",
+      name = target.name,
+      typ = VhdlType(target.typ),
+      // This signal will be driven by the IP block, so no need for an
+      // assignment statement
+      assignStmt = None,
+      cond = None
+    )
+  }
+}
+
 /** An instantiation of an IP block (e.g., the native Agilex DSPs).
+  *
+  * This will normally appear inside a [[ForGenerateIntermediate]].
   */
-trait IpBlockInst extends Intermediate {
+trait IpBlockInst {
+
+  def freeVars: Set[Param]
+
+  def substitute(subs: Map[Expr, Expr]): IpBlockInst
 
   /** Convert this IP block instantiation to VHDL.
     *
@@ -117,25 +192,10 @@ trait IpBlockInst extends Intermediate {
     *   registers.
     */
   def toVhdlEntityInst(
-      target: Param,
+      target: Target,
       options: VhdlGeneratorOptions,
       enable: String
-  ): ForGenerate
-
-  override def toVhdlDecl(
-      target: Target,
-      options: VhdlGeneratorOptions
-  ): Signal = {
-    Signal(
-      category = "Intermediate signals",
-      name = target.name,
-      typ = VhdlType(target.typ),
-      // This signal will be driven by the IP block, so no need for an
-      // assignment statement
-      assignStmt = None,
-      cond = None
-    )
-  }
+  ): VhdlEntityInstantiation
 
   def mapInputs(f: Expr => Expr): IpBlockInst
 }
