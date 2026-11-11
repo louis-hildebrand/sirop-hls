@@ -52,7 +52,7 @@ object IpStats {
           case _                 => ???
         }
         val body = describe(newTarget, otherVars, otherBounds, ip)
-        s"for $x in 0 to $bound { $body }"
+        s"for($bound) $body"
       case _ =>
         ???
     }

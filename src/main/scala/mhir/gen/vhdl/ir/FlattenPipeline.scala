@@ -21,12 +21,13 @@ object FlattenPipeline {
     val (inputs, stm) = {
       val (inputs, stm1) = TypeChecker.unwrapTopLevelFunction(f)
       val stm2 = makeDataRegisterExplicitInSbuild(stm1)
-      val stm3 = if (options.absorbOutReg) {
-        absorbOutReg(stm2)
+      val stm3 = splitTuples(stm2)
+      val stm4 = if (options.absorbOutReg) {
+        absorbOutReg(stm3)
       } else {
-        stm2
+        stm3
       }
-      (inputs, stm3)
+      (inputs, stm4)
     }
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
     val (sink1, nodes1) = makePipeline(stm)
@@ -253,8 +254,10 @@ object FlattenPipeline {
   private def makeDataRegisterExplicitInSbuild(e: Expr): Expr = {
     e.map(makeDataRegisterExplicitInSbuild).tchk() match {
       case s: StmBuild =>
-        val (newData, newAccumulators) =
+        val (newData, newAccumulators) = {
+          // TODO: Simplify this; the TupleSplitter pass should handle it now
           SplitTupleIntoAccumulators(s.initData, s.nextData, "data")
+        }
         StmBuild(
           s.n,
           s.delay,
@@ -265,6 +268,13 @@ object FlattenPipeline {
           s.producers
         )(annotations = s.annotations).tchk()
       case e => e
+    }
+  }
+
+  private def splitTuples(e: Expr): Expr = {
+    e.map(splitTuples).tchk() match {
+      case s: StmBuild => TupleAccumulatorSplitter.applyOnce(s)
+      case e           => e
     }
   }
 

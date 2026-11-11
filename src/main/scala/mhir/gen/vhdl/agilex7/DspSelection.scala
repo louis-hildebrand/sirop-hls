@@ -8,6 +8,7 @@ import mhir.ir._
 import mhir.optimize.{InConsumer, StmOutputScheduler}
 import mhir.typecheck.TypeCheck
 import mhir.logging.time
+import mhir.matchers.VecBuilds
 import org.slf4j.event.Level
 
 import scala.annotation.tailrec
@@ -100,7 +101,15 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     */
   private def recognizeBasicDsps(s: GenStmBuild): GenStmBuild = {
     val newIntermediates = s.accumulators.flatMap({
-      case (acc, SumOf2Products(ax, ay, bx, by)) =>
+      case (
+            acc,
+            ExprAccumulator(
+              None,
+              ExprIntermediate(
+                VSumOf2Products(lengths, variables, ax, ay, bx, by)
+              )
+            )
+          ) =>
         val typesOk = (ax.typ, ay.typ, bx.typ, by.typ) match {
           case (TySInt(axw), TySInt(ayw), TySInt(bxw), TySInt(byw)) =>
             axw <= 18 && ayw <= 19 && bxw <= 18 && byw <= 19
@@ -110,12 +119,26 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         }
         if (typesOk) {
           val madd = AgilexMadd(ax, ay, bx, by, pipeline = 0)
-          val fgi = ForGenerateIntermediate(madd)
+          val labels = lengths.map(_ => Param("L")().name)
+          val bounds = lengths.map(_ - 1)
+          val fgi = ForGenerateIntermediate(
+            labels,
+            variables,
+            bounds,
+            ListMap.empty,
+            madd
+          )
           Some(acc -> fgi)
         } else {
           None
         }
-      case (acc, BasicMac(x, y, chainin)) =>
+      case (
+            acc,
+            ExprAccumulator(
+              None,
+              ExprIntermediate(VBasicMac(lengths, variables, x, y, chainin))
+            )
+          ) =>
         val typesOk = (x.typ, y.typ, chainin.typ) match {
           case (TySInt(wx), TySInt(wy), TySInt(wz)) =>
             wx <= 18 && wy <= 19 && wz <= 64
@@ -125,7 +148,15 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         }
         if (typesOk) {
           val mac = AgilexMac1(x, y, chainin)
-          val fgi = ForGenerateIntermediate(mac)
+          val labels = lengths.map(_ => Param("L")().name)
+          val bounds = lengths.map(_ - 1)
+          val fgi = ForGenerateIntermediate(
+            labels,
+            variables,
+            bounds,
+            ListMap.empty,
+            mac
+          )
           Some(acc -> fgi)
         } else {
           None
@@ -318,17 +349,26 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   }
 }
 
+private object VSumOf2Products {
+  def unapply(
+      e: Expr
+  ): Option[(Seq[Int], Seq[Param], Expr, Expr, Expr, Expr)] = {
+    e match {
+      case VecBuilds(lengths, variables, SumOf2Products(ax, ay, bx, by)) =>
+        Some((lengths, variables, ax, ay, bx, by))
+      case _ => None
+    }
+  }
+}
+
 private object SumOf2Products {
-  def unapply(arg: Accumulator): Option[(Expr, Expr, Expr, Expr)] = {
-    arg match {
-      case ExprAccumulator(
-            None,
-            ExprIntermediate(
-              Sum(
-                Prod(PadOrIntCst(ax), PadTo(ay, _)),
-                Prod(PadOrIntCst(bx), PadTo(by, _))
-              )
-            )
+  def unapply(
+      e: Expr
+  ): Option[(Expr, Expr, Expr, Expr)] = {
+    e match {
+      case Sum(
+            Prod(PadOrIntCst(ax), PadTo(ay, _)),
+            Prod(PadOrIntCst(bx), PadTo(by, _))
           ) =>
         Some((ax, ay, bx, by))
       case _ =>
@@ -337,23 +377,24 @@ private object SumOf2Products {
   }
 }
 
+private object VBasicMac {
+  def unapply(e: Expr): Option[(Seq[Int], Seq[Param], Expr, Expr, Expr)] = {
+    e match {
+      case VecBuilds(lengths, variables, BasicMac(x, y, chainin)) =>
+        Some((lengths, variables, x, y, chainin))
+      case _ => None
+    }
+  }
+}
+
 private object BasicMac {
-  def unapply(arg: Accumulator): Option[(Expr, Expr, Expr)] = {
-    arg match {
-      case ExprAccumulator(
-            None,
-            ExprIntermediate(Sum(chainin, Prod(PadOrIntCst(x), PadTo(y, _))))
-          ) =>
+  def unapply(e: Expr): Option[(Expr, Expr, Expr)] = {
+    e match {
+      case Sum(chainin, Prod(PadOrIntCst(x), PadTo(y, _))) =>
         Some((x, y, chainin))
-      case ExprAccumulator(
-            None,
-            ExprIntermediate(Sum(Prod(PadOrIntCst(x), PadTo(y, _)), chainin))
-          ) =>
+      case Sum(Prod(PadOrIntCst(x), PadTo(y, _)), chainin) =>
         Some((x, y, chainin))
-      case ExprAccumulator(
-            None,
-            ExprIntermediate(prod @ Prod(PadOrIntCst(x), PadTo(y, _)))
-          ) =>
+      case prod @ Prod(PadOrIntCst(x), PadTo(y, _)) =>
         Some((x, y, C(0)(prod.typ)))
       case _ =>
         None
