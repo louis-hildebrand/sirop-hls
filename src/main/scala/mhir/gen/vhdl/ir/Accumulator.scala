@@ -47,6 +47,8 @@ case class ExprAccumulator(
     val nextVhdl = this.next.toVhdlSignalStmt(target, options)
     Signal(
       category = "Registers",
+      // TODO: What if the target is not a valid identifier (e.g., it's "v(i)")?
+      // TODO: Don't forget to check for the same issue in other Accumulators
       name = target.name,
       typ = VhdlType(target.typ),
       assignStmt = Some({

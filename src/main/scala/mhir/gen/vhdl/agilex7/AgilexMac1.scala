@@ -78,7 +78,7 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
           )
       }
     VhdlEntityInstantiation(
-      name = Param(s"${target.name.toUpperCase}_DSP")().name,
+      name = Param("DSP")().name,
       c = component,
       args = PortMap(
         Map(

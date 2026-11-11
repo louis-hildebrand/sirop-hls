@@ -233,6 +233,8 @@ sealed trait DataIntermediate extends Intermediate with IntermediateInFunction {
   ): Decl = {
     Signal(
       category = "Intermediate signals",
+      // TODO: What if the target is not a valid identifier (e.g., it's "v(i)")?
+      // TODO: Don't forget to check for the same issue in other Intermediates
       name = target.name,
       typ = VhdlType(target.typ),
       assignStmt = Some(this.toVhdlConcurrentStmt(target, options)),

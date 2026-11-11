@@ -119,7 +119,7 @@ case class AgilexMac2(
       (target.name, "open")
     }
     VhdlEntityInstantiation(
-      name = Param(s"${target.name.toUpperCase}_DSP")().name,
+      name = Param("DSP")().name,
       c = component,
       args = PortMap(
         Map(
