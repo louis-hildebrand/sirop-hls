@@ -118,17 +118,24 @@ private class MakeFreeVarsIntoParams(
   private def applyToForGenerate(
       i: ForGenerateIntermediate
   ): ForGenerateIntermediate = {
-    // TODO: Rename loop variables to avoid variable capture?
     assert(
-      i.loopVars.toSet.intersect(functionContexts.values.flatten.toSet).isEmpty,
+      i.loopVars.toSet
+        .intersect(this.functionContexts.values.flatten.toSet)
+        .isEmpty,
+      // TODO: Rename loop variables to avoid variable capture?
+      // TODO: Test this case
       s"${this.getClass.getName} may result in variable capture. Maybe the loop variables should be renamed."
+    )
+    val innerFunctionContexts = Analysis.computeContexts(i.intermediates)
+    val innerPass = new MakeFreeVarsIntoParams(
+      this.functionContexts ++ innerFunctionContexts
     )
     ForGenerateIntermediate(
       i.loopLabels,
       i.loopVars,
       i.loopBoundsInclusive,
-      i.intermediates.map({ case (x, i) => this.apply(x, i) }),
-      i.body.mapInputs(this.apply)
+      i.intermediates.map({ case (x, i) => innerPass.apply(x, i) }),
+      i.body.mapInputs(innerPass.apply)
     )
   }
 
@@ -249,11 +256,17 @@ private object EnsureTupleArgs {
       producers = s.producers.map({ case (x, (p, ready)) =>
         x -> (p, this.apply(ready))
       }),
-      intermediates = s.intermediates.map({
-        case (f, i: FunctionIntermediate) => updateLhs(f) -> this.apply(i)
-        case (x, i)                       => x -> this.apply(i)
+      intermediates = s.intermediates.map({ case (x, i) =>
+        this.apply(x, i)
       })
     )
+  }
+
+  private def apply(x: Param, i: Intermediate): (Param, Intermediate) = {
+    i match {
+      case i: FunctionIntermediate => this.updateLhs(x) -> this.apply(i)
+      case i                       => x -> this.apply(i)
+    }
   }
 
   private def apply(i: Intermediate): Intermediate = {
@@ -264,7 +277,7 @@ private object EnsureTupleArgs {
           labels,
           vars,
           bounds,
-          intermediates.map({ case (x, i) => x -> this.apply(i) }),
+          intermediates.map({ case (x, i) => this.apply(x, i) }),
           body.mapInputs(this.apply)
         )
       case FunctionIntermediate(params, intermediates, output) =>
@@ -281,12 +294,8 @@ private object EnsureTupleArgs {
         FunctionIntermediate(
           params,
           intermediates.map({ case (x, i) =>
-            val newX = i match {
-              case _: FunctionIntermediate => updateLhs(x)
-              case _                       => x
-            }
-            val newI = this.apply(i).asInstanceOf[IntermediateInFunction]
-            newX -> newI
+            val (newX, newI) = this.apply(x, i)
+            newX -> newI.asInstanceOf[IntermediateInFunction]
           }),
           this.apply(output)
         )
@@ -365,6 +374,16 @@ private object UnNestFunctions {
             x -> i
           })
           .+(x -> outer3)
+      case fgi: ForGenerateIntermediate =>
+        val newFgi = new ForGenerateIntermediate(
+          loopLabels = fgi.loopLabels,
+          loopVars = fgi.loopVars,
+          loopBoundsInclusive = fgi.loopBoundsInclusive,
+          intermediates = fgi.intermediates
+            .flatMap({ case (x, i) => this.apply(x, i) }),
+          body = fgi.body
+        )
+        ListMap(x -> newFgi)
       case i => ListMap(x -> i)
     }
   }
