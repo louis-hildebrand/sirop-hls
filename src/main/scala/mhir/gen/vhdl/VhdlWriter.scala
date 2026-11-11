@@ -212,22 +212,32 @@ object VhdlWriter {
       case c: CustomVhdlComponent =>
         (c.inPorts.map(p => p.typ)
           ++ c.outPorts.map(p => p.typ)
-          ++ c.signals.map(s => s.typ)
-          ++ c.functions.flatMap(f => findTypesUsedIn(f))
+          ++ c.signals.flatMap(findTypesUsedIn)
+          ++ c.functions.flatMap(findTypesUsedIn)
           ++ c.children.flatMap({
-            case ForGenerate(_, _, _, _, VhdlEntityInstantiation(_, c, _)) =>
-              findTypesUsedIn(c)
+            case ForGenerate(
+                  _,
+                  _,
+                  _,
+                  decls,
+                  VhdlEntityInstantiation(_, c, _)
+                ) =>
+              findTypesUsedIn(c) ++ decls.flatMap(findTypesUsedIn)
           })).toSet
     }
   }
 
-  private def findTypesUsedIn(f: VhdlFunction): Set[VhdlType] = {
-    (f.args.map({ case (_, t) => t })
-      ++ f.decls.flatMap({
-        case f: VhdlFunction => findTypesUsedIn(f)
-        case d: VarOrSigDecl => Seq(d.typ)
-      })
-      ++ Seq(f.returnType)).toSet
+  private def findTypesUsedIn(d: Decl): Set[VhdlType] = {
+    d match {
+      case f: VhdlFunction =>
+        (f.args.map({ case (_, t) => t })
+          ++ f.decls.flatMap({
+            case f: VhdlFunction => findTypesUsedIn(f)
+            case d: VarOrSigDecl => Seq(d.typ)
+          })
+          ++ Seq(f.returnType)).toSet
+      case d: VarOrSigDecl => Set(d.typ)
+    }
   }
 
   private def emitComponents(

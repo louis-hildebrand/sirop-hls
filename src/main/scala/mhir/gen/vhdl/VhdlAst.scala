@@ -1,10 +1,7 @@
 package mhir.gen.vhdl
 
 import mhir.debug.indent
-import mhir.gen.vhdl.ir.{Intermediate, Target}
 import mhir.ir.Param
-
-import scala.collection.immutable.ListMap
 
 private[vhdl] sealed trait Decl {
   def vhdlDecl: String
@@ -129,7 +126,7 @@ private[vhdl] case class ForGenerate(
     loopLabels: Seq[String],
     loopVars: Seq[String],
     loopBoundsInclusive: Seq[String],
-    intermediates: ListMap[Param, Intermediate],
+    decls: Seq[Decl],
     body: VhdlEntityInstantiation
 ) {
   require(
@@ -155,8 +152,6 @@ private[vhdl] case class ForGenerate(
       case (Seq(), Seq(), Seq()) =>
         val bodyVhdl = this.body.toVhdl(options)
         val blockLabel = Param("L")().name
-        val decls = this.intermediates
-          .map({ case (x, i) => i.toVhdlDecl(Target(x), options) })
         val declarativeItems = decls.map(_.vhdlDecl).mkString("\n")
         val statements = decls
           .flatMap({
@@ -205,7 +200,7 @@ private[vhdl] case class ForGenerate(
 object ForGenerate {
 
   def apply(body: VhdlEntityInstantiation): ForGenerate = {
-    ForGenerate(Seq.empty, Seq.empty, Seq.empty, ListMap.empty, body)
+    ForGenerate(Seq.empty, Seq.empty, Seq.empty, Seq.empty, body)
   }
 }
 

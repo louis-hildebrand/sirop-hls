@@ -149,11 +149,16 @@ case class ForGenerateIntermediate(
       val TyVec(elemTyp, _) = target.typ
       Target(s"${target.name}($i)", elemTyp)
     })
+    val decls = this.intermediates
+      .map({ case (x, i) =>
+        i.toVhdlDecl(Target(x), options)
+      })
+      .toSeq
     ForGenerate(
       loopLabels = this.loopLabels,
       loopVars = this.loopVars.map(_.name),
       loopBoundsInclusive = this.loopBoundsInclusive.map(_.toString),
-      intermediates = this.intermediates,
+      decls = decls,
       body = this.body.toVhdlEntityInst(ipBlockTarget, options, enable = enable)
     )
   }
