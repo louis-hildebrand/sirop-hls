@@ -11,6 +11,7 @@ import mhir.logging.time
 import org.slf4j.event.Level
 
 import scala.annotation.tailrec
+import scala.collection.immutable.ListMap
 
 /** Maps multiplications to native Agilex 7 DSP blocks, where possible.
   *
@@ -109,8 +110,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         }
         if (typesOk) {
           val madd = AgilexMadd(ax, ay, bx, by, pipeline = 0)
-          val fgi =
-            ForGenerateIntermediate(Seq.empty, Seq.empty, Seq.empty, madd)
+          val fgi = ForGenerateIntermediate(madd)
           Some(acc -> fgi)
         } else {
           None
@@ -125,8 +125,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         }
         if (typesOk) {
           val mac = AgilexMac1(x, y, chainin)
-          val fgi =
-            ForGenerateIntermediate(Seq.empty, Seq.empty, Seq.empty, mac)
+          val fgi = ForGenerateIntermediate(mac)
           Some(acc -> fgi)
         } else {
           None
@@ -168,12 +167,14 @@ case class DspSelection(scheduler: StmOutputScheduler) {
               labelsA,
               varsA,
               boundsA,
+              intermediatesA,
               AgilexMac1(ax, ay, _)
             ),
             ForGenerateIntermediate(
               _,
               _,
               boundsB,
+              intermediatesB,
               AgilexMac1(bx, by, _)
             )
           )
@@ -183,7 +184,21 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           val labelsAB = labelsA
           val varsAB = varsA.map(_.freshCopy)
           val newDsp = AgilexMac2(ax, ay, bx, by, chainin, pipeline = 0)
-          ForGenerateIntermediate(labelsAB, varsAB, boundsA, newDsp)
+          assert(
+            intermediatesA.isEmpty,
+            s"intermediatesA should still be empty at this point"
+          )
+          assert(
+            intermediatesB.isEmpty,
+            s"intermediatesB should still be empty at this point"
+          )
+          ForGenerateIntermediate(
+            labelsAB,
+            varsAB,
+            boundsA,
+            ListMap.empty,
+            newDsp
+          )
         }
         val bTyp = macB.typ.asInstanceOf[TyAnyInt]
         val newTyp = TyTuple(bTyp /*result*/, bTyp.withWidth(44) /*chainout*/ )
@@ -229,6 +244,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
               ForGenerateIntermediate(
                 _,
                 _,
+                _,
                 boundsB,
                 AgilexMac1(bx, by, macA: Param)
               )
@@ -239,6 +255,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           val chainin = s.intermediates.get(macA) match {
             case Some(
                   ForGenerateIntermediate(
+                    _,
                     _,
                     _,
                     boundsA,
@@ -252,7 +269,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
                 case TupleAccess(x: Param, IntCst(0)) =>
                   s.intermediates.get(x) match {
                     case Some(
-                          ForGenerateIntermediate(_, _, _, _: AgilexMac2)
+                          ForGenerateIntermediate(_, _, _, _, _: AgilexMac2)
                         ) =>
                       x.typ match {
                         case TyTuple(TyAnyInt(w), TyAnyInt(44)) if w <= 44 =>

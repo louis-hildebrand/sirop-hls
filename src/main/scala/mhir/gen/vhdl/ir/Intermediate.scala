@@ -102,6 +102,7 @@ case class FunctionIntermediate(
 }
 
 case class ForGenerateIntermediate(
+    // TODO: Get rid of these; choose them at the moment I emit the VHDL string
     loopLabels: Seq[String],
     loopVars: Seq[Param],
     // TODO: Allow the loop bounds to be arbitrary expressions?
@@ -110,6 +111,7 @@ case class ForGenerateIntermediate(
     //       In fact, this flattened loop representation might not work at all, if loop bounds can
     //       depend on earlier loop variables.
     loopBoundsInclusive: Seq[Int],
+    intermediates: ListMap[Param, Intermediate],
     body: IpBlockInst
 ) extends Intermediate {
 
@@ -133,6 +135,7 @@ case class ForGenerateIntermediate(
       this.loopLabels,
       this.loopVars,
       this.loopBoundsInclusive,
+      this.intermediates.map({ case (x, i) => x -> i.substitute(subs) }),
       this.body.substitute(newSubs)
     )
   }
@@ -150,6 +153,7 @@ case class ForGenerateIntermediate(
       loopLabels = this.loopLabels,
       loopVars = this.loopVars.map(_.name),
       loopBoundsInclusive = this.loopBoundsInclusive.map(_.toString),
+      intermediates = this.intermediates,
       body = this.body.toVhdlEntityInst(ipBlockTarget, options, enable = enable)
     )
   }
@@ -166,6 +170,19 @@ case class ForGenerateIntermediate(
       // assignment statement
       assignStmt = None,
       cond = None
+    )
+  }
+}
+
+object ForGenerateIntermediate {
+
+  def apply(body: IpBlockInst): ForGenerateIntermediate = {
+    ForGenerateIntermediate(
+      Seq.empty,
+      Seq.empty,
+      Seq.empty,
+      ListMap.empty,
+      body
     )
   }
 }

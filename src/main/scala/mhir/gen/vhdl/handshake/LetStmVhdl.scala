@@ -3,6 +3,8 @@ package mhir.gen.vhdl.handshake
 import mhir.gen.vhdl._
 import mhir.ir._
 
+import scala.collection.immutable.ListMap
+
 /** VHDL converter for [[mhir.ir.LetStm]].
   */
 object LetStmVhdl {
@@ -33,12 +35,7 @@ object LetStmVhdl {
           "c_ready" -> "buf_to_consumers_ready"
         )
       )
-      ForGenerate(
-        Seq.empty,
-        Seq.empty,
-        Seq.empty,
-        VhdlEntityInstantiation("BUF", component, portMap)
-      )
+      ForGenerate(VhdlEntityInstantiation("BUF", component, portMap))
     }
     val signals = {
       Seq(

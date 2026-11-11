@@ -8,6 +8,8 @@ import mhir.ir._
 import mhir.matchers.VecAccesses
 import mhir.typecheck._
 
+import scala.collection.immutable.ListMap
+
 object DspRegisterPacking {
 
   def apply(s: GenStmBuild): GenStmBuild = {
@@ -33,9 +35,14 @@ object DspRegisterPacking {
                 labels,
                 vars,
                 bounds,
+                intermediates,
                 AgilexMac2(ax, ay, bx, by, chainin, pipeline)
               )
             ) =>
+          assert(
+            intermediates.isEmpty,
+            s"the list of intermediates in ${ForGenerateIntermediate.getClass.getName} should be empty at this point"
+          )
           assert(pipeline >= 0)
           assert(pipeline <= 3)
           // How long is the shift register before each input?
@@ -55,7 +62,13 @@ object DspRegisterPacking {
               chainin,
               pipeline + gobble
             )
-            x -> ForGenerateIntermediate(labels, vars, bounds, newMac)
+            x -> ForGenerateIntermediate(
+              labels,
+              vars,
+              bounds,
+              ListMap.empty,
+              newMac
+            )
           }
         case intermediate @ (
               x,
@@ -63,9 +76,14 @@ object DspRegisterPacking {
                 labels,
                 vars,
                 bounds,
+                intermediates,
                 AgilexMadd(ax, ay, bx, by, pipeline)
               )
             ) =>
+          assert(
+            intermediates.isEmpty,
+            s"the list of intermediates in ${ForGenerateIntermediate.getClass.getName} should be empty at this point"
+          )
           assert(pipeline >= 0)
           assert(pipeline <= 0)
           // How long is the shift register before each input?
@@ -84,7 +102,13 @@ object DspRegisterPacking {
               by = shortenShiftRegister(s, by, gobble),
               pipeline + gobble
             )
-            x -> ForGenerateIntermediate(labels, vars, bounds, newMadd)
+            x -> ForGenerateIntermediate(
+              labels,
+              vars,
+              bounds,
+              ListMap.empty,
+              newMadd
+            )
           }
         case i =>
           i

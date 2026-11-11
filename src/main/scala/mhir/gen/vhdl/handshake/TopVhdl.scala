@@ -4,6 +4,8 @@ package handshake
 import mhir.gen.vhdl.ir.{FlatPipeline, LetStmNode, StmBuildNode}
 import mhir.ir._
 
+import scala.collection.immutable.ListMap
+
 object TopVhdl {
 
   /** Generate the top-level VHDL entity.
@@ -73,7 +75,7 @@ object TopVhdl {
           )
           VhdlEntityInstantiation(component.name, component, portMap)
       })
-      (sbuilds ++ lets).map(ForGenerate(Seq.empty, Seq.empty, Seq.empty, _))
+      (sbuilds ++ lets).map(ForGenerate(_))
     }
     val signals = {
       val sbuildOutputs = pipe.sbuilds.flatMap({ case StmBuildNode(x, _) =>

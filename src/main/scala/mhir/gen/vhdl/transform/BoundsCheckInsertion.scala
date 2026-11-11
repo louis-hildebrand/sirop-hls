@@ -37,7 +37,7 @@ object BoundsCheckInsertion {
   private def apply(i: Intermediate): Intermediate = {
     i match {
       case i: DataIntermediate => i.map(this.apply)
-      case ForGenerateIntermediate(_, _, _, _: IpBlockInst) =>
+      case ForGenerateIntermediate(_, _, _, _, _: IpBlockInst) =>
         throw new AssertionError(
           "there shouldn't be any IP blocks yet at this compilation stage"
         )

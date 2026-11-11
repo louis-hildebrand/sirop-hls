@@ -46,9 +46,6 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
       intermediates = ListMap(
         f -> FunctionIntermediate(Seq(x), ListMap(), fBody),
         prod -> ForGenerateIntermediate(
-          Seq.empty,
-          Seq.empty,
-          Seq.empty,
           AgilexMac1(
             FunCall(f, w)().__0.tchk(),
             FunCall(f, C(3)(U8))().__0.tchk(),
@@ -89,9 +86,6 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
       intermediates = ListMap(
         f2 -> FunctionIntermediate(Seq(x, y, z), ListMap(), f2Body),
         prod -> ForGenerateIntermediate(
-          Seq.empty,
-          Seq.empty,
-          Seq.empty,
           AgilexMac1(
             FunCall(f2, Tuple(w, y, z)())().__0.tchk(),
             FunCall(f2, Tuple(C(3)(U8), y, z)())().__0.tchk(),

@@ -16,4 +16,16 @@ object VecBuilds {
       .foldRight(body)({ case ((n, i), e) => VecBuild(n, Function(i, e)())() })
       .tchk()
   }
+
+  def unapply(e: Expr): Option[(Seq[Int], Seq[Param], Expr)] = {
+    e match {
+      case VecBuild(
+            IntCst(n),
+            Function(i, VecBuilds(otherLengths, otherVars, body))
+          ) =>
+        Some((n.toInt +: otherLengths, i +: otherVars, body))
+      case e =>
+        Some((Seq.empty, Seq.empty, e))
+    }
+  }
 }

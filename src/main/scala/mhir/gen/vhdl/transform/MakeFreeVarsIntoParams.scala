@@ -41,22 +41,7 @@ object MakeFreeVarsIntoParams {
       producers = s2.producers.map({ case (x, (p, ready)) =>
         x -> (p, pass.apply(ready))
       }),
-      intermediates = s2.intermediates.map({
-        case (x, i: DataIntermediate) => x -> i.map(pass.apply)
-        case (x, ForGenerateIntermediate(labels, vars, bounds, body)) =>
-          // TODO: Rename loop variables to avoid variable capture?
-          assert(
-            vars.toSet.intersect(functionContexts.values.flatten.toSet).isEmpty,
-            s"${this.getClass.getName} may result in variable capture. Maybe the loop variables should be renamed."
-          )
-          x -> ForGenerateIntermediate(
-            labels,
-            vars,
-            bounds,
-            body.mapInputs(pass.apply)
-          )
-        case (f, i: FunctionIntermediate) => pass.apply(f, i)
-      })
+      intermediates = s2.intermediates.map({ case (x, i) => pass.apply(x, i) })
     )
     result.intermediates
       .collect({ case (x, f: FunctionIntermediate) => x -> f })
@@ -82,8 +67,9 @@ object MakeFreeVarsIntoParams {
     FunctionIntermediate(
       outer.params,
       outer.intermediates.map({
-        case (x, i: DataIntermediate)         => x -> i.map(pass.apply)
-        case (x, inner: FunctionIntermediate) => pass.apply(x, inner)
+        case (x, i: DataIntermediate) => x -> i.map(pass.apply)
+        case (x, inner: FunctionIntermediate) =>
+          pass.applyToFunctionIntermediate(x, inner)
       }),
       pass.apply(outer.output)
     )
@@ -120,7 +106,33 @@ private class MakeFreeVarsIntoParams(
     }
   }
 
-  def apply(
+  def apply(x: Param, i: Intermediate): (Param, Intermediate) = {
+    i match {
+      case i: DataIntermediate => x -> i.map(this.apply)
+      case i: ForGenerateIntermediate =>
+        x -> this.applyToForGenerate(i)
+      case i: FunctionIntermediate => this.applyToFunctionIntermediate(x, i)
+    }
+  }
+
+  private def applyToForGenerate(
+      i: ForGenerateIntermediate
+  ): ForGenerateIntermediate = {
+    // TODO: Rename loop variables to avoid variable capture?
+    assert(
+      i.loopVars.toSet.intersect(functionContexts.values.flatten.toSet).isEmpty,
+      s"${this.getClass.getName} may result in variable capture. Maybe the loop variables should be renamed."
+    )
+    ForGenerateIntermediate(
+      i.loopLabels,
+      i.loopVars,
+      i.loopBoundsInclusive,
+      i.intermediates.map({ case (x, i) => this.apply(x, i) }),
+      i.body.mapInputs(this.apply)
+    )
+  }
+
+  def applyToFunctionIntermediate(
       f: Param,
       i: FunctionIntermediate
   ): (Param, FunctionIntermediate) = {
@@ -247,11 +259,12 @@ private object EnsureTupleArgs {
   private def apply(i: Intermediate): Intermediate = {
     i match {
       case i: DataIntermediate => i.map(this.apply)
-      case ForGenerateIntermediate(labels, vars, bounds, body) =>
+      case ForGenerateIntermediate(labels, vars, bounds, intermediates, body) =>
         ForGenerateIntermediate(
           labels,
           vars,
           bounds,
+          intermediates.map({ case (x, i) => x -> this.apply(i) }),
           body.mapInputs(this.apply)
         )
       case FunctionIntermediate(params, intermediates, output) =>

@@ -66,27 +66,16 @@ private class IntermediateInsertion(
         this.intermediates += (x -> newI)
       case (x, fgi: ForGenerateIntermediate) =>
         val subPass = new IntermediateInsertion(ListMap())
+        val newBody =
+          fgi.body.mapInputs(subPass.getPortActualAndMutateIntermediates)
         val newFgi = ForGenerateIntermediate(
           fgi.loopLabels,
           fgi.loopVars,
           fgi.loopBoundsInclusive,
-          fgi.body.mapInputs(subPass.getPortActualAndMutateIntermediates)
+          // TODO: Hoist some of the intermediates (e.g., StmDataIntermediate) out?
+          subPass.intermediates,
+          newBody
         )
-        val intermediatesUsingLoopVars = subPass.intermediates
-          .filter({ case (_, i) =>
-            fgi.loopVars.toSet.intersect(i.freeVars).nonEmpty
-          })
-        if (intermediatesUsingLoopVars.nonEmpty) {
-          // TODO: I should perhaps add a ListMap[Param, Intermediate] in
-          //       ForGenerate and ForGenerateIntermediate to represent the
-          //       intermediate values that depend on the loop bounds.
-          throw new AssertionError("TODO: handle this case")
-        }
-        val intermediatesNotUsingLoopVars = subPass.intermediates
-          .filterNot({ case (_, i) =>
-            fgi.loopVars.toSet.intersect(i.freeVars).nonEmpty
-          })
-        this.intermediates ++= intermediatesNotUsingLoopVars
         this.intermediates += (x -> newFgi)
       case (x, f: FunctionIntermediate) =>
         throw new AssertionError(
@@ -223,7 +212,7 @@ private class ExprIntermediateInsertion(
             case i: DataIntermediate     => innerIntermediates += x -> i
             case i: FunctionIntermediate => innerIntermediates += x -> i
             // Not allowed
-            case ForGenerateIntermediate(_, _, _, _: IpBlockInst) =>
+            case ForGenerateIntermediate(_, _, _, _, _: IpBlockInst) =>
               throw new AssertionError(
                 "IP blocks should not be instantiated inside functions"
               )

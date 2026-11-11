@@ -1,6 +1,10 @@
 package mhir.gen.vhdl
 
 import mhir.debug.indent
+import mhir.gen.vhdl.ir.{Intermediate, Target}
+import mhir.ir.Param
+
+import scala.collection.immutable.ListMap
 
 private[vhdl] sealed trait Decl {
   def vhdlDecl: String
@@ -125,6 +129,7 @@ private[vhdl] case class ForGenerate(
     loopLabels: Seq[String],
     loopVars: Seq[String],
     loopBoundsInclusive: Seq[String],
+    intermediates: ListMap[Param, Intermediate],
     body: VhdlEntityInstantiation
 ) {
   require(
@@ -137,31 +142,56 @@ private[vhdl] case class ForGenerate(
   )
 
   def toVhdl(options: VhdlGeneratorOptions): String = {
-    toVhdl(
-      this.loopLabels,
-      this.loopVars,
-      this.loopBoundsInclusive,
-      this.body,
-      options
-    )
+    toVhdl(this.loopLabels, this.loopVars, this.loopBoundsInclusive, options)
   }
 
   private def toVhdl(
       loopLabels: Seq[String],
       loopVars: Seq[String],
       loopBounds: Seq[String],
-      body: VhdlEntityInstantiation,
       options: VhdlGeneratorOptions
   ): String = {
     (loopLabels, loopVars, loopBounds) match {
       case (Seq(), Seq(), Seq()) =>
-        body.toVhdl(options)
+        val bodyVhdl = this.body.toVhdl(options)
+        val blockLabel = Param("L")().name
+        val decls = this.intermediates
+          .map({ case (x, i) => i.toVhdlDecl(Target(x), options) })
+        val declarativeItems = decls.map(_.vhdlDecl).mkString("\n")
+        val statements = decls
+          .flatMap({
+            case sig: Signal =>
+              sig.cond match {
+                case Some(c) =>
+                  // TODO: emit a process here?
+                  ???
+                case None => ()
+              }
+              sig.assignStmt
+            case _: VhdlFunction => None
+            case _: VhdlVariable =>
+              throw new AssertionError(
+                "there shouldn't be any variables inside a for generate loop; there should only be signals"
+              )
+          })
+          .mkString("\n\n")
+        // TODO: This code looks a lot like the code in CustomVhdlComponent. Can I deduplicate it somehow?
+        s"""$blockLabel: block is
+           |${indent(declarativeItems)}
+           |begin
+           |
+           |${indent(statements)}
+           |
+           |${indent(bodyVhdl)}
+           |
+           |end block $blockLabel;
+           |""".stripMargin
       case (
             Seq(label, otherLabels @ _*),
             Seq(iterVar, otherVars @ _*),
             Seq(bound, otherBounds @ _*)
           ) =>
-        val inside = toVhdl(otherLabels, otherVars, otherBounds, body, options)
+        val inside = toVhdl(otherLabels, otherVars, otherBounds, options)
         s"""$label : for $iterVar in 0 to $bound generate
            |${indent(inside)}
            |end generate $label;
@@ -169,6 +199,13 @@ private[vhdl] case class ForGenerate(
       case _ =>
         throw new AssertionError("mismatched list lengths")
     }
+  }
+}
+
+object ForGenerate {
+
+  def apply(body: VhdlEntityInstantiation): ForGenerate = {
+    ForGenerate(Seq.empty, Seq.empty, Seq.empty, ListMap.empty, body)
   }
 }
 

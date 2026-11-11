@@ -10,7 +10,10 @@ object IpStats {
     s.intermediates.foldLeft(Map[String, Int]())({
       case (
             stats,
-            (target, ForGenerateIntermediate(_, vars, bounds, ip: IpBlockInst))
+            (
+              target,
+              ForGenerateIntermediate(_, vars, bounds, _, ip: IpBlockInst)
+            )
           ) =>
         val description = this.describe(target, vars, bounds, ip)
         val n = stats.getOrElse(description, 0)
