@@ -156,8 +156,8 @@ case class ForGenerateIntermediate(
       .toSeq
     ForGenerate(
       loopLabels = this.loopLabels,
-      loopVars = this.loopVars.map(_.name),
-      loopBoundsInclusive = this.loopBoundsInclusive.map(_.toString),
+      loopVars = this.loopVars,
+      loopBoundsInclusive = this.loopBoundsInclusive,
       decls = decls,
       body = this.body.toVhdlEntityInst(ipBlockTarget, options, enable = enable)
     )

@@ -1,7 +1,7 @@
 package mhir.gen.vhdl
 
 import mhir.debug.indent
-import mhir.ir.Param
+import mhir.ir.{Param, TyUInt}
 
 private[vhdl] sealed trait Decl {
   def vhdlDecl: String
@@ -124,8 +124,8 @@ private[vhdl] case class PortMap(map: Map[String, String])
 
 private[vhdl] case class ForGenerate(
     loopLabels: Seq[String],
-    loopVars: Seq[String],
-    loopBoundsInclusive: Seq[String],
+    loopVars: Seq[Param],
+    loopBoundsInclusive: Seq[Int],
     decls: Seq[Decl],
     body: VhdlEntityInstantiation
 ) {
@@ -144,8 +144,8 @@ private[vhdl] case class ForGenerate(
 
   private def toVhdl(
       loopLabels: Seq[String],
-      loopVars: Seq[String],
-      loopBounds: Seq[String],
+      loopVars: Seq[Param],
+      loopBounds: Seq[Int],
       options: VhdlGeneratorOptions
   ): String = {
     (loopLabels, loopVars, loopBounds) match {
@@ -186,8 +186,15 @@ private[vhdl] case class ForGenerate(
             Seq(iterVar, otherVars @ _*),
             Seq(bound, otherBounds @ _*)
           ) =>
+        val intIterVar = iterVar.freshCopy
+        val iterVarTyp = VhdlType(iterVar.typ).vhdlName
+        val TyUInt(bitwidth) = iterVar.typ
+        val iterVarConversion = s"to_unsigned($intIterVar, $bitwidth)";
         val inside = toVhdl(otherLabels, otherVars, otherBounds, options)
-        s"""$label : for $iterVar in 0 to $bound generate
+        s"""$label : for $intIterVar in 0 to $bound generate
+           |    signal $iterVar : $iterVarTyp;
+           |begin
+           |    $iterVar <= $iterVarConversion;
            |${indent(inside)}
            |end generate $label;
            |""".stripMargin.stripTrailing
