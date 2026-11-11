@@ -2,7 +2,7 @@ package mhir.gen.vhdl
 package agilex7
 
 import mhir.canonicalize._
-import mhir.gen.vhdl.ir.{IpBlockInst, Target}
+import mhir.gen.vhdl.ir.{IpBlockInst, SimpleTarget, Target}
 import mhir.ir._
 
 case class AgilexMadd(
@@ -44,35 +44,41 @@ case class AgilexMadd(
   }
 
   override def toVhdlEntityInst(
-      target: Target,
+      finalTarget: Target,
+      tempTarget: SimpleTarget,
       options: VhdlGeneratorOptions,
       enable: String
   ): VhdlEntityInstantiation = {
-    val component =
-      (this.ax.typ, this.ay.typ, this.bx.typ, this.by.typ, target.typ) match {
-        case (TySInt(axw), TySInt(ayw), TySInt(bxw), TySInt(byw), TySInt(rw)) =>
-          Sumof2SignedDspComponent(
-            axWidth = axw,
-            ayWidth = ayw,
-            bxWidth = bxw,
-            byWidth = byw,
-            resultWidth = rw,
-            pipeline = this.pipeline
-          )
-        case (TyUInt(axw), TyUInt(ayw), TyUInt(bxw), TyUInt(byw), TyUInt(rw)) =>
-          Sumof2UnsignedDspComponent(
-            axWidth = axw,
-            ayWidth = ayw,
-            bxWidth = bxw,
-            byWidth = byw,
-            resultWidth = rw,
-            pipeline = this.pipeline
-          )
-        case _ =>
-          throw new AssertionError(
-            s"the inputs and outputs for ${this.getClass.getName} should all have the same signedness"
-          )
-      }
+    val component = (
+      this.ax.typ,
+      this.ay.typ,
+      this.bx.typ,
+      this.by.typ,
+      finalTarget.typ
+    ) match {
+      case (TySInt(axw), TySInt(ayw), TySInt(bxw), TySInt(byw), TySInt(rw)) =>
+        Sumof2SignedDspComponent(
+          axWidth = axw,
+          ayWidth = ayw,
+          bxWidth = bxw,
+          byWidth = byw,
+          resultWidth = rw,
+          pipeline = this.pipeline
+        )
+      case (TyUInt(axw), TyUInt(ayw), TyUInt(bxw), TyUInt(byw), TyUInt(rw)) =>
+        Sumof2UnsignedDspComponent(
+          axWidth = axw,
+          ayWidth = ayw,
+          bxWidth = bxw,
+          byWidth = byw,
+          resultWidth = rw,
+          pipeline = this.pipeline
+        )
+      case _ =>
+        throw new AssertionError(
+          s"the inputs and outputs for ${this.getClass.getName} should all have the same signedness"
+        )
+    }
     VhdlEntityInstantiation(
       name = Param("DSP")().name,
       c = component,
@@ -84,9 +90,10 @@ case class AgilexMadd(
           "ay" -> VhdlExprGenerator.toVhdl(this.ay),
           "bx" -> VhdlExprGenerator.toVhdl(this.bx),
           "by" -> VhdlExprGenerator.toVhdl(this.by),
-          "result" -> target.name
+          "result" -> tempTarget.baseName
         )
-      )
+      ),
+      outSignalStatements = Seq((finalTarget.expr, tempTarget.baseName))
     )
   }
 }

@@ -2,7 +2,7 @@ package mhir.gen.vhdl
 package agilex7
 
 import mhir.canonicalize._
-import mhir.gen.vhdl.ir.{Intermediate, IpBlockInst, Target}
+import mhir.gen.vhdl.ir.{IpBlockInst, SimpleTarget, Target}
 import mhir.ir._
 
 case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
@@ -28,7 +28,8 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
   }
 
   override def toVhdlEntityInst(
-      target: Target,
+      finalTarget: Target,
+      tempTarget: SimpleTarget,
       options: VhdlGeneratorOptions,
       enable: String
   ): VhdlEntityInstantiation = {
@@ -47,7 +48,7 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
     //       I should translate to that mode.
     //       If neither of these special cases apply, stick to the behavioural fallback
     //       (and maybe emit a warning recommending that the programmer use an even number of multiplications).
-    val resultTyp = target.typ match {
+    val resultTyp = finalTarget.typ match {
       case resTyp: TySInt => resTyp
       case resTyp: TyUInt => resTyp
       case typ =>
@@ -87,9 +88,10 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
           "ax" -> VhdlExprGenerator.toVhdl(this.x),
           "ay" -> VhdlExprGenerator.toVhdl(this.y),
           "b" -> VhdlExprGenerator.toVhdl(this.chainin),
-          "result" -> target.name
+          "result" -> tempTarget.baseName
         )
-      )
+      ),
+      outSignalStatements = Seq((finalTarget.expr, tempTarget.expr))
     )
   }
 }

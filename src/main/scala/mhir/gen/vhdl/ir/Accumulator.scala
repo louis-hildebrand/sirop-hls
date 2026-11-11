@@ -14,7 +14,7 @@ sealed trait Accumulator {
   def map(f: Expr => Expr): Accumulator
 
   def toVhdl(
-      target: Target,
+      target: SimpleTarget,
       enable: String,
       options: VhdlGeneratorOptions
   ): Signal
@@ -39,7 +39,7 @@ case class ExprAccumulator(
   }
 
   override def toVhdl(
-      target: Target,
+      target: SimpleTarget,
       enable: String,
       options: VhdlGeneratorOptions
   ): Signal = {
@@ -47,9 +47,7 @@ case class ExprAccumulator(
     val nextVhdl = this.next.toVhdlSignalStmt(target, options)
     Signal(
       category = "Registers",
-      // TODO: What if the target is not a valid identifier (e.g., it's "v(i)")?
-      // TODO: Don't forget to check for the same issue in other Accumulators
-      name = target.name,
+      name = target.baseName,
       typ = VhdlType(target.typ),
       assignStmt = Some({
         val update =
@@ -108,7 +106,7 @@ case class VecWriteAccumulator(cond: Expr, index: Expr, value: Expr)
   }
 
   def toVhdl(
-      target: Target,
+      target: SimpleTarget,
       enable: String,
       options: VhdlGeneratorOptions
   ): Signal = {
@@ -117,9 +115,9 @@ case class VecWriteAccumulator(cond: Expr, index: Expr, value: Expr)
     val writeVhdl = VhdlExprGenerator.toVhdl(this.value)
     Signal(
       category = "Registers",
-      name = target.name,
+      name = target.baseName,
       typ = VhdlType(target.typ),
-      assignStmt = Some(s"${target.name}($idxVhdl) <= $writeVhdl;"),
+      assignStmt = Some(s"${target.baseName}($idxVhdl) <= $writeVhdl;"),
       cond = Some(s"$enable and ($condVhdl)")
     )
   }
@@ -167,17 +165,18 @@ case class VecShiftLeftAccumulator(
   }
 
   override def toVhdl(
-      target: Target,
+      target: SimpleTarget,
       enable: String,
       options: VhdlGeneratorOptions
   ): Signal = {
     val stmt = {
       val incomingVhdl = VhdlExprGenerator.toVhdl(this.incoming)
-      val saveIncoming = s"${target.name}(${this.len - 1}) <= $incomingVhdl;"
+      val saveIncoming =
+        s"${target.baseName}(${this.len - 1}) <= $incomingVhdl;"
       val shift = if (this.len <= 1) {
         ""
       } else {
-        s"""${target.name}(0 to ${this.len - 2}) <= ${target.name}(1 to ${this.len - 1});
+        s"""${target.baseName}(0 to ${this.len - 2}) <= ${target.baseName}(1 to ${this.len - 1});
            |""".stripMargin
       }
       val update =
@@ -199,7 +198,7 @@ case class VecShiftLeftAccumulator(
     }
     Signal(
       category = "Registers",
-      name = target.name,
+      name = target.baseName,
       typ = VhdlType(target.typ),
       assignStmt = Some(stmt),
       cond = Some("true")

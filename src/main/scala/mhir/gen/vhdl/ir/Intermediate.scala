@@ -86,13 +86,13 @@ case class FunctionIntermediate(
         case (x, _: FunctionIntermediate) =>
           throw new AssertionError(
             "nested functions should have been removed in an earlier compilation stage"
-              + s" (found function ${x.name} inside ${target.name})"
+              + s" (found function ${x.name} inside ${target.expr})"
           )
       })
       .toSeq
     val outVhdl = VhdlExprGenerator.toVhdl(output)
     VhdlFunction(
-      name = target.name,
+      name = target.expr,
       args = params.map(x => (x.name, VhdlType(x.typ))),
       returnType = VhdlType(output.typ),
       decls = varDecls,
@@ -145,21 +145,34 @@ case class ForGenerateIntermediate(
       options: VhdlGeneratorOptions,
       enable: String
   ): ForGenerate = {
-    val ipBlockTarget = this.loopVars.foldLeft(target)({ case (target, i) =>
+    val finalTarget = this.loopVars.foldLeft(target)({ case (target, i) =>
       val TyVec(elemTyp, _) = target.typ
-      Target(s"${target.name}($i)", elemTyp)
+      ComplexTarget(s"${target.expr}(to_integer($i))", elemTyp)
     })
+    val tempTarget = SimpleTarget(Param("result")().name, finalTarget.typ)
     val decls = this.intermediates
       .map({ case (x, i) =>
         i.toVhdlDecl(Target(x), options)
       })
       .toSeq
+      .:+(
+        Signal(
+          "IP block output",
+          tempTarget.baseName,
+          VhdlType(tempTarget.typ),
+          // The signal will be driven by the IP block, so no need for an
+          // assignment statement
+          cond = None,
+          assignStmt = None
+        )
+      )
     ForGenerate(
       loopLabels = this.loopLabels,
       loopVars = this.loopVars,
       loopBoundsInclusive = this.loopBoundsInclusive,
       decls = decls,
-      body = this.body.toVhdlEntityInst(ipBlockTarget, options, enable = enable)
+      body = this.body
+        .toVhdlEntityInst(finalTarget, tempTarget, options, enable = enable)
     )
   }
 
@@ -167,15 +180,21 @@ case class ForGenerateIntermediate(
       target: Target,
       options: VhdlGeneratorOptions
   ): Decl = {
-    Signal(
-      category = "Intermediate signals",
-      name = target.name,
-      typ = VhdlType(target.typ),
-      // This signal will be driven by the IP block, so no need for an
-      // assignment statement
-      assignStmt = None,
-      cond = None
-    )
+    target match {
+      case target: SimpleTarget =>
+        Signal(
+          category = "Intermediate signals",
+          name = target.baseName,
+          typ = VhdlType(target.typ),
+          // This signal will be driven by the IP block, so no need for an
+          // assignment statement
+          assignStmt = None,
+          cond = None
+        )
+      case _: ComplexTarget =>
+        // TODO: Can this ever happen?
+        ???
+    }
   }
 }
 
@@ -204,8 +223,11 @@ trait IpBlockInst {
 
   /** Convert this IP block instantiation to VHDL.
     *
-    * @param target
+    * @param finalTarget
     *   the name and type of the output signal.
+    * @param tempTarget
+    *   extra signal that takes the value from the out port and transmits it to
+    *   `finalTarget`.
     * @param options
     *   general VHDL gen options (e.g., the name of the clock signal).
     * @param enable
@@ -214,7 +236,8 @@ trait IpBlockInst {
     *   registers.
     */
   def toVhdlEntityInst(
-      target: Target,
+      finalTarget: Target,
+      tempTarget: SimpleTarget,
       options: VhdlGeneratorOptions,
       enable: String
   ): VhdlEntityInstantiation
@@ -233,9 +256,7 @@ sealed trait DataIntermediate extends Intermediate with IntermediateInFunction {
   ): Decl = {
     Signal(
       category = "Intermediate signals",
-      // TODO: What if the target is not a valid identifier (e.g., it's "v(i)")?
-      // TODO: Don't forget to check for the same issue in other Intermediates
-      name = target.name,
+      name = target.expr,
       typ = VhdlType(target.typ),
       assignStmt = Some(this.toVhdlConcurrentStmt(target, options)),
       cond = None
@@ -265,7 +286,7 @@ sealed trait DataIntermediate extends Intermediate with IntermediateInFunction {
       options: VhdlGeneratorOptions
   ): VhdlVariable = {
     VhdlVariable(
-      name = target.name,
+      name = target.expr,
       typ = VhdlType(target.typ),
       assignStmt = this.toVhdlVariableStmt(target, options)
     )
@@ -295,21 +316,21 @@ case class StmDataIntermediate(p: Param) extends DataIntermediate {
       target: Target,
       options: VhdlGeneratorOptions
   ): String = {
-    s"${target.name} <= ${this.rhs(target, options)};"
+    s"${target.expr} <= ${this.rhs(target, options)};"
   }
 
   override def toVhdlVariableStmt(
       target: Target,
       options: VhdlGeneratorOptions
   ): String = {
-    s"${target.name} := ${this.rhs(target, options)};"
+    s"${target.expr} := ${this.rhs(target, options)};"
   }
 
   override def toVhdlSignalStmt(
       target: Target,
       options: VhdlGeneratorOptions
   ): String = {
-    s"${target.name} <= ${this.rhs(target, options)};"
+    s"${target.expr} <= ${this.rhs(target, options)};"
   }
 
   private def rhs(target: Target, options: VhdlGeneratorOptions): String = {
@@ -342,21 +363,21 @@ case class ExprIntermediate(e: Expr) extends DataIntermediate {
       target: Target,
       options: VhdlGeneratorOptions
   ): String = {
-    s"${target.name} <= ${VhdlExprGenerator.toVhdl(this.e)};"
+    s"${target.expr} <= ${VhdlExprGenerator.toVhdl(this.e)};"
   }
 
   override def toVhdlVariableStmt(
       target: Target,
       options: VhdlGeneratorOptions
   ): String = {
-    s"${target.name} := ${VhdlExprGenerator.toVhdl(this.e)};"
+    s"${target.expr} := ${VhdlExprGenerator.toVhdl(this.e)};"
   }
 
   override def toVhdlSignalStmt(
       target: Target,
       options: VhdlGeneratorOptions
   ): String = {
-    s"${target.name} <= ${VhdlExprGenerator.toVhdl(this.e)};"
+    s"${target.expr} <= ${VhdlExprGenerator.toVhdl(this.e)};"
   }
 
   override def substitute(subs: Map[Expr, Expr]): DataIntermediate = {
@@ -402,7 +423,7 @@ case class MuxIntermediate(c: Expr, t: Expr, f: Expr) extends DataIntermediate {
     val c = VhdlExprGenerator.toVhdl(this.c)
     val t = VhdlExprGenerator.toVhdl(this.t)
     val f = VhdlExprGenerator.toVhdl(this.f)
-    s"${target.name} <= ($t) when ($c) else ($f);"
+    s"${target.expr} <= ($t) when ($c) else ($f);"
   }
 
   override def toVhdlVariableStmt(
@@ -410,9 +431,9 @@ case class MuxIntermediate(c: Expr, t: Expr, f: Expr) extends DataIntermediate {
       options: VhdlGeneratorOptions
   ): String = {
     s"""if (${VhdlExprGenerator.toVhdl(this.c)}) then
-       |    ${target.name} := ${VhdlExprGenerator.toVhdl(this.t)};
+       |    ${target.expr} := ${VhdlExprGenerator.toVhdl(this.t)};
        |else
-       |    ${target.name} := ${VhdlExprGenerator.toVhdl(this.f)};
+       |    ${target.expr} := ${VhdlExprGenerator.toVhdl(this.f)};
        |end if;
        |""".stripMargin.stripTrailing
   }
@@ -422,9 +443,9 @@ case class MuxIntermediate(c: Expr, t: Expr, f: Expr) extends DataIntermediate {
       options: VhdlGeneratorOptions
   ): String = {
     s"""if (${VhdlExprGenerator.toVhdl(this.c)}) then
-       |    ${target.name} <= ${VhdlExprGenerator.toVhdl(this.t)};
+       |    ${target.expr} <= ${VhdlExprGenerator.toVhdl(this.t)};
        |else
-       |    ${target.name} <= ${VhdlExprGenerator.toVhdl(this.f)};
+       |    ${target.expr} <= ${VhdlExprGenerator.toVhdl(this.f)};
        |end if;
        |""".stripMargin.stripTrailing
   }
