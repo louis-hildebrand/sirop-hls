@@ -169,16 +169,13 @@ private[vhdl] case class ForGenerate(
                 "there shouldn't be any variables inside a for generate loop; there should only be signals"
               )
           })
-          .mkString("\n\n")
+          .mkString("\n")
         // TODO: This code looks a lot like the code in CustomVhdlComponent. Can I deduplicate it somehow?
         s"""$blockLabel: block is
            |${indent(declarativeItems)}
            |begin
-           |
            |${indent(statements)}
-           |
            |${indent(bodyVhdl)}
-           |
            |end block $blockLabel;
            |""".stripMargin
       case (
@@ -189,12 +186,10 @@ private[vhdl] case class ForGenerate(
         val intIterVar = iterVar.freshCopy
         val iterVarTyp = VhdlType(iterVar.typ).vhdlName
         val TyUInt(bitwidth) = iterVar.typ
-        val iterVarConversion = s"to_unsigned($intIterVar, $bitwidth)";
         val inside = toVhdl(otherLabels, otherVars, otherBounds, options)
         s"""$label : for $intIterVar in 0 to $bound generate
-           |    signal $iterVar : $iterVarTyp;
+           |    constant $iterVar : $iterVarTyp := to_unsigned($intIterVar, $bitwidth);
            |begin
-           |    $iterVar <= $iterVarConversion;
            |${indent(inside)}
            |end generate $label;
            |""".stripMargin.stripTrailing
