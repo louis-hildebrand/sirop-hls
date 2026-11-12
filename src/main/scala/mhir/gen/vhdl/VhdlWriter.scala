@@ -220,7 +220,7 @@ object VhdlWriter {
                   _,
                   _,
                   decls,
-                  VhdlEntityInstantiation(_, c, _, _)
+                  VhdlEntityInstantiation(_, c, _)
                 ) =>
               findTypesUsedIn(c) ++ decls.flatMap(findTypesUsedIn)
           })).toSet
@@ -278,7 +278,7 @@ object VhdlWriter {
         }
         c.children
           .flatMap({
-            case ForGenerate(_, _, _, _, VhdlEntityInstantiation(_, c, _, _)) =>
+            case ForGenerate(_, _, _, _, VhdlEntityInstantiation(_, c, _)) =>
               writeOperations(c, dir, options)
           })
           .toMap

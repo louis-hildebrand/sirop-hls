@@ -2,8 +2,9 @@ package mhir.gen.vhdl
 package agilex7
 
 import mhir.canonicalize._
-import mhir.gen.vhdl.ir.{IpBlockInst, SimpleTarget, Target}
+import mhir.gen.vhdl.ir.{Intermediate, IpBlockInst, Target}
 import mhir.ir._
+import mhir.typecheck._
 
 case class AgilexMac2(
     ax: Expr,
@@ -53,12 +54,11 @@ case class AgilexMac2(
   }
 
   override def toVhdlEntityInst(
-      finalTarget: Target,
-      tempTarget: SimpleTarget,
+      target: Target,
       options: VhdlGeneratorOptions,
       enable: String
   ): VhdlEntityInstantiation = {
-    val (resultTyp, enableChainOut) = finalTarget.typ match {
+    val (resultTyp, enableChainOut) = target.typ match {
       case resTyp: TySInt                      => (resTyp, false)
       case resTyp: TyUInt                      => (resTyp, false)
       case TyTuple(resTyp: TySInt, TySInt(44)) => (resTyp, true)
@@ -112,11 +112,11 @@ case class AgilexMac2(
           )
       }
     val (resultVhdl, chainOutVhdl) = if (enableChainOut) {
-      val r = VhdlExprGenerator.makeTupleAccess(tempTarget.baseName, 0)
-      val c = VhdlExprGenerator.makeTupleAccess(tempTarget.baseName, 1)
+      val r = VhdlExprGenerator.makeTupleAccess(target.expr, 0)
+      val c = VhdlExprGenerator.makeTupleAccess(target.expr, 1)
       (r, c)
     } else {
-      (tempTarget.baseName, "open")
+      (target.expr, "open")
     }
     VhdlEntityInstantiation(
       name = Param("DSP")().name,
@@ -133,8 +133,7 @@ case class AgilexMac2(
           "chainout" -> chainOutVhdl,
           "result" -> resultVhdl
         )
-      ),
-      outSignalStatements = Seq((finalTarget.expr, resultVhdl))
+      )
     )
   }
 }

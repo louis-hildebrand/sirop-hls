@@ -95,7 +95,7 @@ private[vhdl] case class CustomVhdlComponent(
 
   private def checkPortMaps(): Unit = {
     for (ForGenerate(_, _, _, _, entity) <- children) {
-      val VhdlEntityInstantiation(name, child, map, _) = entity
+      val VhdlEntityInstantiation(name, child, map) = entity
       val expectedPorts = child match {
         case child: CustomVhdlComponent =>
           (child.inPorts.map(_.name) ++ child.outPorts.map(_.name)).toSet

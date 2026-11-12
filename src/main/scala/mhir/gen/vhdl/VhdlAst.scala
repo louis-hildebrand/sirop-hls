@@ -214,16 +214,11 @@ object ForGenerate {
   *   the component to instantiate.
   * @param args
   *   the arguments to pass to the component.
-  * @param outSignalStatements
-  *   extra signal assignment statements. These are used to work around VHDL
-  *   insisting that out ports be associated with static signal names (and not,
-  *   for instance, "v(i)").
   */
 private[vhdl] case class VhdlEntityInstantiation(
     name: String,
     c: VhdlComponent,
-    args: PortMap,
-    outSignalStatements: Seq[(String, String)] = Seq()
+    args: PortMap
 ) {
 
   def toVhdl(options: VhdlGeneratorOptions): String = {
@@ -233,15 +228,11 @@ private[vhdl] case class VhdlEntityInstantiation(
         .toSeq
         .sorted
         .mkString(",\n" + " ".repeat(8))
-    val extraCode = this.outSignalStatements
-      .map({ case (x, y) => s"$x <= $y;" })
-      .mkString("\n")
     this.c match {
       case c: CustomVhdlComponent =>
         s"""${this.name} : entity ${options.library}.${c.name}
            |    port map(
            |        $assignments);
-           |$extraCode
            |""".stripMargin.stripTrailing
       case c: PredefinedComponent =>
         val genericAssignments = c.generics
@@ -254,7 +245,6 @@ private[vhdl] case class VhdlEntityInstantiation(
            |        $genericAssignments)
            |    port map(
            |        $assignments);
-           |$extraCode
            |""".stripMargin.stripTrailing
     }
   }

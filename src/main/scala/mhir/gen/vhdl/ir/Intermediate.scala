@@ -145,34 +145,22 @@ case class ForGenerateIntermediate(
       options: VhdlGeneratorOptions,
       enable: String
   ): ForGenerate = {
-    val finalTarget = this.loopVars.foldLeft(target)({ case (target, i) =>
+    val targetWithIndices = this.loopVars.foldLeft(target)({ case (target, i) =>
       val TyVec(elemTyp, _) = target.typ
       ComplexTarget(s"${target.expr}(to_integer($i))", elemTyp)
     })
-    val tempTarget = SimpleTarget(Param("result")().name, finalTarget.typ)
     val decls = this.intermediates
       .map({ case (x, i) =>
         i.toVhdlDecl(Target(x), options)
       })
       .toSeq
-      .:+(
-        Signal(
-          "IP block output",
-          tempTarget.baseName,
-          VhdlType(tempTarget.typ),
-          // The signal will be driven by the IP block, so no need for an
-          // assignment statement
-          cond = None,
-          assignStmt = None
-        )
-      )
     ForGenerate(
       loopLabels = this.loopLabels,
       loopVars = this.loopVars,
       loopBoundsInclusive = this.loopBoundsInclusive,
       decls = decls,
       body = this.body
-        .toVhdlEntityInst(finalTarget, tempTarget, options, enable = enable)
+        .toVhdlEntityInst(targetWithIndices, options, enable = enable)
     )
   }
 
@@ -236,8 +224,7 @@ trait IpBlockInst {
     *   registers.
     */
   def toVhdlEntityInst(
-      finalTarget: Target,
-      tempTarget: SimpleTarget,
+      target: Target,
       options: VhdlGeneratorOptions,
       enable: String
   ): VhdlEntityInstantiation
