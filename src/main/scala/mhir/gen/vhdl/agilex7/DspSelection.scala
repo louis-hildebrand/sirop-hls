@@ -5,10 +5,10 @@ import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.gen.vhdl.ir._
 import mhir.ir._
-import mhir.optimize.{InConsumer, StmOutputScheduler}
+import mhir.optimize.{InConsumer, PartialEvalPass, StmOutputScheduler}
 import mhir.typecheck.TypeCheck
 import mhir.logging.time
-import mhir.matchers.VecBuilds
+import mhir.matchers.{TyVecs, VecAccesses, VecBuilds}
 import org.slf4j.event.Level
 
 import scala.annotation.tailrec
@@ -180,7 +180,20 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   private def combineDsps(s: GenStmBuild): GenStmBuild = {
     this.findDspsToCombine(s) match {
       case Some((chainin, macA, macB)) =>
-        combineDsps(combineDsps(s, chainin, macA, macB))
+        val afterCombining = combineDsps(s, chainin, macA, macB)
+        // TODO: So slow :(
+        val simplified = GenStmBuild(
+          data = PartialEvalPass.partialEval(afterCombining.data),
+          valid = PartialEvalPass.partialEval(afterCombining.valid),
+          accumulators = afterCombining.accumulators.map({ case (x, a) =>
+            x -> a.map(PartialEvalPass.partialEval(_))
+          }),
+          producers = afterCombining.producers,
+          intermediates = afterCombining.intermediates.map({ case (x, i) =>
+            x -> i.map(PartialEvalPass.partialEval(_))
+          })
+        )
+        combineDsps(simplified)
       case None =>
         s // nothing left to merge
     }
@@ -211,10 +224,13 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           )
           // The other lengths should match the length of these lists
           if boundsA == boundsB =>
+        val varsAB = varsA.map(_.freshCopy)
         val newForGen = {
           val labelsAB = labelsA
-          val varsAB = varsA.map(_.freshCopy)
-          val newDsp = AgilexMac2(ax, ay, bx, by, chainin, pipeline = 0)
+          val newDsp = {
+            // TODO: I think I forgot to rename the variables here! Will the tests catch it?
+            AgilexMac2(ax, ay, bx, by, chainin, pipeline = 0)
+          }
           assert(
             intermediatesA.isEmpty,
             s"intermediatesA should still be empty at this point"
@@ -231,10 +247,18 @@ case class DspSelection(scheduler: StmOutputScheduler) {
             newDsp
           )
         }
-        val bTyp = macB.typ.asInstanceOf[TyAnyInt]
-        val newTyp = TyTuple(bTyp /*result*/, bTyp.withWidth(44) /*chainout*/ )
+        val TyVecs(bElemTyp: TyAnyInt, bLengths) = macB.typ
+        val newTyp = TyVecs(
+          TyTuple(bElemTyp /*result*/, bElemTyp.withWidth(44) /*chainout*/ ),
+          bLengths
+        )
         val newParam = Param(macB.prefix)(newTyp)
-        val subs = Map[Expr, Expr](macB -> newParam.__0.tchk())
+        val macBReplacement = VecBuilds(
+          bLengths.reverse,
+          varsAB,
+          VecAccesses(newParam, varsAB).__0
+        ).tchk()
+        val subs = Map[Expr, Expr](macB -> macBReplacement)
         GenStmBuild(
           data = s.data.subPreserveType(subs),
           valid = s.valid.subPreserveType(subs),
@@ -274,52 +298,70 @@ case class DspSelection(scheduler: StmOutputScheduler) {
               macB,
               ForGenerateIntermediate(
                 _,
-                _,
+                loopVarsB,
                 _,
                 boundsB,
-                AgilexMac1(bx, by, macA: Param)
+                AgilexMac1(
+                  bx,
+                  by,
+                  chaininB @ VecAccesses(macA: Param, indicesB)
+                )
               )
             )
             if !bx.freeVars.contains(macA) &&
-              !by.freeVars.contains(macA) =>
+              !by.freeVars.contains(macA) &&
+              indicesB == loopVarsB =>
           // (C2) Check chainin port
-          val chainin = s.intermediates.get(macA) match {
+          val (chaininA, loopVarsA) = s.intermediates.get(macA) match {
             case Some(
                   ForGenerateIntermediate(
                     _,
-                    _,
+                    loopVarsA,
                     _,
                     boundsA,
                     AgilexMac1(_, _, chaininA)
                   )
                 ) if boundsA == boundsB =>
-              chaininA match {
-                case z @ IntCst(0) =>
-                  val typ = z.typ.asInstanceOf[TyAnyInt]
-                  Some(C(0)(typ.withWidth(44)))
-                case TupleAccess(x: Param, IntCst(0)) =>
-                  s.intermediates.get(x) match {
-                    case Some(
-                          ForGenerateIntermediate(_, _, _, _, _: AgilexMac2)
-                        ) =>
-                      x.typ match {
-                        case TyTuple(TyAnyInt(w), TyAnyInt(44)) if w <= 44 =>
-                          Some(x.__1.tchk())
-                        case _ =>
-                          throw new AssertionError(
-                            s"output from $x has type ${x.typ}"
-                          )
-                      }
-                    case _ => None
-                  }
-                case _ => None
-              }
-            case _ => None
+              (Some(chaininA), Some(loopVarsA))
+            case _ => (None, None)
           }
+          val chainin = chaininA
+            .zip(loopVarsA)
+            .flatMap({
+              case (z @ IntCst(0), _) =>
+                val typ = z.typ.asInstanceOf[TyAnyInt]
+                Some(C(0)(typ.withWidth(44)))
+              case (
+                    TupleAccess(va @ VecAccesses(x: Param, indices), IntCst(0)),
+                    loopVarsA
+                  ) if indices == loopVarsA =>
+                s.intermediates.get(x) match {
+                  case Some(
+                        ForGenerateIntermediate(
+                          _,
+                          loopVars,
+                          _,
+                          _,
+                          _: AgilexMac2
+                        )
+                      ) if loopVars.length == indices.length =>
+                    va.typ match {
+                      case TyTuple(TyAnyInt(w), TyAnyInt(44)) if w <= 44 =>
+                        Some(VecAccesses(x, indices).__1.tchk())
+                      case _ =>
+                        throw new AssertionError(
+                          s"output from $x has type ${x.typ}; expected a 2-tuple (i{w}, i44) with w <= 44"
+                        )
+                    }
+                  case _ => None
+                }
+              case _ => None
+            })
+            .headOption
           // (C3) Check bitwidths
-          val bitwidthsOk = (macA.typ, macB.typ) match {
-            case (TyAnyInt(wA), TyAnyInt(wB)) => wA <= 44 && wB <= 44
-            case _                            => false
+          val bitwidthsOk = (chaininA.map(_.typ), chaininB.typ) match {
+            case (Some(TyAnyInt(wA)), TyAnyInt(wB)) => wA <= 44 && wB <= 44
+            case _                                  => false
           }
           // (C1) Check if macA is used elsewhere
           // TODO: Create a dependency graph beforehand to avoid this O(n^2) behaviour?

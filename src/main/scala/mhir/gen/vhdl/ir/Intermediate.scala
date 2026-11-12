@@ -15,6 +15,8 @@ sealed trait Intermediate {
 
   def substitute(subs: Map[Expr, Expr]): Intermediate
 
+  def map(f: Expr => Expr): Intermediate
+
   def toVhdlDecl(target: Target, options: VhdlGeneratorOptions): Decl
 }
 
@@ -61,6 +63,16 @@ case class FunctionIntermediate(
     }
     val newOutput = this.output.subPreserveType(subs)
     FunctionIntermediate(newParams, newIntermediates, newOutput)
+  }
+
+  def map(f: Expr => Expr): FunctionIntermediate = {
+    FunctionIntermediate(
+      this.params.map(_.map(f).asInstanceOf[Param]),
+      this.intermediates.map({ case (x, i) =>
+        x -> i.map(f).asInstanceOf[IntermediateInFunction]
+      }),
+      this.output.map(f)
+    )
   }
 
   def toVhdlDecl(
@@ -140,6 +152,16 @@ case class ForGenerateIntermediate(
     )
   }
 
+  def map(f: Expr => Expr): ForGenerateIntermediate = {
+    ForGenerateIntermediate(
+      this.loopLabels,
+      this.loopVars.map(_.map(f).asInstanceOf[Param]),
+      this.loopBoundsInclusive,
+      this.intermediates.map({ case (x, i) => x -> i.map(f) }),
+      this.body.mapInputs(f)
+    )
+  }
+
   def toVhdl(
       target: Target,
       options: VhdlGeneratorOptions,
@@ -211,11 +233,8 @@ trait IpBlockInst {
 
   /** Convert this IP block instantiation to VHDL.
     *
-    * @param finalTarget
+    * @param target
     *   the name and type of the output signal.
-    * @param tempTarget
-    *   extra signal that takes the value from the out port and transmits it to
-    *   `finalTarget`.
     * @param options
     *   general VHDL gen options (e.g., the name of the clock signal).
     * @param enable
