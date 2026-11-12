@@ -6,6 +6,8 @@ DEFAULT_TIMEOUT='0' # 0 means no timeout
 SHOW_WAVES='true'
 TIME_RESOLUTION='100ps'
 LIBRARY='%{LIBRARY}%'
+VOPTARGS='+acc'
+SUPPRESS_ERRORS='14408,16154'
 
 BAD_ARGS=2
 MISSING_PROJ=3
@@ -116,10 +118,10 @@ function run_simulation {
         if [[ "$SHOW_WAVES" == "true" ]]; then
             tcl_script="add wave sim:/testbench/*; add wave sim:/testbench/out_check_*/*; add wave sim:/testbench/DUT/*; $tcl_script"
         fi
-        vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" "${library_args[@]}" -voptargs="+acc" -work "$LIBRARY" testbench
+        vsim -i -do "$tcl_script" -t "$TIME_RESOLUTION" "${library_args[@]}" -voptargs="$VOPTARGS" -suppress "$SUPPRESS_ERRORS" -work "$LIBRARY" testbench
     else
         tcl_script='set NumericStdNoWarnings 1; log -r /*; run -all; quit -code [coverage attribute -name TESTSTATUS -concise]'
-        timeout "$time_limit" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" "${library_args[@]}" -voptargs="+acc" -work "$LIBRARY" testbench
+        timeout "$time_limit" vsim -c -do "$tcl_script" -t "$TIME_RESOLUTION" "${library_args[@]}" -voptargs="$VOPTARGS" -suppress "$SUPPRESS_ERRORS" -work "$LIBRARY" testbench
     fi
 }
 
