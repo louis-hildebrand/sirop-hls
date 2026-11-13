@@ -33,7 +33,7 @@ private[vhdl] object StmBuildVhdl {
       (defaultInPorts(options) ++ producerPorts(s.producers))
     val allChildren = s.intermediates
       .collect({ case (x, fgi: ForGenerateIntermediate) =>
-        fgi.toVhdl(Target(x), options, enable = "'1'")
+        fgi.toVhdl(SignalTarget(x), options, enable = "'1'")
       })
       .toSeq
     CustomVhdlComponent(
@@ -79,7 +79,7 @@ private[vhdl] object StmBuildVhdl {
   ): Seq[Signal] = {
     accumulators
       .map({ case (x, acc) =>
-        acc.toVhdl(Target(x), enable = "true", options = options)
+        acc.toVhdl(SignalTarget(x), enable = "true", options = options)
       })
       .toSeq
   }
@@ -112,7 +112,7 @@ private[vhdl] object StmBuildVhdl {
       options: VhdlGeneratorOptions
   ): Seq[Decl] = {
     intermediates
-      .map({ case (x, i) => i.toVhdlDecl(Target(x), options) })
+      .map({ case (x, i) => i.toVhdlDecl(SignalTarget(x), options) })
       .toSeq
   }
 }

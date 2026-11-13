@@ -22,9 +22,6 @@ object BoundsCheckInsertion {
     GenStmBuild(
       data = this.apply(s.data),
       valid = this.apply(s.valid),
-      accumulators = s.accumulators.map({ case (x, acc: Accumulator) =>
-        x -> acc.map(this.apply(_))
-      }),
       producers = s.producers.map({ case (x, (p, ready)) =>
         x -> (p, this.apply(ready))
       }),
@@ -35,20 +32,29 @@ object BoundsCheckInsertion {
   }
 
   private def apply(i: Intermediate): Intermediate = {
+    // TODO: Also have a parameter like `paramBoundsExclusive` here, which is updated in the
+    //       ForGenerateIntermediate case?
     i match {
-      case i: DataIntermediate => i.map(this.apply(_, Map()))
-      case ForGenerateIntermediate(_, _, _, _, _: IpBlockInst) =>
-        throw new AssertionError(
-          "there shouldn't be any IP blocks yet at this compilation stage"
+      case i: SimpleIntermediate => i.map(this.apply(_, Map()))
+      case b: BlockIntermediate  => b.map(this.apply(_, Map()))
+      case ForGenerateIntermediate(vars, bounds, body) =>
+        ForGenerateIntermediate(
+          vars,
+          bounds,
+          this.apply(body).asInstanceOf[ConcurrentIntermediate]
         )
       case FunctionIntermediate(params, intermediates, body) =>
         FunctionIntermediate(
           params,
           intermediates
             .map({ case (x, i) =>
-              x -> this.apply(i).asInstanceOf[IntermediateInFunction]
+              x -> this.apply(i).asInstanceOf[SequentialIntermediate]
             }),
           this.apply(body, Map())
+        )
+      case _: IpBlockInst =>
+        throw new AssertionError(
+          "there shouldn't be any IP blocks yet at this compilation stage"
         )
     }
   }

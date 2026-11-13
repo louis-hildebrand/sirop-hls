@@ -7,6 +7,7 @@ private[vhdl] sealed trait Decl {
   def vhdlDecl: String
 }
 
+@deprecated
 private[vhdl] case class VhdlFunction(
     name: String,
     args: Seq[(String, VhdlType)],
@@ -82,7 +83,10 @@ private[vhdl] sealed trait VarOrSigDecl extends Decl {
 private[vhdl] case class VhdlVariable(
     name: String,
     typ: VhdlType,
-    assignStmt: String
+    @deprecated(
+      "TODO: Delete this; directly get the statement from Intermediate instead"
+    )
+    assignStmt: String = ""
 ) extends VarOrSigDecl {
   override def vhdlDecl: String = s"variable $name : ${typ.vhdlName};"
 }
@@ -106,10 +110,17 @@ private[vhdl] case class VhdlVariable(
   *   statement which is run if [[cond]] is true.
   */
 private[vhdl] case class Signal(
-    category: String,
+    @deprecated("TODO: Delete this?")
+    category: String = "",
     name: String,
     typ: VhdlType,
+    @deprecated(
+      "TODO: Delete this; directly get the statement from Intermediate instead"
+    )
     assignStmt: Option[String] = None,
+    @deprecated(
+      "TODO: Delete this; directly get the statement from Intermediate instead"
+    )
     cond: Option[String] = None
 ) extends VarOrSigDecl {
   override def vhdlDecl: String = s"signal $name : ${typ.vhdlName};"
@@ -122,36 +133,32 @@ private[vhdl] case class Signal(
   */
 private[vhdl] case class PortMap(map: Map[String, String])
 
+@deprecated("TODO: Use ForGenerateIntermediate instead")
 private[vhdl] case class ForGenerate(
-    loopLabels: Seq[String],
     loopVars: Seq[Param],
     loopBoundsInclusive: Seq[Int],
     decls: Seq[Decl],
     body: VhdlEntityInstantiation
 ) {
+
   require(
-    loopLabels.length == loopVars.length,
-    s"different number of labels and variables: ${loopLabels.length} vs ${loopVars.length}"
-  )
-  require(
-    loopLabels.length == loopBoundsInclusive.length,
-    s"different number of labels and loop bounds: ${loopLabels.length} vs ${loopBoundsInclusive.length}"
+    loopVars.length == loopBoundsInclusive.length,
+    s"different number of labels and loop bounds: ${loopVars.length} vs ${loopBoundsInclusive.length}"
   )
 
   def toVhdl(options: VhdlGeneratorOptions): String = {
-    toVhdl(this.loopLabels, this.loopVars, this.loopBoundsInclusive, options)
+    toVhdl(this.loopVars, this.loopBoundsInclusive, options)
   }
 
   private def toVhdl(
-      loopLabels: Seq[String],
       loopVars: Seq[Param],
       loopBounds: Seq[Int],
       options: VhdlGeneratorOptions
   ): String = {
-    (loopLabels, loopVars, loopBounds) match {
-      case (Seq(), Seq(), Seq()) =>
+    (loopVars, loopBounds) match {
+      case (Seq(), Seq()) =>
         val bodyVhdl = this.body.toVhdl(options)
-        val blockLabel = Param("L")().name
+        val blockLabel = Param("B")().name
         val declarativeItems = decls.map(_.vhdlDecl).mkString("\n")
         val statements = decls
           .flatMap({
@@ -177,16 +184,13 @@ private[vhdl] case class ForGenerate(
            |${indent(statements)}
            |${indent(bodyVhdl)}
            |end block $blockLabel;
-           |""".stripMargin
-      case (
-            Seq(label, otherLabels @ _*),
-            Seq(iterVar, otherVars @ _*),
-            Seq(bound, otherBounds @ _*)
-          ) =>
+           |""".stripMargin.stripTrailing
+      case (Seq(iterVar, otherVars @ _*), Seq(bound, otherBounds @ _*)) =>
         val intIterVar = iterVar.freshCopy
         val iterVarTyp = VhdlType(iterVar.typ).vhdlName
         val TyUInt(bitwidth) = iterVar.typ
-        val inside = toVhdl(otherLabels, otherVars, otherBounds, options)
+        val inside = toVhdl(otherVars, otherBounds, options)
+        val label = Param("L")().name
         s"""$label : for $intIterVar in 0 to $bound generate
            |    constant $iterVar : $iterVarTyp := to_unsigned($intIterVar, $bitwidth);
            |begin
@@ -202,7 +206,7 @@ private[vhdl] case class ForGenerate(
 object ForGenerate {
 
   def apply(body: VhdlEntityInstantiation): ForGenerate = {
-    ForGenerate(Seq.empty, Seq.empty, Seq.empty, Seq.empty, body)
+    ForGenerate(Seq.empty, Seq.empty, Seq.empty, body)
   }
 }
 

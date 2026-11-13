@@ -11,6 +11,7 @@ private[vhdl] sealed trait VhdlType {
   /** The VHDL code used to <i>refer to</i> this type, e.g., in signal
     * declarations.
     */
+  // TODO: Choose a name here that's more closely aligned with the standard?
   def vhdlName: String
 
   /** The type mark for this type. This is used, for instance, in function

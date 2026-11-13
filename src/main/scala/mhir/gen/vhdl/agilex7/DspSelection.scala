@@ -5,14 +5,13 @@ import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.gen.vhdl.ir._
 import mhir.ir._
-import mhir.optimize.{InConsumer, PartialEvalPass, StmOutputScheduler}
-import mhir.typecheck.TypeCheck
 import mhir.logging.time
 import mhir.matchers.{TyVecs, VecAccesses, VecBuilds}
+import mhir.optimize.{InConsumer, PartialEvalPass, StmOutputScheduler}
+import mhir.typecheck.TypeCheck
 import org.slf4j.event.Level
 
 import scala.annotation.tailrec
-import scala.collection.immutable.ListMap
 
 /** Maps multiplications to native Agilex 7 DSP blocks, where possible.
   *
@@ -49,7 +48,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     * bitshifting, etc. should happen whenever this accumulator is <i>used</i>.
     */
   private def moveZeroDelayOpsAfterRegister(s: GenStmBuild): GenStmBuild = {
-    s.accumulators
+    s.intermediates
       .collect({
         // Don't bother doing this if it won't help with DSP selection.
         // In particular, I'm only interested in accumulators such that
@@ -74,14 +73,12 @@ case class DspSelection(scheduler: StmOutputScheduler) {
             val updatedS = GenStmBuild(
               data = s.data.subPreserveType(subs),
               valid = s.valid.subPreserveType(subs),
-              accumulators = (s.accumulators - x)
-                .map({ case (x, acc) => x -> acc.substitute(subs) })
-                .+(newVar -> newAcc),
               producers = s.producers.map({ case (x, (p, ready)) =>
                 x -> (p, ready.subPreserveType(subs))
               }),
-              intermediates = s.intermediates
+              intermediates = (s.intermediates - x)
                 .map({ case (x, i) => x -> i.substitute(subs) })
+                .+(newVar -> newAcc)
             )
             updatedS
           case _ => s
@@ -100,7 +97,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     *   turn `ax * ay + b` into [[AgilexMac1]].
     */
   private def recognizeBasicDsps(s: GenStmBuild): GenStmBuild = {
-    val newIntermediates = s.accumulators.flatMap({
+    val newIntermediates = s.intermediates.flatMap({
       case (
             acc,
             ExprAccumulator(
@@ -119,15 +116,8 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         }
         if (typesOk) {
           val madd = AgilexMadd(ax, ay, bx, by, pipeline = 0)
-          val labels = lengths.map(_ => Param("L")().name)
           val bounds = lengths.map(_ - 1)
-          val fgi = ForGenerateIntermediate(
-            labels,
-            variables,
-            bounds,
-            ListMap.empty,
-            madd
-          )
+          val fgi = ForGenerateIntermediate(variables, bounds, madd)
           Some(acc -> fgi)
         } else {
           None
@@ -148,15 +138,8 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         }
         if (typesOk) {
           val mac = AgilexMac1(x, y, chainin)
-          val labels = lengths.map(_ => Param("L")().name)
           val bounds = lengths.map(_ - 1)
-          val fgi = ForGenerateIntermediate(
-            labels,
-            variables,
-            bounds,
-            ListMap.empty,
-            mac
-          )
+          val fgi = ForGenerateIntermediate(variables, bounds, mac)
           Some(acc -> fgi)
         } else {
           None
@@ -167,7 +150,6 @@ case class DspSelection(scheduler: StmOutputScheduler) {
     GenStmBuild(
       data = s.data,
       valid = s.valid,
-      accumulators = s.accumulators -- newIntermediates.keySet,
       producers = s.producers,
       intermediates = s.intermediates ++ newIntermediates
     )
@@ -185,9 +167,6 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         val simplified = GenStmBuild(
           data = PartialEvalPass.partialEval(afterCombining.data),
           valid = PartialEvalPass.partialEval(afterCombining.valid),
-          accumulators = afterCombining.accumulators.map({ case (x, a) =>
-            x -> a.map(PartialEvalPass.partialEval(_))
-          }),
           producers = afterCombining.producers,
           intermediates = afterCombining.intermediates.map({ case (x, i) =>
             x -> i.map(PartialEvalPass.partialEval(_))
@@ -207,45 +186,18 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   ): GenStmBuild = {
     (s.intermediates(macA), s.intermediates(macB)) match {
       case (
-            ForGenerateIntermediate(
-              labelsA,
-              varsA,
-              boundsA,
-              intermediatesA,
-              AgilexMac1(ax, ay, _)
-            ),
-            ForGenerateIntermediate(
-              _,
-              _,
-              boundsB,
-              intermediatesB,
-              AgilexMac1(bx, by, _)
-            )
+            ForGenerateIntermediate(varsA, boundsA, AgilexMac1(ax, ay, _)),
+            ForGenerateIntermediate(_, boundsB, AgilexMac1(bx, by, _))
           )
           // The other lengths should match the length of these lists
           if boundsA == boundsB =>
         val varsAB = varsA.map(_.freshCopy)
         val newForGen = {
-          val labelsAB = labelsA
           val newDsp = {
             // TODO: I think I forgot to rename the variables here! Will the tests catch it?
             AgilexMac2(ax, ay, bx, by, chainin, pipeline = 0)
           }
-          assert(
-            intermediatesA.isEmpty,
-            s"intermediatesA should still be empty at this point"
-          )
-          assert(
-            intermediatesB.isEmpty,
-            s"intermediatesB should still be empty at this point"
-          )
-          ForGenerateIntermediate(
-            labelsAB,
-            varsAB,
-            boundsA,
-            ListMap.empty,
-            newDsp
-          )
+          ForGenerateIntermediate(varsAB, boundsA, newDsp)
         }
         val TyVecs(bElemTyp: TyAnyInt, bLengths) = macB.typ
         val newTyp = TyVecs(
@@ -262,9 +214,6 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         GenStmBuild(
           data = s.data.subPreserveType(subs),
           valid = s.valid.subPreserveType(subs),
-          accumulators = s.accumulators.map({ case (x, a) =>
-            x -> a.substitute(subs)
-          }),
           producers = s.producers.map({ case (x, (p, ready)) =>
             x -> (p, ready.subPreserveType(subs))
           }),
@@ -297,9 +246,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         case (
               macB,
               ForGenerateIntermediate(
-                _,
                 loopVarsB,
-                _,
                 boundsB,
                 AgilexMac1(
                   bx,
@@ -315,9 +262,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           val (chaininA, loopVarsA) = s.intermediates.get(macA) match {
             case Some(
                   ForGenerateIntermediate(
-                    _,
                     loopVarsA,
-                    _,
                     boundsA,
                     AgilexMac1(_, _, chaininA)
                   )
@@ -337,13 +282,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
                   ) if indices == loopVarsA =>
                 s.intermediates.get(x) match {
                   case Some(
-                        ForGenerateIntermediate(
-                          _,
-                          loopVars,
-                          _,
-                          _,
-                          _: AgilexMac2
-                        )
+                        ForGenerateIntermediate(loopVars, _, _: AgilexMac2)
                       ) if loopVars.length == indices.length =>
                     va.typ match {
                       case TyTuple(TyAnyInt(w), TyAnyInt(44)) if w <= 44 =>
@@ -370,9 +309,6 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           val usedElsewhere = (
             s.data.freeVars.contains(macA) ||
               s.valid.freeVars.contains(macA) ||
-              s.accumulators.exists({ case (_, a) =>
-                a.freeVars.contains(macA)
-              }) ||
               s.producers.exists({ case (_, (_, ready)) =>
                 ready.freeVars.contains(macA)
               }) ||

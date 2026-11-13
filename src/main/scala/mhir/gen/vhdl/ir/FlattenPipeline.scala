@@ -104,7 +104,7 @@ object FlattenPipeline {
       case x: Param =>
         (x, Seq())
       case s: StmBuild =>
-        var newAccumulators = Map[Param, Accumulator]()
+        var newIntermediates = ListMap[Param, Accumulator]()
         var newProducers = Map[Param, (Param, Expr)]()
         var newNodes = Seq[PipelineNode]()
         for ((x, (stm, ready, _)) <- s.producers) {
@@ -120,14 +120,13 @@ object FlattenPipeline {
             },
             ExprIntermediate(next)
           )
-          newAccumulators += (x -> acc)
+          newIntermediates += (x -> acc)
         }
         val genSbuild = GenStmBuild(
           data = s.nextData,
           valid = s.valid,
-          accumulators = newAccumulators,
           producers = newProducers,
-          intermediates = ListMap()
+          intermediates = newIntermediates
         )
         val x = Param("s")(s.typ)
         (x, newNodes :+ StmBuildNode(x, genSbuild))
@@ -203,7 +202,6 @@ object FlattenPipeline {
           val newSbuild = GenStmBuild(
             data = s.data,
             valid = s.valid,
-            accumulators = s.accumulators,
             producers = newProducers,
             intermediates = s.intermediates
           )
@@ -342,31 +340,14 @@ object FlattenPipeline {
     GenStmBuild(
       data = s.data.subPreserveType(subs),
       valid = s.valid.subPreserveType(subs),
-      accumulators = s.accumulators.map({
-        case (x, ExprAccumulator(init, next)) =>
-          // Producers are not in scope in initial value, so no need to do any
-          // substitutions there
-          x -> ExprAccumulator(init, next.substitute(subs))
-        case (x, a: Accumulator) =>
-          x -> a.substitute(subs)
-      }),
       producers = s.producers.map({ case (x, (p, ready)) =>
         assert(x == p || renamings(x) == p)
         // The ready expressions cannot use sdata, so no need to do any
         // substitutions there
         p -> (p, ready)
       }),
-      intermediates = s.intermediates.map({
-        case (x, ExprIntermediate(e)) =>
-          x -> ExprIntermediate(e.subPreserveType(subs))
-        case (x, FunctionIntermediate(Seq(y), Seq(), body)) =>
-          val Function(y2, body2) =
-            Function(y, body)().tchk().subPreserveType(subs)
-          x -> FunctionIntermediate(Seq(y2), ListMap(), body2)
-        case (_, ForGenerateIntermediate(_, _, _, _, _: IpBlockInst)) =>
-          throw new AssertionError(
-            "there shouldn't be any IP blocks yet at this compilation stage"
-          )
+      intermediates = s.intermediates.map({ case (x, i) =>
+        x -> i.substitute(subs)
       })
     )
   }
@@ -379,10 +360,9 @@ object FlattenPipeline {
       val nop = GenStmBuild(
         data = data,
         valid = True,
-        accumulators =
-          Map(data -> ExprAccumulator(None, StmDataIntermediate(pipe.sink))),
         producers = Map(pipe.sink -> (pipe.sink, True)),
-        intermediates = ListMap()
+        intermediates =
+          ListMap(data -> ExprAccumulator(None, StmDataIntermediate(pipe.sink)))
       )
       val newNode = StmBuildNode(newSink, nop)
       pipe.copy(sbuilds = pipe.sbuilds :+ newNode, sink = newSink)

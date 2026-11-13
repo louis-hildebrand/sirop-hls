@@ -12,7 +12,7 @@ object IpStats {
             stats,
             (
               target,
-              ForGenerateIntermediate(_, vars, bounds, _, ip: IpBlockInst)
+              ForGenerateIntermediate(vars, bounds, _, ip: IpBlockInst)
             )
           ) =>
         val description = this.describe(target, vars, bounds, ip)

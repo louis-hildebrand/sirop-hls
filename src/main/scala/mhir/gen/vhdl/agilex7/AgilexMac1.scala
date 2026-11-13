@@ -23,7 +23,7 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
     )
   }
 
-  override def mapInputs(f: Expr => Expr): AgilexMac1 = {
+  override def map(f: Expr => Expr): AgilexMac1 = {
     AgilexMac1(f(this.x), f(this.y), f(this.chainin))
   }
 
@@ -87,7 +87,7 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
           "ax" -> VhdlExprGenerator.toVhdl(this.x),
           "ay" -> VhdlExprGenerator.toVhdl(this.y),
           "b" -> VhdlExprGenerator.toVhdl(this.chainin),
-          "result" -> target.expr
+          "result" -> target.name
         )
       )
     )

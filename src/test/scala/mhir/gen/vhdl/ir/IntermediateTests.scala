@@ -62,7 +62,7 @@ class IntermediateTests extends AnyFunSuite {
     // Some variables need to be renamed to avoid capture
     val Seq(newX, _) = actual.params
     assert(newX != x)
-    val Seq(_, newA2) = actual.intermediates.keys.toSeq
+    val Seq(_, newA2) = actual.locals.keys.toSeq
     assert(newA2 != a2)
     // Don't rename needlessly
     val newY = y

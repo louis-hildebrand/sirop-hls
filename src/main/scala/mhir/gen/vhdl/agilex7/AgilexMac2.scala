@@ -42,7 +42,7 @@ case class AgilexMac2(
     )
   }
 
-  def mapInputs(f: Expr => Expr): AgilexMac2 = {
+  def map(f: Expr => Expr): AgilexMac2 = {
     AgilexMac2(
       f(this.ax),
       f(this.ay),
@@ -112,11 +112,11 @@ case class AgilexMac2(
           )
       }
     val (resultVhdl, chainOutVhdl) = if (enableChainOut) {
-      val r = VhdlExprGenerator.makeTupleAccess(target.expr, 0)
-      val c = VhdlExprGenerator.makeTupleAccess(target.expr, 1)
+      val r = VhdlExprGenerator.makeTupleAccess(target.name, 0)
+      val c = VhdlExprGenerator.makeTupleAccess(target.name, 1)
       (r, c)
     } else {
-      (target.expr, "open")
+      (target.name, "open")
     }
     VhdlEntityInstantiation(
       name = Param("DSP")().name,

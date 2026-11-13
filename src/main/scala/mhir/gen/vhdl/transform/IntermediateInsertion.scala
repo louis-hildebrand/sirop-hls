@@ -49,7 +49,58 @@ private class IntermediateInsertion(
   def apply(s: GenStmBuild): GenStmBuild = {
     val data = this.getExprAndMutateIntermediates(s.data)
     val valid = this.getExprAndMutateIntermediates(s.valid)
-    val accumulators = s.accumulators.map({
+    val producers = s.producers.map({ case (x, (p, ready)) =>
+      x -> (p, this.getExprAndMutateIntermediates(ready))
+    })
+    s.intermediates.foreach({
+      case (x, i: SimpleIntermediate) =>
+        val newI = i.map(this.getExprAndMutateIntermediates)
+        this.intermediates += (x -> newI)
+      case (x, BlockIntermediate(locals, body)) =>
+        val subPass = new IntermediateInsertion(ListMap())
+        val newLocals = locals.map({ case (x, i) =>
+          x -> i.map(subPass.getExprAndMutateIntermediates)
+        })
+        val newBody = body.map(subPass.getExprAndMutateIntermediates)
+        val localsFromSubPass = subPass.intermediates.map({
+          case (x, i: ConcurrentIntermediate) => x -> i
+        })
+        val newBlock =
+          BlockIntermediate(newLocals ++ localsFromSubPass, newBody)
+        x -> newBlock
+      case (x, fgi: ForGenerateIntermediate) =>
+        val subPass = new IntermediateInsertion(ListMap())
+        val newBody =
+          fgi.body.map(subPass.getPortActualAndMutateIntermediates)
+        val newFgi = if (subPass.intermediates.isEmpty) {
+          ForGenerateIntermediate(
+            fgi.loopVars,
+            fgi.loopBoundsInclusive,
+            newBody
+          )
+        } else {
+          // TODO: Hoist some of the intermediates (e.g., StmDataIntermediate) out?
+          val locals = subPass.intermediates.map({
+            case (x, i: ConcurrentIntermediate) => x -> i
+          })
+          BlockIntermediate(
+            locals,
+            ForGenerateIntermediate(
+              fgi.loopVars,
+              fgi.loopBoundsInclusive,
+              newBody
+            )
+          )
+        }
+        this.intermediates += (x -> newFgi)
+      case (x, _: IpBlockInst) =>
+        // TODO: Handle this case
+        ???
+      case (x, f: FunctionIntermediate) =>
+        throw new AssertionError(
+          s"there should not be any ${f.getClass.getName} yet at this compilation stage"
+            + s" (found function $x)"
+        )
       case (x, ExprAccumulator(init, next)) =>
         val newInit = init.map(this.getDataIntermediateAndMutateIntermediates)
         val newNext = this.getDataIntermediateAndMutateIntermediates(next)
@@ -57,36 +108,9 @@ private class IntermediateInsertion(
       case (x, acc) =>
         x -> acc.map(this.getExprAndMutateIntermediates)
     })
-    val producers = s.producers.map({ case (x, (p, ready)) =>
-      x -> (p, this.getExprAndMutateIntermediates(ready))
-    })
-    s.intermediates.foreach({
-      case (x, i: DataIntermediate) =>
-        val newI = i.map(this.getExprAndMutateIntermediates)
-        this.intermediates += (x -> newI)
-      case (x, fgi: ForGenerateIntermediate) =>
-        val subPass = new IntermediateInsertion(ListMap())
-        val newBody =
-          fgi.body.mapInputs(subPass.getPortActualAndMutateIntermediates)
-        val newFgi = ForGenerateIntermediate(
-          fgi.loopLabels,
-          fgi.loopVars,
-          fgi.loopBoundsInclusive,
-          // TODO: Hoist some of the intermediates (e.g., StmDataIntermediate) out?
-          subPass.intermediates,
-          newBody
-        )
-        this.intermediates += (x -> newFgi)
-      case (x, f: FunctionIntermediate) =>
-        throw new AssertionError(
-          s"there should not be any ${f.getClass.getName} yet at this compilation stage"
-            + s" (found function $x)"
-        )
-    })
     GenStmBuild(
       data = data,
       valid = valid,
-      accumulators = accumulators,
       producers = producers,
       intermediates = this.intermediates
     )
@@ -108,14 +132,14 @@ private class IntermediateInsertion(
   }
 
   /** Similar to [[getExprAndMutateIntermediates]], except that we want the
-    * result to be a [[DataIntermediate]] rather than an [[Expr]]. This makes it
-    * possible to cut out unnecessary intermediates; i.e., instead of returning
-    * an [[ExprIntermediate]] containing a [[Param]] pointing to an
+    * result to be a [[SimpleIntermediate]] rather than an [[Expr]]. This makes
+    * it possible to cut out unnecessary intermediates; i.e., instead of
+    * returning an [[ExprIntermediate]] containing a [[Param]] pointing to an
     * [[Intermediate]]; just return that [[Intermediate]] directly.
     */
   private def getDataIntermediateAndMutateIntermediates(
-      i: DataIntermediate
-  ): DataIntermediate = {
+      i: SimpleIntermediate
+  ): SimpleIntermediate = {
     i match {
       case ExprIntermediate(e) =>
         val (newE, newIntermediates) =
@@ -127,7 +151,7 @@ private class IntermediateInsertion(
             // Intermediates are added to the list in order, so if this is the
             // last one it's definitely not used anywhere else.
             newIntermediates.lastOption match {
-              case Some((y, i: DataIntermediate)) if y == x =>
+              case Some((y, i: SimpleIntermediate)) if y == x =>
                 // Cut out the middleman
                 this.intermediates ++= newIntermediates.init
                 i
@@ -202,19 +226,27 @@ private class ExprIntermediateInsertion(
           new ExprIntermediateInsertion(ListMap()).resultAndIntermediates(body)
         // Some intermediates can be kept within the function (e.g., simple
         // data) and some must be moved out (e.g., another function declaration)
-        var innerIntermediates = ListMap[Param, IntermediateInFunction]()
+        var innerIntermediates = ListMap[Param, SequentialIntermediate]()
         var outerIntermediates = Map[Param, Intermediate]()
         for ((x, i) <- intermediates) {
           i match {
             // Move outside
             case i: StmDataIntermediate => outerIntermediates += x -> i
             // Keep inside
-            case i: DataIntermediate     => innerIntermediates += x -> i
+            case i: SimpleIntermediate   => innerIntermediates += x -> i
             case i: FunctionIntermediate => innerIntermediates += x -> i
             // Not allowed
-            case ForGenerateIntermediate(_, _, _, _, _: IpBlockInst) =>
+            case _: IpBlockInst =>
               throw new AssertionError(
                 "IP blocks should not be instantiated inside functions"
+              )
+            case _: BlockIntermediate =>
+              throw new AssertionError(
+                "blocks should not be instantiated inside functions"
+              )
+            case _: ForGenerateIntermediate =>
+              throw new AssertionError(
+                "'for generate' loops should not be instantiated inside functions"
               )
           }
         }

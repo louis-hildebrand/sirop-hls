@@ -33,7 +33,7 @@ case class AgilexMadd(
     )
   }
 
-  def mapInputs(f: Expr => Expr): AgilexMadd = {
+  def map(f: Expr => Expr): AgilexMadd = {
     AgilexMadd(
       f(this.ax),
       f(this.ay),
@@ -84,7 +84,7 @@ case class AgilexMadd(
           "ay" -> VhdlExprGenerator.toVhdl(this.ay),
           "bx" -> VhdlExprGenerator.toVhdl(this.bx),
           "by" -> VhdlExprGenerator.toVhdl(this.by),
-          "result" -> target.expr
+          "result" -> target.name
         )
       )
     )

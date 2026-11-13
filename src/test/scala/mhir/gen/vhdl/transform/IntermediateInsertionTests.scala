@@ -255,13 +255,13 @@ class IntermediateInsertionTests extends AnyFunSuite {
     val actual = IntermediateInsertion(original)
 
     val mac1Count = actual.intermediates.count({
-      case (_, ForGenerateIntermediate(_, _, _, _, _: AgilexMac1)) => true
-      case _                                                       => false
+      case (_, ForGenerateIntermediate(_, _, _, _: AgilexMac1)) => true
+      case _                                                    => false
     })
     assert(mac1Count == 1)
     val mac1 = actual.intermediates
       .collectFirst({
-        case (_, ForGenerateIntermediate(_, _, _, _, i: AgilexMac1)) => i
+        case (_, ForGenerateIntermediate(_, _, _, i: AgilexMac1)) => i
       })
       .get
     mac1 match {
@@ -278,13 +278,13 @@ class IntermediateInsertionTests extends AnyFunSuite {
     }
 
     val mac2Count = actual.intermediates.count({
-      case (_, ForGenerateIntermediate(_, _, _, _, _: AgilexMac2)) => true
-      case _                                                       => false
+      case (_, ForGenerateIntermediate(_, _, _, _: AgilexMac2)) => true
+      case _                                                    => false
     })
     assert(mac2Count == 1)
     val mac2 = actual.intermediates
       .collectFirst({
-        case (_, ForGenerateIntermediate(_, _, _, _, i: AgilexMac2)) => i
+        case (_, ForGenerateIntermediate(_, _, _, i: AgilexMac2)) => i
       })
       .get
     mac2 match {
@@ -301,8 +301,8 @@ class IntermediateInsertionTests extends AnyFunSuite {
     }
 
     val ipBlockCount = actual.intermediates.count({
-      case (_, ForGenerateIntermediate(_, _, _, _, _: IpBlockInst)) => true
-      case _                                                        => false
+      case (_, ForGenerateIntermediate(_, _, _, _: IpBlockInst)) => true
+      case _                                                     => false
     })
     assert(ipBlockCount == 2)
   }

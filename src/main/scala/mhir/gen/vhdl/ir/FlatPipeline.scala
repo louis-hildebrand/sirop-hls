@@ -38,8 +38,8 @@ private[vhdl] case class FlatPipeline(
   def usesIpBlocks: Boolean = {
     this.sbuilds.exists({ case StmBuildNode(_, s) =>
       s.intermediates.exists({
-        case (_, ForGenerateIntermediate(_, _, _, _, _: IpBlockInst)) => true
-        case _                                                        => false
+        case (_, ForGenerateIntermediate(_, _, _, _: IpBlockInst)) => true
+        case _                                                     => false
       })
     })
   }

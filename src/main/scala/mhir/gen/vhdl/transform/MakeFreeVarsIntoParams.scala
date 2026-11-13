@@ -59,15 +59,15 @@ object MakeFreeVarsIntoParams {
 
   def apply(outer: FunctionIntermediate): FunctionIntermediate = {
     val contextArgs = Analysis
-      .computeContexts(outer.intermediates)
+      .computeContexts(outer.locals)
       // For now, only add the parameters bound by the outer function.
       // The others will be added when we get to the full GenStmBuild scope.
       .mapValues(_.intersect(outer.params))
     val pass = new MakeFreeVarsIntoParams(contextArgs)
     FunctionIntermediate(
       outer.params,
-      outer.intermediates.map({
-        case (x, i: DataIntermediate) => x -> i.map(pass.apply)
+      outer.locals.map({
+        case (x, i: SimpleIntermediate) => x -> i.map(pass.apply)
         case (x, inner: FunctionIntermediate) =>
           pass.applyToFunctionIntermediate(x, inner)
       }),
@@ -108,11 +108,16 @@ private class MakeFreeVarsIntoParams(
 
   def apply(x: Param, i: Intermediate): (Param, Intermediate) = {
     i match {
-      case i: DataIntermediate => x -> i.map(this.apply)
-      case i: ForGenerateIntermediate =>
-        x -> this.applyToForGenerate(i)
-      case i: FunctionIntermediate => this.applyToFunctionIntermediate(x, i)
+      case i: BlockIntermediate       => x -> this.applyToBlock(i)
+      case i: ForGenerateIntermediate => x -> this.applyToForGenerate(i)
+      case i: FunctionIntermediate    => this.applyToFunctionIntermediate(x, i)
+      case i                          => x -> i.map(this.apply)
     }
+  }
+
+  private def applyToBlock(block: BlockIntermediate): BlockIntermediate = {
+    // TODO: Move the logic from applyToForGenerate to this method
+    ???
   }
 
   private def applyToForGenerate(
@@ -131,11 +136,10 @@ private class MakeFreeVarsIntoParams(
       this.functionContexts ++ innerFunctionContexts
     )
     ForGenerateIntermediate(
-      i.loopLabels,
       i.loopVars,
       i.loopBoundsInclusive,
       i.intermediates.map({ case (x, i) => innerPass.apply(x, i) }),
-      i.body.mapInputs(innerPass.apply)
+      i.body.map(innerPass.apply)
     )
   }
 
@@ -167,7 +171,7 @@ private class MakeFreeVarsIntoParams(
     newF -> FunctionIntermediate(
       renamedParams ++ contextArgs,
       intermediates.map({
-        case (x, i: DataIntermediate) => x -> i.map(this.apply)
+        case (x, i: SimpleIntermediate) => x -> i.map(this.apply)
         case (_, _: FunctionIntermediate) =>
           throw new AssertionError(
             "nested functions should have been removed by now"
@@ -271,14 +275,20 @@ private object EnsureTupleArgs {
 
   private def apply(i: Intermediate): Intermediate = {
     i match {
-      case i: DataIntermediate => i.map(this.apply)
-      case ForGenerateIntermediate(labels, vars, bounds, intermediates, body) =>
+      case i: SimpleIntermediate           => i.map(this.apply)
+      case BlockIntermediate(locals, body) =>
+        // TODO: This looks very similar to (but not identical to) BlockIntermediate.map
+        BlockIntermediate(
+          locals.map({ case (x, i) => this.apply(x, i) }),
+          body.map(this.apply)
+        )
+      case ForGenerateIntermediate(vars, bounds, intermediates, body) =>
+        // TODO: This looks very similar to (but not identical to) ForGenerateIntermediate.map
         ForGenerateIntermediate(
-          labels,
           vars,
           bounds,
           intermediates.map({ case (x, i) => this.apply(x, i) }),
-          body.mapInputs(this.apply)
+          body.map(this.apply)
         )
       case FunctionIntermediate(params, intermediates, output) =>
         assert(
@@ -299,6 +309,7 @@ private object EnsureTupleArgs {
           }),
           this.apply(output)
         )
+      case i: IpBlockInst => i.map(this.apply)
     }
   }
 
@@ -345,7 +356,7 @@ private object UnNestFunctions {
         // Recurse
         val outer1 = FunctionIntermediate(
           outer0.params,
-          outer0.intermediates.flatMap({ case (x, i) =>
+          outer0.locals.flatMap({ case (x, i) =>
             this.apply(x, i).mapValues(_.asInstanceOf[IntermediateInFunction])
           }),
           outer0.output
@@ -357,14 +368,14 @@ private object UnNestFunctions {
         // Remove all the nested functions
         val outer3 = FunctionIntermediate(
           outer2.params,
-          outer2.intermediates.filter({
+          outer2.locals.filter({
             case (_, _: FunctionIntermediate) => false
             case _                            => true
           }),
           outer2.output
         )
         // Return the nested functions along with the updated outer function
-        outer2.intermediates
+        outer2.locals
           .collect({ case (x, i: FunctionIntermediate) =>
             assert(
               i.freeVars.intersect(outer2.params.toSet).isEmpty,
@@ -376,7 +387,6 @@ private object UnNestFunctions {
           .+(x -> outer3)
       case fgi: ForGenerateIntermediate =>
         val newFgi = new ForGenerateIntermediate(
-          loopLabels = fgi.loopLabels,
           loopVars = fgi.loopVars,
           loopBoundsInclusive = fgi.loopBoundsInclusive,
           intermediates = fgi.intermediates
