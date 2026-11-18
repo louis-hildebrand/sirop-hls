@@ -38,7 +38,11 @@ object MakeFreeVarsIntoParams {
       producers = s2.producers.map({ case (x, (p, ready)) =>
         x -> (p, pass.apply(ready))
       }),
-      intermediates = s2.intermediates.map({ case (x, i) => pass.apply(x, i) })
+      intermediates = s2.intermediates.map({ case (x, i) =>
+        val (newX, newI) = pass.apply(x, i)
+        // TODO: How do I know this cast will never fail?
+        newX -> newI.asInstanceOf[ConcurrentIntermediate]
+      })
     )
     result.intermediates
       .collect({ case (x, f: FunctionIntermediate) => x -> f })
@@ -273,7 +277,9 @@ private object EnsureTupleArgs {
         x -> (p, this.apply(ready))
       }),
       intermediates = s.intermediates.map({ case (x, i) =>
-        this.apply(x, i)
+        val (newX, newI) = this.apply(x, i)
+        // TODO: How do I know this cast will never fail?
+        newX -> newI.asInstanceOf[ConcurrentIntermediate]
       })
     )
   }
@@ -356,7 +362,8 @@ private object UnNestFunctions {
       valid = s.valid,
       producers = s.producers,
       intermediates = s.intermediates.flatMap({ case (x, i) =>
-        this.apply(x, i)
+        // TODO: How do I know this cast will never fail?
+        this.apply(x, i).mapValues(_.asInstanceOf[ConcurrentIntermediate])
       })
     )
   }
@@ -421,6 +428,7 @@ private object UnNestFunctions {
         (newBlock, ListMap.empty)
       case fgi: ForGenerateIntermediate =>
         val (newBody, intermediatesToAdd) = this.apply(fgi.body)
+        // TODO: Justify this assertion
         assert(intermediatesToAdd.isEmpty)
         val newFgi = new ForGenerateIntermediate(
           loopVars = fgi.loopVars,

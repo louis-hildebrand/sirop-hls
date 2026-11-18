@@ -110,7 +110,9 @@ private class IntermediateInsertion(
       data = data,
       valid = valid,
       producers = producers,
-      intermediates = this.intermediates
+      intermediates = this.intermediates.map({
+        case (x, i: ConcurrentIntermediate) => x -> i
+      })
     )
   }
 
@@ -130,14 +132,14 @@ private class IntermediateInsertion(
   }
 
   /** Similar to [[getExprAndMutateIntermediates]], except that we want the
-    * result to be a [[SimpleIntermediate]] rather than an [[Expr]]. This makes
-    * it possible to cut out unnecessary intermediates; i.e., instead of
+    * result to be a [[SequentialIntermediate]] rather than an [[Expr]]. This
+    * makes it possible to cut out unnecessary intermediates; i.e., instead of
     * returning an [[ExprIntermediate]] containing a [[Param]] pointing to an
     * [[Intermediate]]; just return that [[Intermediate]] directly.
     */
   private def getDataIntermediateAndMutateIntermediates(
-      i: SimpleIntermediate
-  ): SimpleIntermediate = {
+      i: SequentialIntermediate
+  ): SequentialIntermediate = {
     i match {
       case ExprIntermediate(e) =>
         val (newE, newIntermediates) =

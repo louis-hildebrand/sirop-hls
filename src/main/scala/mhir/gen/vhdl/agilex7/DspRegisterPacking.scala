@@ -95,8 +95,13 @@ object DspRegisterPacking {
       case VecAccesses(v: Param, Seq(IntCst(i), _*)) =>
         s.intermediates
           .get(v)
-          .collect({ case VecShiftLeftAccumulator(n, None, _) =>
-            (n - i).toInt
+          .collect({
+            case ForGenerateIntermediate(
+                  Seq(),
+                  Seq(),
+                  VecShiftLeftAccumulator(n, None, _)
+                ) =>
+              (n - i).toInt
           })
           .getOrElse(0)
       case _ => 0
@@ -113,8 +118,13 @@ object DspRegisterPacking {
       case VecAccesses(pipe: Param, Seq(IntCst(i), otherIndices @ _*)) =>
         val (len, pipeInput) = s.intermediates
           .get(pipe)
-          .collect({ case VecShiftLeftAccumulator(len, None, pipeInput) =>
-            (len, pipeInput)
+          .collect({
+            case ForGenerateIntermediate(
+                  Seq(),
+                  Seq(),
+                  VecShiftLeftAccumulator(len, None, pipeInput)
+                ) =>
+              (len, pipeInput)
           })
           .get
         val newIndex = i + gobble

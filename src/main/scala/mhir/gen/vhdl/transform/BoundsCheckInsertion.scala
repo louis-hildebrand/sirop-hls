@@ -26,7 +26,8 @@ object BoundsCheckInsertion {
         x -> (p, this.apply(ready))
       }),
       intermediates = s.intermediates.map({ case (x, i) =>
-        x -> this.apply(i)
+        // TODO: How do I know this cast will never fail?
+        x -> this.apply(i).asInstanceOf[ConcurrentIntermediate]
       })
     )
   }
@@ -39,7 +40,13 @@ object BoundsCheckInsertion {
       case a: ExprAccumulator         => a.map(this.apply(_, Map()))
       case a: VecShiftLeftAccumulator => a.map(this.apply(_, Map()))
       case a: VecWriteAccumulator     => a.map(this.apply(_, Map()))
-      case b: BlockIntermediate       => b.map(this.apply(_, Map()))
+      case BlockIntermediate(locals, body) =>
+        BlockIntermediate(
+          locals.map({ case (x, i) =>
+            x -> this.apply(i).asInstanceOf[ConcurrentIntermediate]
+          }),
+          this.apply(body).asInstanceOf[ConcurrentIntermediate]
+        )
       case ForGenerateIntermediate(vars, bounds, body) =>
         ForGenerateIntermediate(
           vars,

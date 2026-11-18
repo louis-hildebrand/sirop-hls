@@ -21,6 +21,6 @@ import scala.collection.immutable.ListMap
 case class GenStmBuild(
     data: Expr,
     valid: Expr,
-    intermediates: ListMap[Param, Intermediate],
+    intermediates: ListMap[Param, ConcurrentIntermediate],
     producers: Map[Param, (Param, Expr)]
 )

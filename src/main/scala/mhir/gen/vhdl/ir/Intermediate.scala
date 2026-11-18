@@ -34,6 +34,9 @@ sealed trait Intermediate {
   }
 }
 
+// TODO: Get rid of ConcurrentIntermediate and just use Intermediate?
+//       Every SequentialIntermediate can also be made into a ConcurrentIntermediate.
+//       This would allow me to remove all those .asInstanceOf[ConcurrentIntermediate] casts.
 sealed trait ConcurrentIntermediate extends Intermediate {
 
   // TODO: Get rid of these by using F-bounded polymorphism?
@@ -55,7 +58,7 @@ sealed trait ConcurrentIntermediate extends Intermediate {
   ): String
 }
 
-sealed trait SequentialIntermediate extends Intermediate {
+sealed trait SequentialIntermediate extends ConcurrentIntermediate {
 
   // TODO: Get rid of these by using F-bounded polymorphism?
   override def substitute(subs: Map[Expr, Expr]): SequentialIntermediate
@@ -65,6 +68,29 @@ sealed trait SequentialIntermediate extends Intermediate {
       target: Target,
       options: VhdlGeneratorOptions
   ): String
+
+  override def toConcurrentStatement(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String = {
+    val sequentialStatement = this.toSequentialStatement(target, options)
+    val freeVars = this.freeVars
+    // See IEEE Std 1076-2002 section 8.1
+    val waitStatement = if (freeVars.isEmpty) {
+      s"wait;"
+    } else {
+      val sensitivityList = freeVars.toSeq.map(_.name).sorted.mkString(", ")
+      s"wait on $sensitivityList;"
+    }
+    // See IEEE Std 1076-2002 section 9.2
+    s"""process
+       |begin
+       |${indent(sequentialStatement)}
+       |${indent(waitStatement)}
+       |end process;
+       |""".stripMargin.stripTrailing
+  }
 }
 
 /** An intermediate for a function definition.
@@ -611,13 +637,12 @@ sealed trait Accumulator extends ConcurrentIntermediate {
 }
 
 case class ExprAccumulator(
-    init: Option[SimpleIntermediate],
-    next: SimpleIntermediate
+    init: Option[SequentialIntermediate],
+    next: SequentialIntermediate
 ) extends Accumulator {
 
   override def freeVars: Set[Param] = {
-    next.freeVars ++
-      init.toSet.flatMap((i: SimpleIntermediate) => i.freeVars)
+    next.freeVars ++ init.toSet.flatMap((i: Intermediate) => i.freeVars)
   }
 
   override def substitute(subs: Map[Expr, Expr]): ExprAccumulator = {
@@ -719,7 +744,7 @@ case class VecWriteAccumulator(cond: Expr, index: Expr, value: Expr)
   */
 case class VecShiftLeftAccumulator(
     len: Long,
-    init: Option[SimpleIntermediate],
+    init: Option[SequentialIntermediate],
     incoming: Expr
 ) extends Accumulator {
 
@@ -731,7 +756,7 @@ case class VecShiftLeftAccumulator(
 
   override def freeVars: Set[Param] = {
     this.incoming.freeVars ++
-      this.init.toSet.flatMap((i: SimpleIntermediate) => i.freeVars)
+      this.init.toSet.flatMap((i: Intermediate) => i.freeVars)
   }
 
   override def substitute(subs: Map[Expr, Expr]): Accumulator = {
@@ -764,7 +789,7 @@ case class VecShiftLeftAccumulator(
       val shift = if (this.len <= 1) {
         ""
       } else {
-        s"${target.name}(0 to ${this.len - 2}) <= ${target.name}(1 to ${this.len - 1});"
+        s"${target.name}(0 to ${this.len - 2}) <= ${target.name}(1 to ${this.len - 1});\n"
       }
       val incomingVhdl = VhdlExprGenerator.toVhdl(this.incoming)
       val saveIncoming =

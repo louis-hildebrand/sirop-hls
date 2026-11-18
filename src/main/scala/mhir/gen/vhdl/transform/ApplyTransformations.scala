@@ -17,7 +17,7 @@ object ApplyTransformations {
   private implicit val logger: Logger = Logger(getClass.getName)
 
   def apply(pipe: FlatPipeline, options: VhdlGeneratorOptions): FlatPipeline = {
-    val pipe1 = time("looking for VecWrite", Level.DEBUG) {
+    val pipe1 = time("classifying vector accumulators", Level.DEBUG) {
       pipe.mapSbuilds(ClassifyVecAccumulators.apply)
     }
     val pipe2 = time("adding vector bounds checks", Level.DEBUG) {

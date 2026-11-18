@@ -284,8 +284,9 @@ object FlattenPipeline {
 
   private def splitTuples(e: Expr): Expr = {
     e.map(splitTuples).tchk() match {
-      case s: StmBuild => TupleAccumulatorSplitter.applyOnce(s)
-      case e           => e
+      case s: StmBuild =>
+        PartialEvalPass.partialEval(TupleAccumulatorSplitter.applyOnce(s))
+      case e => e
     }
   }
 
@@ -374,8 +375,9 @@ object FlattenPipeline {
         data = data,
         valid = True,
         producers = Map(pipe.sink -> (pipe.sink, True)),
-        intermediates =
-          ListMap(data -> ExprAccumulator(None, StmDataIntermediate(pipe.sink)))
+        intermediates = ListMap(
+          data -> ExprAccumulator(None, StmDataIntermediate(pipe.sink))
+        )
       )
       val newNode =
         StmBuildNode(s"sbuild_${pipe.sbuilds.length + 1}", newSink, nop)
