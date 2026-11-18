@@ -6,7 +6,7 @@ import mhir.delay.ReplaceAccumulatorDelaysWithGo
 import mhir.gen.TestPassed
 import mhir.gen.vhdl.test._
 import mhir.ir._
-import mhir.optimize.{PartialEvalPass, StmBuildSimplifier, StmSimplifier}
+import mhir.optimize.{PartialEvalPass, StmBuildSimplifier}
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar._
 import mhir.sugar.handshake.StmDrop
@@ -18,7 +18,6 @@ import org.scalatest.funsuite.AnyFunSuite
 class VhdlGeneratorTests extends AnyFunSuite {
 
   private val stmBuildSimplifier = StmBuildSimplifier()
-  private val stmSimplifier = StmSimplifier(stmBuildSimplifier)
 
   test("Reshaping") {
     val n = 16

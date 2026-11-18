@@ -8,8 +8,6 @@ import mhir.ir._
 import mhir.matchers.VecAccesses
 import mhir.typecheck._
 
-import scala.collection.immutable.ListMap
-
 object DspRegisterPacking {
 
   def apply(s: GenStmBuild): GenStmBuild = {
@@ -26,23 +24,16 @@ object DspRegisterPacking {
     GenStmBuild(
       data = s.data,
       valid = s.valid,
-      accumulators = s.accumulators,
       producers = s.producers,
       intermediates = s.intermediates.map({
         case intermediate @ (
               x,
               ForGenerateIntermediate(
-                labels,
                 vars,
                 bounds,
-                intermediates,
                 AgilexMac2(ax, ay, bx, by, chainin, pipeline)
               )
             ) =>
-          assert(
-            intermediates.isEmpty,
-            s"the list of intermediates in ${ForGenerateIntermediate.getClass.getName} should be empty at this point"
-          )
           assert(pipeline >= 0)
           assert(pipeline <= 3)
           // How long is the shift register before each input?
@@ -62,28 +53,16 @@ object DspRegisterPacking {
               chainin,
               pipeline + gobble
             )
-            x -> ForGenerateIntermediate(
-              labels,
-              vars,
-              bounds,
-              ListMap.empty,
-              newMac
-            )
+            x -> ForGenerateIntermediate(vars, bounds, newMac)
           }
         case intermediate @ (
               x,
               ForGenerateIntermediate(
-                labels,
                 vars,
                 bounds,
-                intermediates,
                 AgilexMadd(ax, ay, bx, by, pipeline)
               )
             ) =>
-          assert(
-            intermediates.isEmpty,
-            s"the list of intermediates in ${ForGenerateIntermediate.getClass.getName} should be empty at this point"
-          )
           assert(pipeline >= 0)
           assert(pipeline <= 0)
           // How long is the shift register before each input?
@@ -102,13 +81,7 @@ object DspRegisterPacking {
               by = shortenShiftRegister(s, by, gobble),
               pipeline + gobble
             )
-            x -> ForGenerateIntermediate(
-              labels,
-              vars,
-              bounds,
-              ListMap.empty,
-              newMadd
-            )
+            x -> ForGenerateIntermediate(vars, bounds, newMadd)
           }
         case i =>
           i
@@ -120,7 +93,7 @@ object DspRegisterPacking {
     input match {
       case _: IntCst => Int.MaxValue
       case VecAccesses(v: Param, Seq(IntCst(i), _*)) =>
-        s.accumulators
+        s.intermediates
           .get(v)
           .collect({ case VecShiftLeftAccumulator(n, None, _) =>
             (n - i).toInt
@@ -138,7 +111,7 @@ object DspRegisterPacking {
     input match {
       case i: IntCst => i
       case VecAccesses(pipe: Param, Seq(IntCst(i), otherIndices @ _*)) =>
-        val (len, pipeInput) = s.accumulators
+        val (len, pipeInput) = s.intermediates
           .get(pipe)
           .collect({ case VecShiftLeftAccumulator(len, None, pipeInput) =>
             (len, pipeInput)

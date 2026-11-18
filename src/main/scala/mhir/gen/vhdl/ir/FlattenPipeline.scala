@@ -33,8 +33,15 @@ object FlattenPipeline {
     val (sink1, nodes1) = makePipeline(stm)
     val (sink2, nodes2) = deduplicateVars(sink1, nodes1)
     val pipe1 = FlatPipeline(
-      sbuilds = nodes2.collect({ case n: StmBuildNode => n }),
-      lets = nodes2.collect({ case n: LetStmNode => n }),
+      entityName = options.topName,
+      sbuilds = nodes2
+        .collect({ case n: StmBuildNode => n })
+        .zipWithIndex
+        .map({ case (node, i) => node.copy(entityName = s"sbuild_${i + 1}") }),
+      lets = nodes2
+        .collect({ case n: LetStmNode => n })
+        .zipWithIndex
+        .map({ case (node, i) => node.copy(entityName = s"letstm_${i + 1}") }),
       inputs = inputs.toSet,
       unusedInputs = unusedInputs,
       sink = sink2
@@ -97,6 +104,11 @@ object FlattenPipeline {
           )
         }
     }
+    if (options.reservedKeywords.contains(options.topName.toLowerCase)) {
+      throw CodegenError(
+        s"cannot generate entity '${options.topName}', since its name is a reserved keyword in VHDL"
+      )
+    }
   }
 
   private def makePipeline(e: Expr): (Param, Seq[PipelineNode]) = {
@@ -104,7 +116,7 @@ object FlattenPipeline {
       case x: Param =>
         (x, Seq())
       case s: StmBuild =>
-        var newAccumulators = Map[Param, Accumulator]()
+        var newIntermediates = ListMap[Param, Accumulator]()
         var newProducers = Map[Param, (Param, Expr)]()
         var newNodes = Seq[PipelineNode]()
         for ((x, (stm, ready, _)) <- s.producers) {
@@ -120,22 +132,21 @@ object FlattenPipeline {
             },
             ExprIntermediate(next)
           )
-          newAccumulators += (x -> acc)
+          newIntermediates += (x -> acc)
         }
         val genSbuild = GenStmBuild(
           data = s.nextData,
           valid = s.valid,
-          accumulators = newAccumulators,
           producers = newProducers,
-          intermediates = ListMap()
+          intermediates = newIntermediates
         )
         val x = Param("s")(s.typ)
-        (x, newNodes :+ StmBuildNode(x, genSbuild))
+        (x, newNodes :+ StmBuildNode("", x, genSbuild))
       case LetStm(bufSizeExpr, x, in, out) =>
         val (sinkIn, nodesIn) = makePipeline(in)
         val (sinkOut, nodesOut) = makePipeline(out)
         val IntCst(bufSize) = mhir.eval.eval(bufSizeExpr)
-        val newNode = LetStmNode(sinkIn, bufSize.toInt, Set(x))
+        val newNode = LetStmNode("", sinkIn, bufSize.toInt, Set(x))
         (sinkOut, nodesIn ++ (newNode +: nodesOut))
       case _ =>
         throw new IllegalArgumentException(
@@ -184,7 +195,7 @@ object FlattenPipeline {
           } else {
             (Map(), sink, Seq())
           }
-        case Seq(StmBuildNode(x, s), rest @ _*) =>
+        case Seq(StmBuildNode(name, x, s), rest @ _*) =>
           var (renamings, newSink, newRest) =
             deduplicateVars(rest, varsToRename)
           var newProducers = Map[Param, (Param, Expr)]()
@@ -203,13 +214,12 @@ object FlattenPipeline {
           val newSbuild = GenStmBuild(
             data = s.data,
             valid = s.valid,
-            accumulators = s.accumulators,
             producers = newProducers,
             intermediates = s.intermediates
           )
-          val newNode = StmBuildNode(x, newSbuild)
+          val newNode = StmBuildNode(name, x, newSbuild)
           (renamings, newSink, newNode +: newRest)
-        case Seq(LetStmNode(in, bufSize, out), rest @ _*) =>
+        case Seq(LetStmNode(name, in, bufSize, out), rest @ _*) =>
           val (renamings, newSink, newRest) =
             deduplicateVars(rest, varsToRename ++ out)
           val newOut = out.flatMap(x => renamings.getOrElse(x, Set()))
@@ -217,10 +227,10 @@ object FlattenPipeline {
             val newIn = in.freshCopy
             (
               renamings + (in -> (renamings.getOrElse(in, Set()) + newIn)),
-              LetStmNode(newIn, bufSize, newOut)
+              LetStmNode(name, newIn, bufSize, newOut)
             )
           } else {
-            (renamings, LetStmNode(in, bufSize, newOut))
+            (renamings, LetStmNode(name, in, bufSize, newOut))
           }
           // The variable inside `out` is no longer needed in the renamings
           // set; it shouldn't appear in any of the nodes that may have come
@@ -235,8 +245,9 @@ object FlattenPipeline {
 
   private def cleanUpSbuilds(pipe: FlatPipeline): FlatPipeline = {
     FlatPipeline(
-      sbuilds = pipe.sbuilds.map({ case StmBuildNode(out, s) =>
-        StmBuildNode(out, cleanUpSbuild(s))
+      entityName = pipe.entityName,
+      sbuilds = pipe.sbuilds.map({ case StmBuildNode(name, out, s) =>
+        StmBuildNode(name, out, cleanUpSbuild(s))
       }),
       lets = pipe.lets,
       inputs = pipe.inputs,
@@ -342,31 +353,14 @@ object FlattenPipeline {
     GenStmBuild(
       data = s.data.subPreserveType(subs),
       valid = s.valid.subPreserveType(subs),
-      accumulators = s.accumulators.map({
-        case (x, ExprAccumulator(init, next)) =>
-          // Producers are not in scope in initial value, so no need to do any
-          // substitutions there
-          x -> ExprAccumulator(init, next.substitute(subs))
-        case (x, a: Accumulator) =>
-          x -> a.substitute(subs)
-      }),
       producers = s.producers.map({ case (x, (p, ready)) =>
         assert(x == p || renamings(x) == p)
         // The ready expressions cannot use sdata, so no need to do any
         // substitutions there
         p -> (p, ready)
       }),
-      intermediates = s.intermediates.map({
-        case (x, ExprIntermediate(e)) =>
-          x -> ExprIntermediate(e.subPreserveType(subs))
-        case (x, FunctionIntermediate(Seq(y), Seq(), body)) =>
-          val Function(y2, body2) =
-            Function(y, body)().tchk().subPreserveType(subs)
-          x -> FunctionIntermediate(Seq(y2), ListMap(), body2)
-        case (_, ForGenerateIntermediate(_, _, _, _, _: IpBlockInst)) =>
-          throw new AssertionError(
-            "there shouldn't be any IP blocks yet at this compilation stage"
-          )
+      intermediates = s.intermediates.map({ case (x, i) =>
+        x -> i.substitute(subs)
       })
     )
   }
@@ -379,12 +373,12 @@ object FlattenPipeline {
       val nop = GenStmBuild(
         data = data,
         valid = True,
-        accumulators =
-          Map(data -> ExprAccumulator(None, StmDataIntermediate(pipe.sink))),
         producers = Map(pipe.sink -> (pipe.sink, True)),
-        intermediates = ListMap()
+        intermediates =
+          ListMap(data -> ExprAccumulator(None, StmDataIntermediate(pipe.sink)))
       )
-      val newNode = StmBuildNode(newSink, nop)
+      val newNode =
+        StmBuildNode(s"sbuild_${pipe.sbuilds.length + 1}", newSink, nop)
       pipe.copy(sbuilds = pipe.sbuilds :+ newNode, sink = newSink)
     } else {
       pipe

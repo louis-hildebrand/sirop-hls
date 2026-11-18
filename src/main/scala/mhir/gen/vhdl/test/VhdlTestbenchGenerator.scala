@@ -5,6 +5,7 @@ package test
 import com.typesafe.scalalogging.Logger
 import mhir.canonicalize._
 import mhir.debug.indent
+import mhir.gen.vhdl.ir.FlatPipeline
 import mhir.ir._
 import mhir.logging.time
 import mhir.sugar._
@@ -341,16 +342,14 @@ object VhdlTestbenchGenerator {
       s"${options.reset} => reset"
     ) ++ (
       if (options.handshake) {
-        val topVhdl = mhir.gen.vhdl.handshake.TopVhdl
         Seq(
-          s"${topVhdl.topData(options.outName)} => data",
-          s"${topVhdl.topValid(options.outName)} => valid",
-          s"${topVhdl.topReady(options.outName)} => ready"
+          s"${FlatPipeline.topData(options)} => data",
+          s"${FlatPipeline.topValid(options)} => valid",
+          s"${FlatPipeline.topReady(options)} => ready"
         )
       } else {
-        val topVhdl = mhir.gen.vhdl.nohandshake.TopVhdl
         Seq(
-          s"${topVhdl.topData(options.outName)} => data"
+          s"${FlatPipeline.topData(options)} => data"
         )
       }
     ) ++ (

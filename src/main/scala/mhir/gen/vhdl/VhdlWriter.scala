@@ -1,7 +1,8 @@
 package mhir.gen.vhdl
 
 import mhir.debug.indent
-import mhir.gen.CodegenError
+import mhir.gen.vhdl.ir._
+import mhir.ir._
 import os.Path
 
 import scala.io.Source
@@ -9,26 +10,24 @@ import scala.io.Source
 object VhdlWriter {
 
   def emit(
-      top: CustomVhdlComponent,
+      pipe: FlatPipeline,
       dir: Path,
       options: VhdlGeneratorOptions
   ): Unit = {
-    val typesToDefine =
-      findTypesUsedIn(top).flatMap(t => t.descendants + t)
+    val typesToDefine = findTypesUsedIn(pipe).flatMap(t => t.descendants + t)
     if (os.isDir(dir)) os.remove.all(dir)
     val designDir = dir / "design"
     os.makeDir.all(designDir)
     emitConversionsPackage(typesToDefine, designDir, options)
-    emitTypedefs(typesToDefine, designDir)
-    emitComponents(top, designDir, options)
-    emitProjectFiles(dir, designDir, options, top)
+    emitTypedefsPackage(typesToDefine, designDir)
+    emitComponents(pipe, designDir, options)
+    emitProjectFiles(dir, designDir, options)
   }
 
   private def emitProjectFiles(
       dir: Path,
       designDir: Path,
-      options: VhdlGeneratorOptions,
-      top: CustomVhdlComponent
+      options: VhdlGeneratorOptions
   ): Unit = {
     val topName = options.topName
     os.write(
@@ -83,13 +82,10 @@ object VhdlWriter {
       )
     }
     if (options.virtualPins) {
-      val allPorts = top.inPorts.map(_.name) ++ top.outPorts.map(_.name)
-      for (port <- allPorts) {
-        os.write.append(
-          dir / s"$topName.qsf",
-          s"set_instance_assignment -name VIRTUAL_PIN ON -to $port -entity $topName\n"
-        )
-      }
+      os.write.append(
+        dir / s"$topName.qsf",
+        "set_instance_assignment -name VIRTUAL_PIN ON -to *\n"
+      )
     }
     os.write.append(dir / s"$topName.qsf", options.appendQsf.map(_ + "\n"))
   }
@@ -99,43 +95,13 @@ object VhdlWriter {
       dir: Path,
       options: VhdlGeneratorOptions
   ): Unit = {
-    val defaultFunctions = Seq(
-      VhdlFunction(
-        name = "bool2sl",
-        args = Seq(("b", VhdlBool)),
-        returnType = VhdlStdLogic,
-        decls = Seq(
-          VhdlVariable(
-            "x",
-            VhdlStdLogic,
-            s"""if (b) then
-               |    x := '1';
-               |else
-               |    x := '0';
-               |end if;
-               |""".stripMargin.stripTrailing
-          )
-        ),
-        ret = "x"
-      ),
-      VhdlFunction(
-        name = "sl2bool",
-        args = Seq(("x", VhdlStdLogic)),
-        returnType = VhdlBool,
-        decls = Seq(),
-        ret = "x = '1'"
-      )
-    )
-    val toSlvFunctions =
-      types.flatMap(t => VhdlConversionGenerator.toSlvConverter(t))
-    val fromSlvFunctions =
-      types.flatMap(t => VhdlConversionGenerator.fromSlvConverter(t))
-    val functions =
-      (defaultFunctions ++ toSlvFunctions ++ fromSlvFunctions)
-        .sortBy(f => f.vhdlSignature)
-
-    val signatures = functions.map(f => f.vhdlSignature).mkString("\n\n")
-    val impls = functions.map(f => f.vhdlImpl).mkString("\n\n")
+    // Sort in the same order as for the typedefs package
+    val sortedTypes = types.toSeq.sortBy(x => x.vhdlName.length)
+    val functions = VhdlConversionGenerator.defaultFunctions ++
+      sortedTypes.flatMap(VhdlConversionGenerator.toSlvConverter) ++
+      sortedTypes.flatMap(VhdlConversionGenerator.fromSlvConverter)
+    val decls = functions.map(_.decl).mkString("\n")
+    val bodies = functions.map(_.body).mkString("\n\n")
     val contents =
       s"""library IEEE;
          |use IEEE.std_logic_1164.all;
@@ -145,36 +111,11 @@ object VhdlWriter {
          |use ${options.library}.typedefs.all;
          |
          |package conversions is
-         |${indent(signatures)}
-         |
-         |    pure function pad (x : in signed; w: natural) return signed;
-         |    pure function pad (x : in unsigned; w: natural) return unsigned;
-         |    pure function truncate (x : in signed; w: natural) return signed;
-         |    pure function truncate (x : in unsigned; w: natural) return unsigned;
-         |end package;
+         |${indent(decls)}
+         |end package conversions;
          |
          |package body conversions is
-         |${indent(impls)}
-         |
-         |    pure function pad (x : in signed; w: natural) return signed is
-         |    begin
-         |        return resize(x, w);
-         |    end;
-         |
-         |    pure function pad (x : in unsigned; w: natural) return unsigned is
-         |    begin
-         |        return resize(x, w);
-         |    end;
-         |
-         |    pure function truncate (x : in signed; w: natural) return signed is
-         |    begin
-         |        return x(w - 1 downto 0);
-         |    end;
-         |
-         |    pure function truncate (x : in unsigned; w: natural) return unsigned is
-         |    begin
-         |        return x(w - 1 downto 0);
-         |    end;
+         |${indent(bodies)}
          |end package body;
          |""".stripMargin
 
@@ -182,7 +123,10 @@ object VhdlWriter {
     os.write(file, contents)
   }
 
-  private def emitTypedefs(typesToDefine: Set[VhdlType], dir: Path): Unit = {
+  private def emitTypedefsPackage(
+      typesToDefine: Set[VhdlType],
+      dir: Path
+  ): Unit = {
     val definitions = typesToDefine.toSeq
       // A type declaration cannot refer to types declared later.
       // Since every type's name includes all of its children's names, its
@@ -206,83 +150,112 @@ object VhdlWriter {
     os.write(file, contents)
   }
 
-  private def findTypesUsedIn(c: VhdlComponent): Set[VhdlType] = {
-    c match {
-      case c: PredefinedComponent => c.typesUsed
-      case c: CustomVhdlComponent =>
-        (c.inPorts.map(p => p.typ)
-          ++ c.outPorts.map(p => p.typ)
-          ++ c.signals.flatMap(findTypesUsedIn)
-          ++ c.functions.flatMap(findTypesUsedIn)
-          ++ c.children.flatMap({
-            case ForGenerate(
-                  _,
-                  _,
-                  _,
-                  decls,
-                  VhdlEntityInstantiation(_, c, _)
-                ) =>
-              findTypesUsedIn(c) ++ decls.flatMap(findTypesUsedIn)
-          })).toSet
-    }
+  private def findTypesUsedIn(pipe: FlatPipeline): Set[VhdlType] = {
+    pipe.inputs
+      .map(_.typ)
+      .++(pipe.sbuilds.flatMap(findTypesUsedIn))
+      .flatMap({
+        case TyData(typ)               => Some(typ)
+        case TyStm(TyData(elemTyp), _) => Some(elemTyp)
+        case _                         => None
+      })
+      .map(VhdlType(_))
   }
 
-  private def findTypesUsedIn(d: Decl): Set[VhdlType] = {
-    d match {
-      case f: VhdlFunction =>
-        (f.args.map({ case (_, t) => t })
-          ++ f.decls.flatMap({
-            case f: VhdlFunction => findTypesUsedIn(f)
-            case d: VarOrSigDecl => Seq(d.typ)
-          })
-          ++ Seq(f.returnType)).toSet
-      case d: VarOrSigDecl => Set(d.typ)
-    }
+  private def findTypesUsedIn(s: StmBuildNode): Set[Type] = {
+    findTypesUsedIn(s.s)
+  }
+
+  private def findTypesUsedIn(s: GenStmBuild): Set[Type] = {
+    findTypesUsedIn(s.data)
+      .++(findTypesUsedIn(s.valid))
+      .++(s.intermediates.flatMap({ case (x, i) => findTypesUsedIn(x, i) }))
+      .++(s.producers.flatMap({ case (x, (p, ready)) =>
+        findTypesUsedIn(x) ++ findTypesUsedIn(p) ++ findTypesUsedIn(ready)
+      }))
+  }
+
+  private def findTypesUsedIn(x: Param, i: Intermediate): Set[Type] = {
+    findTypesUsedIn(x) ++ findTypesUsedIn(i)
+  }
+
+  private def findTypesUsedIn(i: Intermediate): Set[Type] = {
+    i.exprChildren
+      .flatMap(findTypesUsedIn)
+      .++(i.intermediateChildren.flatMap(findTypesUsedIn))
+      .toSet
+  }
+
+  private def findTypesUsedIn(e: Expr): Set[Type] = {
+    e.children.flatMap(findTypesUsedIn).toSet + e.typ
   }
 
   private def emitComponents(
-      top: VhdlComponent,
+      pipe: FlatPipeline,
       dir: Path,
       options: VhdlGeneratorOptions
   ): Unit = {
-    val ops = writeOperations(top, dir, options)
-    for ((destination, source) <- ops) {
-      source match {
-        case Left(resource) =>
-          os.write.over(
-            destination,
-            Source
-              .fromResource(resource)
-              .mkString
-              .replace("%{LIBRARY}%", options.library)
-          )
-        case Right(component) =>
-          component.writeVhdl(destination, options)
-      }
+    emitCustomIpBlocks(pipe, dir, options)
+    emitComponent(pipe, dir, options)
+    for (s <- pipe.sbuilds) {
+      emitComponent(s, dir, options)
+    }
+    for (let <- pipe.lets) {
+      emitComponent(let, dir, options)
     }
   }
 
-  private def writeOperations(
-      c: VhdlComponent,
+  private def emitCustomIpBlocks(
+      pipe: FlatPipeline,
       dir: Path,
       options: VhdlGeneratorOptions
-  ): Map[Path, Either[String, CustomVhdlComponent]] = {
-    c match {
-      case c: PredefinedComponent =>
-        c.filesToCopy(dir).mapValues(Left(_))
-      case c: CustomVhdlComponent =>
-        if (options.reservedKeywords.contains(c.name.toLowerCase)) {
-          throw CodegenError(
-            s"cannot generate entity '${c.name}', since its name is a reserved keyword in VHDL"
-          )
-        }
-        c.children
-          .flatMap({
-            case ForGenerate(_, _, _, _, VhdlEntityInstantiation(_, c, _)) =>
-              writeOperations(c, dir, options)
-          })
-          .toMap
-          .+(dir / s"${c.name}.vhd" -> Right(c))
+  ): Unit = {
+    val customBlocks = pipe.sbuilds
+      .flatMap(s =>
+        s.s.intermediates.values.flatMap(i => i.intermediateDescendants :+ i)
+      )
+      .collect({ case i: IpBlockInst => i.resourcesToCopy(dir) })
+      .flatten
+      .toMap
+    val customBlocksAndLetStm = if (options.handshake && pipe.lets.nonEmpty) {
+      customBlocks ++ Map(
+        dir / "letstm_buf.vhd" -> "mhir/gen/vhdl/letstm_buf.vhd",
+        dir / "dual_port_ram.vhd" -> "mhir/gen/vhdl/dual_port_ram.vhd",
+        dir / "multi_consumer_ram.vhd" -> "mhir/gen/vhdl/multi_consumer_ram.vhd"
+      )
+    } else {
+      customBlocks
     }
+    for ((destination, source) <- customBlocksAndLetStm) {
+      val code = Source
+        .fromResource(source)
+        .mkString
+        .replace("%{LIBRARY}%", options.library)
+      os.write(destination, code)
+    }
+  }
+
+  private def emitComponent(
+      entity: Entity,
+      dir: Path,
+      options: VhdlGeneratorOptions
+  ): Unit = {
+    if (entity.skip(options)) {
+      return
+    }
+    val path = dir / s"${entity.entityName}.vhd"
+    os.write.over(
+      path,
+      s"""library IEEE;
+         |use IEEE.std_logic_1164.all;
+         |use IEEE.numeric_std.all;
+         |
+         |library ${options.library};
+         |use ${options.library}.conversions.all;
+         |use ${options.library}.typedefs.all;
+         |""".stripMargin.stripTrailing
+    )
+    os.write.append(path, "\n\n" + entity.toEntityDeclaration(options))
+    os.write.append(path, "\n\n" + entity.toArchitectureBody(options))
   }
 }

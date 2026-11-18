@@ -26,7 +26,7 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
     val original = GenStmBuild(
       data = data,
       valid = FunCall(f, C(0)(U8))().__1.tchk(),
-      accumulators = Map(
+      intermediates = ListMap(
         y -> ExprAccumulator(
           Some(ExprIntermediate(C(0)(U8))),
           ExprIntermediate(Sum(C(1)(U8), y)())
@@ -38,12 +38,7 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
         w -> ExprAccumulator(
           Some(ExprIntermediate(C(0)(U8))),
           ExprIntermediate(FunCall(f, y)().tchk())
-        )
-      ),
-      producers = Map(
-        p -> (p, FunCall(f, C(0)(U8))().__1.tchk())
-      ),
-      intermediates = ListMap(
+        ),
         f -> FunctionIntermediate(Seq(x), ListMap(), fBody),
         prod -> ForGenerateIntermediate(
           AgilexMac1(
@@ -55,6 +50,9 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
         data -> ExprIntermediate(
           Tuple(FunCall(f, C(42)(U8))(), StmData(p)(), w, prod)().tchk()
         )
+      ),
+      producers = Map(
+        p -> (p, FunCall(f, C(0)(U8))().__1.tchk())
       )
     )
     val actual = MakeFreeVarsIntoParams(original)
@@ -66,7 +64,7 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
     val expected = GenStmBuild(
       data = data,
       valid = FunCall(f2, Tuple(C(0)(U8), y, z)())().__1.tchk(),
-      accumulators = Map(
+      intermediates = ListMap(
         y -> ExprAccumulator(
           Some(ExprIntermediate(C(0)(U8))),
           ExprIntermediate(Sum(C(1)(U8), y)())
@@ -78,12 +76,7 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
         w -> ExprAccumulator(
           Some(ExprIntermediate(C(0)(U8))),
           ExprIntermediate(FunCall(f2, Tuple(y, y, z)())().tchk())
-        )
-      ),
-      producers = Map(
-        p -> (p, FunCall(f2, Tuple(C(0)(U8), y, z)())().__1.tchk())
-      ),
-      intermediates = ListMap(
+        ),
         f2 -> FunctionIntermediate(Seq(x, y, z), ListMap(), f2Body),
         prod -> ForGenerateIntermediate(
           AgilexMac1(
@@ -101,6 +94,9 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
           )()
             .tchk()
         )
+      ),
+      producers = Map(
+        p -> (p, FunCall(f2, Tuple(C(0)(U8), y, z)())().__1.tchk())
       )
     )
     assert(actual == expected)
@@ -123,7 +119,7 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
     val original = GenStmBuild(
       data = FunCall(k, FunCall(h, C(42)(U16))())().tchk(),
       valid = True,
-      accumulators = Map(
+      intermediates = ListMap(
         a -> ExprAccumulator(
           Some(ExprIntermediate(C(0)(U16))),
           ExprIntermediate(Sum(C(1)(U16), a)().tchk())
@@ -139,15 +135,13 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
         d -> ExprAccumulator(
           Some(ExprIntermediate(C(9)(U16))),
           ExprIntermediate(Sum(C(1)(U16), d)().tchk())
-        )
-      ),
-      producers = Map(),
-      intermediates = ListMap(
+        ),
         f -> FunctionIntermediate(Seq(x), ListMap(), fBody),
         g -> FunctionIntermediate(Seq(a), ListMap(), gBody),
         h -> FunctionIntermediate(Seq(x), ListMap(), hBody),
         k -> FunctionIntermediate(Seq(x), ListMap(), kBody)
-      )
+      ),
+      producers = Map()
     )
     val actual = MakeFreeVarsIntoParams(original)
 
@@ -176,7 +170,7 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
         Tuple(FunCall(h2, Tuple(C(42)(U16), a, b, c, d)())())()
       )().tchk(),
       valid = True,
-      accumulators = Map(
+      intermediates = ListMap(
         a -> ExprAccumulator(
           Some(ExprIntermediate(C(0)(U16))),
           ExprIntermediate(Sum(C(1)(U16), a)().tchk())
@@ -192,15 +186,13 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
         d -> ExprAccumulator(
           Some(ExprIntermediate(C(9)(U16))),
           ExprIntermediate(Sum(C(1)(U16), d)().tchk())
-        )
-      ),
-      producers = Map(),
-      intermediates = ListMap(
+        ),
         f2 -> FunctionIntermediate(Seq(x, a, d), ListMap(), f2Body),
         g2 -> FunctionIntermediate(Seq(a2, a, b, d), ListMap(), g2Body),
         h2 -> FunctionIntermediate(Seq(x, a, b, c, d), ListMap(), h2Body),
         k2 -> FunctionIntermediate(Seq(x), ListMap(), k2Body)
-      )
+      ),
+      producers = Map()
     )
     assert(actual == expected)
   }

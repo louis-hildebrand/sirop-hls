@@ -18,8 +18,8 @@ class IntegrationTests extends AnyFunSuite {
       FlattenPipeline(f, options)
     }
     val transformed = ApplyTransformations(original, options)
-    assert(transformed.sbuilds.exists({ case StmBuildNode(_, s) =>
-      s.accumulators.exists({
+    assert(transformed.sbuilds.exists({ case StmBuildNode(_, _, s) =>
+      s.intermediates.exists({
         case (_, _: VecWriteAccumulator) => true
         case _                           => false
       })

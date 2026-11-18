@@ -13,15 +13,18 @@ object ClassifyVecAccumulators {
     GenStmBuild(
       data = s.data,
       valid = s.valid,
-      accumulators = s.accumulators.map({
-        case VecWrite(x, cond, index, value) =>
-          x -> VecWriteAccumulator(cond, index, value)
-        case VecShiftLeft(x, len, init, next) =>
-          x -> VecShiftLeftAccumulator(len, init, next)
-        case eqn => eqn
-      }),
       producers = s.producers,
-      intermediates = s.intermediates
+      intermediates = s.intermediates.map({
+        case (x, a: Accumulator) =>
+          (x, a) match {
+            case VecWrite(x, cond, index, value) =>
+              x -> VecWriteAccumulator(cond, index, value)
+            case VecShiftLeft(x, len, init, next) =>
+              x -> VecShiftLeftAccumulator(len, init, next)
+            case a => a
+          }
+        case i => i
+      })
     )
   }
 }
@@ -91,7 +94,7 @@ private object VecShiftLeft {
 
   def unapply(
       arg: (Param, Accumulator)
-  ): Option[(Param, Long, Option[DataIntermediate], Expr)] = {
+  ): Option[(Param, Long, Option[SimpleIntermediate], Expr)] = {
     arg match {
       case (
             x0,

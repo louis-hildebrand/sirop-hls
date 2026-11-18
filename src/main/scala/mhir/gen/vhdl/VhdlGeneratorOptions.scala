@@ -50,6 +50,8 @@ case class VhdlGeneratorOptions(
   def clockPeriod: Double = {
     1000.0 / this.fmax
   }
+
+  def fullyQualify(name: String): String = s"${this.library}.$name"
 }
 
 object VhdlGeneratorOptions {

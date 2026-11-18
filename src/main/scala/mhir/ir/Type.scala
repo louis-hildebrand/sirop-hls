@@ -309,6 +309,8 @@ sealed abstract class TyAnyInt(val w: Int) extends Type {
       case TySInt(w) => BigInt(2).pow(w - 1) - 1
     }
   }
+
+  def signed: Boolean
 }
 
 /** Companion object for [[TyAnyInt]].
@@ -345,6 +347,8 @@ object TyAnyInt {
 case class TySInt(override val w: Int) extends TyAnyInt(w) {
   require(w >= 1, s"Invalid width for signed int: $w.")
 
+  override def signed: Boolean = true
+
   override def toString: String = s"i$w"
 }
 
@@ -373,6 +377,8 @@ object TySInt {
   */
 case class TyUInt(override val w: Int) extends TyAnyInt(w) {
   require(w >= 0, s"Invalid width for unsigned int: $w.")
+
+  override def signed: Boolean = false
 
   override def toString: String = s"u$w"
 }

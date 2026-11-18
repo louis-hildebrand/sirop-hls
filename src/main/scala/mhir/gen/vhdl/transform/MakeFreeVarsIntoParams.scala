@@ -35,9 +35,6 @@ object MakeFreeVarsIntoParams {
     val result = GenStmBuild(
       data = pass.apply(s2.data),
       valid = pass.apply(s2.valid),
-      accumulators = s2.accumulators.map({ case (x, acc) =>
-        x -> acc.map(pass.apply)
-      }),
       producers = s2.producers.map({ case (x, (p, ready)) =>
         x -> (p, pass.apply(ready))
       }),
@@ -47,6 +44,7 @@ object MakeFreeVarsIntoParams {
       .collect({ case (x, f: FunctionIntermediate) => x -> f })
       .foreach({ case (f, i: FunctionIntermediate) =>
         val freeVars = i.freeVars
+          // It's fine for one function to call another
           .filterNot(_.typ.isInstanceOf[TyArrow])
         assert(
           freeVars.isEmpty,
@@ -59,15 +57,15 @@ object MakeFreeVarsIntoParams {
 
   def apply(outer: FunctionIntermediate): FunctionIntermediate = {
     val contextArgs = Analysis
-      .computeContexts(outer.intermediates)
+      .computeContexts(outer.locals)
       // For now, only add the parameters bound by the outer function.
       // The others will be added when we get to the full GenStmBuild scope.
       .mapValues(_.intersect(outer.params))
     val pass = new MakeFreeVarsIntoParams(contextArgs)
     FunctionIntermediate(
       outer.params,
-      outer.intermediates.map({
-        case (x, i: DataIntermediate) => x -> i.map(pass.apply)
+      outer.locals.map({
+        case (x, i: SimpleIntermediate) => x -> i.map(pass.apply)
         case (x, inner: FunctionIntermediate) =>
           pass.applyToFunctionIntermediate(x, inner)
       }),
@@ -108,11 +106,38 @@ private class MakeFreeVarsIntoParams(
 
   def apply(x: Param, i: Intermediate): (Param, Intermediate) = {
     i match {
-      case i: DataIntermediate => x -> i.map(this.apply)
-      case i: ForGenerateIntermediate =>
-        x -> this.applyToForGenerate(i)
-      case i: FunctionIntermediate => this.applyToFunctionIntermediate(x, i)
+      case i: BlockIntermediate       => x -> this.applyToBlock(i)
+      case i: ForGenerateIntermediate => x -> this.applyToForGenerate(i)
+      case i: FunctionIntermediate    => this.applyToFunctionIntermediate(x, i)
+      case i                          => x -> i.map(this.apply)
     }
+  }
+
+  def apply(i: Intermediate): Intermediate = {
+    i match {
+      case f: FunctionIntermediate =>
+        ???
+      case fgi: ForGenerateIntermediate => this.applyToForGenerate(fgi)
+      case block: BlockIntermediate     => this.applyToBlock(block)
+      case i @ (_: IpBlockInst | _: SimpleIntermediate | _: ExprAccumulator |
+          _: VecWriteAccumulator | _: VecShiftLeftAccumulator) =>
+        i.map(this.apply)
+    }
+  }
+
+  private def applyToBlock(block: BlockIntermediate): BlockIntermediate = {
+    // TODO: Move the logic from applyToForGenerate to this method
+    val innerFunctionContexts = Analysis.computeContexts(block.locals)
+    val innerPass = new MakeFreeVarsIntoParams(
+      this.functionContexts ++ innerFunctionContexts
+    )
+    val newLocals = block.locals
+      .map({ case (x, i) => innerPass.apply(x, i) })
+      .map({ case (x, i: ConcurrentIntermediate) => x -> i })
+    val newBody = this.apply(block.body) match {
+      case i: ConcurrentIntermediate => i
+    }
+    BlockIntermediate(newLocals, newBody)
   }
 
   private def applyToForGenerate(
@@ -126,16 +151,10 @@ private class MakeFreeVarsIntoParams(
       // TODO: Test this case
       s"${this.getClass.getName} may result in variable capture. Maybe the loop variables should be renamed."
     )
-    val innerFunctionContexts = Analysis.computeContexts(i.intermediates)
-    val innerPass = new MakeFreeVarsIntoParams(
-      this.functionContexts ++ innerFunctionContexts
-    )
     ForGenerateIntermediate(
-      i.loopLabels,
       i.loopVars,
       i.loopBoundsInclusive,
-      i.intermediates.map({ case (x, i) => innerPass.apply(x, i) }),
-      i.body.mapInputs(innerPass.apply)
+      this.apply(i.body) match { case i: ConcurrentIntermediate => i }
     )
   }
 
@@ -167,7 +186,7 @@ private class MakeFreeVarsIntoParams(
     newF -> FunctionIntermediate(
       renamedParams ++ contextArgs,
       intermediates.map({
-        case (x, i: DataIntermediate) => x -> i.map(this.apply)
+        case (x, i: SimpleIntermediate) => x -> i.map(this.apply)
         case (_, _: FunctionIntermediate) =>
           throw new AssertionError(
             "nested functions should have been removed by now"
@@ -250,9 +269,6 @@ private object EnsureTupleArgs {
     GenStmBuild(
       data = this.apply(s.data),
       valid = this.apply(s.valid),
-      accumulators = s.accumulators.map({ case (x, acc) =>
-        x -> acc.map(this.apply)
-      }),
       producers = s.producers.map({ case (x, (p, ready)) =>
         x -> (p, this.apply(ready))
       }),
@@ -271,15 +287,21 @@ private object EnsureTupleArgs {
 
   private def apply(i: Intermediate): Intermediate = {
     i match {
-      case i: DataIntermediate => i.map(this.apply)
-      case ForGenerateIntermediate(labels, vars, bounds, intermediates, body) =>
-        ForGenerateIntermediate(
-          labels,
-          vars,
-          bounds,
-          intermediates.map({ case (x, i) => this.apply(x, i) }),
-          body.mapInputs(this.apply)
+      case BlockIntermediate(locals, body) =>
+        // TODO: This looks very similar to (but not identical to) BlockIntermediate.map
+        BlockIntermediate(
+          locals.map({ case (x, i) =>
+            val (newX, newI) = this.apply(x, i)
+            newX -> newI.asInstanceOf[ConcurrentIntermediate]
+          }),
+          body.map(this.apply)
         )
+      case ForGenerateIntermediate(vars, bounds, body) =>
+        // TODO: This looks very similar to (but not identical to) ForGenerateIntermediate.map
+        val newBody = this.apply(body) match {
+          case i: ConcurrentIntermediate => i
+        }
+        ForGenerateIntermediate(vars, bounds, newBody)
       case FunctionIntermediate(params, intermediates, output) =>
         assert(
           params.length == 1,
@@ -295,10 +317,11 @@ private object EnsureTupleArgs {
           params,
           intermediates.map({ case (x, i) =>
             val (newX, newI) = this.apply(x, i)
-            newX -> newI.asInstanceOf[IntermediateInFunction]
+            newX -> newI.asInstanceOf[SequentialIntermediate]
           }),
           this.apply(output)
         )
+      case i => i.map(this.apply)
     }
   }
 
@@ -331,7 +354,6 @@ private object UnNestFunctions {
     GenStmBuild(
       data = s.data,
       valid = s.valid,
-      accumulators = s.accumulators,
       producers = s.producers,
       intermediates = s.intermediates.flatMap({ case (x, i) =>
         this.apply(x, i)
@@ -340,13 +362,20 @@ private object UnNestFunctions {
   }
 
   private def apply(x: Param, i: Intermediate): ListMap[Param, Intermediate] = {
+    val (newI, others) = this.apply(i)
+    others + (x -> newI)
+  }
+
+  private def apply(
+      i: Intermediate
+  ): (Intermediate, ListMap[Param, Intermediate]) = {
     i match {
       case outer0: FunctionIntermediate =>
         // Recurse
         val outer1 = FunctionIntermediate(
           outer0.params,
-          outer0.intermediates.flatMap({ case (x, i) =>
-            this.apply(x, i).mapValues(_.asInstanceOf[IntermediateInFunction])
+          outer0.locals.flatMap({ case (x, i) =>
+            this.apply(x, i).mapValues(_.asInstanceOf[SequentialIntermediate])
           }),
           outer0.output
         )
@@ -357,34 +386,59 @@ private object UnNestFunctions {
         // Remove all the nested functions
         val outer3 = FunctionIntermediate(
           outer2.params,
-          outer2.intermediates.filter({
+          outer2.locals.filter({
             case (_, _: FunctionIntermediate) => false
             case _                            => true
           }),
           outer2.output
         )
         // Return the nested functions along with the updated outer function
-        outer2.intermediates
-          .collect({ case (x, i: FunctionIntermediate) =>
-            assert(
-              i.freeVars.intersect(outer2.params.toSet).isEmpty,
-              "the inner function still seems to access variables from the outer function"
-                + " that do not explicitly appear in the inner function's parameter list"
-            )
-            x -> i
-          })
-          .+(x -> outer3)
+        (
+          outer3,
+          outer2.locals
+            .collect({ case (x, i: FunctionIntermediate) =>
+              assert(
+                i.freeVars.intersect(outer2.params.toSet).isEmpty,
+                "the inner function still seems to access variables from the outer function"
+                  + " that do not explicitly appear in the inner function's parameter list"
+              )
+              x -> i
+            })
+        )
+      case BlockIntermediate(locals, body) =>
+        // TODO: This assumes BlockIntermediate cannot be used inside a FunctionIntermediate.
+        //       Can I statically assert that this is the case?
+        val updatedLocals = locals.flatMap({ case (x, i) =>
+          this.apply(x, i).mapValues({ case i: ConcurrentIntermediate => i })
+        })
+        val (newBody, localsToAdd) = this.apply(body)
+        val newBlock = BlockIntermediate(
+          locals = updatedLocals ++
+            localsToAdd.mapValues(_.asInstanceOf[ConcurrentIntermediate]),
+          body = newBody.asInstanceOf[ConcurrentIntermediate]
+        )
+        // TODO: Pull the localsToAdd out further? Or assert that it's empty?
+        (newBlock, ListMap.empty)
       case fgi: ForGenerateIntermediate =>
+        val (newBody, intermediatesToAdd) = this.apply(fgi.body)
+        assert(intermediatesToAdd.isEmpty)
         val newFgi = new ForGenerateIntermediate(
-          loopLabels = fgi.loopLabels,
           loopVars = fgi.loopVars,
           loopBoundsInclusive = fgi.loopBoundsInclusive,
-          intermediates = fgi.intermediates
-            .flatMap({ case (x, i) => this.apply(x, i) }),
-          body = fgi.body
+          // TODO: Get rid of all these asInstanceOf casts by tightening type signature?
+          body = newBody.asInstanceOf[ConcurrentIntermediate]
         )
-        ListMap(x -> newFgi)
-      case i => ListMap(x -> i)
+        (newFgi, ListMap.empty)
+      case ip: IpBlockInst => (ip, ListMap.empty)
+      case i: SimpleIntermediate =>
+        assert(i.intermediateChildren.isEmpty)
+        (i, ListMap.empty)
+      case a: Accumulator =>
+        assert(
+          !a.intermediateDescendants
+            .exists(_.isInstanceOf[FunctionIntermediate])
+        )
+        (a, ListMap.empty)
     }
   }
 }

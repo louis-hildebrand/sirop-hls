@@ -2,8 +2,11 @@ package mhir.gen.vhdl
 package agilex7
 
 import mhir.canonicalize._
-import mhir.gen.vhdl.ir.{IpBlockInst, Target}
+import mhir.gen.vhdl.ir.{EntityInstantiation, Intermediate, IpBlockInst, Target}
 import mhir.ir._
+import os.Path
+
+import scala.collection.immutable.ListMap
 
 case class AgilexMadd(
     ax: Expr,
@@ -33,7 +36,7 @@ case class AgilexMadd(
     )
   }
 
-  def mapInputs(f: Expr => Expr): AgilexMadd = {
+  def map(f: Expr => Expr): AgilexMadd = {
     AgilexMadd(
       f(this.ax),
       f(this.ay),
@@ -43,50 +46,63 @@ case class AgilexMadd(
     )
   }
 
-  override def toVhdlEntityInst(
+  override def exprChildren: Seq[Expr] = Seq(ax, ay, bx, by)
+
+  override def intermediateChildren: Seq[Intermediate] = Seq.empty
+
+  override def usesVendorIpBlocks: Boolean = true
+
+  def signedOrUnsigned: String = {
+    if (this.ax.typ.asInstanceOf[TyAnyInt].signed) "signed" else "unsigned"
+  }
+
+  override def resourcesToCopy(vhdlDir: Path): Map[Path, String] = {
+    Map(
+      vhdlDir / s"dsp_sumof2_${this.signedOrUnsigned}.vhd" -> s"mhir/gen/vhdl/agilex7/dsp_sumof2_${this.signedOrUnsigned}.vhd",
+      vhdlDir / "dsp_sumof2.vhd" -> "mhir/gen/vhdl/agilex7/dsp_sumof2.vhd"
+    )
+  }
+
+  override def toConcurrentStatement(
       target: Target,
       options: VhdlGeneratorOptions,
       enable: String
-  ): VhdlEntityInstantiation = {
-    val component =
-      (this.ax.typ, this.ay.typ, this.bx.typ, this.by.typ, target.typ) match {
-        case (TySInt(axw), TySInt(ayw), TySInt(bxw), TySInt(byw), TySInt(rw)) =>
-          Sumof2SignedDspComponent(
-            axWidth = axw,
-            ayWidth = ayw,
-            bxWidth = bxw,
-            byWidth = byw,
-            resultWidth = rw,
-            pipeline = this.pipeline
-          )
-        case (TyUInt(axw), TyUInt(ayw), TyUInt(bxw), TyUInt(byw), TyUInt(rw)) =>
-          Sumof2UnsignedDspComponent(
-            axWidth = axw,
-            ayWidth = ayw,
-            bxWidth = bxw,
-            byWidth = byw,
-            resultWidth = rw,
-            pipeline = this.pipeline
-          )
-        case _ =>
-          throw new AssertionError(
-            s"the inputs and outputs for ${this.getClass.getName} should all have the same signedness"
-          )
-      }
-    VhdlEntityInstantiation(
-      name = Param("DSP")().name,
-      c = component,
-      args = PortMap(
-        Map(
-          "clk" -> options.clock,
-          "ena" -> enable,
-          "ax" -> VhdlExprGenerator.toVhdl(this.ax),
-          "ay" -> VhdlExprGenerator.toVhdl(this.ay),
-          "bx" -> VhdlExprGenerator.toVhdl(this.bx),
-          "by" -> VhdlExprGenerator.toVhdl(this.by),
-          "result" -> target.expr
+  ): String = {
+    (this.ax.typ, this.ay.typ, this.bx.typ, this.by.typ, target.typ) match {
+      case (
+            tax: TyAnyInt,
+            tay: TyAnyInt,
+            tbx: TyAnyInt,
+            tby: TyAnyInt,
+            tr: TyAnyInt
+          ) =>
+        assert(
+          Seq(tax, tay, tbx, tby, tr).map(_.signed).toSet.size == 1,
+          "DSP inputs and outputs should all have the same signedness"
         )
-      )
-    )
+        EntityInstantiation(
+          entityName =
+            options.fullyQualify(s"dsp_sumof2_${this.signedOrUnsigned}"),
+          genericArgs = ListMap(
+            "AX_WIDTH" -> tax.w.toString,
+            "AY_WIDTH" -> tay.w.toString,
+            "BX_WIDTH" -> tbx.w.toString,
+            "BY_WIDTH" -> tby.w.toString,
+            "RESULT_WIDTH" -> tr.w.toString,
+            "PIPELINE" -> this.pipeline.toString
+          ),
+          portArgs = ListMap(
+            "clk" -> options.clock,
+            "ena" -> enable,
+            "ax" -> VhdlExprGenerator.toVhdl(this.ax),
+            "ay" -> VhdlExprGenerator.toVhdl(this.ay),
+            "bx" -> VhdlExprGenerator.toVhdl(this.bx),
+            "by" -> VhdlExprGenerator.toVhdl(this.by),
+            "result" -> target.name
+          ),
+          label = Param("DSP")().name
+        )
+      case _ => throw new AssertionError("wrong types in DSP")
+    }
   }
 }
