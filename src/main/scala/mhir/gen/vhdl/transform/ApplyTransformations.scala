@@ -24,6 +24,9 @@ object ApplyTransformations {
       pipe1.mapSbuilds(BoundsCheckInsertion.apply)
     }
     val pipe3 = options.deviceFamily match {
+      case _ if !options.emitDspIpBlocks =>
+        logger.debug("DSP selection is disabled")
+        pipe2
       case "Agilex 7" =>
         time(s"mapping multiplications to Agilex 7 DSP blocks", Level.DEBUG) {
           val pass = agilex7.DspSelection(

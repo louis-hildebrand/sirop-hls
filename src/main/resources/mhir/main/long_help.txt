@@ -58,6 +58,10 @@ Output Arguments:
   --out:vhdl:absorb-out-reg        absorb the final output register into the
                                    preceding shift register, even if there is
                                    something like a logical AND in between.
+  --out:vhdl:no-dsp-ip-blocks      disable DSP selection. Instead of emitting
+                                   IP blocks for multiplication, the compiler
+                                   will emit code that uses the VHDL *
+                                   operator.
 
   --out:pp (FILE|-)                pretty-print the final program to the given
                                    file, or to stdout if argument "-" is given

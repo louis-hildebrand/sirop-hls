@@ -47,6 +47,7 @@ object Args {
     var vhdlVirtualPins: Option[Boolean] = None
     var vhdlAppendQsf = Seq[String]()
     var vhdlAbsorbOutReg: Option[Boolean] = None
+    var vhdlEmitDspIpBlocks: Option[Boolean] = None
     var prettyPrintDest: Option[String] = None
     var prettyPrintLoweredDest: Option[String] = None
     var timeReportFile: Option[String] = None
@@ -186,6 +187,8 @@ object Args {
           }
         case "--out:vhdl:absorb-out-reg" =>
           vhdlAbsorbOutReg = Some(true)
+        case "--out:vhdl:no-dsp-ip-blocks" =>
+          vhdlEmitDspIpBlocks = Some(false)
         case "--out:pp" =>
           mutArgs.drop(1).headOption match {
             case Some(path) =>
@@ -394,6 +397,11 @@ object Args {
               "--out:vhdl:absorb-out-reg is only valid when --out:vhdl is also given"
             )
           }
+          if (vhdlEmitDspIpBlocks.isDefined) {
+            throw new BadArgsException(
+              "--out:vhdl:no-dsp-ip-blocks is only valid when --out:vhdl is also given"
+            )
+          }
           None
       }
       val ppTarget = prettyPrintDest.map({
@@ -478,7 +486,11 @@ object Args {
         case Some(b) => opt4.copy(absorbOutReg = b)
         case None    => opt4
       }
-      opt5
+      val opt6 = vhdlEmitDspIpBlocks match {
+        case Some(b) => opt5.copy(emitDspIpBlocks = b)
+        case None    => opt5
+      }
+      opt6
     }
     val options = CompilerOptions(
       targets = targets,
