@@ -19,7 +19,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
   test("IfElse") {
     val c = Param("c")(TyBool)
     val e = Sum(C(1)(U8), Mux(c, C(42)(U8), C(0)(U8))())()
-    val (actualExpr, actualIntermediates) = IntermediateInsertion(e)
+    val (actualExpr, actualIntermediates) = IntermediateInsertion(e, Map.empty)
 
     assert(actualIntermediates.size == 1)
     val (tmp, actualIntermediate) = actualIntermediates.head
@@ -141,7 +141,9 @@ class IntermediateInsertionTests extends AnyFunSuite {
         StmData(s)()
       )()
     )().tchk()
-    val (actualExpr, actualIntermediates) = IntermediateInsertion(fImpl)
+    val sdataIntermediateName = Param("s_data")(I16)
+    val (actualExpr, actualIntermediates) =
+      IntermediateInsertion(fImpl, Map(StmData(s)() -> sdataIntermediateName))
 
     assert(actualExpr.isInstanceOf[Param])
     val actualExprParam = actualExpr.asInstanceOf[Param]
@@ -153,6 +155,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
     val (sdata, StmDataIntermediate(actualS)) =
       (actualIntermediates - actualExprParam).head
     assert(actualS == s)
+    assert(sdata == sdataIntermediateName)
 
     val (ite1, ite2, ite3) = actualBody match {
       case Sum(ite2: Param, ite3: Param, actualSdata) =>

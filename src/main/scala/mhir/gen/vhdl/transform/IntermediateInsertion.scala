@@ -32,18 +32,41 @@ import scala.collection.immutable.ListMap
 object IntermediateInsertion {
 
   def apply(s: GenStmBuild): GenStmBuild = {
-    new IntermediateInsertion(ListMap()).apply(s)
+    val sdata = s.producers.map({ case (_, (p, _)) =>
+      val sdata = StmData(p)().tchk().asInstanceOf[StmData]
+      val intermediateName = Param(s"${p.name}_data")(sdata.typ)
+      sdata -> intermediateName
+    })
+    val initialIntermediates = ListMap(
+      sdata
+        .map({ case (StmData(p), name) =>
+          name -> StmDataIntermediate(p.asInstanceOf[Param])
+        })
+        .toSeq: _*
+    )
+    new IntermediateInsertion(initialIntermediates, sdata).apply(s)
   }
 
-  def apply(e: Expr): (Expr, ListMap[Param, Intermediate]) = {
-    val pass = new IntermediateInsertion(ListMap())
+  def apply(
+      e: Expr,
+      sdata: Map[StmData, Param]
+  ): (Expr, ListMap[Param, Intermediate]) = {
+    val initialIntermediates = ListMap(
+      sdata
+        .map({ case (StmData(p), name) =>
+          name -> StmDataIntermediate(p.asInstanceOf[Param])
+        })
+        .toSeq: _*
+    )
+    val pass = new IntermediateInsertion(initialIntermediates, sdata)
     val newExpr = pass.getExprAndMutateIntermediates(e)
     (newExpr, pass.intermediates)
   }
 }
 
 private class IntermediateInsertion(
-    var intermediates: ListMap[Param, Intermediate]
+    var intermediates: ListMap[Param, Intermediate],
+    var sdata: Map[StmData, Param]
 ) {
 
   def apply(s: GenStmBuild): GenStmBuild = {
@@ -57,7 +80,7 @@ private class IntermediateInsertion(
         val newI = i.map(this.getExprAndMutateIntermediates)
         this.intermediates += (x -> newI)
       case (x, BlockIntermediate(locals, body)) =>
-        val subPass = new IntermediateInsertion(ListMap())
+        val subPass = new IntermediateInsertion(ListMap(), this.sdata)
         val newLocals = locals.map({ case (x, i) =>
           x -> i.map(subPass.getExprAndMutateIntermediates)
         })
@@ -69,7 +92,7 @@ private class IntermediateInsertion(
           BlockIntermediate(newLocals ++ localsFromSubPass, newBody)
         this.intermediates += (x -> newBlock)
       case (x, fgi: ForGenerateIntermediate) =>
-        val subPass = new IntermediateInsertion(ListMap())
+        val subPass = new IntermediateInsertion(ListMap(), this.sdata)
         val newBody =
           fgi.body.map(subPass.getPortActualAndMutateIntermediates)
         val newFgi = if (subPass.intermediates.isEmpty) {
@@ -126,7 +149,8 @@ private class IntermediateInsertion(
     */
   def getExprAndMutateIntermediates(e: Expr): Expr = {
     val (newE, newIntermediates) =
-      new ExprIntermediateInsertion(ListMap()).resultAndIntermediates(e)
+      new ExprIntermediateInsertion(ListMap(), this.sdata)
+        .resultAndIntermediates(e)
     this.intermediates ++= newIntermediates
     newE
   }
@@ -143,7 +167,8 @@ private class IntermediateInsertion(
     i match {
       case ExprIntermediate(e) =>
         val (newE, newIntermediates) =
-          new ExprIntermediateInsertion(ListMap()).resultAndIntermediates(e)
+          new ExprIntermediateInsertion(ListMap(), this.sdata)
+            .resultAndIntermediates(e)
         newE match {
           case x: Param =>
             // Be careful to not remove the intermediate if it's used by
@@ -197,7 +222,8 @@ private class IntermediateInsertion(
 }
 
 private class ExprIntermediateInsertion(
-    var intermediates: ListMap[Param, Intermediate]
+    var intermediates: ListMap[Param, Intermediate],
+    val sdata: Map[StmData, Param]
 ) {
 
   def resultAndIntermediates(e: Expr): (Expr, ListMap[Param, Intermediate]) = {
@@ -223,7 +249,8 @@ private class ExprIntermediateInsertion(
       // approach within them (e.g., making the body a series of let bindings?).
       case f @ Function(x, body) =>
         val (newBody, intermediates) =
-          new ExprIntermediateInsertion(ListMap()).resultAndIntermediates(body)
+          new ExprIntermediateInsertion(ListMap(), this.sdata)
+            .resultAndIntermediates(body)
         // Some intermediates can be kept within the function (e.g., simple
         // data) and some must be moved out (e.g., another function declaration)
         var innerIntermediates = ListMap[Param, SequentialIntermediate]()
@@ -325,17 +352,10 @@ private class ExprIntermediateInsertion(
         val v2 = this.getPrefixAndMutateIntermediates(v)
         val i2 = this.run(i)
         VecAccess(v2, i2)().tchk()
-      case StmData(x: Param) =>
-        val TyStm(elemTyp, _) = x.typ
-        val temp = Param(s"${x.name}_data_internal")(elemTyp)
-        this.intermediates += temp -> StmDataIntermediate(x)
-        temp
+      case sd: StmData =>
+        this.sdata(sd)
 
       // --- Illegal cases -----------------------------------------------------
-      case StmData(e) =>
-        throw new IllegalArgumentException(
-          s"invalid argument to sdata (expected a variable but found $e)"
-        )
       case _: StmBuild | _: LetStm | _: StmLiteral =>
         throw new IllegalArgumentException(
           s"intermediate value insertion is not applicable to stream expressions;"
