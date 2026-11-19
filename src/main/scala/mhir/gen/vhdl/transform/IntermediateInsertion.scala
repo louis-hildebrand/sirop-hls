@@ -69,6 +69,13 @@ private class IntermediateInsertion(
     var sdata: Map[StmData, Param]
 ) {
 
+  sdata.foreach({
+    case (StmData(p: Param), name) =>
+      this.intermediates += (name -> StmDataIntermediate(p))
+    case (StmData(p), _) =>
+      throw new AssertionError(s"invalid input for sdata: $p")
+  })
+
   def apply(s: GenStmBuild): GenStmBuild = {
     val data = this.getExprAndMutateIntermediates(s.data)
     val valid = this.getExprAndMutateIntermediates(s.valid)
@@ -102,14 +109,21 @@ private class IntermediateInsertion(
             newBody
           )
         } else {
-          // TODO: Hoist some of the intermediates (e.g., StmDataIntermediate) out?
-          val locals = subPass.intermediates.map({
-            case (x, i: ConcurrentIntermediate) => x -> i
-          })
+          // If an Intermediate doesn't depend on the loop variables, move it out of the loop.
+          // This makes it clear that there should only be one instance of that signal, not one
+          // per loop instantiation.
+          val (locals, outsiders) = subPass.intermediates
+            .partition({ case (_, i: ConcurrentIntermediate) =>
+              i.freeVars.intersect(fgi.loopVars.toSet).nonEmpty
+            })
+          this.intermediates ++= outsiders
           ForGenerateIntermediate(
             fgi.loopVars,
             fgi.loopBoundsInclusive,
-            BlockIntermediate(locals, newBody)
+            BlockIntermediate(
+              locals.map({ case (x, i: ConcurrentIntermediate) => x -> i }),
+              newBody
+            )
           )
         }
         this.intermediates += (x -> newFgi)
@@ -133,9 +147,10 @@ private class IntermediateInsertion(
       data = data,
       valid = valid,
       producers = producers,
-      intermediates = this.intermediates.map({
-        case (x, i: ConcurrentIntermediate) => x -> i
-      })
+      intermediates = this.intermediates
+        .map({ case (x, i: ConcurrentIntermediate) =>
+          x -> i
+        })
     )
   }
 
