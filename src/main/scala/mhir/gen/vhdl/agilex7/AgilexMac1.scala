@@ -83,7 +83,7 @@ case class AgilexMac1(x: Expr, y: Expr, chainin: Expr) extends IpBlockInst {
           ),
           portArgs = ListMap(
             "clk" -> options.clock,
-            "ena" -> enable,
+            "ena" -> s"bool2sl($enable)",
             "ax" -> VhdlExprGenerator.toVhdl(this.x),
             "ay" -> VhdlExprGenerator.toVhdl(this.y),
             "b" -> VhdlExprGenerator.toVhdl(this.chainin),

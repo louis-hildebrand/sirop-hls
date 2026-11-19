@@ -93,7 +93,7 @@ case class AgilexMadd(
           ),
           portArgs = ListMap(
             "clk" -> options.clock,
-            "ena" -> enable,
+            "ena" -> s"bool2sl($enable)",
             "ax" -> VhdlExprGenerator.toVhdl(this.ax),
             "ay" -> VhdlExprGenerator.toVhdl(this.ay),
             "bx" -> VhdlExprGenerator.toVhdl(this.bx),
