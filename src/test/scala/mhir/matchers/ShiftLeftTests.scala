@@ -126,6 +126,26 @@ class ShiftLeftTests extends AnyFunSuite {
     }
   }
 
+  test("MapShiftLeft:Vec[Vec[u8, 5], 1]") {
+    val x = Param("x")(U8)
+    val v = Param("v")(TyVec(TyVec(U8, 5), 1))
+    val e = simplify(
+      VecMap(
+        v, {
+          val row = Param("row")(TyVec(U8, 5))
+          Function(row, VecShiftLeft(row, x)())()
+        }
+      )()
+    )
+    val actual = MapShiftLeft.unapply(e)
+    actual match {
+      case Some((Seq(_), Seq(1, 5), Some(v), x1)) =>
+        assert(x1 == x)
+      case out =>
+        fail(s"wrong output: $out")
+    }
+  }
+
   test("MapShiftLeft:Vec[Vec[Vec[u32, 7], 2], 3]") {
     val x = Param("x")(U32)
     val v = Param("v")(TyVec(TyVec(TyVec(U32, 7), 2), 3))

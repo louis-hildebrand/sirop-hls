@@ -6,6 +6,7 @@ import mhir.gen.vhdl.ir._
 import mhir.gen.vhdl.transform.RemoveUnused
 import mhir.ir._
 import mhir.matchers.VecAccesses
+import mhir.optimize.PartialEvalPass
 import mhir.typecheck._
 
 object DspRegisterPacking {
@@ -143,7 +144,9 @@ object DspRegisterPacking {
                 val subs = loopVars.zip(vecAccessIndices).toMap[Expr, Expr]
                 val pipeInput = pipeInputInLoop.subPreserveType(subs)
                 // Bypass the shift register altogether
-                VecAccesses(pipeInput, otherIndices).tchk()
+                PartialEvalPass.partialEval(
+                  VecAccesses(pipeInput, otherIndices).tchk()
+                )()
               } else {
                 val shiftReg =
                   VecAccesses(pipe, vecAccessIndices.take(loopVars.length))
