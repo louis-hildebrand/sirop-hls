@@ -27,10 +27,23 @@ class DspSelectionTests extends AnyFunSuite {
   // TODO: Test that DSP selection does not happen at 45+ bits?
   // TODO: Test that DSP selection won't increase the number of multiplications?
 
-  private val depths = Seq(1, 2, 5, 6)
-  private val types = Seq((I16, I43), (U16, U43))
-  private val pipelines = Seq(0, 1, 4)
-  private val loops = Seq(Seq(), Seq(3), Seq(2, 4))
+  private val allDepths = Seq(1, 2, 5, 6)
+  private val allTypes = Seq((I16, I43), (U16, U43))
+  private val allPipelines = Seq(0, 1, 4)
+  private val allLoops = Seq(Seq(), Seq(3), Seq(2, 4))
+
+  // To run a specific case, you can change these fields.
+  // The failing test will be a reminder to change it back.
+  private val depths = allDepths
+  private val types = allTypes
+  private val pipelines = allPipelines
+  private val loops = allLoops
+  test("TODO") {
+    assert(depths == allDepths)
+    assert(types == allTypes)
+    assert(pipelines == allPipelines)
+    assert(loops == allLoops)
+  }
 
   for (depth <- depths) {
     for ((inTyp, outTyp) <- types) {
