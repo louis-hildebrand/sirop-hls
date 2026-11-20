@@ -93,7 +93,7 @@ private class IntermediateInsertion(
         })
         val newBody = body.map(subPass.getExprAndMutateIntermediates)
         val localsFromSubPass = subPass.intermediates.map({
-          case (x, i: ConcurrentIntermediate) => x -> i
+          case (x, i: Intermediate) => x -> i
         })
         val newBlock =
           BlockIntermediate(newLocals ++ localsFromSubPass, newBody)
@@ -113,7 +113,7 @@ private class IntermediateInsertion(
           // This makes it clear that there should only be one instance of that signal, not one
           // per loop instantiation.
           val (locals, outsiders) = subPass.intermediates
-            .partition({ case (_, i: ConcurrentIntermediate) =>
+            .partition({ case (_, i: Intermediate) =>
               i.freeVars.intersect(fgi.loopVars.toSet).nonEmpty
             })
           this.intermediates ++= outsiders
@@ -121,7 +121,7 @@ private class IntermediateInsertion(
             fgi.loopVars,
             fgi.loopBoundsInclusive,
             BlockIntermediate(
-              locals.map({ case (x, i: ConcurrentIntermediate) => x -> i }),
+              locals.map({ case (x, i: Intermediate) => x -> i }),
               newBody
             )
           )
@@ -148,7 +148,7 @@ private class IntermediateInsertion(
       valid = valid,
       producers = producers,
       intermediates = this.intermediates
-        .map({ case (x, i: ConcurrentIntermediate) =>
+        .map({ case (x, i: Intermediate) =>
           x -> i
         })
     )
@@ -326,8 +326,9 @@ private class ExprIntermediateInsertion(
         this.intermediates += temp -> ExprIntermediate(Undefined(typ))
         temp
       case Mux(c, t, f) =>
-        // TODO: Specially handle "if-elseif-else," for readability? This may
-        //       require changes in the VHDL expression generator as well.
+        // TODO: Specially handle "if-elseif-else," for readability?
+        //       Maybe I can just let the branches in MuxIntermediate be
+        //       Intermediates themselves.
         val c2 = this.run(c)
         val t2 = this.run(t)
         val f2 = this.run(f)

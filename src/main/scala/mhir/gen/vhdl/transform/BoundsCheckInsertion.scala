@@ -26,8 +26,7 @@ object BoundsCheckInsertion {
         x -> (p, this.apply(ready))
       }),
       intermediates = s.intermediates.map({ case (x, i) =>
-        // TODO: How do I know this cast will never fail?
-        x -> this.apply(i).asInstanceOf[ConcurrentIntermediate]
+        x -> this.apply(i)
       })
     )
   }
@@ -42,22 +41,17 @@ object BoundsCheckInsertion {
       case a: VecWriteAccumulator     => a.map(this.apply(_, Map()))
       case BlockIntermediate(locals, body) =>
         BlockIntermediate(
-          locals.map({ case (x, i) =>
-            x -> this.apply(i).asInstanceOf[ConcurrentIntermediate]
-          }),
-          this.apply(body).asInstanceOf[ConcurrentIntermediate]
+          locals.map({ case (x, i) => x -> this.apply(i) }),
+          this.apply(body)
         )
       case ForGenerateIntermediate(vars, bounds, body) =>
-        ForGenerateIntermediate(
-          vars,
-          bounds,
-          this.apply(body).asInstanceOf[ConcurrentIntermediate]
-        )
+        ForGenerateIntermediate(vars, bounds, this.apply(body))
       case FunctionIntermediate(params, intermediates, body) =>
         FunctionIntermediate(
           params,
           intermediates
             .map({ case (x, i) =>
+              // TODO: How do I know this cast will never fail? Can I enforce it statically?
               x -> this.apply(i).asInstanceOf[SequentialIntermediate]
             }),
           this.apply(body, Map())

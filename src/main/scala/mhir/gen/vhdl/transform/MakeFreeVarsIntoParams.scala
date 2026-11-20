@@ -39,9 +39,7 @@ object MakeFreeVarsIntoParams {
         x -> (p, pass.apply(ready))
       }),
       intermediates = s2.intermediates.map({ case (x, i) =>
-        val (newX, newI) = pass.apply(x, i)
-        // TODO: How do I know this cast will never fail?
-        newX -> newI.asInstanceOf[ConcurrentIntermediate]
+        pass.apply(x, i)
       })
     )
     result.intermediates
@@ -130,17 +128,14 @@ private class MakeFreeVarsIntoParams(
   }
 
   private def applyToBlock(block: BlockIntermediate): BlockIntermediate = {
-    // TODO: Move the logic from applyToForGenerate to this method
     val innerFunctionContexts = Analysis.computeContexts(block.locals)
     val innerPass = new MakeFreeVarsIntoParams(
       this.functionContexts ++ innerFunctionContexts
     )
     val newLocals = block.locals
       .map({ case (x, i) => innerPass.apply(x, i) })
-      .map({ case (x, i: ConcurrentIntermediate) => x -> i })
-    val newBody = this.apply(block.body) match {
-      case i: ConcurrentIntermediate => i
-    }
+      .map({ case (x, i: Intermediate) => x -> i })
+    val newBody = this.apply(block.body)
     BlockIntermediate(newLocals, newBody)
   }
 
@@ -151,14 +146,13 @@ private class MakeFreeVarsIntoParams(
       i.loopVars.toSet
         .intersect(this.functionContexts.values.flatten.toSet)
         .isEmpty,
-      // TODO: Rename loop variables to avoid variable capture?
-      // TODO: Test this case
+      // TODO! Rename loop variables to avoid variable capture? Don't forget to add a unit test
       s"${this.getClass.getName} may result in variable capture. Maybe the loop variables should be renamed."
     )
     ForGenerateIntermediate(
       i.loopVars,
       i.loopBoundsInclusive,
-      this.apply(i.body) match { case i: ConcurrentIntermediate => i }
+      this.apply(i.body)
     )
   }
 
@@ -276,11 +270,7 @@ private object EnsureTupleArgs {
       producers = s.producers.map({ case (x, (p, ready)) =>
         x -> (p, this.apply(ready))
       }),
-      intermediates = s.intermediates.map({ case (x, i) =>
-        val (newX, newI) = this.apply(x, i)
-        // TODO: How do I know this cast will never fail?
-        newX -> newI.asInstanceOf[ConcurrentIntermediate]
-      })
+      intermediates = s.intermediates.map({ case (x, i) => this.apply(x, i) })
     )
   }
 
@@ -294,20 +284,12 @@ private object EnsureTupleArgs {
   private def apply(i: Intermediate): Intermediate = {
     i match {
       case BlockIntermediate(locals, body) =>
-        // TODO: This looks very similar to (but not identical to) BlockIntermediate.map
+        // Can't just use block.map(this.apply) here because there may be functions defined inside
+        // the block, and we may need to update the type of the corresponding Params.
         BlockIntermediate(
-          locals.map({ case (x, i) =>
-            val (newX, newI) = this.apply(x, i)
-            newX -> newI.asInstanceOf[ConcurrentIntermediate]
-          }),
-          body.map(this.apply)
+          locals.map({ case (x, i) => this.apply(x, i) }),
+          this.apply(body)
         )
-      case ForGenerateIntermediate(vars, bounds, body) =>
-        // TODO: This looks very similar to (but not identical to) ForGenerateIntermediate.map
-        val newBody = this.apply(body) match {
-          case i: ConcurrentIntermediate => i
-        }
-        ForGenerateIntermediate(vars, bounds, newBody)
       case FunctionIntermediate(params, intermediates, output) =>
         assert(
           params.length == 1,
@@ -327,6 +309,8 @@ private object EnsureTupleArgs {
           }),
           this.apply(output)
         )
+      // TODO! What if there's another Intermediate inside this one? I should recurse using
+      //     apply(i: Intermediate) rather than apply(e: Expr).
       case i => i.map(this.apply)
     }
   }
@@ -362,8 +346,7 @@ private object UnNestFunctions {
       valid = s.valid,
       producers = s.producers,
       intermediates = s.intermediates.flatMap({ case (x, i) =>
-        // TODO: How do I know this cast will never fail?
-        this.apply(x, i).mapValues(_.asInstanceOf[ConcurrentIntermediate])
+        this.apply(x, i)
       })
     )
   }
@@ -415,15 +398,9 @@ private object UnNestFunctions {
       case BlockIntermediate(locals, body) =>
         // TODO: This assumes BlockIntermediate cannot be used inside a FunctionIntermediate.
         //       Can I statically assert that this is the case?
-        val updatedLocals = locals.flatMap({ case (x, i) =>
-          this.apply(x, i).mapValues({ case i: ConcurrentIntermediate => i })
-        })
+        val updatedLocals = locals.flatMap({ case (x, i) => this.apply(x, i) })
         val (newBody, localsToAdd) = this.apply(body)
-        val newBlock = BlockIntermediate(
-          locals = updatedLocals ++
-            localsToAdd.mapValues(_.asInstanceOf[ConcurrentIntermediate]),
-          body = newBody.asInstanceOf[ConcurrentIntermediate]
-        )
+        val newBlock = BlockIntermediate(updatedLocals ++ localsToAdd, newBody)
         // TODO: Pull the localsToAdd out further? Or assert that it's empty?
         (newBlock, ListMap.empty)
       case fgi: ForGenerateIntermediate =>
@@ -433,8 +410,7 @@ private object UnNestFunctions {
         val newFgi = new ForGenerateIntermediate(
           loopVars = fgi.loopVars,
           loopBoundsInclusive = fgi.loopBoundsInclusive,
-          // TODO: Get rid of all these asInstanceOf casts by tightening type signature?
-          body = newBody.asInstanceOf[ConcurrentIntermediate]
+          body = newBody
         )
         (newFgi, ListMap.empty)
       case ip: IpBlockInst => (ip, ListMap.empty)

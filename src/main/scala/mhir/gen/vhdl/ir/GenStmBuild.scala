@@ -21,6 +21,7 @@ import scala.collection.immutable.ListMap
 case class GenStmBuild(
     data: Expr,
     valid: Expr,
-    intermediates: ListMap[Param, ConcurrentIntermediate],
+    intermediates: ListMap[Param, Intermediate],
+    // TODO: Define some kind of ProducerIntermediate and then get rid of this list of producers?
     producers: Map[Param, (Param, Expr)]
 )

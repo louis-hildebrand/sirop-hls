@@ -14,7 +14,7 @@ import scala.collection.immutable.ListMap
   * The VHDL conversion methods vary by subclass. For the declarative part, see
   * either [[FunctionIntermediate.toDeclarativeItem]] or
   * [[SimpleTarget.toDecl]]. For the statement part, see either
-  * [[ConcurrentIntermediate.toConcurrentStatement]] or
+  * [[Intermediate.toConcurrentStatement]] or
   * [[SequentialIntermediate.toSequentialStatement]].
   */
 sealed trait Intermediate {
@@ -32,16 +32,6 @@ sealed trait Intermediate {
   def intermediateDescendants: Seq[Intermediate] = {
     this.intermediateChildren.flatMap(i => i +: i.intermediateDescendants)
   }
-}
-
-// TODO: Get rid of ConcurrentIntermediate and just use Intermediate?
-//       Every SequentialIntermediate can also be made into a ConcurrentIntermediate.
-//       This would allow me to remove all those .asInstanceOf[ConcurrentIntermediate] casts.
-sealed trait ConcurrentIntermediate extends Intermediate {
-
-  // TODO: Get rid of these by using F-bounded polymorphism?
-  override def substitute(subs: Map[Expr, Expr]): ConcurrentIntermediate
-  override def map(f: Expr => Expr): ConcurrentIntermediate
 
   /** Convert this to a concurrent statement in VHDL.
     *
@@ -58,7 +48,7 @@ sealed trait ConcurrentIntermediate extends Intermediate {
   ): String
 }
 
-sealed trait SequentialIntermediate extends ConcurrentIntermediate {
+sealed trait SequentialIntermediate extends Intermediate {
 
   // TODO: Get rid of these by using F-bounded polymorphism?
   override def substitute(subs: Map[Expr, Expr]): SequentialIntermediate
@@ -100,13 +90,17 @@ case class FunctionIntermediate(
     // TODO: Can I use something like BlockIntermediate instead of all this?
     locals: ListMap[Param, SequentialIntermediate],
     output: Expr
-) extends ConcurrentIntermediate
-    with SequentialIntermediate {
+) extends SequentialIntermediate {
 
   assert(
     params.toSet.size == params.size,
     "function parameters should be unique"
   )
+  // The VHDL conversion would need to look a bit different for functions with 0 parameters,
+  // and I don't see any reason for 0-input functions.
+  // Forbid it for now; later, if it turns out to be needed, I can test and implement the
+  // feature properly.
+  assert(params.nonEmpty, "cannot define FunctionIntermediate with 0 args")
   for (param <- params) {
     if (!param.typ.isData) {
       throw new IllegalArgumentException(
@@ -168,7 +162,6 @@ case class FunctionIntermediate(
       options: VhdlGeneratorOptions
   ): String = {
     val subprogramSpecification = {
-      // TODO: What if there are no parameters? It doesn't look like formal_parameter_list can be empty
       val formalParameterList = this.params
         .map({ x =>
           val identifier = x.name
@@ -241,8 +234,8 @@ case class ForGenerateIntermediate(
     //       In fact, this flattened loop representation might not work at all, if loop bounds can
     //       depend on earlier loop variables.
     loopBoundsInclusive: Seq[Int],
-    body: ConcurrentIntermediate
-) extends ConcurrentIntermediate {
+    body: Intermediate
+) extends Intermediate {
 
   require(
     loopVars.length == loopBoundsInclusive.length,
@@ -265,7 +258,7 @@ case class ForGenerateIntermediate(
 
   override def map(f: Expr => Expr): ForGenerateIntermediate = {
     ForGenerateIntermediate(
-      this.loopVars.map(_.map(f).asInstanceOf[Param]),
+      this.loopVars.map(f(_).asInstanceOf[Param]),
       this.loopBoundsInclusive,
       this.body.map(f)
     )
@@ -325,15 +318,15 @@ case class ForGenerateIntermediate(
 
 object ForGenerateIntermediate {
 
-  def apply(body: ConcurrentIntermediate): ForGenerateIntermediate = {
+  def apply(body: Intermediate): ForGenerateIntermediate = {
     ForGenerateIntermediate(Seq.empty, Seq.empty, body)
   }
 }
 
 case class BlockIntermediate(
-    locals: ListMap[Param, ConcurrentIntermediate],
-    body: ConcurrentIntermediate
-) extends ConcurrentIntermediate {
+    locals: ListMap[Param, Intermediate],
+    body: Intermediate
+) extends Intermediate {
 
   override def freeVars: Set[Param] = {
     this.locals
@@ -348,7 +341,7 @@ case class BlockIntermediate(
       e.freeVars.intersect(this.locals.keySet).nonEmpty
     })
     if (willCapture) {
-      // TODO: Handle variable capture
+      // TODO! Handle variable capture
       ???
     }
     BlockIntermediate(
@@ -406,9 +399,8 @@ case class BlockIntermediate(
 
 /** An instantiation of an IP block (e.g., the native Agilex DSPs).
   */
-trait IpBlockInst extends ConcurrentIntermediate {
+trait IpBlockInst extends Intermediate {
 
-  // TODO: Get rid of these by using F-bounded polymorphism?
   override def substitute(subs: Map[Expr, Expr]): IpBlockInst
   override def map(f: Expr => Expr): IpBlockInst
 
@@ -421,10 +413,9 @@ trait IpBlockInst extends ConcurrentIntermediate {
   * whose type is a "data" type (see [[Type.isData]]).
   */
 sealed trait SimpleIntermediate
-    extends ConcurrentIntermediate
+    extends Intermediate
     with SequentialIntermediate {
 
-  // TODO: Get rid of these by using F-bounded polymorphism?
   override def substitute(subs: Map[Expr, Expr]): SimpleIntermediate
 
   override def map(f: Expr => Expr): SimpleIntermediate
@@ -584,11 +575,10 @@ case class MuxIntermediate(c: Expr, t: Expr, f: Expr)
 
 // -------------------------------------------------------------------------------------------------
 
-sealed trait Accumulator extends ConcurrentIntermediate {
+sealed trait Accumulator extends Intermediate {
 
   private val AlwaysEnabled: String = "true"
 
-  // TODO: Get rid of these by using F-bounded polymorphism?
   override def substitute(subs: Map[Expr, Expr]): Accumulator
   override def map(f: Expr => Expr): Accumulator
 

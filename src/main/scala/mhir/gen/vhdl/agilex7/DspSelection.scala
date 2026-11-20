@@ -194,7 +194,7 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         val varsAB = varsA.map(_.freshCopy)
         val newForGen = {
           val newDsp = {
-            // TODO: I think I forgot to rename the variables here! Will the tests catch it?
+            // TODO! I think I forgot to rename the variables here! Will the tests catch it?
             AgilexMac2(ax, ay, bx, by, chainin, pipeline = 0)
           }
           ForGenerateIntermediate(varsAB, boundsA, newDsp)

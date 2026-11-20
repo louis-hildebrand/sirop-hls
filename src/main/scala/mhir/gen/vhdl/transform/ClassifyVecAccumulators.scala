@@ -115,15 +115,6 @@ private object VecMapShiftLeft {
         // matter and is therefore not returned by MapShiftLeft
         assert(lengths.size == params.size + 1)
         Some((x0, params, lengths, init, input))
-      case (
-            x,
-            ExprAccumulator(
-              init,
-              ExprIntermediate(VecBuild(IntCst(1), Function(_, e)))
-            )
-          ) =>
-        // TODO: Generalize this case to handle nested vectors
-        Some((x, Seq.empty, Seq(1), init, e))
       case _ => None
     }
   }

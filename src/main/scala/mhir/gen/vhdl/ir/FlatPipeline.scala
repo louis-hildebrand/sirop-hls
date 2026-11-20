@@ -142,7 +142,7 @@ private[vhdl] case class StmBuildNode(
     val enable = if (options.handshake) "can_update_acc" else "true"
     val architectureStatementPart = this.s.intermediates
       // Emit statements for intermediates
-      .map({ case (x, i: ConcurrentIntermediate) =>
+      .map({ case (x, i: Intermediate) =>
         i.toConcurrentStatement(SignalTarget(x), options, enable = enable)
       })
       .toSeq
@@ -519,7 +519,6 @@ private[vhdl] case class FlatPipeline(
           })
         )
         // Send stream from sink to entity output ports
-        // TODO: What about the ready signal?
         .++(
           if (options.handshake) {
             Seq(

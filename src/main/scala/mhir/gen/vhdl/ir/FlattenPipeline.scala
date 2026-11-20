@@ -265,17 +265,17 @@ object FlattenPipeline {
   private def makeDataRegisterExplicitInSbuild(e: Expr): Expr = {
     e.map(makeDataRegisterExplicitInSbuild).tchk() match {
       case s: StmBuild =>
-        val (newData, newAccumulators) = {
-          // TODO: Simplify this; the TupleSplitter pass should handle it now
-          SplitTupleIntoAccumulators(s.initData, s.nextData, "data")
-        }
+        assert(s.nextData.hasType, "next data expression should have a type")
+        val newData = Param("data")(s.nextData.typ)
+        val newAccumulator =
+          newData -> (s.initData, s.nextData, Tuple()(TyTuple()))
         StmBuild(
           s.n,
           s.delay,
           Undefined(Missing),
           newData,
           s.valid,
-          s.accumulators ++ newAccumulators,
+          s.accumulators + newAccumulator,
           s.producers
         )(annotations = s.annotations).tchk()
       case e => e
@@ -384,64 +384,6 @@ object FlattenPipeline {
       pipe.copy(sbuilds = pipe.sbuilds :+ newNode, sink = newSink)
     } else {
       pipe
-    }
-  }
-}
-
-/** Turns the `data` expression of [[StmBuild]] into a bunch of accumulators
-  * (one for each tuple element, if it's a tuple).
-  *
-  * Splitting up a tuple into multiple arguments makes later passes easier. For
-  * example, DSP selection looks for accumulators whose `next` expression is
-  * basically a multiplication. This is harder to recognize if the
-  * multiplication is buried somewhere in a tuple.
-  */
-private object SplitTupleIntoAccumulators {
-  def apply(
-      initData: Expr,
-      nextData: Expr,
-      prefix: String
-  ): (Expr, Map[Param, (Expr, Expr, Expr)]) = {
-    assert(nextData.hasType, "next data expression should have a type")
-    val splitter = new SplitTupleIntoAccumulators(Map())
-    val newE = splitter.runAndMutateAccumulators(initData, nextData, prefix)
-    val newAccumulators = splitter.accumulators.map({ case (x, (init, next)) =>
-      x -> (init, next, Tuple()().tchk())
-    })
-    (newE, newAccumulators)
-  }
-}
-
-private class SplitTupleIntoAccumulators(
-    var accumulators: Map[Param, (Expr, Expr)]
-) {
-
-  private def runAndMutateAccumulators(
-      init: Expr,
-      next: Expr,
-      prefix: String
-  ): Expr = {
-    assert(next.hasType, "next data expression should have a type")
-    (init, next) match {
-      case (Tuple(initElems @ _*), Tuple(nextElems @ _*)) =>
-        assert(
-          initElems.length == nextElems.length,
-          "init and next tuple should have the same shape"
-        )
-        val newElems = initElems
-          .zip(nextElems)
-          .zipWithIndex
-          .map({ case ((init, next), i) =>
-            this.runAndMutateAccumulators(init, next, s"${prefix}_$i")
-          })
-        Tuple(newElems: _*)().tchk()
-      case (Undefined(TyTuple(ts @ _*)), next: Tuple) =>
-        val splitInit = Tuple(ts.map(Undefined(_)): _*)().tchk()
-        this.runAndMutateAccumulators(splitInit, next, prefix)
-      case (init, next) =>
-        val x = Param(prefix)(next.typ)
-        this.accumulators += (x -> (init, next))
-        x
     }
   }
 }
