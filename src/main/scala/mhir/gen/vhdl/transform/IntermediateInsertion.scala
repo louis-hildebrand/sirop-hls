@@ -59,7 +59,7 @@ object IntermediateInsertion {
         .toSeq: _*
     )
     val pass = new IntermediateInsertion(initialIntermediates, sdata)
-    val newExpr = pass.getExprAndMutateIntermediates(e)
+    val newExpr = pass.getExprAndMutateThis(e)
     (newExpr, pass.intermediates)
   }
 }
@@ -69,210 +69,115 @@ private class IntermediateInsertion(
     var sdata: Map[StmData, Param]
 ) {
 
-  sdata.foreach({
-    case (StmData(p: Param), name) =>
-      this.intermediates += (name -> StmDataIntermediate(p))
-    case (StmData(p), _) =>
-      throw new AssertionError(s"invalid input for sdata: $p")
-  })
-
   def apply(s: GenStmBuild): GenStmBuild = {
-    val data = this.getExprAndMutateIntermediates(s.data)
-    val valid = this.getExprAndMutateIntermediates(s.valid)
+    val data = this.getExprAndMutateThis(s.data)
+    val valid = this.getExprAndMutateThis(s.valid)
     val producers = s.producers.map({ case (x, (p, ready)) =>
-      x -> (p, this.getExprAndMutateIntermediates(ready))
+      x -> (p, this.getExprAndMutateThis(ready))
     })
-    s.intermediates.foreach({
-      case (x, i: SimpleIntermediate) =>
-        val newI = i.map(this.getExprAndMutateIntermediates)
-        this.intermediates += (x -> newI)
-      case (x, BlockIntermediate(locals, body)) =>
-        val subPass = new IntermediateInsertion(ListMap(), this.sdata)
-        val newLocals = locals.map({ case (x, i) =>
-          x -> i.map(subPass.getExprAndMutateIntermediates)
-        })
-        val newBody = body.map(subPass.getExprAndMutateIntermediates)
-        val localsFromSubPass = subPass.intermediates.map({
-          case (x, i: Intermediate) => x -> i
-        })
-        val newBlock =
-          BlockIntermediate(newLocals ++ localsFromSubPass, newBody)
-        this.intermediates += (x -> newBlock)
-      case (x, fgi: ForGenerateIntermediate) =>
-        val subPass = new IntermediateInsertion(ListMap(), this.sdata)
-        val newBody =
-          fgi.body.map(subPass.getPortActualAndMutateIntermediates)
-        val newFgi = if (subPass.intermediates.isEmpty) {
-          ForGenerateIntermediate(
-            fgi.loopVars,
-            fgi.loopBoundsInclusive,
-            newBody
-          )
-        } else {
-          // If an Intermediate doesn't depend on the loop variables, move it out of the loop.
-          // This makes it clear that there should only be one instance of that signal, not one
-          // per loop instantiation.
-          val (locals, outsiders) = subPass.intermediates
-            .partition({ case (x, i: Intermediate) =>
-              i.freeVars.intersect(fgi.loopVars.toSet).nonEmpty ||
-              // Leave functions inside:
-              //  (1) Having a function call a function from an outer scope might mess with
-              //    the pass MakeFreeVarsIntoParams (I should fix that, but it seems easier
-              //    for now to just avoid tricky cases).
-              //  (2) It shouldn't make a difference in resource usage: the function will be
-              //    instantiated once per call site anyway, not once per loop instantiation.
-              x.typ.isInstanceOf[TyArrow]
-            })
-          this.intermediates ++= outsiders
-          ForGenerateIntermediate(
-            fgi.loopVars,
-            fgi.loopBoundsInclusive,
-            BlockIntermediate(
-              locals.map({ case (x, i: Intermediate) => x -> i }),
-              newBody
-            )
-          )
-        }
-        this.intermediates += (x -> newFgi)
-      case (x, _: IpBlockInst) =>
-        // TODO: Handle this case
-        ???
-      case (x, f: FunctionIntermediate) =>
-        throw new AssertionError(
-          s"there should not be any ${f.getClass.getName} yet at this compilation stage"
-            + s" (found function $x)"
-        )
-      case (x, ExprAccumulator(init, next)) =>
-        val newInit = init.map(this.getDataIntermediateAndMutateIntermediates)
-        val newNext = this.getDataIntermediateAndMutateIntermediates(next)
-        this.intermediates += (x -> ExprAccumulator(newInit, newNext))
-      case (x, acc) =>
-        val newAcc = acc.map(this.getExprAndMutateIntermediates)
-        this.intermediates += (x -> newAcc)
-    })
+    s.intermediates.foreach({ case (x, i) => runAndMutateThis(x, i) })
     GenStmBuild(
       data = data,
       valid = valid,
       producers = producers,
       intermediates = this.intermediates
-        .map({ case (x, i: Intermediate) =>
-          x -> i
-        })
     )
   }
 
-  /** Insert intermediates where necessary in the given expression; return the
-    * updated expression and append the necessary intermediates to the
-    * [[intermediates]] field.
-    *
-    * @return
-    *   an expression that can be straightforwardly translated to a VHDL
-    *   expression.
-    */
-  def getExprAndMutateIntermediates(e: Expr): Expr = {
-    val (newE, newIntermediates) =
-      new ExprIntermediateInsertion(ListMap(), this.sdata)
-        .resultAndIntermediates(e)
-    this.intermediates ++= newIntermediates
-    newE
+  private def runAndMutateThis(x: Param, i: Intermediate): Unit = {
+    val newI = this.getIntermediateAndMutateThis(i)
+    this.intermediates += (x -> newI)
   }
 
-  /** Similar to [[getExprAndMutateIntermediates]], except that we want the
-    * result to be a [[SequentialIntermediate]] rather than an [[Expr]]. This
-    * makes it possible to cut out unnecessary intermediates; i.e., instead of
-    * returning an [[ExprIntermediate]] containing a [[Param]] pointing to an
-    * [[Intermediate]]; just return that [[Intermediate]] directly.
-    */
-  private def getDataIntermediateAndMutateIntermediates(
+  private def getIntermediateAndMutateThis(i: Intermediate): Intermediate = {
+    i match {
+      case i: SequentialIntermediate => this.getSeqIntermediateAndMutateThis(i)
+      case ForGenerateIntermediate(loopVars, loopBounds, body) =>
+        val subPass = {
+          // Some intermediates may depend on the loop variables, so I can't necessarily pull
+          // all the intermediates out of the loop.
+          // I need to create a separate IntermediateInsertion instance to keep the two sets of
+          // intermediates separate.
+          new IntermediateInsertion(ListMap(), this.sdata)
+        }
+        val body2 = subPass.getIntermediateAndMutateThis(body)
+        val (locals, outsiders) = subPass.intermediates
+          .partition({ case (_, i: Intermediate) =>
+            // If an Intermediate doesn't depend on the loop variables, move it out of the loop.
+            // This makes it clear that there should only be one instance of that signal, not
+            // one per loop instantiation.
+            i.freeVars.intersect(loopVars.toSet).nonEmpty
+          })
+        this.intermediates ++= outsiders
+        val body3 = BlockIntermediate(locals, body2)
+        ForGenerateIntermediate(loopVars, loopBounds, body3)
+      case BlockIntermediate(locals, body) =>
+        val subPass = new IntermediateInsertion(ListMap(), this.sdata)
+        locals.foreach({ case (x, i) => subPass.runAndMutateThis(x, i) })
+        val newBody = subPass.getIntermediateAndMutateThis(body)
+        BlockIntermediate(subPass.intermediates, newBody)
+      case ip: IpBlockInst =>
+        // This special case is needed to ensure the inputs to the IP blocks are valid "port actuals"
+        ip.map(this.getPortActualAndMutateThis)
+      case ExprAccumulator(init, next) =>
+        // Special case to avoid unnecessary intermediate variables
+        val newInit = init.map(this.getSeqIntermediateAndMutateThis)
+        val newNext = this.getSeqIntermediateAndMutateThis(next)
+        ExprAccumulator(newInit, newNext)
+      case acc: Accumulator => acc.map(this.getExprAndMutateThis)
+    }
+  }
+
+  private def getSeqIntermediateAndMutateThis(
       i: SequentialIntermediate
   ): SequentialIntermediate = {
     i match {
-      case ExprIntermediate(e) =>
-        val (newE, newIntermediates) =
-          new ExprIntermediateInsertion(ListMap(), this.sdata)
-            .resultAndIntermediates(e)
-        newE match {
-          case x: Param =>
-            // Be careful to not remove the intermediate if it's used by
-            // another intermediate.
-            // Intermediates are added to the list in order, so if this is the
-            // last one it's definitely not used anywhere else.
-            newIntermediates.lastOption match {
-              case Some((y, i: SimpleIntermediate)) if y == x =>
-                // Cut out the middleman
-                this.intermediates ++= newIntermediates.init
+      case _: FunctionIntermediate =>
+        throw new AssertionError(
+          "there should not be any FunctionIntermediates yet at this compilation stage"
+        )
+      case i: SimpleIntermediate =>
+        i.map(this.getExprAndMutateThis) match {
+          // If the result ended up being just some variable x, where x is the name of an
+          // intermediate, then remove x and return that intermediate directly.
+          case result @ ExprIntermediate(x: Param) =>
+            this.intermediates.lastOption match {
+              // Be careful to not remove the intermediate if it's used elsewhere.
+              // Intermediates are added to the list in order, so if this is the
+              // last one it's definitely not used anywhere else.
+              case Some((y: Param, i: SequentialIntermediate)) if y == x =>
+                this.intermediates = this.intermediates.init
                 i
-              case None =>
-                this.intermediates ++= newIntermediates
-                ExprIntermediate(newE)
+              case _ => result
             }
-          case _ =>
-            this.intermediates ++= newIntermediates
-            ExprIntermediate(newE)
+          case result => result
         }
-      case i => i.map(this.getExprAndMutateIntermediates)
     }
-  }
-
-  /** Insert intermediates where necessary to turn the given Sirop expression
-    * into a valid "actual_part" in a port map (see VHDL-2002 standard, section
-    * 1.1.1.2).
-    *
-    * @return
-    *   an expression that can be used as an "actual part" in a port map.
-    */
-  private def getPortActualAndMutateIntermediates(e: Expr): Expr = {
-    val newE = this.getExprAndMutateIntermediates(e)
-    if (isValidPortActual(newE)) {
-      newE
-    } else {
-      val tmp = Param("port_map_arg")(newE.typ)
-      this.intermediates += (tmp -> ExprIntermediate(newE))
-      tmp
-    }
-  }
-
-  @tailrec
-  private def isValidPortActual(e: Expr): Boolean = {
-    e match {
-      case _: BoolCst | _: IntCst | _: Param => true
-      case TupleAccess(t, _)                 => isValidPortActual(t)
-      case VecAccess(v, _: IntCst)           => isValidPortActual(v)
-      case _                                 => false
-    }
-  }
-}
-
-private class ExprIntermediateInsertion(
-    var intermediates: ListMap[Param, Intermediate],
-    val sdata: Map[StmData, Param]
-) {
-
-  def resultAndIntermediates(e: Expr): (Expr, ListMap[Param, Intermediate]) = {
-    val result = this.run(e)
-    (result, this.intermediates)
   }
 
   /** Insert intermediates at the appropriate places in the given expression and
     * record them in the [[intermediates]] field.
     *
+    * @return
+    *   an expression that can be straightforwardly translated to a VHDL
+    *   expression.
     * @note
     *   in some cases this will introduce unnecessary intermediates (i.e., the
     *   returned expression is a variable called X, which is used to define an
     *   intermediate but not used anywhere else). However, that can be handled
     *   by the caller (see
-    *   [[IntermediateInsertion.getDataIntermediateAndMutateIntermediates]]).
+    *   [[IntermediateInsertion.getSeqIntermediateAndMutateThis]]).
     */
-  private def run(e: Expr): Expr = {
+  private def getExprAndMutateThis(e: Expr): Expr = {
     e match {
       // --- Variable binders --------------------------------------------------
       // Be careful with variable binders! The variable(s) they introduce are
       // not available in the outer scope, so I'll need to use a different
       // approach within them (e.g., making the body a series of let bindings?).
       case f @ Function(x, body) =>
-        val (newBody, intermediates) =
-          new ExprIntermediateInsertion(ListMap(), this.sdata)
-            .resultAndIntermediates(body)
+        val subPass = new IntermediateInsertion(ListMap(), this.sdata)
+        val newBody = subPass.getExprAndMutateThis(body)
+        val intermediates = subPass.intermediates
         // Some intermediates can be kept within the function (e.g., simple
         // data) and some must be moved out (e.g., another function declaration)
         var innerIntermediates = ListMap[Param, SequentialIntermediate]()
@@ -303,11 +208,8 @@ private class ExprIntermediateInsertion(
         }
         this.intermediates ++= outerIntermediates
         val fName = Param("f")(f.typ)
-        this.intermediates += fName -> FunctionIntermediate(
-          Seq(x),
-          innerIntermediates,
-          newBody
-        )
+        val newFunc = FunctionIntermediate(Seq(x), innerIntermediates, newBody)
+        this.intermediates += (fName -> newFunc)
         fName
       case vb @ VecBuild(nExpr, f) =>
         // TODO: Handle this properly (emit some kind of loop, not a list of
@@ -319,9 +221,9 @@ private class ExprIntermediateInsertion(
             s"VHDL generation is not currently supported with non-constant vbuild length ($nExpr)"
           )
         }
-        val fName = this.run(f)
+        val fName = this.getExprAndMutateThis(f)
         val TyArrow(idxTyp, _) = f.typ
-        this.run(
+        this.getExprAndMutateThis(
           VecLiteral(
             (0 until n.toInt).map(i => FunCall(fName, C(i)(idxTyp))()): _*
           )(if (n == 0) vb.typ else Missing).tchk()
@@ -336,44 +238,44 @@ private class ExprIntermediateInsertion(
         // TODO: Specially handle "if-elseif-else," for readability?
         //       Maybe I can just let the branches in MuxIntermediate be
         //       Intermediates themselves.
-        val c2 = this.run(c)
-        val t2 = this.run(t)
-        val f2 = this.run(f)
+        val c2 = this.getExprAndMutateThis(c)
+        val t2 = this.getExprAndMutateThis(t)
+        val f2 = this.getExprAndMutateThis(f)
         val temp = Param("ite")(t.typ)
         this.intermediates += temp -> MuxIntermediate(c2, t2, f2)
         temp
       case bits @ Bits(e) =>
-        val e2 = this.run(e)
+        val e2 = this.getExprAndMutateThis(e)
         val temp = Param("bits")(bits.typ)
         this.intermediates += temp -> ExprIntermediate(Bits(e2)().tchk())
         temp
       case ia @ InterpretAs(e, targetTyp) =>
-        val e2 = this.run(e)
+        val e2 = this.getExprAndMutateThis(e)
         val temp = Param("interpret_as")(ia.typ)
         this.intermediates += temp -> ExprIntermediate(
           InterpretAs(e2, targetTyp)().tchk()
         )
         temp
       case tup @ Tuple(elems @ _*) =>
-        val elems2 = elems.map(this.run)
+        val elems2 = elems.map(this.getExprAndMutateThis)
         val temp = Param("t")(tup.typ)
         this.intermediates += temp -> ExprIntermediate(
           Tuple(elems2: _*)().tchk()
         )
         temp
       case TupleAccess(t, i) =>
-        val t2 = this.getPrefixAndMutateIntermediates(t)
+        val t2 = this.getPrefixAndMutateThis(t)
         TupleAccess(t2, i)().tchk()
       case vec @ VecLiteral(elems @ _*) =>
-        val elems2 = elems.map(this.run)
+        val elems2 = elems.map(this.getExprAndMutateThis)
         val vec2 =
           VecLiteral(elems2: _*)(if (elems.isEmpty) vec.typ else Missing).tchk()
         val temp = Param("v")(vec.typ)
         this.intermediates += temp -> ExprIntermediate(vec2)
         temp
       case VecAccess(v, i) =>
-        val v2 = this.getPrefixAndMutateIntermediates(v)
-        val i2 = this.run(i)
+        val v2 = this.getPrefixAndMutateThis(v)
+        val i2 = this.getExprAndMutateThis(i)
         VecAccess(v2, i2)().tchk()
       case sd: StmData =>
         this.sdata(sd)
@@ -390,12 +292,29 @@ private class ExprIntermediateInsertion(
         )
 
       // --- Normal case -------------------------------------------------------
-      case e => e.map(this.run).tchk()
+      case e => e.map(this.getExprAndMutateThis).tchk()
     }
   }
 
-  private def getPrefixAndMutateIntermediates(e: Expr): Expr = {
-    this.run(e) match {
+  /** Insert intermediates where necessary to turn the given Sirop expression
+    * into a valid "actual_part" in a port map (see VHDL-2002 standard, section
+    * 1.1.1.2).
+    */
+  private def getPortActualAndMutateThis(e: Expr): Expr = {
+    this.getExprAndMutateThis(e) match {
+      case VhdlPortActual(newE) => newE
+      case newE =>
+        val tmp = Param("port_map_arg")(newE.typ)
+        this.intermediates += (tmp -> ExprIntermediate(newE))
+        tmp
+    }
+  }
+
+  /** Insert intermediates where needed to turn the given Sirop expression into
+    * a valid "prefix" (see IEEE Std 1076-2002 section 6.1).
+    */
+  private def getPrefixAndMutateThis(e: Expr): Expr = {
+    this.getExprAndMutateThis(e) match {
       case VhdlPrefix(e) => e
       case e =>
         val prefix = Param("prefix")(e.typ)
@@ -405,34 +324,30 @@ private class ExprIntermediateInsertion(
   }
 }
 
+private object VhdlPortActual {
+
+  /** Decides whether `e` is a valid `port_actual`.
+    *
+    * See IEEE Std 1076-2002 section 1.1.1.2.
+    */
+  def unapply(e: Expr): Option[Expr] = {
+    Some(e).filter(this.isValidPortActual)
+  }
+
+  @tailrec
+  private def isValidPortActual(e: Expr): Boolean = {
+    e match {
+      case _: BoolCst | _: IntCst | _: Param => true
+      case TupleAccess(t, _)                 => isValidPortActual(t)
+      case VecAccess(v, _: IntCst)           => isValidPortActual(v)
+      case _                                 => false
+    }
+  }
+}
+
 private object VhdlPrefix {
 
-  /** Matches "prefixes" as defined in IEEE Std 1076-2002.
-    *
-    * {{{
-    * prefix ::= name
-    *          | function_call
-    *
-    * name ::= simple_name
-    *        | operator_symbol
-    *        | selected_name
-    *        | indexed_name
-    *        | slice_name
-    *        | attribute_name
-    *
-    * simple_name ::= identifier
-    *
-    * selected_name ::= prefix . suffix
-    *
-    * suffix ::= simple_name
-    *          | character_literal
-    *          | operator_symbol
-    *          | "all"
-    *
-    * indexed_name ::= prefix ( expression { , expression } )
-    *
-    * function_call ::= function_name [ ( actual_parameter_part ) ]
-    * }}}
+  /** Matches "prefixes" as defined in IEEE Std 1076-2002, section 6.1.
     *
     * @note
     *   this method is conservative - if it returns `Some(e)` then `e` is

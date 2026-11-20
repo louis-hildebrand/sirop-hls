@@ -132,9 +132,7 @@ private class MakeFreeVarsIntoParams(
     val innerPass = new MakeFreeVarsIntoParams(
       this.functionContexts ++ innerFunctionContexts
     )
-    val newLocals = block.locals
-      .map({ case (x, i) => innerPass.apply(x, i) })
-      .map({ case (x, i: Intermediate) => x -> i })
+    val newLocals = block.locals.map({ case (x, i) => innerPass.apply(x, i) })
     val newBody = this.apply(block.body)
     BlockIntermediate(newLocals, newBody)
   }

@@ -38,7 +38,7 @@ class DspSelectionTests extends AnyFunSuite {
   private val types = allTypes
   private val pipelines = allPipelines
   private val loops = allLoops
-  test("TODO") {
+  test("CheckTestParams") {
     assert(depths == allDepths)
     assert(types == allTypes)
     assert(pipelines == allPipelines)
