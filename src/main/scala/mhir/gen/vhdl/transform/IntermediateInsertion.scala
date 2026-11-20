@@ -113,8 +113,15 @@ private class IntermediateInsertion(
           // This makes it clear that there should only be one instance of that signal, not one
           // per loop instantiation.
           val (locals, outsiders) = subPass.intermediates
-            .partition({ case (_, i: Intermediate) =>
-              i.freeVars.intersect(fgi.loopVars.toSet).nonEmpty
+            .partition({ case (x, i: Intermediate) =>
+              i.freeVars.intersect(fgi.loopVars.toSet).nonEmpty ||
+              // Leave functions inside:
+              //  (1) Having a function call a function from an outer scope might mess with
+              //    the pass MakeFreeVarsIntoParams (I should fix that, but it seems easier
+              //    for now to just avoid tricky cases).
+              //  (2) It shouldn't make a difference in resource usage: the function will be
+              //    instantiated once per call site anyway, not once per loop instantiation.
+              x.typ.isInstanceOf[TyArrow]
             })
           this.intermediates ++= outsiders
           ForGenerateIntermediate(

@@ -186,17 +186,21 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   ): GenStmBuild = {
     (s.intermediates(macA), s.intermediates(macB)) match {
       case (
-            ForGenerateIntermediate(varsA, boundsA, AgilexMac1(ax, ay, _)),
-            ForGenerateIntermediate(_, boundsB, AgilexMac1(bx, by, _))
-          )
-          // The other lengths should match the length of these lists
-          if boundsA == boundsB =>
+            iA @ ForGenerateIntermediate(varsA, boundsA, AgilexMac1(ax, ay, _)),
+            iB @ ForGenerateIntermediate(varsB, boundsB, AgilexMac1(bx, by, _))
+          ) if boundsA == boundsB =>
         val varsAB = varsA.map(_.freshCopy)
         val newForGen = {
-          val newDsp = {
-            // TODO! I think I forgot to rename the variables here! Will the tests catch it?
-            AgilexMac2(ax, ay, bx, by, chainin, pipeline = 0)
-          }
+          val subsA = varsA.zip(varsAB).toMap[Expr, Expr]
+          val subsB = varsB.zip(varsAB).toMap[Expr, Expr]
+          val newDsp = AgilexMac2(
+            ax.subPreserveType(subsA),
+            ay.subPreserveType(subsA),
+            bx.subPreserveType(subsB),
+            by.subPreserveType(subsB),
+            chainin.subPreserveType(subsA),
+            pipeline = 0
+          )
           ForGenerateIntermediate(varsAB, boundsA, newDsp)
         }
         val TyVecs(bElemTyp: TyAnyInt, bLengths) = macB.typ
@@ -211,6 +215,13 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           VecAccesses(newParam, varsAB).__0
         ).tchk()
         val subs = Map[Expr, Expr](macB -> macBReplacement)
+        assert(
+          newForGen.freeVars == (iA.freeVars ++ iB.freeVars) - macA, {
+            val before = (iA.freeVars ++ iB.freeVars) - macA
+            val after = newForGen.freeVars
+            s"free variables changed: $before to $after"
+          }
+        )
         GenStmBuild(
           data = s.data.subPreserveType(subs),
           valid = s.valid.subPreserveType(subs),

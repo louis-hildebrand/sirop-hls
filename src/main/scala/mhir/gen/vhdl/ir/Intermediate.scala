@@ -336,18 +336,16 @@ case class BlockIntermediate(
       .diff(this.locals.keySet)
   }
 
-  override def substitute(subs: Map[Expr, Expr]): BlockIntermediate = {
-    val willCapture = subs.exists({ case (_, e) =>
-      e.freeVars.intersect(this.locals.keySet).nonEmpty
-    })
-    if (willCapture) {
-      // TODO! Handle variable capture
-      ???
-    }
-    BlockIntermediate(
-      this.locals.map({ case (x, i) => x -> i.substitute(subs) }),
-      this.body.substitute(subs)
+  override def substitute(substitutions: Map[Expr, Expr]): BlockIntermediate = {
+    val (newParams, subs) =
+      Substitution.enterBinder(this.locals.keys.toSeq, substitutions)
+    val newLocals = ListMap(
+      newParams
+        .zip(this.locals.values)
+        .map({ case (x, i) => x -> i.substitute(subs) }): _*
     )
+    val newBody = this.body.substitute(subs)
+    BlockIntermediate(newLocals, newBody)
   }
 
   override def map(f: Expr => Expr): BlockIntermediate = {
@@ -640,7 +638,7 @@ case class ExprAccumulator(
   }
 
   override def map(f: Expr => Expr): ExprAccumulator = {
-    ExprAccumulator(init.map(i => i.map(f)), next.map(f))
+    ExprAccumulator(init.map(_.map(f)), next.map(f))
   }
 
   override def exprChildren: Seq[Expr] = Seq.empty
@@ -757,7 +755,7 @@ case class VecShiftLeftAccumulator(
     )
   }
 
-  override def map(f: Expr => Expr): Accumulator = {
+  override def map(f: Expr => Expr): VecShiftLeftAccumulator = {
     VecShiftLeftAccumulator(
       this.len,
       this.init.map(_.map(f)),
