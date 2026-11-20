@@ -470,3 +470,19 @@ The following stream operators are helpful for taking advantage of this function
     Delays each element of the vector by 1 cycle relative to the previous element.
 
     .. literalinclude:: /code-examples/reference/streams/nohandshake/StmCascade.repl.txt
+
+    .. seealso::
+        :func:`StmCascade2`, which delays index ``i`` by ``i/2`` cycles
+
+        :func:`StmMapDotCascaded`, which expects its input to be cascaded in this way
+
+.. function:: StmCascade2(s: Stm[Vec[T, m], n]): Stm[Vec[T, m], n+(m-1)/2]
+
+    Delays index ``i`` in the vector by ``i/2`` cycles.
+
+    In other words, this is like :func:`StmCascade`, but with the stream first being split into chunks of size 2.
+
+    .. literalinclude:: /code-examples/reference/streams/nohandshake/StmCascade2.repl.txt
+
+    .. seealso::
+        :func:`StmCascade`, which delays index ``i`` by ``i`` cycles

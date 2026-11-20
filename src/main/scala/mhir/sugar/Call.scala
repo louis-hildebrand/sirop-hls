@@ -379,6 +379,11 @@ case class Call(
           case (Seq(), Seq(s)) => StmCascade(s)()
           case _               => error(f)
         }
+      case f @ Param("StmCascade2", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(s)) => StmCascade2(s)()
+          case _               => error(f)
+        }
       case f @ Param("StmMapDotCascaded", -1) =>
         combinedArgs match {
           case (Seq(), Seq(s1, s2, delay)) =>

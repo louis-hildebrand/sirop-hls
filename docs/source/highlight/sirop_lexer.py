@@ -112,6 +112,7 @@ class SiropLexer(RegexLexer):
             (r"\bStmAll\b", token.Name.Builtin),
             (r"\bStmAny\b", token.Name.Builtin),
             (r"\bStmCascade\b", token.Name.Builtin),
+            (r"\bStmCascade2\b", token.Name.Builtin),
             (r"\bStmConcat\b", token.Name.Builtin),
             (r"\bStmCount\b", token.Name.Builtin),
             (r"\bStmCount2D\b", token.Name.Builtin),
