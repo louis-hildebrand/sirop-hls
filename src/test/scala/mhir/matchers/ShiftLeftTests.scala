@@ -77,7 +77,7 @@ class ShiftLeftTests extends AnyFunSuite {
     val e = simplify(VecShiftLeft(v, x)())
     val actual = MapShiftLeft.unapply(e)
     actual match {
-      case Some((Seq(), 3, v1, x1)) =>
+      case Some((Seq(), Seq(3), v1, x1)) =>
         assert(v1.contains(v))
         assert(x1 == x)
       case out =>
@@ -98,7 +98,7 @@ class ShiftLeftTests extends AnyFunSuite {
     )
     val actual = MapShiftLeft.unapply(e)
     actual match {
-      case Some((Seq(_), 4, v1, x1)) =>
+      case Some((Seq(_), Seq(3, 4), v1, x1)) =>
         assert(v1.contains(v))
         assert(x1 == x)
       case out =>
@@ -119,7 +119,27 @@ class ShiftLeftTests extends AnyFunSuite {
     )
     val actual = MapShiftLeft.unapply(e)
     actual match {
-      case Some((Seq(_), 1, None, x1)) =>
+      case Some((Seq(_), Seq(5, 1), None, x1)) =>
+        assert(x1 == x)
+      case out =>
+        fail(s"wrong output: $out")
+    }
+  }
+
+  test("MapShiftLeft:Vec[Vec[u8, 5], 1]") {
+    val x = Param("x")(U8)
+    val v = Param("v")(TyVec(TyVec(U8, 5), 1))
+    val e = simplify(
+      VecMap(
+        v, {
+          val row = Param("row")(TyVec(U8, 5))
+          Function(row, VecShiftLeft(row, x)())()
+        }
+      )()
+    )
+    val actual = MapShiftLeft.unapply(e)
+    actual match {
+      case Some((Seq(_), Seq(1, 5), Some(v), x1)) =>
         assert(x1 == x)
       case out =>
         fail(s"wrong output: $out")
@@ -152,9 +172,11 @@ class ShiftLeftTests extends AnyFunSuite {
     )
     val actual = MapShiftLeft.unapply(e)
     actual match {
-      case Some((Seq(i0, j0), 7, v1, Sum(i1, j1, k1, x1))) =>
+      case Some((Seq(i0, j0), Seq(n0, m0, 7), v1, Sum(i1, j1, k1, x1))) =>
         assert(i0 == i1)
         assert(j0 == j1)
+        assert(n0 == 3)
+        assert(m0 == 2)
         assert(k1 == k)
         assert(v1.contains(v))
         assert(x1 == x)

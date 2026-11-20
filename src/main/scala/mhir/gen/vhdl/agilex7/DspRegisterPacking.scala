@@ -6,6 +6,7 @@ import mhir.gen.vhdl.ir._
 import mhir.gen.vhdl.transform.RemoveUnused
 import mhir.ir._
 import mhir.matchers.VecAccesses
+import mhir.optimize.PartialEvalPass
 import mhir.typecheck._
 
 object DspRegisterPacking {
@@ -24,12 +25,15 @@ object DspRegisterPacking {
     GenStmBuild(
       data = s.data,
       valid = s.valid,
-      accumulators = s.accumulators,
       producers = s.producers,
       intermediates = s.intermediates.map({
         case intermediate @ (
               x,
-              AgilexMac2(ax, ay, bx, by, chainin, pipeline)
+              ForGenerateIntermediate(
+                vars,
+                bounds,
+                AgilexMac2(ax, ay, bx, by, chainin, pipeline)
+              )
             ) =>
           assert(pipeline >= 0)
           assert(pipeline <= 3)
@@ -50,9 +54,16 @@ object DspRegisterPacking {
               chainin,
               pipeline + gobble
             )
-            x -> newMac
+            x -> ForGenerateIntermediate(vars, bounds, newMac)
           }
-        case intermediate @ (x, AgilexMadd(ax, ay, bx, by, pipeline)) =>
+        case intermediate @ (
+              x,
+              ForGenerateIntermediate(
+                vars,
+                bounds,
+                AgilexMadd(ax, ay, bx, by, pipeline)
+              )
+            ) =>
           assert(pipeline >= 0)
           assert(pipeline <= 0)
           // How long is the shift register before each input?
@@ -71,7 +82,7 @@ object DspRegisterPacking {
               by = shortenShiftRegister(s, by, gobble),
               pipeline + gobble
             )
-            x -> newMadd
+            x -> ForGenerateIntermediate(vars, bounds, newMadd)
           }
         case i =>
           i
@@ -82,11 +93,20 @@ object DspRegisterPacking {
   private def countAvailableRegisters(s: GenStmBuild, input: Expr): Int = {
     input match {
       case _: IntCst => Int.MaxValue
-      case VecAccesses(v: Param, Seq(IntCst(i), _*)) =>
-        s.accumulators
+      case VecAccesses(v: Param, vecAccessIndices) =>
+        s.intermediates
           .get(v)
-          .collect({ case VecShiftLeftAccumulator(n, None, _) =>
-            (n - i).toInt
+          .map({
+            case ForGenerateIntermediate(
+                  loopVars,
+                  _,
+                  VecShiftLeftAccumulator(n, None, _)
+                ) =>
+              vecAccessIndices.drop(loopVars.length).headOption match {
+                case Some(IntCst(i)) => (n - i).toInt
+                case _               => 0
+              }
+            case _ => 0
           })
           .getOrElse(0)
       case _ => 0
@@ -100,29 +120,46 @@ object DspRegisterPacking {
   ): Expr = {
     input match {
       case i: IntCst => i
-      case VecAccesses(pipe: Param, Seq(IntCst(i), otherIndices @ _*)) =>
-        val (len, pipeInput) = s.accumulators
+      case VecAccesses(pipe: Param, vecAccessIndices) =>
+        s.intermediates
           .get(pipe)
-          .collect({ case VecShiftLeftAccumulator(len, None, pipeInput) =>
-            (len, pipeInput)
+          .collect({
+            case ForGenerateIntermediate(
+                  loopVars,
+                  _,
+                  VecShiftLeftAccumulator(len, None, pipeInputInLoop)
+                ) =>
+              assert(loopVars.length < vecAccessIndices.length)
+              val IntCst(indexInShiftReg) = vecAccessIndices(loopVars.length)
+              val otherIndices = vecAccessIndices.drop(loopVars.length + 1)
+              val newIndex = indexInShiftReg + gobble
+              assert(len >= 0)
+              assert(newIndex >= 0)
+              assert(newIndex <= len)
+              val newInput = if (newIndex == len) {
+                // pipeInput may refer to the loop variables, so pulling it out just like that
+                // may not be valid.
+                // We need to update the indices to use the ones from the VecAccess instead of
+                // the loop variables.
+                val subs = loopVars.zip(vecAccessIndices).toMap[Expr, Expr]
+                val pipeInput = pipeInputInLoop.subPreserveType(subs)
+                // Bypass the shift register altogether
+                PartialEvalPass.partialEval(
+                  VecAccesses(pipeInput, otherIndices).tchk()
+                )()
+              } else {
+                val shiftReg =
+                  VecAccesses(pipe, vecAccessIndices.take(loopVars.length))
+                VecAccesses(shiftReg, C(newIndex)() +: otherIndices).tchk()
+              }
+              assert(input.hasType, s"missing type for input")
+              assert(
+                newInput.typ == input.typ,
+                s"input started with type ${input.typ} but now has type ${newInput.typ}"
+              )
+              newInput
           })
           .get
-        val newIndex = i + gobble
-        assert(len >= 0)
-        assert(newIndex >= 0)
-        assert(newIndex <= len)
-        val newInput = if (newIndex == len) {
-          // Bypass the shift register altogether
-          VecAccesses(pipeInput, otherIndices).tchk()
-        } else {
-          VecAccesses(pipe, C(newIndex)() +: otherIndices).tchk()
-        }
-        assert(input.hasType, s"missing type for input")
-        assert(
-          newInput.typ == input.typ,
-          s"input started with type ${input.typ} but now has type ${newInput.typ}"
-        )
-        newInput
       case e =>
         throw new IllegalArgumentException(
           s"invalid argument to shortenShiftRegister: $e"

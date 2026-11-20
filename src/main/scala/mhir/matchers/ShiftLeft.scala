@@ -22,21 +22,30 @@ object ShiftLeftSelf {
 
 object MapShiftLeft {
 
-  def unapply(e: Expr): Option[(Seq[Param], Long, Option[Expr], Expr)] = {
+  def unapply(e: Expr): Option[(Seq[Param], Seq[Long], Option[Expr], Expr)] = {
     e match {
-      case ShiftLeft(n, vec, input) =>
-        Some((List.empty, n, vec, input))
       case VecBuild(
-            _,
-            Function(i0, MapShiftLeft(params, len, vec, input))
+            IntCst(n),
+            Function(i0, MapShiftLeft(params, lengths, vec, input))
           ) =>
         vec match {
-          case None => Some((i0 +: params, len, None, input))
-          case Some(VecAccess(vec, i1))
-              if i1 == i0 && !vec.freeVars.contains(i0) =>
-            Some((i0 +: params, len, Some(vec), input))
+          case None =>
+            Some((i0 +: params, n +: lengths, None, input))
+          case Some(VecAccess(vec, i1)) if !vec.freeVars.contains(i0) =>
+            val i1Ok = (i1, vec.typ) match {
+              case _ if i1 == i0                    => true
+              case (IntCst(0), TyVec(_, IntCst(1))) => true
+              case _                                => false
+            }
+            if (i1Ok) {
+              Some((i0 +: params, n +: lengths, Some(vec), input))
+            } else {
+              None
+            }
           case _ => None
         }
+      case ShiftLeft(n, vec, input) =>
+        Some((List.empty, List(n), vec, input))
       case _ => None
     }
   }

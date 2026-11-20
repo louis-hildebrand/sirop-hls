@@ -34,16 +34,11 @@ object VhdlGenerator {
     val pipe0 = time("ANF conversion", Level.DEBUG) {
       FlattenPipeline(f, options)
     }
-    val pipe = transform.ApplyTransformations(pipe0, options)
-    val topComponent = time("converting to VHDL", Level.DEBUG) {
-      if (options.handshake) {
-        handshake.TopVhdl(pipe, options)
-      } else {
-        nohandshake.TopVhdl(pipe, options)
-      }
+    val pipe = time("VHDL gen transformations", Level.DEBUG) {
+      transform.ApplyTransformations(pipe0, options)
     }
     time("writing files", Level.DEBUG) {
-      VhdlWriter.emit(topComponent, dir, options)
+      VhdlWriter.emit(pipe, dir, options)
     }
     pipe
   }
@@ -97,6 +92,7 @@ object VhdlGenerator {
     }
   }
 
+  // TODO: Isn't this logic duplicated?
   def valueToStdLogicVector(v: Expr): String = {
     mhir.eval.eval(v).tchk() match {
       case Undefined(typ) =>

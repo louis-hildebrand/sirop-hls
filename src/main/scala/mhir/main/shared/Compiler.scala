@@ -626,7 +626,7 @@ object Compiler {
         finalProgram,
         options,
         outDir,
-        designUsesIpBlocks = pipe.usesIpBlocks
+        designUsesIpBlocks = pipe.usesVendorIpBlocks
       )
     } else {
       logger.info(

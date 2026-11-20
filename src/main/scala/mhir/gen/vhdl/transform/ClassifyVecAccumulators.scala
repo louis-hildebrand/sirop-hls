@@ -4,7 +4,7 @@ package transform
 import mhir.canonicalize._
 import mhir.gen.vhdl.ir._
 import mhir.ir._
-import mhir.matchers.ShiftLeft
+import mhir.matchers.MapShiftLeft
 import mhir.typecheck._
 
 object ClassifyVecAccumulators {
@@ -13,15 +13,24 @@ object ClassifyVecAccumulators {
     GenStmBuild(
       data = s.data,
       valid = s.valid,
-      accumulators = s.accumulators.map({
-        case VecWrite(x, cond, index, value) =>
-          x -> VecWriteAccumulator(cond, index, value)
-        case VecShiftLeft(x, len, init, next) =>
-          x -> VecShiftLeftAccumulator(len, init, next)
-        case eqn => eqn
-      }),
       producers = s.producers,
-      intermediates = s.intermediates
+      intermediates = s.intermediates.map({
+        case (x, a: Accumulator) =>
+          (x, a) match {
+            case VecWrite(x, cond, index, value) =>
+              x -> VecWriteAccumulator(cond, index, value)
+            case VecMapShiftLeft(x, params, lengths, None, next) =>
+              // TODO: Handle the case where init != None as well?
+              assert(lengths.size == params.size + 1)
+              x -> ForGenerateIntermediate(
+                params,
+                lengths.init.map(n => (n - 1).toInt),
+                VecShiftLeftAccumulator(lengths.last, None, next)
+              )
+            case a => a
+          }
+        case i => i
+      })
     )
   }
 }
@@ -87,28 +96,25 @@ private object VecWrite {
   }
 }
 
-private object VecShiftLeft {
+private object VecMapShiftLeft {
 
   def unapply(
       arg: (Param, Accumulator)
-  ): Option[(Param, Long, Option[DataIntermediate], Expr)] = {
+  ): Option[
+    (Param, Seq[Param], Seq[Long], Option[SequentialIntermediate], Expr)
+  ] = {
     arg match {
       case (
             x0,
             ExprAccumulator(
               init,
-              ExprIntermediate(ShiftLeft(n, x1, input))
+              ExprIntermediate(MapShiftLeft(params, lengths, x1, input))
             )
           ) if x1.forall(_ == x0) =>
-        Some((x0, n, init, input))
-      case (
-            x,
-            ExprAccumulator(
-              init,
-              ExprIntermediate(VecBuild(IntCst(1), Function(_, e)))
-            )
-          ) =>
-        Some((x, 1, init, e))
+        // The parameter for the innermost vector (the one being shifted) doesn't
+        // matter and is therefore not returned by MapShiftLeft
+        assert(lengths.size == params.size + 1)
+        Some((x0, params, lengths, init, input))
       case _ => None
     }
   }

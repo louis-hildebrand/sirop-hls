@@ -170,9 +170,39 @@ case class StmOutputScheduler(
 
   private def doMoveZeroDelayToConsumer(e: Expr): ComputationSchedule = {
     e match {
-      // TODO: Handle these special cases too?
-      case _: VecBuild => InProducer(e)
-      case _: FunCall  => InProducer(e)
+      // TODO: Handle this special case too?
+      case _: FunCall => InProducer(e)
+
+      case VecBuild(n, Function(i, e)) =>
+        doMoveZeroDelayToConsumer(e) match {
+          case InProducer(e) =>
+            InProducer(VecBuild(n, Function(i, e)())().tchk())
+          case InConsumer(cData, pData) =>
+            // If any expressions in the producer depend on the index `i`,
+            // those expressions must be turned into vectors and uses of those
+            // expressions must be turned into vector accesses
+            val renamings = pData
+              .filter({ case (_, e) => e.freeVars.contains(i) })
+              .keySet
+              .map({ x =>
+                val y = Param("tmp")(TyVec(x.typ, n))
+                x -> y
+              })
+              .toMap
+            val cDataSubs = renamings
+              .map({ case (x, y) => x -> VecAccess(y, i)().tchk() })
+              .toMap[Expr, Expr]
+            val newCData =
+              VecBuild(n, Function(i, cData.subPreserveType(cDataSubs))())()
+                .tchk()
+            val newPData = pData.map({ case (x, e) =>
+              renamings.get(x) match {
+                case Some(y) => y -> VecBuild(n, Function(i, e)())().tchk()
+                case None    => x -> e
+              }
+            })
+            InConsumer(newCData, newPData)
+        }
 
       // Nodes with no delay
       case e @ (_: BoolCst | _: IntCst | _: TupleAccess | _: VecAccess |
