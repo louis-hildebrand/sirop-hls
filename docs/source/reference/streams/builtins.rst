@@ -434,7 +434,7 @@ The following stream operators are helpful for taking advantage of this function
         Added the type parameter ``T`` to control the type of the output stream.
 
     Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
-    ``s1`` and ``s2`` must be cascaded, like the output of :func:`StmCascade`.
+    ``s1`` and ``s2`` must be cascaded like the output of :func:`StmCascade`.
 
     ``delay`` is the number of internal registers to enable in the DSPs.
     Increasing this number will increase the design's latency and increase its maximum clock frequency.
@@ -463,7 +463,36 @@ The following stream operators are helpful for taking advantage of this function
     .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDotCascaded_invalid_type.repl.txt
 
     .. seealso::
-        :func:`StmMapDot`, which is more user-friendly, but may require more registers
+        :func:`StmMapDot`, which is more user-friendly but may require more registers
+
+.. function:: StmMapDotCascaded2:[T = u44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[T, n-(m-1)/2] :: I, J, and K are unsigned integer types; T is an integer type
+              StmMapDotCascaded2:[T = i44](s1: Stm[Vec[I, m], n], s2: Stm[Vec[J, m], n], delay: K): Stm[T, n-(m-1)/2] :: I, J, and T are integer types; K is an unsigned integer type
+
+    .. versionadded:: 2.4.0
+
+    Computes the dot product of each vector in ``s1`` with the corresponding vector in ``s2``.
+    ``s1`` and ``s2`` must be cascaded like the output of :func:`StmCascade2`.
+
+    ``delay`` is the number of internal registers to enable in the DSPs.
+    Increasing this number will increase the design's latency and increase its maximum clock frequency.
+    It may also affect the design's resource usage, depending on the context.
+
+    :func:`StmMapDotCascaded2` is implemented so that it maps to the ``m18x18_sumof2`` mode for the Agilex DSPs, with the chainin/chainout ports enabled.
+
+    .. WARNING::
+        If the type ``T`` is wider than 64 bits, :func:`StmMapDotCascaded2` cannot be implemented using the ``m18x18_sumof2`` DSP mode.
+        (64 is the maximum width of the ``chainout`` DSP port in this mode.)
+        In this case, consider using :func:`StmMapDotTree` instead, which supports wider outputs.
+
+    .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDotCascaded2.repl.txt
+
+    .. WARNING::
+        It must be possible to losslessly convert the input integers to the target type.
+
+    .. literalinclude:: /code-examples/reference/streams/nohandshake/StmMapDotCascaded2_invalid_type.repl.txt
+
+    .. seealso::
+        :func:`StmMapDotCascaded`, whose inputs should be cascaded using :func:`StmCascade` rather than :func:`StmCascade2`
 
 .. function:: StmCascade(s: Stm[Vec[T, m], n]): Stm[Vec[T, m], n+m-1]
 
@@ -478,6 +507,8 @@ The following stream operators are helpful for taking advantage of this function
 
 .. function:: StmCascade2(s: Stm[Vec[T, m], n]): Stm[Vec[T, m], n+(m-1)/2]
 
+    .. versionadded:: 2.4.0
+
     Delays index ``i`` in the vector by ``i/2`` cycles.
 
     In other words, this is like :func:`StmCascade`, but with the stream first being split into chunks of size 2.
@@ -486,3 +517,5 @@ The following stream operators are helpful for taking advantage of this function
 
     .. seealso::
         :func:`StmCascade`, which delays index ``i`` by ``i`` cycles
+
+        :func:`StmMapDotCascaded2`, which expects its input to be cascaded in this way

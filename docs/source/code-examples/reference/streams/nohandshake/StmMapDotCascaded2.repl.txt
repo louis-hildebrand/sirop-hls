@@ -1,0 +1,67 @@
+> __handshake = false
+> __show_prefix = true
+>
+> u = [[ 1:i16, 2:i16, 3:i16,  4:i16, 5:i16]v, [ 3:i16, 4:i16, 5:i16, 6:i16,  7:i16]v]s
+> v = [[-1:i16, 2:i16, 3:i16, -9:i16, 8:i16]v, [-9:i16, 3:i16, 3:i16, 7:i16, -2:i16]v]s
+> // dot([1, 2, 3, 4, 5], [-1, 2, 3, -9, 8]) = 16
+> // dot([3, 4, 5, 6, 7], [-9, 3, 3, 7, -2]) = 28
+>
+> StmMapDotCascaded2(u.StmCascade2(), v.StmCascade2(), /*delay*/ 0)
+[
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44
+]s ++ [
+  16:i44,
+  28:i44
+]s
+> StmMapDotCascaded2(u.StmCascade2(), v.StmCascade2(), /*delay*/ 1)
+[
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44
+]s ++ [
+  16:i44,
+  28:i44
+]s
+> StmMapDotCascaded2(u.StmCascade2(), v.StmCascade2(), /*delay*/ 2)
+[
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44,
+  undefined:i44
+]s ++ [
+  16:i44,
+  28:i44
+]s
+>
+> // By default, the output type is either i44 (see above) or u44 (if both
+> // input streams contain unsigned integers).
+> // But you can also specify the output type.
+> StmMapDotCascaded2:[i40](u.StmCascade2(), v.StmCascade2(), /*delay*/ 0)
+[
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40,
+  undefined:i40
+]s ++ [
+  16:i40,
+  28:i40
+]s

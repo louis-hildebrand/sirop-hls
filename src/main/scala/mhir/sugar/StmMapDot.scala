@@ -315,6 +315,233 @@ case class StmMapDotCascaded(
   }
 }
 
+case class StmMapDotCascaded2(
+    s1: Expr,
+    s2: Expr,
+    delay: Expr,
+    targetTyp: Type = TyTuple()
+)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(s1, s2, delay)(typ) {
+
+  override def rebuild(
+      typ: Type,
+      newChildren: Seq[Expr]
+  ): StmMapDotCascaded2 = {
+    newChildren match {
+      case Seq(s1, s2, d) => StmMapDotCascaded2(s1, s2, d, this.targetTyp)(typ)
+      case _              => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): StmMapDotCascaded2 = {
+    val s1 = this.s1.tchk(context, constValues)
+    val (elemTyp1, n, m) = s1.typ match {
+      case TyStm(TyVec(t: TyAnyInt, m), n) =>
+        (t, n, m)
+      case t =>
+        throw new TypeError(
+          s"First stream in $className has type $t."
+            + s" Expected a stream of vectors."
+        )
+    }
+    val s2 = this.s2.tchk(context, constValues)
+    val elemTyp2 = s2.typ match {
+      case TyStm(TyVec(t: TyAnyInt, m2), n2) =>
+        if (!c.sameLen(n, n2, constValues)) {
+          throw new TypeError(
+            s"Second stream in $className has length $n2."
+              + s" Expected a stream of length $n.",
+            TypeChecker.relevantBindingsE(constValues, n, n2)
+          )
+        }
+        if (!c.sameLen(m, m2, constValues)) {
+          throw new TypeError(
+            s"Second stream in $className contains vectors of length $m2."
+              + s" Expected vectors of length $m.",
+            TypeChecker.relevantBindingsE(constValues, m, m2)
+          )
+        }
+        t
+      case t =>
+        throw new TypeError(
+          s"Second stream in $className has type $t." +
+            s" Expected a stream of vectors."
+        )
+    }
+    val delay = this.delay.tchk(context, constValues).expectUInt()
+    val outElemTyp = this.targetTyp match {
+      case TyTuple() =>
+        (elemTyp1, elemTyp2) match {
+          case (_: TyUInt, _: TyUInt) => U44
+          case _                      => I44
+        }
+      case int @ TyAnyInt(w) =>
+        if (w > 64) {
+          SL.logger.warn(
+            s"$className will not use the DSPs when the output type ($int) is wider than 64 bits"
+          )
+        }
+        int
+      case typ =>
+        throw new TypeError(s"invalid output type for $className: $typ")
+    }
+    if (!ReshapeData.canReshape(elemTyp1, outElemTyp, constValues)) {
+      throw new TypeError(
+        s"Elements of type $elemTyp1 in first stream of $className cannot be reshaped to $outElemTyp.",
+        TypeChecker.relevantBindings(constValues, elemTyp1, outElemTyp)
+      )
+    }
+    if (!ReshapeData.canReshape(elemTyp2, outElemTyp, constValues)) {
+      throw new TypeError(
+        s"Elements of type $elemTyp2 in second stream of $className cannot be reshaped to $outElemTyp.",
+        TypeChecker.relevantBindings(constValues, elemTyp2, outElemTyp)
+      )
+    }
+    val outLen = SmartDiff(n, SmartDiv(SmartDiff(m, 1)(), 2)())().tchk()
+    this.rebuild(TyStm(outElemTyp, outLen), Seq(s1, s2, delay))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val TyStm(TyVec(t1: TyAnyInt, m), _) = this.s1.typ
+    m match {
+      case IntCst(mLong) if mLong > 0 =>
+        val m = mLong.toInt
+        val s1 = this.s1.lower
+        val s2 = this.s2.lower
+        val delay = this.delay.lower
+        val TyStm(int, outLen) = this.typ
+        val TyStm(TyVec(t2, _), _) = this.s2.typ
+        val p1 = Param("p1")(TyStm(TyVec(t1, m), -1))
+        val p2 = Param("p2")(TyStm(TyVec(t2, m), -1))
+        val stageVars = (0 until (m + 1) / 2)
+          .map(i => Param(s"stage$i")(int))
+        val pipeAxVars = (0 until (m + 1) / 2)
+          .map(i => Param(s"stage${i}_ax_pipe")(TyVec(t1, delay)))
+        val pipeAyVars = (0 until (m + 1) / 2)
+          .map(i => Param(s"stage${i}_ay_pipe")(TyVec(t2, delay)))
+        val pipeBxVars = (0 until (m + 1) / 2)
+          .map(i => Param(s"stage${i}_bx_pipe")(TyVec(t1, delay)))
+        val pipeByVars = (0 until (m + 1) / 2)
+          .map(i => Param(s"stage${i}_by_pipe")(TyVec(t2, delay)))
+        // IMPORTANT: stages must be an ordered sequence (not a Map!), since I
+        // extract the last element later on
+        val stages: Seq[(Param, (Expr, Expr, Expr))] = stageVars.zipWithIndex
+          .map({ case (x, i) =>
+            val ax = Mux(
+              delay === 0,
+              VecAccess(StmData(p1)(), 2 * i)(),
+              VecAccess(pipeAxVars(2 * i), C(0)())()
+            )().tchk()
+            val ay = Mux(
+              delay === 0,
+              VecAccess(StmData(p2)(), 2 * i)(),
+              VecAccess(pipeAyVars(2 * i), C(0)())()
+            )().tchk()
+            // TODO! Avoid OOB vector accesses when vector length is odd
+            val bx = Mux(
+              delay === 0,
+              VecAccess(StmData(p1)(), 2 * i + 1)(),
+              VecAccess(pipeAxVars(2 * i + 1), C(0)())()
+            )().tchk()
+            val by = Mux(
+              delay === 0,
+              VecAccess(StmData(p2)(), 2 * i + 1)(),
+              VecAccess(pipeAyVars(2 * i + 1), C(0)())()
+            )().tchk()
+            val chainin = if (i == 0) C(0)() else stageVars(i - 1)
+            val next = SmartSum(
+              chainin,
+              Prod(ReshapeData(ax, int)(), ReshapeData(ay, int)())(),
+              Prod(ReshapeData(bx, int)(), ReshapeData(by, int)())()
+            )().tchk()
+            x -> (Undefined(int), next, Tuple()())
+          })
+        val pipeAx = pipeAxVars.zipWithIndex
+          .map({ case (x, i) =>
+            val next =
+              VecShiftLeft(x, VecAccess(StmData(p1)(), C(i)())())().tchk().lower
+            x -> (Undefined(x.typ), next, Tuple()())
+          })
+          .toMap
+        val pipeAy = pipeAyVars.zipWithIndex
+          .map({ case (x, i) =>
+            val next =
+              VecShiftLeft(x, VecAccess(StmData(p2)(), C(i)())())().tchk().lower
+            x -> (Undefined(x.typ), next, Tuple()())
+          })
+          .toMap
+        val pipeBx = pipeBxVars.zipWithIndex
+          .map({ case (x, i) =>
+            val next =
+              VecShiftLeft(x, VecAccess(StmData(p1)(), C(i)())())().tchk().lower
+            x -> (Undefined(x.typ), next, Tuple()())
+          })
+          .toMap
+        val pipeBy = pipeByVars.zipWithIndex
+          .map({ case (x, i) =>
+            val next =
+              VecShiftLeft(x, VecAccess(StmData(p2)(), C(i)())())().tchk().lower
+            x -> (Undefined(x.typ), next, Tuple()())
+          })
+          .toMap
+        val (_, (_, lastStage, _)) = stages.last
+        val totDelay =
+          SafeSum(C(math.max(0, stages.length - 1))(), delay)().tchk().lower
+        // Extend the input streams so I don't get "attempt to read from an
+        // empty stream" errors
+        val s1Extended = Call(
+          Param("StmExtendBy", -1)(Missing),
+          Seq(),
+          Seq(s1, delay)
+        ).tchk()
+        val s2Extended = Call(
+          Param("StmExtendBy", -1)(Missing),
+          Seq(),
+          Seq(s2, delay)
+        ).tchk()
+        // Instruct the optimizer not to delete these shift registers
+        val sink = Tuple(
+          pipeAxVars ++ pipeAyVars ++ pipeBxVars ++ pipeByVars: _*
+        )().tchk().lower
+        Call(
+          Param("StmDrop", -1)(Missing),
+          Seq(),
+          Seq(
+            StmBuild(
+              SafeSum(outLen, totDelay)(),
+              C(1)(),
+              Undefined(int),
+              lastStage,
+              True,
+              pipeAx ++ pipeAy ++ pipeBx ++ pipeBy ++ stages.init.toMap,
+              Map[Param, (Expr, Expr, Expr)](
+                p1 -> (s1Extended, True, C(0)()),
+                p2 -> (s2Extended, True, C(0)())
+              )
+            )()
+              .annotateWithName("StmMapDotCascaded2")
+              .annotate(SinkAnnotation(sink)),
+            totDelay
+          )
+        ).tchk().lower
+      case IntCst(0) =>
+        // TODO! Test this case
+        val TyStm(int, n) = this.typ
+        StmBuild(n, C(1)(), Undefined(int), C(0)(int), True, Map(), Map())()
+          .tchk()
+      case e =>
+        throw new TypeError(
+          s"$className is not applicable when the vectors have length $e."
+            + s" Only non-negative, constant lengths are supported."
+        )
+    }
+  }
+}
+
 case class StmMapDotTree(
     s1: Expr,
     s2: Expr,
