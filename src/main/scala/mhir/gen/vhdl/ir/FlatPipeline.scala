@@ -145,6 +145,7 @@ private[vhdl] case class StmBuildNode(
       .map({ case (x, i: Intermediate) =>
         i.toConcurrentStatement(SignalTarget(x), options, enable = enable)
       })
+      .filterNot(_.isBlank)
       .toSeq
       // Emit statement to write output data
       .:+({

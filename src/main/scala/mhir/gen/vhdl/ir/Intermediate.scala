@@ -563,9 +563,9 @@ case class MuxIntermediate(c: Expr, t: Expr, f: Expr)
     }
     // See IEEE Std 1076-2002 section 8.7
     s"""if ($c) then
-       |$sequenceOfStatementsIfTrue
+       |${indent(sequenceOfStatementsIfTrue)}
        |else
-       |$sequenceOfStatementsIfFalse
+       |${indent(sequenceOfStatementsIfFalse)}
        |end if;
        |""".stripMargin.stripTrailing
   }
