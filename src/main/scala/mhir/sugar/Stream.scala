@@ -887,6 +887,56 @@ case class StmCascade(s: Expr)(typ: Type = Missing)
   }
 }
 
+case class StmCascade2(s: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(s)(typ) {
+
+  override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
+    newChildren match {
+      case Seq(s) => StmCascade2(s)(typ)
+      case _      => throw new BadRebuildError(this, newChildren)
+    }
+  }
+
+  override def typecheck(
+      context: Map[Param, Type],
+      constValues: Map[Param, Expr]
+  )(implicit c: Canonicalizer): Expr = {
+    val s = this.s.tchk(context, constValues)
+    val (elemTyp, n, m) = s.typ match {
+      case TyStm(TyVec(TyData(t), m), n) => (t, n, m)
+      case typ =>
+        throw new TypeError(
+          s"Input to $className has type $typ."
+            + s" Expected a stream of vectors."
+        )
+    }
+    val outLen = ToUnsigned(
+      SafeSum(n, SmartDiv(SafeSum(m, C(-1)())(), C(2)())())()
+    )().tchk()
+    this.rebuild(TyStm(TyVec(elemTyp, m), outLen), Seq(s))
+  }
+
+  override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
+    requireType()
+    val TyStm(TyVec(elemTyp, m), _) = this.s.typ
+    StmMap(
+      StmCascade(
+        StmMap(
+          s, {
+            val v = Param("v")(TyVec(elemTyp, m))
+            val paddedLen = SafeProd(SmartDiv(SafeSum(m, 1)(), 2)(), 2)()
+            val paddedV = VecTake(v, paddedLen)()
+            Function(v, VecSplit(paddedV, 2)())()
+          }
+        )
+      )(), {
+        val v = Param("v")()
+        Function(v, VecTake(VecJoin(v)(), m)())()
+      }
+    ).tchk().lower
+  }
+}
+
 case class StmFold(s: Expr, z: Expr, f: Expr)
     extends UnresolvedSyntaxSugar(s, z, f) {
 
