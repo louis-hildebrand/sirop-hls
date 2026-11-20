@@ -2,7 +2,7 @@ const n: u32 = 10
 const m: u32 = (n -% 1:u32) / 2:u32
 const coeffs: Vec[u16, m] = vbuild(m) { (_: u32) => 5:u16 }
 
-accelerator[no_handshake] add5 = (original: Stm[Vec[u16, m], n]) =>
+accelerator[no_handshake, head(original)=undefined] add5 = (original: Stm[Vec[u16, m], n]) =>
     original
     .StmMap( (v) =>
         v.VecZip(coeffs)
@@ -10,9 +10,11 @@ accelerator[no_handshake] add5 = (original: Stm[Vec[u16, m], n]) =>
         /* head= */ VecCst(m, 0:u16)
     )
 
+const m2: u32 = m
+
 assert {
     original = [
-        undefined:Vec[u16, 4]
+        undefined:Vec[u16, m2]
     ]s ++ [
         [ 0:u16,  1:u16,  2:u16,  3:u16]v,
         [ 4:u16,  5:u16,  6:u16,  7:u16]v,

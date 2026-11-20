@@ -1,6 +1,7 @@
 package mhir.optimize
 
 import com.typesafe.scalalogging.Logger
+import mhir.delay.{Latency, LatencyAnalysis, LatencyConcrete, LatencyMatcher}
 import mhir.ir._
 import mhir.logging.time
 import mhir.optimize.cost.SimpleDelayCostModel
@@ -23,12 +24,12 @@ class Optimizer(
     binOpBalancer: BinOpTreeBalancingPass,
     unusedDataRemover: UnusedDataRemover,
     headByParam: Map[Param, Expr],
-    inputDelays: Map[Param, Expr]
+    latencyByParam: Map[Param, Latency]
 ) {
 
   private implicit val logger: Logger = Logger(getClass.getName)
 
-  def optimize(s: Expr): Expr = {
+  def optimize(s: Expr): (Expr, Map[Param, InputDelayConcrete]) = {
     logger.trace(s"optimizing expression: $s")
 
     // No flag to skip this step because
@@ -83,16 +84,16 @@ class Optimizer(
       s3_3
     }
 
-    val s5 = {
-      val s4_1 = latencyMatcher.matchLatencies(
+    val (s5, delayUpdates) = {
+      val (s4_1, delayUpdates) = latencyMatcher.matchLatencies(
         s4,
         headByParam = headByParam,
-        inputDelays = inputDelays
+        latencyByParam = latencyByParam
       )
       // In no_handshake mode, some new shift registers may have appeared and
       // it may be possible to merge these with existing ones
       val s4_2 = simplifier.simplify(s4_1)
-      s4_2
+      (s4_2, delayUpdates)
     }
 
     val s6 = unusedDataRemover.removeUnusedData(s5)
@@ -110,18 +111,18 @@ class Optimizer(
 
     val delayCost = delay.rawCost(s9)
     val delayCostPercent =
-      100 * (delayCost / delay.FullCycleDelay.toDouble)
+      100 * (delayCost / delay.MaxCost.toDouble)
     logger.debug(
       f"final combinational delay cost: $delayCostPercent%.0f%% of maximum"
     )
-    if (delayCost > delay.FullCycleDelay) {
+    if (delayCost > delay.MaxCost) {
       logger.warn(
         f"combinational delay cost is $delayCostPercent%.0f%% of maximum."
           + " Design may not meet timing requirements."
       )
     }
 
-    s9
+    (s9, delayUpdates)
   }
 }
 
@@ -130,7 +131,7 @@ object Optimizer {
       options: OptimizerOptions,
       handshake: Boolean,
       headByParam: Map[Param, Expr],
-      inputDelays: Map[Param, Expr]
+      latencyByParam: Map[Param, Latency]
   ): Optimizer = {
     val stmBuildSimplifier =
       StmBuildSimplifier(enabled = options.simplifyStmBuild)
@@ -141,7 +142,10 @@ object Optimizer {
       BinOpTreeBalancingPass(enabled = options.balanceBinOpTrees)
     val binOpBalancerWithLogging =
       BinOpTreeBalancingPassWithLogging(binOpBalancer)
-    val delayCostModel = SimpleDelayCostModel(madd = options.madd)
+    val delayCostModel = SimpleDelayCostModel(
+      targetFmaxMHz = options.targetFmaxMHz,
+      madd = options.madd
+    )
     val fusionPass = StmFusionPass(
       simplifier = stmBuildSimplifier,
       delayCostModel = delayCostModel,
@@ -175,7 +179,7 @@ object Optimizer {
             latencyAnalysis = latencyAnalysis,
             handshake = handshake,
             assumeThroughputsMatch = options.assumeThroughputsMatch,
-            inputDelays = inputDelays
+            latencyByParam = latencyByParam
           )
         )
       } else {
@@ -197,7 +201,7 @@ object Optimizer {
       binOpBalancerWithLogging,
       unusedDataRemover,
       headByParam = headByParam,
-      inputDelays = inputDelays
+      latencyByParam = latencyByParam
     )
   }
 }

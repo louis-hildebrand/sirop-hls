@@ -40,7 +40,7 @@ case class AccelDecl(
     body: Expr,
     annotations: Map[String, Expr],
     annotationsByParam: Map[(String, Param), Expr],
-    inputDelays: Map[Param, Expr]
+    inputDelays: Map[Param, InputDelay]
 ) {
 
   def alphaEquals(that: AccelDecl): Boolean = {

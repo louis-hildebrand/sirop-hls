@@ -58,6 +58,10 @@ Output Arguments:
   --out:vhdl:absorb-out-reg        absorb the final output register into the
                                    preceding shift register, even if there is
                                    something like a logical AND in between.
+  --out:vhdl:no-dsp-ip-blocks      disable DSP selection. Instead of emitting
+                                   IP blocks for multiplication, the compiler
+                                   will emit code that uses the VHDL *
+                                   operator.
 
   --out:pp (FILE|-)                pretty-print the final program to the given
                                    file, or to stdout if argument "-" is given
@@ -79,6 +83,8 @@ Optimization Flags:
   --opt:no-fuse                   skip the greedy stream fusion pass
   --opt:no-fission                skip the stream fission pass
   --opt:no-latmatch               skip the latency matching pass
+  --opt:no-latmatch-in-tests      do not adjust the latency of the test input
+                                  streams to match the delay annotations
   --opt:no-remove-unused-data     skip the unused data removal pass
   --opt:no-static-buf-shrink      skip static letstm buffer shrinking
   --opt:max-let-buf-size SIZE     maximum buffer size for letstm

@@ -1,0 +1,11 @@
+> __handshake = true
+>
+> [1:u8, 2:u8, 3:u8, 4:u8]s.StmTake(5)
+EvalError: stuck (attempt to read from an empty stream).
+>
+> // Taking 4 elements from a stream of length 2 (!!!)
+> [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s.StmTake(2).StmTake(4)
+EvalError: stuck (attempt to read from an empty stream).
+> // Just taking 4 directly would have been fine
+> [1:u8, 2:u8, 3:u8, 4:u8, 5:u8]s.StmTake(4)
+[1:u8, 2:u8, 3:u8, 4:u8]s

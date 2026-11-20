@@ -1,0 +1,348 @@
+package mhir.delay
+
+import com.typesafe.scalalogging.Logger
+import mhir.canonicalize._
+import mhir.ir._
+import mhir.logging.time
+import mhir.optimize.StreamFuser.StmBuildFusion
+import mhir.optimize.{
+  AllUsed,
+  PartialEvalPass,
+  UnusedDataAnalysis,
+  UnusedDataRemover
+}
+import mhir.sugar.nohandshake.StmMap
+import mhir.sugar.{ExprLowering, StmDelay}
+import mhir.typecheck._
+import org.slf4j.event.Level
+
+trait LatencyMatcher {
+  def enabled: Boolean
+  def disabled: Boolean = !enabled
+
+  def matchLatencies(
+      e: Expr,
+      headByParam: Map[Param, Expr],
+      // TODO: Maybe this should be a Map[Param, InputDelay] rather than a Map[Param, Latency]
+      latencyByParam: Map[Param, Latency]
+  ): (Expr, Map[Param, InputDelayConcrete])
+}
+
+object LatencyMatcher {
+
+  def apply(
+      latencyAnalysis: LatencyAnalysis,
+      unusedDataRemover: UnusedDataRemover,
+      handshake: Boolean,
+      enabled: Boolean = true
+  ): LatencyMatcher = {
+    if (enabled) {
+      EnabledLatencyMatcher(
+        latencyAnalysis,
+        unusedDataRemover,
+        handshake = handshake
+      )
+    } else {
+      DisabledLatencyMatcher(latencyAnalysis)
+    }
+  }
+}
+
+/** Transformation that tries to match the latency of different nodes (e.g.,
+  * branches of a [[mhir.ir.LetStm]], different accelerator inputs).
+  *
+  * If successful, the transformation may increase resource usage slightly but
+  * decrease the initiation interval, which should decrease the total latency
+  * and therefore increase the real throughput (i.e., total elements / total
+  * cycles).
+  */
+class EnabledLatencyMatcher(
+    latencyAnalysis: LatencyAnalysis,
+    unusedDataRemover: UnusedDataRemover,
+    implicit val logger: Logger,
+    handshake: Boolean
+) extends LatencyMatcher {
+
+  private case class Head(e: Expr, warning: Option[String])
+
+  private var warnings = Set[String]()
+
+  override def enabled: Boolean = true
+
+  /** Inserts extra [[mhir.ir.StmBuild]]s in the stream pipeline to try to match
+    * the latency across different branches in [[mhir.ir.LetStm]]s.
+    *
+    * @param e
+    *   the stream pipeline to process.
+    */
+  def matchLatencies(
+      e: Expr,
+      headByParam: Map[Param, Expr],
+      latencyByParam: Map[Param, Latency]
+  ): (Expr, Map[Param, InputDelayConcrete]) = {
+    time("latency matching", Level.DEBUG) {
+      // TODO: move this unwrapping and wrapping out of this method?
+      val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
+      val latencyWithAuto =
+        latencyAnalysis.idealLatency(body, latencyByParam)
+      val delayUpdates = latencyAnalysis.solveForAutoDelays(
+        body,
+        latencyWithAuto,
+        latencyByParam
+      )
+      val latencyConcrete =
+        latencyAnalysis.idealLatency(
+          body,
+          latencyByParam ++ delayUpdates.map({ case (x, d) =>
+            x -> LatencyConcrete(d)
+          })
+        )
+      val newBody = matchLatencies(
+        body,
+        latencyConcrete,
+        headByParam.map({ case (x, v) => x -> Head(v, None) })
+      )
+      this.logAndClearWarnings()
+      val newE = TypeChecker.wrapTopLevelFunction(inputs, newBody)
+      (
+        newE,
+        delayUpdates.map({ case (x, d) =>
+          x -> InputDelayConcrete(C(d)().tchk())
+        })
+      )
+    }
+  }
+
+  private def logAndClearWarnings(): Unit = {
+    for (msg <- this.warnings) {
+      logger.warn(msg)
+    }
+    this.warnings = Set[String]()
+  }
+
+  private def matchLatencies(
+      e: Expr,
+      lat: LatencyNode,
+      headByVar: Map[Param, Head]
+  ): Expr = {
+    lat match {
+      case _: LatencySource => e
+      case LatencyStmBuild(_, localEpoch, producersLat) =>
+        assert(
+          e.isInstanceOf[StmBuild],
+          s"expression $e does not correspond to latency node $lat"
+        )
+        val s0 = e.asInstanceOf[StmBuild]
+        assert(
+          s0.producers.keySet == producersLat.keySet,
+          "stream producers in expression do not match latency node" +
+            s" (${s0.producers.keySet} vs ${producersLat.keySet})"
+        )
+        var producersToFuseWith = Set[Param]()
+        val s1 = s0
+          .mapProducers({ case (x, (p0, ready, delayExpr)) =>
+            val p = matchLatencies(p0, producersLat(x), headByVar)
+            (localEpoch, delayExpr, producersLat(x).latency) match {
+              case (
+                    Some(localEpoch),
+                    IntCst(delay),
+                    LatencyConcrete(actualLatency)
+                  ) =>
+                // TODO: be smarter about where to insert the delay. Maybe the bitwidth of the stream will be lower at an earlier point in the pipeline
+                val expectedLatency = localEpoch + delay.toInt
+                assert(
+                  expectedLatency >= actualLatency,
+                  "can't perform latency matching if the current latency is greater than the target latency"
+                )
+                val Head(head, warning) = findInitData(p, headByVar)
+                if (expectedLatency - actualLatency > 0) {
+                  warning match {
+                    case None          => ()
+                    case Some(warning) => this.warnings += warning
+                  }
+                }
+                val deltaDelay = expectedLatency - actualLatency
+                assert(
+                  deltaDelay >= 0,
+                  "amount of latency to add must be non-negative"
+                )
+                val newP = if (deltaDelay == 0) {
+                  p
+                } else if (this.handshake) {
+                  increaseLatency(p, deltaDelay, head)
+                } else {
+                  producersToFuseWith += x
+                  val uses = UnusedDataAnalysis(x).findUnused(s0)
+                  uses match {
+                    case AllUsed =>
+                      PartialEvalPass.partialEval(
+                        StmDelay(p, deltaDelay, head)().tchk().lower
+                      )
+                    case uses =>
+                      assert(!this.handshake)
+                      assert(head.hasType)
+                      val transform =
+                        this.unusedDataRemover.makeFunction(uses, head.typ)
+                      val inverseTransform = this.unusedDataRemover
+                        .makeInverseFunction(uses, head.typ)
+                      PartialEvalPass.partialEval(
+                        StmMap(
+                          StmDelay(
+                            StmMap(p, transform, FunCall(transform, head)())(),
+                            deltaDelay,
+                            FunCall(transform, head)()
+                          )(),
+                          inverseTransform,
+                          head
+                        )()
+                          .tchk()
+                          .lower
+                          .asInstanceOf[StmBuild]
+                          .fuseWithUnique()
+                          .asInstanceOf[StmBuild]
+                          .fuseWithUnique()
+                      )
+                  }
+                }
+                x -> (newP, ready, delayExpr)
+              case _ =>
+                x -> (p, ready, delayExpr)
+            }
+          })
+          .tchk()
+          .asInstanceOf[StmBuild]
+        val s2 = producersToFuseWith.foldLeft(s1)({ case (s, x) =>
+          s.fuseWith(x)
+        })
+        // TODO: re-run shift register merging?
+        PartialEvalPass.partialEval(s2)
+      case LatencyLetStm(_, inLat, outLat) =>
+        assert(
+          e.isInstanceOf[LetStm],
+          s"expression $e does not correspond to latency node $lat"
+        )
+        val LetStm(bufSize, x, in, out) = e.asInstanceOf[LetStm]
+        val newIn = matchLatencies(in, inLat, headByVar)
+        val newHeadByVar = headByVar + (x -> findInitData(newIn, headByVar))
+        val newOut = matchLatencies(out, outLat, newHeadByVar)
+        LetStm(bufSize, x, newIn, newOut)().tchk()
+    }
+  }
+
+  private def findInitData(e: Expr, headByVar: Map[Param, Head]): Head = {
+    if (this.handshake) {
+      Head(Undefined(Missing), None)
+    } else {
+      e match {
+        case s: StmBuild => Head(s.initData, None)
+        case x: Param =>
+          headByVar.get(x) match {
+            case Some(e) => e
+            case None    =>
+              // No need for a warning here; the compiler should have already emitted one earlier
+              Head(Undefined(Missing), None)
+          }
+        case LetStm(_, x, in, out) =>
+          val inHead = findInitData(in, headByVar)
+          findInitData(out, headByVar + (x -> inHead))
+        case StmLiteral(Seq(head, _*), _) =>
+          Head(head, None)
+        case s @ StmLiteral(Seq(), _) =>
+          val undefined = s.typ match {
+            case TyStm(elemTyp, _) => Undefined(elemTyp)
+            case _                 =>
+              // The latency matching code should still be fine in this case,
+              // but the warning message will be incomplete; undefined should
+              // have a type annotation here.
+              Undefined(Missing)
+          }
+          val warning = (
+            s"no physical prefix specified for stream literal $s."
+              + " The latency matcher will delay the stream by prepending undefined elements."
+              + s" To dismiss this warning, add a physical prefix (e.g., [$undefined]s ++ $s)."
+          )
+          Head(undefined, Some(warning))
+        case _ => ???
+      }
+    }
+  }
+
+  private def increaseLatency(s: Expr, delay: Int, head: Expr): Expr = {
+    require(s.typ != Missing)
+    if (delay <= 0) {
+      s
+    } else {
+      val TyStm(t, n) = s.typ
+      val acc = Param("s")(TyStm(t, -1))
+      StmBuild(
+        n,
+        C(1)(),
+        head,
+        StmData(acc)(),
+        True,
+        accumulators = Map(),
+        producers = Map[Param, (Expr, Expr, Expr)](
+          acc -> (increaseLatency(s, delay - 1, head), True, C(0)())
+        )
+      )().tchk()
+    }
+  }
+}
+
+object EnabledLatencyMatcher {
+
+  def apply(
+      latencyAnalysis: LatencyAnalysis,
+      unusedDataRemover: UnusedDataRemover,
+      handshake: Boolean
+  ): EnabledLatencyMatcher = {
+    val scalaLogger = Logger(classOf[EnabledLatencyMatcher].getName)
+    new EnabledLatencyMatcher(
+      latencyAnalysis = latencyAnalysis,
+      unusedDataRemover = unusedDataRemover,
+      logger = scalaLogger,
+      handshake = handshake
+    )
+  }
+}
+
+class DisabledLatencyMatcher(latencyAnalysis: LatencyAnalysis)
+    extends LatencyMatcher {
+
+  private val logger: Logger = Logger(getClass.getName)
+  private var hasLogged: Boolean = false
+
+  override def enabled: Boolean = false
+
+  override def matchLatencies(
+      e: Expr,
+      headByParam: Map[Param, Expr],
+      latencyByParam: Map[Param, Latency]
+  ): (Expr, Map[Param, InputDelayConcrete]) = {
+    if (!hasLogged) {
+      hasLogged = true
+      logger.debug("latency matching is disabled")
+    }
+    val (inputs, body) = TypeChecker.unwrapTopLevelFunction(e)
+    val latencyWithAuto = latencyAnalysis.idealLatency(body, latencyByParam)
+    val delayUpdates = latencyAnalysis.solveForAutoDelays(
+      body,
+      latencyWithAuto,
+      latencyByParam
+    )
+    val newE = TypeChecker.wrapTopLevelFunction(inputs, body)
+    (
+      newE,
+      delayUpdates.map({ case (x, d) =>
+        x -> InputDelayConcrete(C(d)().tchk())
+      })
+    )
+  }
+}
+
+object DisabledLatencyMatcher {
+
+  def apply(latencyAnalysis: LatencyAnalysis): DisabledLatencyMatcher = {
+    new DisabledLatencyMatcher(latencyAnalysis)
+  }
+}

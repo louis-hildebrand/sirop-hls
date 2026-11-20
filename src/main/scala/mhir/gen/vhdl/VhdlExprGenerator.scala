@@ -115,7 +115,7 @@ private object VhdlExprGenerator {
         elems.zipWithIndex
           .map({ case (e, i) => s"i_$i => ${toVhdl(e)}" })
           .mkString("(", ", ", ")")
-      case TupleAccess(t, IntCst(i)) => s"${toVhdl(t)}.i_$i"
+      case TupleAccess(t, IntCst(i)) => makeTupleAccess(toVhdl(t), i)
 
       case v @ VecLiteral() =>
         VhdlConversionGenerator.fromStdLogicVector(
@@ -188,5 +188,9 @@ private object VhdlExprGenerator {
       val rhs = makeProduct(rightFactors, bitWidth)
       s"truncate(($lhs) * ($rhs), $bitWidth)"
     }
+  }
+
+  private[vhdl] def makeTupleAccess(tuple: String, index: Long): String = {
+    s"$tuple.i_$index"
   }
 }

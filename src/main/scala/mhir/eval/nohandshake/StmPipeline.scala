@@ -214,6 +214,14 @@ private[eval] object StmPipeline {
             )
         }
       })
+    val absoluteDelayToFirst = myEpoch + outDelay.toInt
+    if (absoluteDelayToFirst < 0) {
+      val name = s.nameAnnotation.getOrElse("sbuild")
+      throw InvalidLatency(
+        s"the absolute latency in $name is $absoluteDelayToFirst."
+          + " The absolute latency must be non-negative."
+      )
+    }
     StmBuildNode(
       pipe = pipe,
       data = eval(s.initData),
@@ -225,7 +233,7 @@ private[eval] object StmPipeline {
           .map({ case (x, (_, next, _)) => x -> next }),
         typ = s.typ.asInstanceOf[TyStm],
         loc = loc,
-        absoluteDelayToFirst = myEpoch + outDelay.toInt,
+        absoluteDelayToFirst = absoluteDelayToFirst,
         absoluteDelayToLast = (myEpoch + outDelay + n - 1).toInt,
         absoluteDelayByAccumulator = delayByAccumulator
       ),

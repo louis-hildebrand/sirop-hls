@@ -4,12 +4,17 @@ package nohandshake
 import mhir.ir._
 import mhir.typecheck._
 
-case class StmDrop(s: Expr, k: Expr, head: Expr)(typ: Type = Missing)
+case class StmDrop(
+    s: Expr,
+    k: Expr,
+    head: Expr,
+    sourceName: String = "StmDrop"
+)(typ: Type = Missing)
     extends ResolvedSyntaxSugar(s, k, head)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s, k, head) => StmDrop(s, k, head)(typ)
+      case Seq(s, k, head) => StmDrop(s, k, head, this.sourceName)(typ)
       case _               => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -23,7 +28,7 @@ case class StmDrop(s: Expr, k: Expr, head: Expr)(typ: Type = Missing)
       case TyStm(t, n) => (t, n)
       case t           => throw new TypeError(s"Stream in StmDrop has type $t.")
     }
-    val k = this.k.tchk(context, constValues).expectUInt()
+    val k = this.k.tchk(context, constValues).expectAnyInt()
     val elemTyp = innerTyp.lower match {
       case TyStm(TyData(t), _) => t
       case TyData(t)           => t
@@ -67,7 +72,7 @@ case class StmDrop(s: Expr, k: Expr, head: Expr)(typ: Type = Missing)
     )()
       .annotate(NoOutputsAfterLastIn)
       .annotate(NoInputsAfterLastOut)
-      .annotateWithName("StmDrop")
+      .annotateWithName(this.sourceName)
       .tchk()
   }
 }

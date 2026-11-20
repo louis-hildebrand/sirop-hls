@@ -13,19 +13,22 @@ from helpers import assert_equals, TestFailed
 import constants as c
 
 
-IP_BLOCK_REGEX = re.compile(r"(entity work\.[a-zA-Z_]+)$")
+IP_BLOCK_REGEX = re.compile(r"(entity work\.[a-zA-Z0-9_]+)$")
 ENTITY_IGNORE_REGEX = re.compile(
     r"entity work\.(?:"
-    # Only used by dsp_systolic_signed.vhd and dsp_systolic_unsigned.vhd.
-    # Other files will use the signed and unsigned variants.
-    "dsp_systolic"
     # Not IP blocks.
-    "|dual_port_ram"
+    "dual_port_ram"
     "|letstm_buf"
     "|multi_consumer_ram"
     "|sbuild.*"
     "|start_delay"
     "|stm_nop"
+    # Only used by dsp_systolic_signed.vhd and dsp_systolic_unsigned.vhd.
+    # Other files will use the signed and unsigned variants.
+    "|dsp_systolic"
+    # Only used by dsp_sumof2_signed.vhd and dsp_sumof2_unsigned.vhd.
+    # Other files will use the signed and unsigned variants.
+    "|dsp_sumof2"
     # Close group
     ")"
 )
@@ -56,6 +59,11 @@ def uses_file(p: Path) -> bool:
         and p.with_suffix("").with_suffix("").with_suffix(".sirop").is_file()
     ):
         return True
+    if (
+        p.name.endswith(".vhdl.quartus_syn.txt")
+        and p.with_suffix("").with_suffix("").with_suffix(".sirop").is_file()
+    ):
+        return True
     return False
 
 
@@ -71,15 +79,17 @@ def can_run(src: Path) -> bool:
         return True
     if src.with_suffix(".vhdl.ip.txt").is_file():
         return True
+    if src.with_suffix(".vhdl.quartus_syn.txt").is_file():
+        return True
     return False
 
 
-def run(src: Path, cli_args: list[str], save: bool) -> bool:
+def run(src: Path, skip_quartus: bool, cli_args: list[str], save: bool) -> bool:
     """
     Test that the VHDL code looks OK (files generated, interface of the top-level entity).
     """
     name = src.with_suffix("").relative_to(c.RESOURCES).as_posix()
-    print(f"{name} (VHDL) ... ", end="", flush=True)
+    print(f"{name} (vhdl) ... ", end="", flush=True)
     vhdl_dir = c.ACTUAL_OUTPUTS / name
     result = subprocess.run(
         [
@@ -105,26 +115,48 @@ def run(src: Path, cli_args: list[str], save: bool) -> bool:
         expected_out_path = src.with_suffix(".vhdl.stderr.txt")
         if expected_out_path.is_file():
             assert_equals("stderr", actual_stderr_file, expected_out_path, save=save)
+        print(Fore.GREEN + "OK" + Style.RESET_ALL)
+
         # Check file tree (if applicable)
         expected_tree_path = src.with_suffix(".vhdl.tree.txt")
         if expected_tree_path.is_file():
+            print(f"{name} (vhdl - tree) ... ", end="", flush=True)
             actual_tree_path = c.ACTUAL_OUTPUTS / f"{name}.vhdl.tree.txt"
             actual_tree_path.write_text(_get_tree(vhdl_dir), encoding="utf-8")
             assert_equals("file structure", actual_tree_path, expected_tree_path, save=save)
+            print(Fore.GREEN + "OK" + Style.RESET_ALL)
+
         # Check entity interface (if applicable)
         expected_interface_path = src.with_suffix(".vhdl.interface.txt")
         if expected_interface_path.is_file():
+            print(f"{name} (vhdl - interface) ... ", end="", flush=True)
             actual_interface_path = c.ACTUAL_OUTPUTS / f"{name}.vhdl.interface.txt"
             actual_interface_path.write_text(_get_interface(vhdl_dir), encoding="utf-8")
             assert_equals("interface", actual_interface_path, expected_interface_path, save=save)
+            print(Fore.GREEN + "OK" + Style.RESET_ALL)
+
         # Check IP blocks (if applicable)
         expected_ip_blocks_path = src.with_suffix(".vhdl.ip.txt")
         if expected_ip_blocks_path.is_file():
+            print(f"{name} (vhdl - ip) ... ", end="", flush=True)
             actual_ip_blocks_path = c.ACTUAL_OUTPUTS / f"{name}.vhdl.ip.txt"
             actual_ip_blocks_path.write_text(_get_ip_blocks(vhdl_dir), encoding="utf-8")
             assert_equals("IP blocks", actual_ip_blocks_path, expected_ip_blocks_path, save=save)
-        print(Fore.GREEN + "OK" + Style.RESET_ALL)
+            print(Fore.GREEN + "OK" + Style.RESET_ALL)
+
+        # Check synthesis (if applicable)
+        expected_quartus_syn_path = src.with_suffix(".vhdl.quartus_syn.txt")
+        if expected_quartus_syn_path.is_file():
+            print(f"{name} (vhdl - quartus_syn) ... ", end="", flush=True)
+            if skip_quartus:
+                print(Fore.YELLOW + "SKIP" + Style.RESET_ALL)
+            else:
+                actual_quartus_syn_path = c.ACTUAL_OUTPUTS / f"{name}.vhdl.quartus_syn.txt"
+                _check_quartus_syn(vhdl_dir, actual_quartus_syn_path)
+                print(Fore.GREEN + "OK" + Style.RESET_ALL)
+
         return True
+
     except TestFailed as e:
         print(Fore.RED + str(e) + Style.RESET_ALL)
         return False
@@ -206,3 +238,26 @@ def _get_ip_blocks_in_file(vhd_file: Path) -> list[str]:
                 else:
                     matched_text += line + "\n"
     return all_ip_blocks
+
+
+def _check_quartus_syn(vhdl_dir: Path, actual_out_path: Path) -> None:
+    actual_out_path = actual_out_path.resolve()
+    cwd = os.getcwd()
+    os.chdir(vhdl_dir)
+    try:
+        qpf_paths = list(vhdl_dir.glob("*.qpf"))
+        if len(qpf_paths) != 1:
+            raise TestFailed(f"{len(qpf_paths)} .QPF FILES FOUND")
+        qpf_path = qpf_paths[0]
+        with open(actual_out_path, "wb") as f:
+            result = subprocess.run(
+                ["quartus_syn", qpf_path.as_posix()],
+                check=False,
+                encoding="utf-8",
+                stdout=f,
+                stderr=subprocess.STDOUT,
+            )
+        if result.returncode != 0:
+            raise TestFailed(f"WRONG STATUS CODE (expected 0 but got {result.returncode})")
+    finally:
+        os.chdir(cwd)

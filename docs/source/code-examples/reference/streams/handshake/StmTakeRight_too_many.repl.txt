@@ -1,0 +1,4 @@
+> __handshake = true
+>
+> [1:u8, 2:u8, 3:u8]s.StmTakeRight(4)
+EvalError: 'valid' expression in StmTakeRight evaluated to undefined:bool

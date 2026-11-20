@@ -1,0 +1,252 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity dsp_sumof2 is
+
+    generic(
+        AX_WIDTH        : natural;
+        AY_WIDTH        : natural;
+        BX_WIDTH        : natural;
+        BY_WIDTH        : natural;
+        RESULT_WIDTH    : natural;
+        PIPELINE        : natural;
+        USE_SIGNED      : boolean);
+    port(
+        clk         : in    std_logic;
+        ena         : in    std_logic;
+        ax          : in    std_logic_vector(AX_WIDTH-1 downto 0);
+        ay          : in    std_logic_vector(AY_WIDTH-1 downto 0);
+        bx          : in    std_logic_vector(BX_WIDTH-1 downto 0);
+        by          : in    std_logic_vector(BY_WIDTH-1 downto 0);
+        result      : out   std_logic_vector(RESULT_WIDTH-1 downto 0));
+
+    pure function ite(c: boolean; t: string; f: string) return string is
+    begin
+        if c then
+            return t;
+        else
+            return f;
+        end if;
+    end function;
+
+    pure function ite(c: boolean; t: natural; f: natural) return natural is
+    begin
+        if c then
+            return t;
+        else
+            return f;
+        end if;
+    end function;
+
+    constant MAXIMUM_AX_WIDTH : natural := 18;
+    constant MAXIMUM_AY_WIDTH : natural := ite(USE_SIGNED, 19, 18);
+    constant MAXIMUM_BX_WIDTH : natural := 18;
+    constant MAXIMUM_BY_WIDTH : natural := ite(USE_SIGNED, 19, 18);
+    constant MAXIMUM_RESULT_WIDTH : natural := 64;
+    constant CLIPPED_RESULT_WIDTH : natural := ite(RESULT_WIDTH > MAXIMUM_RESULT_WIDTH, MAXIMUM_RESULT_WIDTH, RESULT_WIDTH);
+    constant MAXIMUM_PIPELINE : natural := 3;
+
+begin
+
+    assert(AX_WIDTH <= MAXIMUM_AX_WIDTH)
+    report "invalid value for generic AX_WIDTH: " & integer'image(AX_WIDTH) & " (expected value <= " & integer'image(MAXIMUM_AX_WIDTH) & ")"
+    severity ERROR;
+
+    assert(AY_WIDTH <= MAXIMUM_AY_WIDTH)
+    report "invalid value for generic AY_WIDTH: " & integer'image(AY_WIDTH) & " (expected value <= " & integer'image(MAXIMUM_AY_WIDTH) & ")"
+    severity ERROR;
+
+    assert(BX_WIDTH <= MAXIMUM_BX_WIDTH)
+    report "invalid value for generic BX_WIDTH: " & integer'image(BX_WIDTH) & " (expected value <= " & integer'image(MAXIMUM_BX_WIDTH) & ")"
+    severity ERROR;
+
+    assert(BY_WIDTH <= MAXIMUM_BY_WIDTH)
+    report "invalid value for generic BY_WIDTH: " & integer'image(BY_WIDTH) & " (expected value <= " & integer'image(MAXIMUM_BY_WIDTH) & ")"
+    severity ERROR;
+
+    assert(PIPELINE <= MAXIMUM_PIPELINE)
+    report "invalid value for generic PIPELINE: " & integer'image(PIPELINE) & " (expected value <= " & integer'image(MAXIMUM_PIPELINE) & ")"
+    severity ERROR;
+
+end entity;
+
+library tennm;
+use tennm.tennm_components.tennm_mac;
+
+architecture structural of dsp_sumof2 is
+
+    signal full_ena : std_logic_vector(2 downto 0);
+    signal clipped_result : std_logic_vector(CLIPPED_RESULT_WIDTH-1 downto 0);
+
+begin
+
+    full_ena <= (others => ena);
+
+    DSP : component tennm_mac
+    generic map(
+        LPM_TYPE                        => "tennm_mac",
+        OPERATION_MODE                  => "m18x18_sumof2",
+        -- Input A
+        SIGNED_MAX                      => ite(USE_SIGNED, "true", "false"),
+        AX_WIDTH                        => AX_WIDTH,
+        AX_CLKEN                        => ite(PIPELINE >= 1, "0", "no_reg"),
+        SIGNED_MAY                      => ite(USE_SIGNED, "true", "false"),
+        AY_SCAN_IN_WIDTH                => AY_WIDTH,
+        AY_SCAN_IN_CLKEN                => ite(PIPELINE >= 1, "0", "no_reg"),
+        -- Input B
+        SIGNED_MBX                      => ite(USE_SIGNED, "true", "false"),
+        BX_WIDTH                        => BX_WIDTH,
+        BX_CLKEN                        => ite(PIPELINE >= 1, "0", "no_reg"),
+        SIGNED_MBY                      => ite(USE_SIGNED, "true", "false"),
+        BY_WIDTH                        => BY_WIDTH,
+        BY_CLKEN                        => ite(PIPELINE >= 1, "0", "no_reg"),
+        -- Chainin
+        USE_CHAINADDER                  => "false",
+        -- vopt produces the following error when CHAIN_INOUT_WIDTH is 0:
+        -- "Length of expected is 1; length of actual is 0."
+        CHAIN_INOUT_WIDTH               => 1,
+        -- Output
+        RESULT_A_WIDTH                  => CLIPPED_RESULT_WIDTH,
+        RESULT_B_WIDTH                  => 0,
+        OUTPUT_CLKEN                    => "0",
+        -- Pipelining
+        -- Counterintuitively, if you're only enabling one of these two
+        -- registers, it has to be SECOND_PIPELINE_CLKEN.
+        -- Error(20082): Input pipeline register for DSP block WYSIWYG
+        --     primitive [...] can only be enabled when (1) Pre-adder and/or
+        --     Internal coefficient feature and input register and output
+        --     register are used, OR (2) Input register and second pipeline
+        --     register are used, OR (3) Input register, second pipeline
+        --     register and output register are used.
+        INPUT_PIPELINE_CLKEN            => ite(PIPELINE >= 3, "0", "no_reg"),
+        SECOND_PIPELINE_CLKEN           => ite(PIPELINE >= 2, "0", "no_reg"),
+        INPUT_SYSTOLIC_CLKEN            => "no_reg",
+        SUB_SYSTOLIC_REG                => "no_reg",
+        NEGATE_SYSTOLIC_REG             => "no_reg",
+        -- Input C (never used)
+        SIGNED_MCX                      => "false",
+        CX_WIDTH                        => 0,
+        CX_CLKEN                        => "no_reg",
+        SIGNED_MCY                      => "false",
+        CY_WIDTH                        => 0,
+        CY_CLKEN                        => "no_reg",
+        -- Input D (never used)
+        SIGNED_MDX                      => "false",
+        DX_WIDTH                        => 0,
+        DX_CLKEN                        => "no_reg",
+        SIGNED_MDY                      => "false",
+        DY_WIDTH                        => 0,
+        DY_CLKEN                        => "no_reg",
+        -- Input E (never used)
+        SIGNED_MEX                      => "false",
+        EX_WIDTH                        => 0,
+        EX_CLKEN                        => "no_reg",
+        SIGNED_MEY                      => "false",
+        EY_WIDTH                        => 0,
+        EY_CLKEN                        => "no_reg",
+        -- Input F (never used)
+        SIGNED_MFX                      => "false",
+        FX_WIDTH                        => 0,
+        FX_CLKEN                        => "no_reg",
+        SIGNED_MFY                      => "false",
+        FY_WIDTH                        => 0,
+        FY_CLKEN                        => "no_reg",
+        -- Subtraction (never used),
+        SUB_CLKEN                       => "no_reg",
+        -- Input cascade (never used)
+        DELAY_SCAN_OUT_AY               => "false",
+        DELAY_SCAN_OUT_BY               => "false",
+        SCAN_OUT_WIDTH                  => 0,
+        -- Pre-adder (never used)
+        OPERAND_SOURCE_MAY              => "input",
+        OPERAND_SOURCE_MBY              => "input",
+        PREADDER_SUBTRACT_A             => "false",
+        PREADDER_SUBTRACT_B             => "false",
+        AZ_WIDTH                        => 0,
+        AZ_CLKEN                        => "no_reg",
+        BZ_WIDTH                        => 0,
+        BZ_CLKEN                        => "no_reg",
+        -- Internal coefficients (never used)
+        OPERAND_SOURCE_MAX              => "input",
+        OPERAND_SOURCE_MBX              => "input",
+        COEF_SEL_A_CLKEN                => "no_reg",
+        COEF_SEL_B_CLKEN                => "no_reg",
+        COEF_A_0                        => 0,
+        COEF_A_1                        => 0,
+        COEF_A_2                        => 0,
+        COEF_A_3                        => 0,
+        COEF_A_4                        => 0,
+        COEF_A_5                        => 0,
+        COEF_A_6                        => 0,
+        COEF_A_7                        => 0,
+        COEF_B_0                        => 0,
+        COEF_B_1                        => 0,
+        COEF_B_2                        => 0,
+        COEF_B_3                        => 0,
+        COEF_B_4                        => 0,
+        COEF_B_5                        => 0,
+        COEF_B_6                        => 0,
+        COEF_B_7                        => 0,
+        -- Accumulator (never used)
+        ACCUMULATE_CLKEN                => "no_reg",
+        ACCUM_PIPELINE_CLKEN            => "no_reg",
+        ACCUM_2ND_PIPELINE_CLKEN        => "no_reg",
+        ENABLE_DOUBLE_ACCUM             => "false",
+        NEGATE_CLKEN                    => "no_reg",
+        LOAD_CONST_CLKEN                => "no_reg",
+        LOAD_CONST_VALUE                => 0,
+        LOAD_CONST_PIPELINE_CLKEN       => "no_reg",
+        LOAD_CONST_2ND_PIPELINE_CLKEN   => "no_reg",
+        -- Clear signal (never used)
+        CLEAR_TYPE                      => "none"
+    )
+    port map(
+        clk                 => clk,
+        ena                 => full_ena,
+        ax                  => ax,
+        ay                  => ay,
+        bx                  => bx,
+        by                  => by,
+        resulta             => clipped_result,
+        -- Other parameters (never used)
+        chainin             => open,
+        chainout            => open,
+        accumulate          => open,
+        -- Quartus produces the following error when clr is left open:
+        -- Error(15360): DSP block WYSIWYG primitive [...] has unconnected port
+        --     CLR[0] -- port must be connected because corresponding register
+        --     is used
+        clr                 => (others => '0'),
+        az                  => open,
+        bz                  => open,
+        cx                  => open,
+        cy                  => open,
+        dx                  => open,
+        dy                  => open,
+        ex                  => open,
+        ey                  => open,
+        fx                  => open,
+        fy                  => open,
+        coefsela            => open,
+        coefselb            => open,
+        loadconst           => open,
+        negate              => open,
+        scanin              => open,
+        sub                 => open,
+        dfxlfsrena          => open,
+        dfxmisrena          => open,
+        disable_chainout    => open,
+        disable_scanin      => open,
+        resultb             => open,
+        scanout             => open
+    );
+
+    gen_result_signed : if USE_SIGNED generate
+        result <= std_logic_vector(resize(signed(clipped_result), RESULT_WIDTH));
+    end generate;
+    gen_result_unsigned : if not USE_SIGNED generate
+        result <= std_logic_vector(resize(unsigned(clipped_result), RESULT_WIDTH));
+    end generate;
+
+end architecture;

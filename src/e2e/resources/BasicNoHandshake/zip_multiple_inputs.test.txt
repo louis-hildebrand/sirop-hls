@@ -1,4 +1,7 @@
-[INFO ] the design has a latency of 7 cycles
+[INFO ] schedule:
+[INFO ]   a @ 0
+[INFO ]   b @ 0
+[INFO ]   output @ 7
 [INFO ] test 0: PASSED
 [INFO ] test 1: PASSED
 [INFO ] 2/2 tests passed!

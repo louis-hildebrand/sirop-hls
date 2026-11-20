@@ -336,8 +336,19 @@ case class Call(
         }
       case f @ Param("StmTake", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s, k)) => StmTake(s, k)()
-          case _                  => error(f)
+          case (Seq(), Seq(s, k))       => StmTake(s, k)()
+          case (Seq(), Seq(s, k, head)) => StmTake(s, k, head)()
+          case _                        => error(f)
+        }
+      case f @ Param("StmTakeRight", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(s, k)) if handshake =>
+            mhir.sugar.handshake.StmTakeRight(s, k)()
+          case (Seq(), Seq(s, k)) if !handshake =>
+            mhir.sugar.nohandshake.StmTakeRight(s, k, Undefined(Missing))()
+          case (Seq(), Seq(s, k, head)) if !handshake =>
+            mhir.sugar.nohandshake.StmTakeRight(s, k, head)()
+          case _ => error(f)
         }
       case f @ Param("StmDrop", -1) =>
         combinedArgs match {
@@ -348,6 +359,12 @@ case class Call(
           case (Seq(), Seq(s, k, head)) if !handshake =>
             mhir.sugar.nohandshake.StmDrop(s, k, head)()
           case _ => error(f)
+        }
+      case f @ Param("StmDropRight", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(s, k)) => StmDropRight(s, k, Undefined(Missing))()
+          case (Seq(), Seq(s, k, head)) => StmDropRight(s, k, head)()
+          case _                        => error(f)
         }
       case f @ Param("StmExtendBy", -1) =>
         combinedArgs match {
@@ -364,13 +381,31 @@ case class Call(
         }
       case f @ Param("StmMapDotCascaded", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s1, s2, delay)) => StmMapDotCascaded(s1, s2, delay)()
-          case _                           => error(f)
+          case (Seq(), Seq(s1, s2, delay)) =>
+            StmMapDotCascaded(s1, s2, delay)()
+          case (Seq(typ), Seq(s1, s2, delay)) =>
+            StmMapDotCascaded(s1, s2, delay, targetTyp = typ)()
+          case _ => error(f)
+        }
+      case f @ Param("StmMapDotTree", -1) =>
+        combinedArgs match {
+          case (Seq(), Seq(s1, s2, delay)) =>
+            StmMapDotTree(s1, s2, delay)()
+          case (Seq(typ), Seq(s1, s2, delay)) =>
+            StmMapDotTree(s1, s2, delay, targetTyp = typ)()
+          case _ => error(f)
         }
       case f @ Param("StmMapDot", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s1, s2, delay)) => StmMapDot(s1, s2, delay)()
-          case _                           => error(f)
+          case (Seq(), Seq(s1, s2, delay)) =>
+            StmMapDot(s1, s2, delay)()
+          case (Seq(), Seq(s1, s2, delay, cascade)) =>
+            StmMapDot(s1, s2, delay, cascade)()
+          case (Seq(typ), Seq(s1, s2, delay)) =>
+            StmMapDot(s1, s2, delay, targetTyp = typ)()
+          case (Seq(typ), Seq(s1, s2, delay, cascade)) =>
+            StmMapDot(s1, s2, delay, cascade, targetTyp = typ)()
+          case _ => error(f)
         }
       case f @ Param("StmDelay", -1) =>
         combinedArgs match {

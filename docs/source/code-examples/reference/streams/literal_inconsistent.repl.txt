@@ -1,0 +1,8 @@
+> [1:u8, 2:u16]s
+TypeError: Inconsistent element types in stream literal: u16, u8
+>
+> m = 2:u32
+> [undefined:Vec[u8, m], [1:u8]v]s // different lengths!
+TypeError: Inconsistent element types in stream literal: Vec[u8, 1], Vec[u8, m] (note: relevant constants include m = 2:u32)
+> [undefined:Vec[u8, m], [1:u8, 2:u8]v]s // OK
+[undefined:Vec[u8, 2], [1:u8, 2:u8]v]s

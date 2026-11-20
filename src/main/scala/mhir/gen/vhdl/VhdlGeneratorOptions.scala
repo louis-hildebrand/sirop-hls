@@ -27,6 +27,9 @@ import scala.io.Source
   *   whether to mark the ports of the top-level entity as virtual pins.
   * @param appendQsf
   *   settings to append to the .qsf file.
+  * @param emitDspIpBlocks
+  *   try to emit DSP IP blocks for multiplications, if the [[deviceFamily]] is
+  *   supported.
   */
 case class VhdlGeneratorOptions(
     library: String = "work",
@@ -40,7 +43,8 @@ case class VhdlGeneratorOptions(
     fmax: Int = VhdlGeneratorOptions.DEFAULT_FMAX,
     virtualPins: Boolean = true,
     appendQsf: Seq[String] = Seq(),
-    absorbOutReg: Boolean = false
+    absorbOutReg: Boolean = false,
+    emitDspIpBlocks: Boolean = true
 ) {
 
   def reservedKeywords: Set[String] = {
@@ -50,6 +54,8 @@ case class VhdlGeneratorOptions(
   def clockPeriod: Double = {
     1000.0 / this.fmax
   }
+
+  def fullyQualify(name: String): String = s"${this.library}.$name"
 }
 
 object VhdlGeneratorOptions {

@@ -1,0 +1,6 @@
+[WARN ] StmMapDotCascaded will not use the DSPs when the output type (i45) is wider than 44 bits
+[INFO ] schedule:
+[INFO ]   x_i @ 0
+[INFO ]   y_i @ 0
+[INFO ]   z_o @ 5
+[INFO ] VHDL testbench passed!

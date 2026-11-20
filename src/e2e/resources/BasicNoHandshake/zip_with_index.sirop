@@ -1,6 +1,6 @@
 const N: u32 = 5
 
-accelerator[no_handshake, go=go]
+accelerator[no_handshake, go=go, head(s)=undefined]
 top = (s: Stm[i16, N]) => (go: Stm[bool, N]) =>
     StmCount(N, 0:u8, 1:u8)
     .StmZip(s, /* head= */ (0:u8, 0:i16))

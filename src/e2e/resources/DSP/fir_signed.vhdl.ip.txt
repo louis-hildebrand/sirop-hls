@@ -4,9 +4,9 @@ AX_WIDTH => 16,
 AY_WIDTH => 16,
 BX_WIDTH => 16,
 BY_WIDTH => 16,
-ENABLE_CHAININ => true,
+RESULT_WIDTH => 44,
 PIPELINE => 3,
-RESULT_WIDTH => 44)
+ENABLE_CHAININ => false)
 
 entity work.dsp_systolic_signed
 generic map(
@@ -14,9 +14,9 @@ AX_WIDTH => 16,
 AY_WIDTH => 16,
 BX_WIDTH => 16,
 BY_WIDTH => 16,
-ENABLE_CHAININ => true,
+RESULT_WIDTH => 44,
 PIPELINE => 3,
-RESULT_WIDTH => 44)
+ENABLE_CHAININ => true)
 
 entity work.mac_fallback_signed
 generic map(

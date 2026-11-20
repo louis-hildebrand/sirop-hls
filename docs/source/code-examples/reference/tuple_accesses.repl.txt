@@ -1,4 +1,5 @@
 > x = (42:u8, true, false, -5:i16)
+>
 > x.0
 42:u8
 > x.1
@@ -7,3 +8,6 @@ true
 false
 > x.3
 -5:i16
+>
+> x.4
+TypeError: Index 4 is out of bounds for tuple of length 4.

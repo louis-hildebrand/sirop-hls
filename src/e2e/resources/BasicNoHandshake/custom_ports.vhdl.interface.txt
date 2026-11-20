@@ -2,7 +2,7 @@ entity times3 is
 port (
     my_clk : in std_logic;
     my_rst : in std_logic;
-    result : out std_logic_vector(1023 downto 0);
-    s : in std_logic_vector(1023 downto 0)
+    s : in std_logic_vector(1023 downto 0);
+    result : out std_logic_vector(1023 downto 0)
 );
 end entity times3;

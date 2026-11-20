@@ -1,4 +1,4 @@
-accelerator[no_handshake] extend = (s: Stm[u8, 5]) => s.StmExtendBy(3)
+accelerator[no_handshake, head(s)=undefined] extend = (s: Stm[u8, 5]) => s.StmExtendBy(3)
 
 const no: u8 = zeros:[u8]()
 const YES: u8 = ones:[u8]()

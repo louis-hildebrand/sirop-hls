@@ -2,12 +2,20 @@ package mhir.gen.vhdl
 package ir
 
 import mhir.canonicalize._
+import mhir.debug.indent
 import mhir.ir._
+import os.Path
 
 import scala.collection.immutable.ListMap
 
 /** Anything whose output can be assigned to an intermediate variable in a
   * concurrent context: an expression, a function, an IP block, etc.
+  *
+  * The VHDL conversion methods vary by subclass. For the declarative part, see
+  * either [[FunctionIntermediate.toDeclarativeItem]] or
+  * [[SimpleTarget.toDecl]]. For the statement part, see either
+  * [[Intermediate.toConcurrentStatement]] or
+  * [[SequentialIntermediate.toSequentialStatement]].
   */
 sealed trait Intermediate {
 
@@ -15,32 +23,102 @@ sealed trait Intermediate {
 
   def substitute(subs: Map[Expr, Expr]): Intermediate
 
-  def toVhdlDecl(target: Target, options: VhdlGeneratorOptions): Decl
+  def map(f: Expr => Expr): Intermediate
+
+  def exprChildren: Seq[Expr]
+
+  def intermediateChildren: Seq[Intermediate]
+
+  def intermediateDescendants: Seq[Intermediate] = {
+    this.intermediateChildren.flatMap(i => i +: i.intermediateDescendants)
+  }
+
+  /** Convert this to a concurrent statement in VHDL.
+    *
+    * @param target
+    *   where to assign the result of this intermediate.
+    * @param enable
+    *   clock-enable expression (in VHDL, of type `boolean`). Registers within
+    *   this intermediate should only be updated when this evaluates to `true`.
+    */
+  def toConcurrentStatement(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String
 }
 
-/** An [[Intermediate]] which can appear inside a function.
-  */
-sealed trait IntermediateInFunction extends Intermediate {
+sealed trait SequentialIntermediate extends Intermediate {
 
-  override def substitute(subs: Map[Expr, Expr]): IntermediateInFunction
+  // TODO: Get rid of these by using F-bounded polymorphism?
+  override def substitute(subs: Map[Expr, Expr]): SequentialIntermediate
+  override def map(f: Expr => Expr): SequentialIntermediate
+
+  def toSequentialStatement(
+      target: Target,
+      options: VhdlGeneratorOptions
+  ): String
+
+  override def toConcurrentStatement(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String = {
+    val sequentialStatement = this.toSequentialStatement(target, options)
+    val freeVars = this.freeVars
+    // See IEEE Std 1076-2002 section 8.1
+    val waitStatement = if (freeVars.isEmpty) {
+      s"wait;"
+    } else {
+      val sensitivityList = freeVars.toSeq.map(_.name).sorted.mkString(", ")
+      s"wait on $sensitivityList;"
+    }
+    // See IEEE Std 1076-2002 section 9.2
+    s"""process
+       |begin
+       |${indent(sequentialStatement)}
+       |${indent(waitStatement)}
+       |end process;
+       |""".stripMargin.stripTrailing
+  }
 }
 
-/** A function that can be called anywhere within the `sbuild`.
+/** An intermediate for a function definition.
   */
 case class FunctionIntermediate(
     params: Seq[Param],
-    intermediates: ListMap[Param, IntermediateInFunction],
+    // TODO: Can I use something like BlockIntermediate instead of all this?
+    locals: ListMap[Param, SequentialIntermediate],
     output: Expr
-) extends IntermediateInFunction {
+) extends SequentialIntermediate {
 
   assert(
     params.toSet.size == params.size,
     "function parameters should be unique"
   )
+  // The VHDL conversion would need to look a bit different for functions with 0 parameters,
+  // and I don't see any reason for 0-input functions.
+  // Forbid it for now; later, if it turns out to be needed, I can test and implement the
+  // feature properly.
+  assert(params.nonEmpty, "cannot define FunctionIntermediate with 0 args")
+  for (param <- params) {
+    if (!param.typ.isData) {
+      throw new IllegalArgumentException(
+        s"invalid type for parameter $param in function: ${param.typ}"
+      )
+    }
+  }
+  if (!output.typ.isData) {
+    throw new IllegalArgumentException(
+      s"invalid type for output of function: ${output.typ}"
+    )
+  }
 
-  def freeVars: Set[Param] = {
+  override def freeVars: Set[Param] = {
+    // TODO: Why not just take all the free variables in locals and output
+    //       minus the params and locals?
     val paramSet = params.toSet
-    val (bound, free) = this.intermediates
+    val (bound, free) = this.locals
       .foldLeft((paramSet /* bound vars */, Set[Param]() /* free vars */ ))({
         case ((bound, free), (x, i)) =>
           (bound + x, free ++ i.freeVars.diff(bound))
@@ -48,12 +126,12 @@ case class FunctionIntermediate(
     free ++ this.output.freeVars.diff(bound)
   }
 
-  def substitute(
+  override def substitute(
       substitutions: Map[Expr, Expr]
   ): FunctionIntermediate = {
     var (newParams, subs) = Substitution.enterBinder(this.params, substitutions)
-    var newIntermediates = ListMap[Param, IntermediateInFunction]()
-    for ((x, i) <- this.intermediates) {
+    var newIntermediates = ListMap[Param, SequentialIntermediate]()
+    for ((x, i) <- this.locals) {
       val newI = i.substitute(subs)
       val (Seq(newX), newSubs) = Substitution.enterBinder(Seq(x), subs)
       subs = newSubs
@@ -63,41 +141,257 @@ case class FunctionIntermediate(
     FunctionIntermediate(newParams, newIntermediates, newOutput)
   }
 
-  def toVhdlDecl(
-      target: Target,
+  override def map(f: Expr => Expr): FunctionIntermediate = {
+    FunctionIntermediate(
+      this.params.map(_.map(f).asInstanceOf[Param]),
+      this.locals.map({ case (x, i) => x -> i.map(f) }),
+      this.output.map(f)
+    )
+  }
+
+  override def exprChildren: Seq[Expr] = {
+    this.params ++ this.locals.keys.toSeq :+ output
+  }
+
+  override def intermediateChildren: Seq[Intermediate] = {
+    locals.values.toSeq
+  }
+
+  def toDeclarativeItem(
+      designator: String,
       options: VhdlGeneratorOptions
-  ): VhdlFunction = {
-    for (param <- params) {
-      if (!param.typ.isData) {
-        throw new IllegalArgumentException(
-          s"invalid type for parameter $param in function $target: ${param.typ}"
-        )
-      }
+  ): String = {
+    val subprogramSpecification = {
+      val formalParameterList = this.params
+        .map({ x =>
+          val identifier = x.name
+          val subtypeIndication = VhdlType(x.typ).vhdlName
+          // See IEEE Std 1076-2002 section 4.3.2
+          s"$identifier: $subtypeIndication"
+        })
+        // See IEEE Std 1076-2002 section 4.3.2.1
+        .mkString("; ")
+      val returnTypeMark = VhdlType(this.output.typ).vhdlTypeMark
+      // See IEEE Std 1076-2002 section 2.1
+      s"pure function $designator ($formalParameterList) return $returnTypeMark"
     }
-    if (!output.typ.isData) {
-      throw new IllegalArgumentException(
-        s"invalid type for output of function $target: ${output.typ}"
-      )
-    }
-    val varDecls = intermediates
+    val subprogramDeclarativePart = this.locals
       .map({
-        case (x, i: DataIntermediate) =>
-          i.toVhdlVariableDecl(Target(x), options)
         case (x, _: FunctionIntermediate) =>
           throw new AssertionError(
             "nested functions should have been removed in an earlier compilation stage"
-              + s" (found function ${x.name} inside ${target.name})"
+              + s" (found function ${x.name} inside $designator)"
           )
+        case (x, _) => VariableTarget(x).toDecl
+      })
+      .mkString("\n")
+    val subprogramStatementPart = this.locals
+      .map({ case (x, i) =>
+        i.toSequentialStatement(VariableTarget(x), options)
       })
       .toSeq
-    val outVhdl = VhdlExprGenerator.toVhdl(output)
-    VhdlFunction(
-      name = target.name,
-      args = params.map(x => (x.name, VhdlType(x.typ))),
-      returnType = VhdlType(output.typ),
-      decls = varDecls,
-      ret = outVhdl
+      .:+({
+        val expression = VhdlExprGenerator.toVhdl(this.output)
+        // See IEEE Std 1076-2002 section 8.12
+        s"return $expression;"
+      })
+      .mkString("\n")
+    // See IEEE Std 1076-2002 section 2.2
+    s"""$subprogramSpecification is
+       |${indent(subprogramDeclarativePart)}
+       |begin
+       |${indent(subprogramStatementPart)}
+       |end function $designator;
+       |""".stripMargin.stripTrailing
+  }
+
+  override def toConcurrentStatement(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String = ""
+
+  override def toSequentialStatement(
+      target: Target,
+      options: VhdlGeneratorOptions
+  ): String = ""
+}
+
+/** An intermediate that builds a vector using a `for generate` loop.
+  *
+  * @param loopVars
+  *   loop counter variables.
+  * @param loopBoundsInclusive
+  *   maximum values of the loop counter variables.
+  * @param body
+  *   contents of the loop.
+  */
+case class ForGenerateIntermediate(
+    loopVars: Seq[Param],
+    // TODO: Allow the loop bounds to be arbitrary expressions?
+    //       I would then need to be very careful about things like substitution, intermediate
+    //       insertion, etc.
+    //       In fact, this flattened loop representation might not work at all, if loop bounds can
+    //       depend on earlier loop variables.
+    loopBoundsInclusive: Seq[Int],
+    body: Intermediate
+) extends Intermediate {
+
+  require(
+    loopVars.length == loopBoundsInclusive.length,
+    s"different number of loop variables and loop bounds: ${loopVars.length} vs ${loopBoundsInclusive.length}"
+  )
+
+  override def freeVars: Set[Param] = {
+    this.body.freeVars.diff(this.loopVars.toSet)
+  }
+
+  override def substitute(subs: Map[Expr, Expr]): ForGenerateIntermediate = {
+    val loopVarSet = this.loopVars.toSet
+    val newSubs = subs.filterKeys(_.freeVars.intersect(loopVarSet).isEmpty)
+    ForGenerateIntermediate(
+      this.loopVars,
+      this.loopBoundsInclusive,
+      this.body.substitute(newSubs)
     )
+  }
+
+  override def map(f: Expr => Expr): ForGenerateIntermediate = {
+    ForGenerateIntermediate(
+      this.loopVars.map(f(_).asInstanceOf[Param]),
+      this.loopBoundsInclusive,
+      this.body.map(f)
+    )
+  }
+
+  override def exprChildren: Seq[Expr] = this.loopVars
+
+  override def intermediateChildren: Seq[Intermediate] = Seq(this.body)
+
+  override def toConcurrentStatement(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String = {
+    this.toVhdl(
+      target,
+      this.loopVars,
+      this.loopBoundsInclusive,
+      options,
+      enable
+    )
+  }
+
+  private def toVhdl(
+      target: Target,
+      loopVars: Seq[Param],
+      loopBounds: Seq[Int],
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String = {
+    (loopVars, loopBounds) match {
+      case (Seq(), Seq()) =>
+        this.body.toConcurrentStatement(target, options, enable)
+      case (Seq(iterVar, otherVars @ _*), Seq(bound, otherBounds @ _*)) =>
+        val intIterVar = iterVar.freshCopy
+        val iterVarTyp = VhdlType(iterVar.typ).vhdlName
+        val TyUInt(bitwidth) = iterVar.typ
+        val inside = toVhdl(
+          target.index(iterVar.name),
+          otherVars,
+          otherBounds,
+          options,
+          enable
+        )
+        val label = Param("L")().name
+        s"""$label : for $intIterVar in 0 to $bound generate
+           |    constant $iterVar : $iterVarTyp := to_unsigned($intIterVar, $bitwidth);
+           |begin
+           |${indent(inside)}
+           |end generate $label;
+           |""".stripMargin.stripTrailing
+      case _ =>
+        throw new AssertionError("mismatched list lengths")
+    }
+  }
+}
+
+object ForGenerateIntermediate {
+
+  def apply(body: Intermediate): ForGenerateIntermediate = {
+    ForGenerateIntermediate(Seq.empty, Seq.empty, body)
+  }
+}
+
+case class BlockIntermediate(
+    locals: ListMap[Param, Intermediate],
+    body: Intermediate
+) extends Intermediate {
+
+  override def freeVars: Set[Param] = {
+    this.locals
+      .flatMap({ case (_, i) => i.freeVars })
+      .++(this.body.freeVars)
+      .toSet
+      .diff(this.locals.keySet)
+  }
+
+  override def substitute(substitutions: Map[Expr, Expr]): BlockIntermediate = {
+    val (newParams, subs) =
+      Substitution.enterBinder(this.locals.keys.toSeq, substitutions)
+    val newLocals = ListMap(
+      newParams
+        .zip(this.locals.values)
+        .map({ case (x, i) => x -> i.substitute(subs) }): _*
+    )
+    val newBody = this.body.substitute(subs)
+    BlockIntermediate(newLocals, newBody)
+  }
+
+  override def map(f: Expr => Expr): BlockIntermediate = {
+    BlockIntermediate(
+      this.locals.map({ case (x, i) => x -> i.map(f) }),
+      this.body.map(f)
+    )
+  }
+
+  override def exprChildren: Seq[Expr] = {
+    this.locals.keys.toSeq
+  }
+
+  override def intermediateChildren: Seq[Intermediate] = {
+    this.locals.values.toSeq :+ this.body
+  }
+
+  override def toConcurrentStatement(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String = {
+    val blockDeclarativePart = this.locals
+      .map({
+        // TODO: Deduplicate this code somehow?
+        case (f, i: FunctionIntermediate) =>
+          i.toDeclarativeItem(f.name, options)
+        case (x, _) => SignalTarget(x).toDecl
+      })
+      .mkString("\n")
+    val blockStatementPart = this.locals
+      .map({ case (x, i) =>
+        i.toConcurrentStatement(SignalTarget(x), options, enable)
+      })
+      .toSeq
+      .:+(this.body.toConcurrentStatement(target, options, enable))
+      .mkString("\n")
+    val label = Param("B")().name
+    // TODO: This code looks a lot like the code in CustomVhdlComponent. Can I deduplicate it somehow?
+    // See IEEE Std 1076-2002 section 9.1
+    s"""$label: block is
+       |${indent(blockDeclarativePart)}
+       |begin
+       |${indent(blockStatementPart)}
+       |end block $label;
+       |""".stripMargin.stripTrailing
   }
 }
 
@@ -105,99 +399,26 @@ case class FunctionIntermediate(
   */
 trait IpBlockInst extends Intermediate {
 
-  /** Convert this IP block instantiation to VHDL.
-    *
-    * @param target
-    *   the name and type of the output signal.
-    * @param options
-    *   general VHDL gen options (e.g., the name of the clock signal).
-    * @param enable
-    *   a VHDL expression saying whether to enable this IP block. If it
-    *   evaluates to `false`, then the IP block should not update its internal
-    *   registers.
-    */
-  def toVhdlEntityInst(
-      target: Param,
-      options: VhdlGeneratorOptions,
-      enable: String
-  ): VhdlEntityInstantiation
+  override def substitute(subs: Map[Expr, Expr]): IpBlockInst
+  override def map(f: Expr => Expr): IpBlockInst
 
-  override def toVhdlDecl(
-      target: Target,
-      options: VhdlGeneratorOptions
-  ): Signal = {
-    Signal(
-      category = "Intermediate signals",
-      name = target.name,
-      typ = VhdlType(target.typ),
-      // This signal will be driven by the IP block, so no need for an
-      // assignment statement
-      assignStmt = None,
-      cond = None
-    )
-  }
+  def resourcesToCopy(vhdlDir: Path): Map[Path, String]
 
-  def mapInputs(f: Expr => Expr): IpBlockInst
+  def usesVendorIpBlocks: Boolean
 }
 
 /** An intermediate that consists of some expression that is not an IP block and
   * whose type is a "data" type (see [[Type.isData]]).
   */
-sealed trait DataIntermediate extends Intermediate with IntermediateInFunction {
+sealed trait SimpleIntermediate
+    extends Intermediate
+    with SequentialIntermediate {
 
-  override def toVhdlDecl(
-      target: Target,
-      options: VhdlGeneratorOptions
-  ): Decl = {
-    Signal(
-      category = "Intermediate signals",
-      name = target.name,
-      typ = VhdlType(target.typ),
-      assignStmt = Some(this.toVhdlConcurrentStmt(target, options)),
-      cond = None
-    )
-  }
+  override def substitute(subs: Map[Expr, Expr]): SimpleIntermediate
 
-  /** Convert this intermediate to a VHDL concurrent statement.
-    *
-    * @param target
-    *   the name and type of the left-hand side.
-    */
-  def toVhdlConcurrentStmt(
-      target: Target,
-      options: VhdlGeneratorOptions
-  ): String
+  override def map(f: Expr => Expr): SimpleIntermediate
 
-  /** Create a VHDL sequential statement that assigns this intermediate to a
-    * variable.
-    *
-    * @param target
-    *   the name and type of the left-hand side.
-    */
-  def toVhdlVariableStmt(target: Target, options: VhdlGeneratorOptions): String
-
-  def toVhdlVariableDecl(
-      target: Target,
-      options: VhdlGeneratorOptions
-  ): VhdlVariable = {
-    VhdlVariable(
-      name = target.name,
-      typ = VhdlType(target.typ),
-      assignStmt = this.toVhdlVariableStmt(target, options)
-    )
-  }
-
-  /** Convert this intermediate to a VHDL sequential statement knowing that the
-    * target is a signal.
-    *
-    * @param target
-    *   the name and type of the left-hand side.
-    */
-  def toVhdlSignalStmt(target: Target, options: VhdlGeneratorOptions): String
-
-  override def substitute(subs: Map[Expr, Expr]): DataIntermediate
-
-  def map(f: Expr => Expr): DataIntermediate
+  override def intermediateChildren: Seq[Intermediate] = Seq.empty
 }
 
 /** An intermediate variable whose value is the data of a producer stream.
@@ -205,27 +426,37 @@ sealed trait DataIntermediate extends Intermediate with IntermediateInFunction {
   * @param p
   *   the name of the producer stream.
   */
-case class StmDataIntermediate(p: Param) extends DataIntermediate {
+case class StmDataIntermediate(p: Param) extends SimpleIntermediate {
 
-  override def toVhdlConcurrentStmt(
-      target: Target,
-      options: VhdlGeneratorOptions
-  ): String = {
-    s"${target.name} <= ${this.rhs(target, options)};"
+  override def freeVars: Set[Param] = Set(this.p)
+
+  override def substitute(subs: Map[Expr, Expr]): StmDataIntermediate = {
+    StmDataIntermediate(this.p.subPreserveType(subs).asInstanceOf[Param])
   }
 
-  override def toVhdlVariableStmt(
-      target: Target,
-      options: VhdlGeneratorOptions
-  ): String = {
-    s"${target.name} := ${this.rhs(target, options)};"
+  override def map(f: Expr => Expr): StmDataIntermediate = {
+    StmDataIntermediate(f(p).asInstanceOf[Param])
   }
 
-  override def toVhdlSignalStmt(
+  override def exprChildren: Seq[Expr] = Seq(this.p)
+
+  override def toConcurrentStatement(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String = {
+    val waveform = this.rhs(target, options)
+    // See IEEE Std 1076-2002 section 9.5.1
+    s"${target.name} <= $waveform;"
+  }
+
+  override def toSequentialStatement(
       target: Target,
       options: VhdlGeneratorOptions
   ): String = {
-    s"${target.name} <= ${this.rhs(target, options)};"
+    val waveform = this.rhs(target, options)
+    // See IEEE Std 1076-2002 sections 8.4 and 8.5
+    s"${target.name} ${target.assign} $waveform;"
   }
 
   private def rhs(target: Target, options: VhdlGeneratorOptions): String = {
@@ -235,52 +466,41 @@ case class StmDataIntermediate(p: Param) extends DataIntermediate {
       vhdlTyp
     )
   }
-
-  override def freeVars: Set[Param] = Set(this.p)
-
-  override def substitute(subs: Map[Expr, Expr]): DataIntermediate = {
-    StmDataIntermediate(this.p.subPreserveType(subs).asInstanceOf[Param])
-  }
-
-  override def map(f: Expr => Expr): DataIntermediate = {
-    StmDataIntermediate(f(p).asInstanceOf[Param])
-  }
 }
 
-/** An intermediate variable whose value is constantly calculated from the
-  * accumulators, producers, and other intermediates.
+/** An intermediate variable whose value is an expression.
   */
-case class ExprIntermediate(e: Expr) extends DataIntermediate {
+case class ExprIntermediate(e: Expr) extends SimpleIntermediate {
 
   override def freeVars: Set[Param] = this.e.freeVars
 
-  override def toVhdlConcurrentStmt(
-      target: Target,
-      options: VhdlGeneratorOptions
-  ): String = {
-    s"${target.name} <= ${VhdlExprGenerator.toVhdl(this.e)};"
-  }
-
-  override def toVhdlVariableStmt(
-      target: Target,
-      options: VhdlGeneratorOptions
-  ): String = {
-    s"${target.name} := ${VhdlExprGenerator.toVhdl(this.e)};"
-  }
-
-  override def toVhdlSignalStmt(
-      target: Target,
-      options: VhdlGeneratorOptions
-  ): String = {
-    s"${target.name} <= ${VhdlExprGenerator.toVhdl(this.e)};"
-  }
-
-  override def substitute(subs: Map[Expr, Expr]): DataIntermediate = {
+  override def substitute(subs: Map[Expr, Expr]): ExprIntermediate = {
     ExprIntermediate(this.e.subPreserveType(subs))
   }
 
-  override def map(f: Expr => Expr): DataIntermediate = {
+  override def map(f: Expr => Expr): ExprIntermediate = {
     ExprIntermediate(f(e))
+  }
+
+  override def exprChildren: Seq[Expr] = Seq(this.e)
+
+  override def toConcurrentStatement(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String = {
+    val waveform = VhdlExprGenerator.toVhdl(this.e)
+    // See IEEE Std 1076-2002 section 9.5.1
+    s"${target.name} <= $waveform;"
+  }
+
+  override def toSequentialStatement(
+      target: Target,
+      options: VhdlGeneratorOptions
+  ): String = {
+    val waveform = VhdlExprGenerator.toVhdl(this.e)
+    // See IEEE Std 1076-2002 sections 8.4 and 8.5
+    s"${target.name} ${target.assign} $waveform;"
   }
 }
 
@@ -293,9 +513,10 @@ case class ExprIntermediate(e: Expr) extends DataIntermediate {
   * @param f
   *   the value when [[c]] evaluates to `false`.
   */
-case class MuxIntermediate(c: Expr, t: Expr, f: Expr) extends DataIntermediate {
+case class MuxIntermediate(c: Expr, t: Expr, f: Expr)
+    extends SimpleIntermediate {
 
-  override def substitute(subs: Map[Expr, Expr]): DataIntermediate = {
+  override def substitute(subs: Map[Expr, Expr]): MuxIntermediate = {
     MuxIntermediate(
       this.c.subPreserveType(subs),
       this.t.subPreserveType(subs),
@@ -303,7 +524,7 @@ case class MuxIntermediate(c: Expr, t: Expr, f: Expr) extends DataIntermediate {
     )
   }
 
-  override def map(f: Expr => Expr): DataIntermediate = {
+  override def map(f: Expr => Expr): MuxIntermediate = {
     MuxIntermediate(f(this.c), f(this.t), f(this.f))
   }
 
@@ -311,37 +532,264 @@ case class MuxIntermediate(c: Expr, t: Expr, f: Expr) extends DataIntermediate {
     c.freeVars ++ t.freeVars ++ f.freeVars
   }
 
-  override def toVhdlConcurrentStmt(
+  override def exprChildren: Seq[Expr] = Seq(c, t, f)
+
+  override def toConcurrentStatement(
       target: Target,
-      options: VhdlGeneratorOptions
+      options: VhdlGeneratorOptions,
+      enable: String
   ): String = {
     val c = VhdlExprGenerator.toVhdl(this.c)
     val t = VhdlExprGenerator.toVhdl(this.t)
     val f = VhdlExprGenerator.toVhdl(this.f)
+    // See IEEE Std 1076-2002 section 9.5.1
     s"${target.name} <= ($t) when ($c) else ($f);"
   }
 
-  override def toVhdlVariableStmt(
+  override def toSequentialStatement(
       target: Target,
       options: VhdlGeneratorOptions
   ): String = {
-    s"""if (${VhdlExprGenerator.toVhdl(this.c)}) then
-       |    ${target.name} := ${VhdlExprGenerator.toVhdl(this.t)};
+    val c = VhdlExprGenerator.toVhdl(this.c)
+    val sequenceOfStatementsIfTrue = {
+      val waveform = VhdlExprGenerator.toVhdl(this.t)
+      // See IEEE Std 1076-2002 sections 8.4 and 8.5
+      s"${target.name} ${target.assign} $waveform;"
+    }
+    val sequenceOfStatementsIfFalse = {
+      val waveform = VhdlExprGenerator.toVhdl(this.f)
+      // See IEEE Std 1076-2002 sections 8.4 and 8.5
+      s"${target.name} ${target.assign} $waveform;"
+    }
+    // See IEEE Std 1076-2002 section 8.7
+    s"""if ($c) then
+       |${indent(sequenceOfStatementsIfTrue)}
        |else
-       |    ${target.name} := ${VhdlExprGenerator.toVhdl(this.f)};
+       |${indent(sequenceOfStatementsIfFalse)}
        |end if;
        |""".stripMargin.stripTrailing
   }
+}
 
-  override def toVhdlSignalStmt(
-      target: Target,
-      options: VhdlGeneratorOptions
+// -------------------------------------------------------------------------------------------------
+
+sealed trait Accumulator extends Intermediate {
+
+  private val AlwaysEnabled: String = "true"
+
+  override def substitute(subs: Map[Expr, Expr]): Accumulator
+  override def map(f: Expr => Expr): Accumulator
+
+  protected def makeProcess(
+      name: String,
+      initStmt: Option[String],
+      nextStmt: String,
+      options: VhdlGeneratorOptions,
+      enable: String
   ): String = {
-    s"""if (${VhdlExprGenerator.toVhdl(this.c)}) then
-       |    ${target.name} <= ${VhdlExprGenerator.toVhdl(this.t)};
-       |else
-       |    ${target.name} <= ${VhdlExprGenerator.toVhdl(this.f)};
-       |end if;
+    val processStatementPart = {
+      (initStmt, enable) match {
+        case (None, AlwaysEnabled) =>
+          nextStmt
+        case (None, enable) =>
+          s"""if ($enable) then
+             |${indent(nextStmt)}
+             |end if;
+             |""".stripMargin.stripTrailing
+        case (Some(resetStmt), AlwaysEnabled) =>
+          s"""if sl2bool(${options.reset}) then
+             |${indent(resetStmt)}
+             |else
+             |${indent(nextStmt)}
+             |end if;
+             |""".stripMargin.stripTrailing
+        case (Some(resetStmt), enable) =>
+          s"""if sl2bool(${options.reset}) then
+             |${indent(resetStmt)}
+             |elsif ($enable) then
+             |${indent(nextStmt)}
+             |end if;
+             |""".stripMargin.stripTrailing
+      }
+    }
+    val label = Param("P")().name
+    // See IEEE Std 1076-2002 section 9.2
+    s"""-- Register $name
+       |$label : process
+       |begin
+       |    wait until rising_edge(${options.clock});
+       |${indent(processStatementPart)}
+       |end process $label;
        |""".stripMargin.stripTrailing
+  }
+}
+
+case class ExprAccumulator(
+    init: Option[SequentialIntermediate],
+    next: SequentialIntermediate
+) extends Accumulator {
+
+  override def freeVars: Set[Param] = {
+    next.freeVars ++ init.toSet.flatMap((i: Intermediate) => i.freeVars)
+  }
+
+  override def substitute(subs: Map[Expr, Expr]): ExprAccumulator = {
+    ExprAccumulator(init.map(_.substitute(subs)), next.substitute(subs))
+  }
+
+  override def map(f: Expr => Expr): ExprAccumulator = {
+    ExprAccumulator(init.map(_.map(f)), next.map(f))
+  }
+
+  override def exprChildren: Seq[Expr] = Seq.empty
+
+  override def intermediateChildren: Seq[Intermediate] = init.toSeq :+ next
+
+  override def toConcurrentStatement(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String = {
+    this.makeProcess(
+      name = target.name,
+      initStmt = this.init.map(_.toSequentialStatement(target, options)),
+      nextStmt = this.next.toSequentialStatement(target, options),
+      options = options,
+      enable = enable
+    )
+  }
+}
+
+/** An accumulator which is a vector that is updated in at most one location per
+  * time step.
+  *
+  * I want to handle this specially because Quartus won't infer a BRAM from the
+  * usual VHDL for a vector accumulator, which always updates every index (but
+  * possibly using the old value).
+  *
+  * @param cond
+  *   only perform the update if this condition evaluates to `true`.
+  * @param index
+  *   the index to update.
+  * @param value
+  *   what to write at that index.
+  */
+case class VecWriteAccumulator(cond: Expr, index: Expr, value: Expr)
+    extends Accumulator {
+
+  assert(this.cond.typ == TyBool)
+  assert(this.index.typ.isInstanceOf[TyUInt])
+
+  override def freeVars: Set[Param] = {
+    cond.freeVars ++ index.freeVars ++ value.freeVars
+  }
+
+  override def substitute(subs: Map[Expr, Expr]): VecWriteAccumulator = {
+    VecWriteAccumulator(
+      cond.subPreserveType(subs),
+      index.subPreserveType(subs),
+      value.subPreserveType(subs)
+    )
+  }
+
+  override def map(f: Expr => Expr): VecWriteAccumulator = {
+    VecWriteAccumulator(f(cond), f(index), f(value))
+  }
+
+  override def exprChildren: Seq[Expr] = Seq(cond, index, value)
+
+  override def intermediateChildren: Seq[Intermediate] = Seq.empty
+
+  override def toConcurrentStatement(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String = {
+    val condVhdl = VhdlExprGenerator.toVhdl(this.cond)
+    val idxVhdl = VhdlExprGenerator.toVhdlInteger(this.index)
+    val writeVhdl = VhdlExprGenerator.toVhdl(this.value)
+    val nextStatement = {
+      // See IEEE Std 1076-2002 section 9.5.1
+      s"${target.name}($idxVhdl) <= $writeVhdl;"
+    }
+    this.makeProcess(
+      name = target.name,
+      initStmt = None,
+      nextStmt = nextStatement,
+      options = options,
+      enable = s"$enable and ($condVhdl)"
+    )
+  }
+}
+
+/** An accumulator which is a vector that gets shifted left once per time step.
+  *
+  * I want to handle this specially because this allows me to merge registers
+  * into DSP blocks, for example.
+  *
+  * @param incoming
+  *   the value written to the right-most index at each step.
+  */
+case class VecShiftLeftAccumulator(
+    len: Long,
+    init: Option[SequentialIntermediate],
+    incoming: Expr
+) extends Accumulator {
+
+  require(this.len >= 1, "shift register accumulator cannot be empty")
+  require(
+    this.incoming.hasType,
+    s"incoming expression must have a type (${this.incoming} is missing a type)"
+  )
+
+  override def freeVars: Set[Param] = {
+    this.incoming.freeVars ++
+      this.init.toSet.flatMap((i: Intermediate) => i.freeVars)
+  }
+
+  override def substitute(subs: Map[Expr, Expr]): Accumulator = {
+    VecShiftLeftAccumulator(
+      this.len,
+      this.init.map(_.substitute(subs)),
+      this.incoming.subPreserveType(subs)
+    )
+  }
+
+  override def map(f: Expr => Expr): VecShiftLeftAccumulator = {
+    VecShiftLeftAccumulator(
+      this.len,
+      this.init.map(_.map(f)),
+      f(this.incoming)
+    )
+  }
+
+  override def exprChildren: Seq[Expr] = Seq(incoming)
+
+  override def intermediateChildren: Seq[Intermediate] = init.toSeq
+
+  override def toConcurrentStatement(
+      target: Target,
+      options: VhdlGeneratorOptions,
+      enable: String
+  ): String = {
+    val initStmt = this.init.map(_.toSequentialStatement(target, options))
+    val nextStmt = {
+      val shift = if (this.len <= 1) {
+        ""
+      } else {
+        s"${target.name}(0 to ${this.len - 2}) <= ${target.name}(1 to ${this.len - 1});\n"
+      }
+      val incomingVhdl = VhdlExprGenerator.toVhdl(this.incoming)
+      val saveIncoming =
+        s"${target.name}(${this.len - 1}) <= $incomingVhdl;"
+      s"$shift$saveIncoming"
+    }
+    this.makeProcess(
+      name = target.name,
+      initStmt = initStmt,
+      nextStmt = nextStmt,
+      options = options,
+      enable = enable
+    )
   }
 }

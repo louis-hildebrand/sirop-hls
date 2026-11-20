@@ -1,1 +1,2 @@
+[WARN ] no head is specified for input stream 'bar'. If the compiler needs to delay the stream, it will prepend undefined elements. To dismiss this warning, add 'head(bar)=undefined' to the top-level annotations. To prepend a different value, add 'head(bar)=SOME_OTHER_EXPRESSION' instead.
 NameError: unknown input 'foo' (in annotation key 'head(foo)')

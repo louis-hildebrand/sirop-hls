@@ -426,6 +426,10 @@ trait TypeChecker {
           assert(newIdx.typ.isInstanceOf[TyAnyInt])
           val newT = t.tchk(context, constValues)
           newT.typ match {
+            case TyTuple(ts @ _*) if idx.i >= ts.length =>
+              throw new TypeError(
+                s"Index ${idx.i} is out of bounds for tuple of length ${ts.length}."
+              )
             case TyTuple(ts @ _*) =>
               ta.rebuild(ts(idx.i.toInt), Seq(newT, newIdx))
             case t =>
@@ -465,27 +469,24 @@ trait TypeChecker {
           val newI = i.tchk(context, constValues).expectUInt()
           va.rebuild(vecT, Seq(newV, newI))
         case vl @ VecLiteral(elems @ _*) =>
-          elems match {
-            case Seq() =>
-              throw new IllegalArgumentException(
-                "Cannot type check empty vector literal."
-              )
-            case _ =>
-              val newElems = elems.map(e => e.tchk(context, constValues))
-              for ((e, i) <- newElems.zipWithIndex.tail) {
-                if (e.typ != newElems.head.typ) {
-                  throw new TypeError(
-                    s"Element 0 of vector has type ${newElems.head.typ} but element $i has type ${e.typ}."
-                  )
-                }
-              }
-              val len = newElems.length
-              val n = C(len)(TyAnyInt.tightest(0, len))
-              vl.rebuild(
-                TyVec(newElems.head.typ, n)(NoOpCanonicalizer),
-                newElems
-              )
+          val newElems = elems.map(e => e.tchk(context, constValues))
+          val types = newElems.map(_.typ).toSet
+          val typesAfterSubstitution =
+            types.map(_.substitute(constValues.toMap[Expr, Expr]))
+          if (types.isEmpty) {
+            throw new IllegalArgumentException(
+              "Cannot type check empty vector literal."
+            )
+          } else if (typesAfterSubstitution.size > 1) {
+            val typesStr = types.toSeq.map(_.toString).sorted.mkString(", ")
+            throw new TypeError(
+              s"Inconsistent element types in vector literal: $typesStr",
+              TypeChecker.relevantBindings(constValues, types.toSeq: _*)
+            )
           }
+          val elemTyp = types.head
+          val len = C(newElems.length)().tchk()
+          vl.rebuild(TyVec(elemTyp, len)(NoOpCanonicalizer), newElems)
 
         case s: StmBuild =>
           val newContext = s.namesDefinedHere.foldLeft(context)({
@@ -669,11 +670,13 @@ trait TypeChecker {
           val newPhysical = physical.map(e => e.tchk(context, constValues))
           val newLogical = logical.map(e => e.tchk(context, constValues))
           val types = (newPhysical ++ newLogical).map(_.typ).toSet
+          val typesAfterSubstitution =
+            types.map(_.substitute(constValues.toMap[Expr, Expr]))
           if (types.isEmpty) {
             throw new IllegalArgumentException(
               "Cannot type check empty stream literal; an explicit type annotation must be provided."
             )
-          } else if (types.size == 1) {
+          } else if (typesAfterSubstitution.size == 1) {
             val t = types.head
             val len = newLogical.length
             val n = C(len)(TyAnyInt.tightest(0, len))
@@ -682,8 +685,10 @@ trait TypeChecker {
               newPhysical ++ newLogical
             )
           } else {
-            throw new IllegalArgumentException(
-              "Inconsistent element types in stream literal."
+            val typesStr = types.toSeq.map(_.toString).sorted.mkString(", ")
+            throw new TypeError(
+              s"Inconsistent element types in stream literal: $typesStr",
+              TypeChecker.relevantBindings(constValues, types.toSeq: _*)
             )
           }
 
@@ -897,16 +902,10 @@ trait TypeChecker {
         s"input delay map seems to have invalid keys (${this.prog.accel.inputDelays.keySet})"
           + s" that are not in input set ($accelInputs)"
       )
-      val newInputDelays = accelInputs
-        .map({ x =>
-          this.prog.accel.inputDelays.get(x) match {
-            case Some(delay) => x -> delay.tchk(mainConstTypes, mainConstVals)
-            case None =>
-              logger.debug(s"assuming 0 delay for input $x")
-              x -> C(0)(U0)
-          }
+      val newInputDelays = this.prog.accel.inputDelays
+        .map({ case (x, d) =>
+          x -> d.map(_.tchk(mainConstTypes, mainConstVals))
         })
-        .toMap
       val newAccel =
         this.prog.accel.copy(body = newBody, inputDelays = newInputDelays)
       val (_, _, newTestSuite) =
@@ -969,7 +968,7 @@ trait TypeChecker {
     private def checkAccelAnnotationsByParam(
         inputs: Set[Param]
     )(implicit c: Canonicalizer): Map[(String, Param), Expr] = {
-      val annotationsByParam = this.prog.go match {
+      val annotationsByParam1 = this.prog.go match {
         case Some(go) =>
           prog.accel.annotationsByParam.get(("head", go)) match {
             case None | Some(False) => ()
@@ -979,7 +978,26 @@ trait TypeChecker {
           prog.accel.annotationsByParam + (("head", go) -> False)
         case None => prog.accel.annotationsByParam
       }
-      annotationsByParam.map({
+      val headsToAdd = inputs
+        .diff(
+          annotationsByParam1.keySet.collect({ case ("head", x) => x })
+        )
+        .toSeq
+        .sortBy(_.name)
+        .map({ x =>
+          if (!this.prog.handshake) {
+            logger.warn(
+              s"no head is specified for input stream '$x'." +
+                " If the compiler needs to delay the stream, it will prepend undefined elements." +
+                s" To dismiss this warning, add 'head($x)=undefined' to the top-level annotations." +
+                s" To prepend a different value, add 'head($x)=SOME_OTHER_EXPRESSION' instead."
+            )
+          }
+          ("head", x) -> Undefined(Missing)
+        })
+        .toMap
+      val annotationsByParam2 = annotationsByParam1 ++ headsToAdd
+      annotationsByParam2.map({
         case ((key @ "head", x), v) =>
           inputs.find(_ == x) match {
             case Some(xWithType) =>

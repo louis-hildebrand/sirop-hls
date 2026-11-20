@@ -6,7 +6,7 @@ import mhir.delay.ReplaceAccumulatorDelaysWithGo
 import mhir.gen.TestPassed
 import mhir.gen.vhdl.test._
 import mhir.ir._
-import mhir.optimize.{PartialEvalPass, StmBuildSimplifier, StmSimplifier}
+import mhir.optimize.{PartialEvalPass, StmBuildSimplifier}
 import mhir.sugar.Uncurrier.Uncurry
 import mhir.sugar._
 import mhir.sugar.handshake.StmDrop
@@ -18,7 +18,6 @@ import org.scalatest.funsuite.AnyFunSuite
 class VhdlGeneratorTests extends AnyFunSuite {
 
   private val stmBuildSimplifier = StmBuildSimplifier()
-  private val stmSimplifier = StmSimplifier(stmBuildSimplifier)
 
   test("Reshaping") {
     val n = 16
@@ -1181,6 +1180,54 @@ class VhdlGeneratorTests extends AnyFunSuite {
       )().tchk().lower
     }
     assert(VhdlTestRunner.testExpr(s) == TestPassed)
+  }
+
+  test("VecMapShiftLeft") {
+    val v = Param("v")(TyVec(TyVec(U8, 4), 3))
+    val p = Param("p")(TyStm(TyVec(U8, 3), 14))
+    val t = Param("t")(U8)
+    val s = Function(
+      p,
+      StmBuild(
+        10,
+        Tuple()(),
+        Undefined(Missing),
+        v,
+        LessThan(C(3)(U8), t)(),
+        Map(
+          t -> (C(0)(U8), Sum(C(1)(U8), t)(), Tuple()()),
+          v -> (
+            Undefined(Missing),
+            VecBuild(
+              3, {
+                val i = Param("i")(U8)
+                Function(
+                  i,
+                  VecShiftLeft(
+                    VecAccess(v, i)(),
+                    Sum(VecAccess(StmData(p)(), i)(), i)()
+                  )()
+                )()
+              }
+            )(),
+            Tuple()()
+          )
+        ),
+        Map(
+          p -> (p, True, Tuple()())
+        )
+      )()
+    )().tchk().lower
+    val inputs = Seq(
+      Seq(
+        DirectTestInput(
+          (0 until 14)
+            .map(t => VecLiteral((0 until 3).map(i => C(8 * t + i)(U8)): _*)())
+            .map(Some(_))
+        )
+      )
+    )
+    assert(VhdlTestRunner.testExpr(s, inputs) == TestPassed)
   }
 
   test("VecAccess(VecBuild(...), i)") {

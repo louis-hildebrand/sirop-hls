@@ -16,6 +16,8 @@ import mhir.ir._
   *   that input.
   * @param typ
   *   The stream type.
+  * @param nameAnnotation
+  *   the name annotation for the [[mhir.ir.StmBuild]].
   */
 private[handshake] case class StmNodeHardware(
     data: Expr,
@@ -23,5 +25,6 @@ private[handshake] case class StmNodeHardware(
     inputs: Map[Param, StmNodeId],
     nextByAccumulator: Map[Param, Expr],
     readyByInput: Map[Param, Expr],
-    typ: TyStm
+    typ: TyStm,
+    nameAnnotation: Option[String]
 )

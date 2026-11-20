@@ -21,19 +21,27 @@ object FlattenPipeline {
     val (inputs, stm) = {
       val (inputs, stm1) = TypeChecker.unwrapTopLevelFunction(f)
       val stm2 = makeDataRegisterExplicitInSbuild(stm1)
-      val stm3 = if (options.absorbOutReg) {
-        absorbOutReg(stm2)
+      val stm3 = splitTuples(stm2)
+      val stm4 = if (options.absorbOutReg) {
+        absorbOutReg(stm3)
       } else {
-        stm2
+        stm3
       }
-      (inputs, stm3)
+      (inputs, stm4)
     }
     val unusedInputs = inputs.toSet.diff(stm.freeVars)
     val (sink1, nodes1) = makePipeline(stm)
     val (sink2, nodes2) = deduplicateVars(sink1, nodes1)
     val pipe1 = FlatPipeline(
-      sbuilds = nodes2.collect({ case n: StmBuildNode => n }),
-      lets = nodes2.collect({ case n: LetStmNode => n }),
+      entityName = options.topName,
+      sbuilds = nodes2
+        .collect({ case n: StmBuildNode => n })
+        .zipWithIndex
+        .map({ case (node, i) => node.copy(entityName = s"sbuild_${i + 1}") }),
+      lets = nodes2
+        .collect({ case n: LetStmNode => n })
+        .zipWithIndex
+        .map({ case (node, i) => node.copy(entityName = s"letstm_${i + 1}") }),
       inputs = inputs.toSet,
       unusedInputs = unusedInputs,
       sink = sink2
@@ -96,6 +104,11 @@ object FlattenPipeline {
           )
         }
     }
+    if (options.reservedKeywords.contains(options.topName.toLowerCase)) {
+      throw CodegenError(
+        s"cannot generate entity '${options.topName}', since its name is a reserved keyword in VHDL"
+      )
+    }
   }
 
   private def makePipeline(e: Expr): (Param, Seq[PipelineNode]) = {
@@ -103,7 +116,7 @@ object FlattenPipeline {
       case x: Param =>
         (x, Seq())
       case s: StmBuild =>
-        var newAccumulators = Map[Param, Accumulator]()
+        var newIntermediates = ListMap[Param, Accumulator]()
         var newProducers = Map[Param, (Param, Expr)]()
         var newNodes = Seq[PipelineNode]()
         for ((x, (stm, ready, _)) <- s.producers) {
@@ -119,22 +132,21 @@ object FlattenPipeline {
             },
             ExprIntermediate(next)
           )
-          newAccumulators += (x -> acc)
+          newIntermediates += (x -> acc)
         }
         val genSbuild = GenStmBuild(
           data = s.nextData,
           valid = s.valid,
-          accumulators = newAccumulators,
           producers = newProducers,
-          intermediates = ListMap()
+          intermediates = newIntermediates
         )
         val x = Param("s")(s.typ)
-        (x, newNodes :+ StmBuildNode(x, genSbuild))
+        (x, newNodes :+ StmBuildNode("", x, genSbuild))
       case LetStm(bufSizeExpr, x, in, out) =>
         val (sinkIn, nodesIn) = makePipeline(in)
         val (sinkOut, nodesOut) = makePipeline(out)
         val IntCst(bufSize) = mhir.eval.eval(bufSizeExpr)
-        val newNode = LetStmNode(sinkIn, bufSize.toInt, Set(x))
+        val newNode = LetStmNode("", sinkIn, bufSize.toInt, Set(x))
         (sinkOut, nodesIn ++ (newNode +: nodesOut))
       case _ =>
         throw new IllegalArgumentException(
@@ -183,7 +195,7 @@ object FlattenPipeline {
           } else {
             (Map(), sink, Seq())
           }
-        case Seq(StmBuildNode(x, s), rest @ _*) =>
+        case Seq(StmBuildNode(name, x, s), rest @ _*) =>
           var (renamings, newSink, newRest) =
             deduplicateVars(rest, varsToRename)
           var newProducers = Map[Param, (Param, Expr)]()
@@ -202,13 +214,12 @@ object FlattenPipeline {
           val newSbuild = GenStmBuild(
             data = s.data,
             valid = s.valid,
-            accumulators = s.accumulators,
             producers = newProducers,
             intermediates = s.intermediates
           )
-          val newNode = StmBuildNode(x, newSbuild)
+          val newNode = StmBuildNode(name, x, newSbuild)
           (renamings, newSink, newNode +: newRest)
-        case Seq(LetStmNode(in, bufSize, out), rest @ _*) =>
+        case Seq(LetStmNode(name, in, bufSize, out), rest @ _*) =>
           val (renamings, newSink, newRest) =
             deduplicateVars(rest, varsToRename ++ out)
           val newOut = out.flatMap(x => renamings.getOrElse(x, Set()))
@@ -216,10 +227,10 @@ object FlattenPipeline {
             val newIn = in.freshCopy
             (
               renamings + (in -> (renamings.getOrElse(in, Set()) + newIn)),
-              LetStmNode(newIn, bufSize, newOut)
+              LetStmNode(name, newIn, bufSize, newOut)
             )
           } else {
-            (renamings, LetStmNode(in, bufSize, newOut))
+            (renamings, LetStmNode(name, in, bufSize, newOut))
           }
           // The variable inside `out` is no longer needed in the renamings
           // set; it shouldn't appear in any of the nodes that may have come
@@ -234,8 +245,9 @@ object FlattenPipeline {
 
   private def cleanUpSbuilds(pipe: FlatPipeline): FlatPipeline = {
     FlatPipeline(
-      sbuilds = pipe.sbuilds.map({ case StmBuildNode(out, s) =>
-        StmBuildNode(out, cleanUpSbuild(s))
+      entityName = pipe.entityName,
+      sbuilds = pipe.sbuilds.map({ case StmBuildNode(name, out, s) =>
+        StmBuildNode(name, out, cleanUpSbuild(s))
       }),
       lets = pipe.lets,
       inputs = pipe.inputs,
@@ -253,17 +265,27 @@ object FlattenPipeline {
   private def makeDataRegisterExplicitInSbuild(e: Expr): Expr = {
     e.map(makeDataRegisterExplicitInSbuild).tchk() match {
       case s: StmBuild =>
-        val (newData, newAccumulators) =
-          SplitTupleIntoAccumulators(s.initData, s.nextData, "data")
+        assert(s.nextData.hasType, "next data expression should have a type")
+        val newData = Param("data")(s.nextData.typ)
+        val newAccumulator =
+          newData -> (s.initData, s.nextData, Tuple()(TyTuple()))
         StmBuild(
           s.n,
           s.delay,
           Undefined(Missing),
           newData,
           s.valid,
-          s.accumulators ++ newAccumulators,
+          s.accumulators + newAccumulator,
           s.producers
         )(annotations = s.annotations).tchk()
+      case e => e
+    }
+  }
+
+  private def splitTuples(e: Expr): Expr = {
+    e.map(splitTuples).tchk() match {
+      case s: StmBuild =>
+        PartialEvalPass.partialEval(TupleAccumulatorSplitter.applyOnce(s))
       case e => e
     }
   }
@@ -332,31 +354,14 @@ object FlattenPipeline {
     GenStmBuild(
       data = s.data.subPreserveType(subs),
       valid = s.valid.subPreserveType(subs),
-      accumulators = s.accumulators.map({
-        case (x, ExprAccumulator(init, next)) =>
-          // Producers are not in scope in initial value, so no need to do any
-          // substitutions there
-          x -> ExprAccumulator(init, next.substitute(subs))
-        case (x, a: Accumulator) =>
-          x -> a.substitute(subs)
-      }),
       producers = s.producers.map({ case (x, (p, ready)) =>
         assert(x == p || renamings(x) == p)
         // The ready expressions cannot use sdata, so no need to do any
         // substitutions there
         p -> (p, ready)
       }),
-      intermediates = s.intermediates.map({
-        case (x, ExprIntermediate(e)) =>
-          x -> ExprIntermediate(e.subPreserveType(subs))
-        case (x, FunctionIntermediate(Seq(y), Seq(), body)) =>
-          val Function(y2, body2) =
-            Function(y, body)().tchk().subPreserveType(subs)
-          x -> FunctionIntermediate(Seq(y2), ListMap(), body2)
-        case (_, _: IpBlockInst) =>
-          throw new AssertionError(
-            "there shouldn't be any IP blocks yet at this compilation stage"
-          )
+      intermediates = s.intermediates.map({ case (x, i) =>
+        x -> i.substitute(subs)
       })
     )
   }
@@ -369,73 +374,16 @@ object FlattenPipeline {
       val nop = GenStmBuild(
         data = data,
         valid = True,
-        accumulators =
-          Map(data -> ExprAccumulator(None, StmDataIntermediate(pipe.sink))),
         producers = Map(pipe.sink -> (pipe.sink, True)),
-        intermediates = ListMap()
+        intermediates = ListMap(
+          data -> ExprAccumulator(None, StmDataIntermediate(pipe.sink))
+        )
       )
-      val newNode = StmBuildNode(newSink, nop)
+      val newNode =
+        StmBuildNode(s"sbuild_${pipe.sbuilds.length + 1}", newSink, nop)
       pipe.copy(sbuilds = pipe.sbuilds :+ newNode, sink = newSink)
     } else {
       pipe
-    }
-  }
-}
-
-/** Turns the `data` expression of [[StmBuild]] into a bunch of accumulators
-  * (one for each tuple element, if it's a tuple).
-  *
-  * Splitting up a tuple into multiple arguments makes later passes easier. For
-  * example, DSP selection looks for accumulators whose `next` expression is
-  * basically a multiplication. This is harder to recognize if the
-  * multiplication is buried somewhere in a tuple.
-  */
-private object SplitTupleIntoAccumulators {
-  def apply(
-      initData: Expr,
-      nextData: Expr,
-      prefix: String
-  ): (Expr, Map[Param, (Expr, Expr, Expr)]) = {
-    assert(nextData.hasType, "next data expression should have a type")
-    val splitter = new SplitTupleIntoAccumulators(Map())
-    val newE = splitter.runAndMutateAccumulators(initData, nextData, prefix)
-    val newAccumulators = splitter.accumulators.map({ case (x, (init, next)) =>
-      x -> (init, next, Tuple()().tchk())
-    })
-    (newE, newAccumulators)
-  }
-}
-
-private class SplitTupleIntoAccumulators(
-    var accumulators: Map[Param, (Expr, Expr)]
-) {
-
-  private def runAndMutateAccumulators(
-      init: Expr,
-      next: Expr,
-      prefix: String
-  ): Expr = {
-    assert(next.hasType, "next data expression should have a type")
-    (init, next) match {
-      case (Tuple(initElems @ _*), Tuple(nextElems @ _*)) =>
-        assert(
-          initElems.length == nextElems.length,
-          "init and next tuple should have the same shape"
-        )
-        val newElems = initElems
-          .zip(nextElems)
-          .zipWithIndex
-          .map({ case ((init, next), i) =>
-            this.runAndMutateAccumulators(init, next, s"${prefix}_$i")
-          })
-        Tuple(newElems: _*)().tchk()
-      case (Undefined(TyTuple(ts @ _*)), next: Tuple) =>
-        val splitInit = Tuple(ts.map(Undefined(_)): _*)().tchk()
-        this.runAndMutateAccumulators(splitInit, next, prefix)
-      case (init, next) =>
-        val x = Param(prefix)(next.typ)
-        this.accumulators += (x -> (init, next))
-        x
     }
   }
 }

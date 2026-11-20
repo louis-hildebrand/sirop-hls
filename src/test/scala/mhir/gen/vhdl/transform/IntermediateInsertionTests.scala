@@ -19,7 +19,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
   test("IfElse") {
     val c = Param("c")(TyBool)
     val e = Sum(C(1)(U8), Mux(c, C(42)(U8), C(0)(U8))())()
-    val (actualExpr, actualIntermediates) = IntermediateInsertion(e)
+    val (actualExpr, actualIntermediates) = IntermediateInsertion(e, Map.empty)
 
     assert(actualIntermediates.size == 1)
     val (tmp, actualIntermediate) = actualIntermediates.head
@@ -42,7 +42,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
     val original = GenStmBuild(
       data = acc,
       valid = True,
-      accumulators = Map(
+      intermediates = ListMap(
         acc -> ExprAccumulator(
           Some(ExprIntermediate(C(0)(U8))),
           ExprIntermediate(
@@ -56,8 +56,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
       ),
       producers = Map(
         p -> (p, True)
-      ),
-      intermediates = ListMap()
+      )
     )
     val actual = IntermediateInsertion(original)
 
@@ -67,7 +66,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
     val expected = GenStmBuild(
       data = acc,
       valid = True,
-      accumulators = Map(
+      intermediates = ListMap(
         acc -> ExprAccumulator(
           Some(ExprIntermediate(C(0)(U8))),
           MuxIntermediate(
@@ -75,13 +74,11 @@ class IntermediateInsertionTests extends AnyFunSuite {
             sdata,
             Sum(C(1)(U8), acc)().tchk()
           )
-        )
+        ),
+        sdata -> StmDataIntermediate(p)
       ),
       producers = Map(
         p -> (p, True)
-      ),
-      intermediates = ListMap(
-        sdata -> StmDataIntermediate(p)
       )
     )
     assert(actual == expected)
@@ -93,39 +90,38 @@ class IntermediateInsertionTests extends AnyFunSuite {
     val original = GenStmBuild(
       data = Sum(x, x)().tchk(),
       valid = True,
-      accumulators = Map(
+      intermediates = ListMap(
         b -> ExprAccumulator(
           Some(ExprIntermediate(True)),
           ExprIntermediate(Not(b)().tchk())
-        )
-      ),
-      producers = Map(),
-      intermediates = ListMap(
+        ),
         x -> ExprIntermediate(
           Sum(C(5)(U8), Mux(b, C(42)(U8), C(0)(U8))())().tchk()
         )
-      )
+      ),
+      producers = Map()
     )
     val actual = IntermediateInsertion(original)
 
-    assert(actual.intermediates.size == 2)
-    val ite = actual.intermediates
+    val intermediatesExceptAccumulators = actual.intermediates
+      .filterNot({ case (_, i) => i.isInstanceOf[Accumulator] })
+    assert(intermediatesExceptAccumulators.size == 2)
+    val ite = intermediatesExceptAccumulators
+      .filterNot({ case (_, i) => i.isInstanceOf[Accumulator] })
       .collectFirst({ case (y, _) if y != x => y })
       .get
     val expected = GenStmBuild(
       data = Sum(x, x)().tchk(),
       valid = True,
-      accumulators = Map(
+      intermediates = ListMap(
         b -> ExprAccumulator(
           Some(ExprIntermediate(True)),
           ExprIntermediate(Not(b)().tchk())
-        )
-      ),
-      producers = Map(),
-      intermediates = ListMap(
+        ),
         ite -> MuxIntermediate(b, C(42)(U8), C(0)(U8)),
         x -> ExprIntermediate(Sum(C(5)(U8), ite)().tchk())
-      )
+      ),
+      producers = Map()
     )
     assert(actual == expected)
   }
@@ -145,7 +141,9 @@ class IntermediateInsertionTests extends AnyFunSuite {
         StmData(s)()
       )()
     )().tchk()
-    val (actualExpr, actualIntermediates) = IntermediateInsertion(fImpl)
+    val sdataIntermediateName = Param("s_data")(I16)
+    val (actualExpr, actualIntermediates) =
+      IntermediateInsertion(fImpl, Map(StmData(s)() -> sdataIntermediateName))
 
     assert(actualExpr.isInstanceOf[Param])
     val actualExprParam = actualExpr.asInstanceOf[Param]
@@ -157,6 +155,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
     val (sdata, StmDataIntermediate(actualS)) =
       (actualIntermediates - actualExprParam).head
     assert(actualS == s)
+    assert(sdata == sdataIntermediateName)
 
     val (ite1, ite2, ite3) = actualBody match {
       case Sum(ite2: Param, ite3: Param, actualSdata) =>
@@ -189,19 +188,20 @@ class IntermediateInsertionTests extends AnyFunSuite {
     val original = GenStmBuild(
       data = acc,
       valid = True,
-      accumulators = Map(
+      intermediates = ListMap(
         acc -> ExprAccumulator(None, ExprIntermediate(StmData(p)().tchk()))
       ),
       producers = Map(
         p -> (p, True)
-      ),
-      intermediates = ListMap()
+      )
     )
     val actual = IntermediateInsertion(original)
-    assert(actual.accumulators.size == 1)
     assert(
-      actual.accumulators.head._2
-        .asInstanceOf[ExprAccumulator]
+      actual.intermediates.collect({ case (_, a: Accumulator) => a }).size == 1
+    )
+    assert(
+      actual.intermediates
+        .collectFirst({ case (_, a: ExprAccumulator) => a })
         .init
         .isEmpty
     )
@@ -215,42 +215,50 @@ class IntermediateInsertionTests extends AnyFunSuite {
     val original = GenStmBuild(
       data = ARShift(mul2, 2)().tchk(),
       valid = True,
-      accumulators = Map(
+      intermediates = ListMap(
         b -> ExprAccumulator(
           Some(ExprIntermediate(True)),
           ExprIntermediate(Not(b)().tchk())
+        ),
+        mul1 -> ForGenerateIntermediate(
+          AgilexMac1(
+            StmData(p)().__0.__0.tchk(),
+            Sum(C(1)(U8), StmData(p)().__0.__1)().tchk(),
+            C(0)(U8)
+          )
+        ),
+        mul2 -> ForGenerateIntermediate(
+          AgilexMac2(
+            VecAccess(StmData(p)().__1, 0)().tchk(),
+            Sum(
+              C(1)(U8),
+              Mux(b, VecAccess(StmData(p)().__1, 1)(), C(1)(U8))()
+            )()
+              .tchk(),
+            VecAccess(StmData(p)().__1, 2)().tchk(),
+            Sum(
+              C(1)(U8),
+              Mux(b, VecAccess(StmData(p)().__1, 3)(), C(1)(U8))()
+            )()
+              .tchk(),
+            mul1,
+            pipeline = 2
+          )
         )
       ),
       producers = Map(
         p -> (p, True)
-      ),
-      intermediates = ListMap(
-        mul1 -> AgilexMac1(
-          StmData(p)().__0.__0.tchk(),
-          Sum(C(1)(U8), StmData(p)().__0.__1)().tchk(),
-          C(0)(U8)
-        ),
-        mul2 -> AgilexMac2(
-          VecAccess(StmData(p)().__1, 0)().tchk(),
-          Sum(C(1)(U8), Mux(b, VecAccess(StmData(p)().__1, 1)(), C(1)(U8))())()
-            .tchk(),
-          VecAccess(StmData(p)().__1, 2)().tchk(),
-          Sum(C(1)(U8), Mux(b, VecAccess(StmData(p)().__1, 3)(), C(1)(U8))())()
-            .tchk(),
-          mul1,
-          pipeline = 2
-        )
       )
     )
     val actual = IntermediateInsertion(original)
 
-    val mac1Count = actual.intermediates.count({
-      case (_, _: AgilexMac1) => true
-      case _                  => false
-    })
+    val ipBlocks = actual.intermediates
+      .flatMap({ case (_, i) => i.intermediateDescendants :+ i })
+      .collect({ case i: IpBlockInst => i })
+      .toSeq
+    val mac1Count = ipBlocks.count(_.isInstanceOf[AgilexMac1])
     assert(mac1Count == 1)
-    val mac1 =
-      actual.intermediates.collectFirst({ case (_, i: AgilexMac1) => i }).get
+    val mac1 = ipBlocks.collectFirst({ case i: AgilexMac1 => i }).get
     mac1 match {
       case AgilexMac1(
             // Keep tuple access as-is
@@ -264,13 +272,9 @@ class IntermediateInsertionTests extends AnyFunSuite {
       case i => fail(s"invalid mac1: $i")
     }
 
-    val mac2Count = actual.intermediates.count({
-      case (_, _: AgilexMac2) => true
-      case _                  => false
-    })
+    val mac2Count = ipBlocks.count(_.isInstanceOf[AgilexMac2])
     assert(mac2Count == 1)
-    val mac2 =
-      actual.intermediates.collectFirst({ case (_, i: AgilexMac2) => i }).get
+    val mac2 = ipBlocks.collectFirst({ case i: AgilexMac2 => i }).get
     mac2 match {
       case AgilexMac2(
             VecAccess(TupleAccess(_: Param, IntCst(1)), IntCst(0)),
@@ -284,10 +288,6 @@ class IntermediateInsertionTests extends AnyFunSuite {
       case i => fail(s"invalid mac2: $i")
     }
 
-    val ipBlockCount = actual.intermediates.count({
-      case (_, _: IpBlockInst) => true
-      case _                   => false
-    })
-    assert(ipBlockCount == 2)
+    assert(ipBlocks.length == 2)
   }
 }

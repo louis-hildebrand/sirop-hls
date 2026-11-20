@@ -1,4 +1,4 @@
-accelerator[no_handshake, go=go] top = (s: Stm[u8, 4]) => (go: Stm[bool, 4]) =>
+accelerator[no_handshake, go=go, head(s)=undefined] top = (s: Stm[u8, 4]) => (go: Stm[bool, 4]) =>
     s
     .StmMap(x => x + 5)
     .StmZip(go, /*head=*/(undefined:u8, false))

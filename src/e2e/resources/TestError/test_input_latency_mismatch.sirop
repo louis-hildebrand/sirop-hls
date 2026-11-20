@@ -1,17 +1,17 @@
-accelerator[no_handshake]
-top = (a: Stm[u8, 3] @ 0) => (b: Stm[bool, 3] @ 0) =>
-    StmZip(a, b)
+const N: u32 = 5
+
+accelerator[no_handshake, out_name=c, head(a)=undefined, head(b)=undefined]
+// Since there is no delay annotation for input 'a', it defaults to zero.
+// Therefore, input 'b' must arrive one clock cycle later than 'a'.
+foo = (a: Stm[u16, N]) => (b: Stm[u16, N] @ 1) =>
+//                                        ^^^
+//                                        NOTICE
+    a
+    .StmMap(x => x * x)
+    .StmMap2(b, a_squared => b => a_squared + b)
 
 assert {
-    // It's fine if the absolute latency is different, as long as the input
-    // streams are all correct relative to one another
-    a = [undefined:u8, undefined:u8]s ++ [1:u8, 2:u8, 3:u8]s,
-    b = [undefined:bool, undefined:bool]s ++ [true, false, true]s
+    a =                          [ 2:u16,  3:u16,  4:u16,  5:u16,  6:u16]s,
+    b = /*[undefined:u16]s ++ */ [10:u16, 11:u16, 12:u16, 13:u16, 14:u16]s
 }
-yields [(1:u8, true), (2:u8, false), (3:u8, true)]s
-
-assert {
-    a = [0:u8]s ++ [1:u8, 2:u8, 3:u8]s,
-    b = []s ++ [true, false, true]s
-}
-yields [(1:u8, true), (2:u8, false), (3:u8, true)]s
+yields [14:u16, 20:u16, 28:u16, 38:u16, 50:u16]s

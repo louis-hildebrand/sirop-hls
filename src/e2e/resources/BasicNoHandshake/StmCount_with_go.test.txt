@@ -1,0 +1,9 @@
+[WARN ] physical prefix in expected output of test 0 will be ignored
+[WARN ] physical prefix in expected output of test 1 will be ignored
+[INFO ] schedule:
+[INFO ]   go @ 0
+[INFO ]   output @ 1
+[INFO ] test 0: PASSED
+[INFO ] test 1: PASSED
+[INFO ] test 2: PASSED
+[INFO ] 3/3 tests passed!

@@ -17,19 +17,22 @@ object ApplyTransformations {
   private implicit val logger: Logger = Logger(getClass.getName)
 
   def apply(pipe: FlatPipeline, options: VhdlGeneratorOptions): FlatPipeline = {
-    val pipe1 = time("looking for VecWrite", Level.DEBUG) {
+    val pipe1 = time("classifying vector accumulators", Level.DEBUG) {
       pipe.mapSbuilds(ClassifyVecAccumulators.apply)
     }
     val pipe2 = time("adding vector bounds checks", Level.DEBUG) {
       pipe1.mapSbuilds(BoundsCheckInsertion.apply)
     }
     val pipe3 = options.deviceFamily match {
+      case _ if !options.emitDspIpBlocks =>
+        logger.debug("DSP selection is disabled")
+        pipe2
       case "Agilex 7" =>
         time(s"mapping multiplications to Agilex 7 DSP blocks", Level.DEBUG) {
           val pass = agilex7.DspSelection(
             StmOutputScheduler(
               EnabledBinOpTreeBalancingPass,
-              SimpleDelayCostModel(madd = true)
+              SimpleDelayCostModel(targetFmaxMHz = options.fmax, madd = true)
             )
           )
           pipe2.mapSbuilds(pass.apply)

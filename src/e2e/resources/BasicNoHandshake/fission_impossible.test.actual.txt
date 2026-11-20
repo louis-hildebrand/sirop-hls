@@ -1,6 +1,7 @@
 /* Test 0 */
 [
-  0:u8
+  0:u8,
+  undefined:u8
 ]s ++ [
   2:u8,
   5:u8,

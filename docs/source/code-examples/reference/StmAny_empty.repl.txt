@@ -1,3 +1,0 @@
-> __handshake = false
-> ([]s:Stm[bool,0]).StmAny()
-[false]s

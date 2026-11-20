@@ -194,23 +194,27 @@ object StmAccRemovalPass {
   private def mergeChainedShiftRegisters(
       stm: StmBuild,
       child: Param,
-      childLen: Long,
+      childLengths: Seq[Long],
       childParams: Seq[Param],
       parent: Param,
-      parentLen: Long,
+      parentLengths: Seq[Long],
       parentParams: Seq[Param],
       parentInput: Expr,
       indicesBeforeSrc: Seq[Expr],
       src: Long,
       indicesAfterSrc: Seq[Expr]
   ): Option[StmBuild] = {
-    val overlapLen = math.min(childLen, src)
-    val deltaLen = childLen - overlapLen
-    val combinedLen = parentLen + deltaLen
+    val (outerChildLengths, childShiftLen) =
+      (childLengths.init, childLengths.last)
+    val (outerParentLengths, parentShiftLen) =
+      (parentLengths.init, parentLengths.last)
+    val overlapLen = math.min(childShiftLen, src)
+    val deltaLen = childShiftLen - overlapLen
+    val combinedShiftLen = parentShiftLen + deltaLen
     def combineTyp(parentTyp: Type, dimensionsToUnwrap: Int): Type = {
       if (dimensionsToUnwrap <= 0) {
         val TyVec(elemTyp, _) = parentTyp
-        TyVec(elemTyp, C(combinedLen)())
+        TyVec(elemTyp, C(combinedShiftLen)())
       } else {
         val TyVec(innerTyp, len) = parentTyp
         val updatedInnerTyp = combineTyp(innerTyp, dimensionsToUnwrap - 1)
@@ -234,24 +238,9 @@ object StmAccRemovalPass {
       combinedTyp
     )
     combinedInitAndDelay match {
-      case None => None
+      case None                                => None
       case Some((combinedInit, combinedDelay)) =>
-        @tailrec
-        def getVecLengths(
-            typ: Type,
-            n: Int,
-            acc: Seq[Expr] = Seq()
-        ): Seq[Expr] = {
-          assert(n >= 0)
-          n match {
-            case 0 => acc
-            case n =>
-              val TyVec(elemTyp, len) = typ
-              getVecLengths(elemTyp, n - 1, len +: acc)
-          }
-        }
         // TODO: deduplicate this code
-        val parentLengths = getVecLengths(parent.typ, parentParams.length)
         val combinedNext = {
           val inputOfShiftLeft = parentParams.foldLeft[Expr](combinedParam)({
             case (acc, i) => VecAccess(acc, i)().tchk()
@@ -262,11 +251,11 @@ object StmAccRemovalPass {
           // IMPORTANT: `parentInput` may refer to variables in `parentParams`.
           // Therefore, we need to use the same params; we cannot just add the required number of
           // VecMap calls.
-          assert(parentParams.length == parentLengths.length)
+          assert(parentParams.length == outerParentLengths.length)
           parentParams.reverse
-            .zip(parentLengths)
+            .zip(outerParentLengths.reverse)
             .foldLeft(combinedShift)({ case (v, (i, len)) =>
-              VecBuild(len, Function(i, v)())().tchk()
+              VecBuild(C(len)(), Function(i, v)())().tchk()
             })
         }
         val newParent = {
@@ -274,21 +263,21 @@ object StmAccRemovalPass {
             case (acc, i) => VecAccess(acc, i)().tchk()
           })
           val takeRight = PartialEvalPass.partialEval(
-            VecTakeRight(inputOfTake, C(parentLen)())().tchk().lower
+            VecTakeRight(inputOfTake, C(parentShiftLen)())().tchk().lower
           )
           // IMPORTANT: `parentInput` may refer to variables in `parentParams`.
           // Therefore, we need to use the same params; we cannot just add the required number of
           // VecMap calls.
-          assert(parentParams.length == parentLengths.length)
+          assert(parentParams.length == outerParentLengths.length)
           parentParams.reverse
-            .zip(parentLengths)
+            .zip(outerParentLengths.reverse)
             .foldLeft(takeRight)({ case (v, (i, len)) =>
-              VecBuild(len, Function(i, v)())().tchk()
+              VecBuild(C(len)(), Function(i, v)())().tchk()
             })
         }
         val newChild = {
           val innermostParam = Param("i")(U32)
-          val childStartIndex = src + deltaLen - childLen
+          val childStartIndex = src + deltaLen - childShiftLen
           // val inputOfTake = indicesToParent.foldLeft[Expr](combinedParam)({ case (acc, i) =>
           //   VecAccess(acc, i)().tchk()
           // })
@@ -308,13 +297,16 @@ object StmAccRemovalPass {
             VecAccess(acc, i)().tchk()
           })
           val innermostVec =
-            VecBuild(C(childLen)(), Function(innermostParam, childBody)())()
+            VecBuild(
+              C(childShiftLen)(),
+              Function(innermostParam, childBody)()
+            )()
               .tchk()
-          val childLengths = getVecLengths(child.typ, childParams.length)
+          assert(childParams.length == outerChildLengths.length)
           childParams.reverse
-            .zip(childLengths)
+            .zip(outerChildLengths.reverse)
             .foldLeft(innermostVec)({ case (v, (i, len)) =>
-              VecBuild(len, Function(i, v)())().tchk()
+              VecBuild(C(len)(), Function(i, v)())().tchk()
             })
         }
         // TODO: Specifically apply the (vbuild(n) { f })[i] ~~> f[i] rule (just one pass)

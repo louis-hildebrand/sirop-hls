@@ -14,6 +14,9 @@ package mhir.optimize
   *   whether to perform stream fission.
   * @param matchLatency
   *   whether to perform latency matching.
+  * @param matchLatencyInTests
+  *   whether to automatically adjust the test input streams' latencies to match
+  *   the delay annotations.
   * @param removeUnusedData
   *   whether to perform the unused data removal pass.
   * @param balanceBinOpTrees
@@ -21,6 +24,8 @@ package mhir.optimize
   * @param madd
   *   whether the DSPs on the target device support multiplication and addition
   *   in one cycle.
+  * @param targetFmaxMHz
+  *   the target Fmax, in MHz.
   * @param assumeThroughputsMatch
   *   whether the optimizer can assume the throughputs along different branches
   *   of a [[mhir.ir.LetStm]] match.
@@ -32,11 +37,13 @@ case class OptimizerOptions(
     fuse: Boolean,
     fission: Boolean,
     matchLatency: Boolean,
+    matchLatencyInTests: Boolean,
     removeUnusedData: Boolean,
     staticallyShrinkLetStmBuffers: Boolean,
     maxLetStmBufSize: Option[Int],
     balanceBinOpTrees: Boolean,
     madd: Boolean,
+    targetFmaxMHz: Long,
     assumeThroughputsMatch: Boolean
 )
 
@@ -57,11 +64,13 @@ object OptimizerOptions {
       fuse = true,
       fission = true,
       matchLatency = true,
+      matchLatencyInTests = true,
       removeUnusedData = true,
       staticallyShrinkLetStmBuffers = true,
       maxLetStmBufSize = maxLetStmBufSize,
       balanceBinOpTrees = true,
       madd = false,
+      targetFmaxMHz = 175, // TODO: replace this arbitrary value?
       assumeThroughputsMatch = assumeThroughputsMatch
     )
   }
@@ -78,11 +87,13 @@ object OptimizerOptions {
       fuse = false,
       fission = false,
       matchLatency = false,
+      matchLatencyInTests = false,
       removeUnusedData = false,
       staticallyShrinkLetStmBuffers = false,
       maxLetStmBufSize = None,
       balanceBinOpTrees = false,
       madd = false,
+      targetFmaxMHz = 175, // TODO: replace this arbitrary value?
       assumeThroughputsMatch = false
     )
   }
