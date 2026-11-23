@@ -1424,13 +1424,14 @@ case class StmVecShiftRightGarbage(stm: Expr, shiftAmount: IntCst)(
 case class StmDelay(
     stm: Expr,
     delay: Expr,
-    head: Expr = Undefined(Missing)
+    head: Expr = Undefined(Missing),
+    shiftRegName: String = "delay_buf"
 )(typ: Type = Missing)
     extends ResolvedSyntaxSugar(stm, delay, head)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): StmDelay = {
     newChildren match {
-      case Seq(s, d, h) => StmDelay(s, d, h)(typ)
+      case Seq(s, d, h) => StmDelay(s, d, h, this.shiftRegName)(typ)
       case _            => throw new BadRebuildError(this, newChildren)
     }
   }
@@ -1464,7 +1465,7 @@ case class StmDelay(
     val head = this.head.lower
     val TyStm(elemTyp, n) = stm.typ
     val p = Param("p")(TyStm(elemTyp, -1))
-    val buf = Param("delay_buf")(TyVec(elemTyp, delay))
+    val buf = Param(this.shiftRegName)(TyVec(elemTyp, delay))
     StmBuild(
       n,
       SafeSum(delay, 1)().tchk().lower,
