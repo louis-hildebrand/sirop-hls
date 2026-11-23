@@ -61,6 +61,8 @@ case class SimpleDelayCostModel(targetFmaxMHz: Long, madd: Boolean) {
       case Function(_, body) => cost(staticVars, varCosts)(body)
       case FunCall(f, arg) =>
         cost(staticVars, varCosts)(f) + cost(staticVars, varCosts)(arg)
+      case Mul2Accumulate(ax, ay, bx, by, c) if this.madd =>
+        MaxCost + Seq(ax, ay, bx, by, c).map(cost(staticVars, varCosts)).max
       case MulAdd(a1, a2, b1, b2) if this.madd =>
         MaxCost + Seq(a1, a2, b1, b2).map(cost(staticVars, varCosts)).max
       case MulAccumulate(c, x, y) if this.madd =>
@@ -199,6 +201,34 @@ case class SimpleDelayCostModel(targetFmaxMHz: Long, madd: Boolean) {
     //   n - 1 : 00010000
     //   &     : 00010000
     (n > 0) && ((n & (n - 1)) == 0)
+  }
+}
+
+object Mul2Accumulate {
+
+  /** Matches expressions like `ax*ay + bx*by + c`.
+    *
+    * @return
+    *   `Some(ax, ay, bx, by, c)` if the expression matches, else `None`.
+    */
+  def unapply(e: Expr): Option[(Expr, Expr, Expr, Expr, Expr)] = {
+    // TODO: Also handle cases like c + (ax*ay + bx*by), i.e., not a flat sum
+    e match {
+      case AnyAdd(c, AnyMul(ax, ay), AnyMul(bx, by)) =>
+        // c + ax*ay + bx*by
+        Some((ax, ay, bx, by, c))
+      case AnyAdd(c, AnyAdd(AnyMul(ax, ay), AnyMul(bx, by))) =>
+        // c + (ax*ay + bx*by)
+        Some((ax, ay, bx, by, c))
+      case AnyAdd(AnyMul(ax, ay), c, AnyMul(bx, by)) =>
+        // ax*ay + c + bx*by
+        Some((ax, ay, bx, by, c))
+      case AnyAdd(AnyMul(ax, ay), AnyMul(bx, by), c) =>
+        // ax*ay + bx*by + c
+        Some((ax, ay, bx, by, c))
+      case _ =>
+        None
+    }
   }
 }
 
