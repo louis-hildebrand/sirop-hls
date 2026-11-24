@@ -13,17 +13,19 @@ case class AgilexMadd(
     ay: Expr,
     bx: Expr,
     by: Expr,
+    chainin: Expr,
     pipeline: Int
-) extends IpBlockInst {
+) extends AgilexDsp {
 
   assert(this.ax.typ.isInstanceOf[TyAnyInt])
   assert(this.ay.typ.isInstanceOf[TyAnyInt])
   assert(this.bx.typ.isInstanceOf[TyAnyInt])
   assert(this.by.typ.isInstanceOf[TyAnyInt])
+  assert(this.chainin.typ.isInstanceOf[TyAnyInt])
   assert(this.pipeline >= 0 && this.pipeline <= 3)
 
   override def freeVars: Set[Param] = {
-    ax.freeVars ++ ay.freeVars ++ bx.freeVars ++ by.freeVars
+    ax.freeVars ++ ay.freeVars ++ bx.freeVars ++ by.freeVars ++ chainin.freeVars
   }
 
   override def substitute(subs: Map[Expr, Expr]): AgilexMadd = {
@@ -32,6 +34,7 @@ case class AgilexMadd(
       this.ay.subPreserveType(subs),
       this.bx.subPreserveType(subs),
       this.by.subPreserveType(subs),
+      this.chainin.subPreserveType(subs),
       this.pipeline
     )
   }
@@ -42,11 +45,12 @@ case class AgilexMadd(
       f(this.ay),
       f(this.bx),
       f(this.by),
+      f(this.chainin),
       this.pipeline
     )
   }
 
-  override def exprChildren: Seq[Expr] = Seq(ax, ay, bx, by)
+  override def exprChildren: Seq[Expr] = Seq(ax, ay, bx, by, chainin)
 
   override def intermediateChildren: Seq[Intermediate] = Seq.empty
 
@@ -68,18 +72,33 @@ case class AgilexMadd(
       options: VhdlGeneratorOptions,
       enable: String
   ): String = {
-    (this.ax.typ, this.ay.typ, this.bx.typ, this.by.typ, target.typ) match {
+    val (resultTyp, enableChainOut) = target.typ match {
+      case resTyp: TyAnyInt => (resTyp, false)
+      // TODO: This value of 64 is hard-coded in a lot of places. Should I do something about that?
+      case TyTuple(resTyp: TySInt, TySInt(64)) => (resTyp, true)
+      case TyTuple(resTyp: TyUInt, TyUInt(64)) => (resTyp, true)
+      case typ => throw new AssertionError(s"wrong type for DSP target: $typ")
+    }
+    (ax.typ, ay.typ, bx.typ, by.typ, chainin.typ, resultTyp) match {
       case (
             tax: TyAnyInt,
             tay: TyAnyInt,
             tbx: TyAnyInt,
             tby: TyAnyInt,
+            tch: TyAnyInt,
             tr: TyAnyInt
           ) =>
         assert(
-          Seq(tax, tay, tbx, tby, tr).map(_.signed).toSet.size == 1,
+          Seq(tax, tay, tbx, tby, tch, tr).map(_.signed).toSet.size == 1,
           "DSP inputs and outputs should all have the same signedness"
         )
+        val (resultVhdl, chainOutVhdl) = if (enableChainOut) {
+          val r = VhdlExprGenerator.makeTupleAccess(target.name, 0)
+          val c = VhdlExprGenerator.makeTupleAccess(target.name, 1)
+          (r, c)
+        } else {
+          (target.name, "open")
+        }
         EntityInstantiation(
           entityName =
             options.fullyQualify(s"dsp_sumof2_${this.signedOrUnsigned}"),
@@ -89,7 +108,11 @@ case class AgilexMadd(
             "BX_WIDTH" -> tbx.w.toString,
             "BY_WIDTH" -> tby.w.toString,
             "RESULT_WIDTH" -> tr.w.toString,
-            "PIPELINE" -> this.pipeline.toString
+            "PIPELINE" -> this.pipeline.toString,
+            "ENABLE_CHAININ" -> (this.chainin match {
+              case IntCst(0) => "false"
+              case _         => "true"
+            })
           ),
           portArgs = ListMap(
             "clk" -> options.clock,
@@ -98,7 +121,9 @@ case class AgilexMadd(
             "ay" -> VhdlExprGenerator.toVhdl(this.ay),
             "bx" -> VhdlExprGenerator.toVhdl(this.bx),
             "by" -> VhdlExprGenerator.toVhdl(this.by),
-            "result" -> target.name
+            "chainin" -> VhdlExprGenerator.toVhdl(this.chainin),
+            "chainout" -> chainOutVhdl,
+            "result" -> resultVhdl
           ),
           label = Param("DSP")().name
         )

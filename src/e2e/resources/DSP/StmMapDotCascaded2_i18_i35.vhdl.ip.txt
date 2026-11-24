@@ -5,4 +5,15 @@ AY_WIDTH => 18,
 BX_WIDTH => 18,
 BY_WIDTH => 18,
 RESULT_WIDTH => 35,
-PIPELINE => 1)
+PIPELINE => 1,
+ENABLE_CHAININ => false)
+
+entity work.dsp_sumof2_signed
+generic map(
+AX_WIDTH => 18,
+AY_WIDTH => 18,
+BX_WIDTH => 18,
+BY_WIDTH => 18,
+RESULT_WIDTH => 35,
+PIPELINE => 2,
+ENABLE_CHAININ => true)

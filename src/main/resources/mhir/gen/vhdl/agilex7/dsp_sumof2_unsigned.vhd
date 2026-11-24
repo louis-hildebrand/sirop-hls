@@ -2,8 +2,6 @@ library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 
-library %{LIBRARY}%;
-
 entity dsp_sumof2_unsigned is
 
     generic(
@@ -12,7 +10,8 @@ entity dsp_sumof2_unsigned is
         BX_WIDTH        : natural;
         BY_WIDTH        : natural;
         RESULT_WIDTH    : natural;
-        PIPELINE        : natural);
+        PIPELINE        : natural;
+        ENABLE_CHAININ  : boolean);
     port(
         clk         : in    std_logic;
         ena         : in    std_logic;
@@ -20,6 +19,8 @@ entity dsp_sumof2_unsigned is
         ay          : in    unsigned(AY_WIDTH-1 downto 0);
         bx          : in    unsigned(BX_WIDTH-1 downto 0);
         by          : in    unsigned(BY_WIDTH-1 downto 0);
+        chainin     : in    unsigned(63 downto 0);
+        chainout    : out   unsigned(63 downto 0);
         result      : out   unsigned(RESULT_WIDTH-1 downto 0));
 
 end entity;
@@ -35,7 +36,8 @@ begin
             BX_WIDTH        => BX_WIDTH,
             BY_WIDTH        => BY_WIDTH,
             RESULT_WIDTH    => RESULT_WIDTH,
-            PIPELINE        => PIPELINE
+            PIPELINE        => PIPELINE,
+            ENABLE_CHAININ  => ENABLE_CHAININ
         )
         port map(
             clk                => clk,
@@ -44,6 +46,8 @@ begin
             ay                 => std_logic_vector(ay),
             bx                 => std_logic_vector(bx),
             by                 => std_logic_vector(by),
+            chainin            => std_logic_vector(chainin),
+            unsigned(chainout) => chainout,
             unsigned(result)   => result
         );
 

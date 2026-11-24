@@ -57,6 +57,22 @@ case class DspSelection(scheduler: StmOutputScheduler) {
         case (x, ExprAccumulator(None, ExprIntermediate(next)))
             if next.contains(classOf[Prod]) =>
           x -> next
+        // TODO: This is pretty annoying. Can I get the ClassifyVecAccumulators pass to not do this?
+        case (
+              x,
+              ForGenerateIntermediate(
+                loopVars,
+                bounds,
+                VecShiftLeftAccumulator(1, None, incoming)
+              )
+            ) if incoming.contains(classOf[Prod]) =>
+          val next = VecBuilds(
+            bounds.map(_ + 1).:+(1).map(C(_)(U32)),
+            loopVars :+ Param("tmp")(U32),
+            incoming
+          ).tchk()
+          assert(next.typ == x.typ)
+          x -> next
       })
       .foldLeft(s)({ case (s, (x, next)) =>
         this.scheduler.moveZeroDelayToConsumer(next) match {
@@ -101,36 +117,98 @@ case class DspSelection(scheduler: StmOutputScheduler) {
 
   private def recognizeSumOf2Dsp(
       s: GenStmBuild,
-      x: Param
+      outVar: Param
   ): Option[GenStmBuild] = {
-    (s, x, s.intermediates(x)) match {
-      case (
-            s,
-            acc,
-            ExprAccumulator(
+    val (lengths, loopVars, ax, ay, bx, by, cin) =
+      s.intermediates(outVar) match {
+        case ExprAccumulator(
               None,
               ExprIntermediate(
-                // TODO: Also handle chainin
-                VSumOf2Products(lengths, variables, ax, ay, bx, by)
+                VSumOf2Products(lengths, loopVars, ax, ay, bx, by, cin)
               )
-            )
-          ) =>
-        val typesOk = (ax.typ, ay.typ, bx.typ, by.typ) match {
-          case (TySInt(axw), TySInt(ayw), TySInt(bxw), TySInt(byw)) =>
-            axw <= 18 && ayw <= 19 && bxw <= 18 && byw <= 19
-          case (TyUInt(axw), TyUInt(ayw), TyUInt(bxw), TyUInt(byw)) =>
-            axw <= 18 && ayw <= 18 && bxw <= 18 && byw <= 18
-          case _ => false
+            ) =>
+          (lengths, loopVars, ax, ay, bx, by, cin)
+        case ForGenerateIntermediate(
+              loopVars,
+              lengths,
+              // TODO: This is pretty annoying. Can I get the ClassifyVecAccumulators pass to not do this?
+              VecShiftLeftAccumulator(
+                1,
+                None,
+                SumOf2Products(ax, ay, bx, by, cin)
+              )
+            ) =>
+          (lengths :+ 1, loopVars :+ Param("tmp")(U32), ax, ay, bx, by, cin)
+        case _ =>
+          return None
+      }
+    // Need to ensure the following conditions are met:
+    //    (C1) The chainin port of an agilex_mac2 must be either
+    //          (a) open (i.e., 0), or
+    //          (b) connected to the chainout port of another DSP.
+    //    (C2) The width of the result cannot exceed 44 bits.
+    // ---------------------------------------------------------------------
+    // (C2) Check bitwidths
+    // TODO! I need to check the output type too.
+    //       If the output is small enough (<= 64 bits), I can emit a DSP with both result and chainout.
+    //       If the output is too big, I guess I can just skip the chainout port.
+    val typesOk = (ax.typ, ay.typ, bx.typ, by.typ, cin.typ) match {
+      case (TySInt(ax), TySInt(ay), TySInt(bx), TySInt(by), TySInt(c)) =>
+        ax <= 18 && ay <= 19 && bx <= 18 && by <= 19 && c <= 64
+      case (TyUInt(ax), TyUInt(ay), TyUInt(bx), TyUInt(by), TyUInt(c)) =>
+        ax <= 18 && ay <= 18 && bx <= 18 && by <= 18 && c <= 64
+      case _ => false
+    }
+    if (!typesOk) {
+      return None
+    }
+    // (C1) The chainin port must be connected to another DSP, or else to zero
+    getCombinedChainin(s, cin, loopVars, lengths, 64) match {
+      case Some(chainin) =>
+        val madd = AgilexMadd(ax, ay, bx, by, chainin, pipeline = 0)
+        val loopBounds = {
+          // e.g., if the vector length is 4 then the loop goes from 0 to 3
+          lengths.map(_ - 1)
         }
-        if (typesOk) {
-          val madd = AgilexMadd(ax, ay, bx, by, pipeline = 0)
-          val bounds = lengths.map(_ - 1)
-          val fgi = ForGenerateIntermediate(variables, bounds, madd)
-          Some(s.copy(intermediates = s.intermediates + (acc -> fgi)))
-        } else {
-          None
-        }
-      case _ => None
+        val newForGen =
+          ForGenerateIntermediate(loopVars, loopBounds, madd)
+        // TODO: Deduplicate this code?
+        val TyVecs(bElemTyp: TyAnyInt, bLengths) = outVar.typ
+        val newTyp = TyVecs(
+          // (result, chainout)
+          TyTuple(bElemTyp, bElemTyp.withWidth(64)),
+          bLengths
+        )
+        val newOutVar = Param(outVar.prefix)(newTyp)
+        val outVarReplacement = VecBuilds(
+          bLengths.reverse,
+          loopVars,
+          VecAccesses(newOutVar, loopVars).__0
+        ).tchk()
+        val subs = Map[Expr, Expr](outVar -> outVarReplacement)
+        val result = GenStmBuild(
+          // TODO: Won't partial evaluation slow things down too much?
+          data = PE.partialEval(s.data.subPreserveType(subs)),
+          valid = PE.partialEval(
+            s.valid.subPreserveType(subs)
+          ),
+          producers = s.producers.map({ case (x, (p, ready)) =>
+            val newReady = PE.partialEval(ready.subPreserveType(subs))
+            x -> (p, newReady)
+          }),
+          intermediates = s.intermediates
+            .-(outVar)
+            .map({ case (x, i) =>
+              x -> i.substitute(subs).map(PE.partialEval(_))
+            })
+            .+(newOutVar -> newForGen)
+        )
+        assert(
+          result.freeVars == s.freeVars,
+          s"free variables changed: ${s.freeVars} to ${result.freeVars}"
+        )
+        Some(result)
+      case None => None
     }
   }
 
@@ -211,10 +289,11 @@ case class DspSelection(scheduler: StmOutputScheduler) {
               return None
             }
             // (C2) The chainin port must be connected to another DSP, or else to zero
-            val chainin = getCombinedChainin(s, chaininA, loopVarsA) match {
-              case Some(x) => x
-              case None    => return None
-            }
+            val chainin =
+              getCombinedChainin(s, chaininA, loopVarsA, lengthsA, 44) match {
+                case Some(x) => x
+                case None    => return None
+              }
             val varsAB = loopVarsA.map(_.freshCopy)
             val newForGen = {
               val subsA = loopVarsA.zip(varsAB).toMap[Expr, Expr]
@@ -322,25 +401,39 @@ case class DspSelection(scheduler: StmOutputScheduler) {
 
   private def getCombinedChainin(
       s: GenStmBuild,
-      chaininA: Expr,
-      loopVarsA: Seq[Param]
+      chainin: Expr,
+      loopVars: Seq[Param],
+      loopLengths: Seq[Int],
+      desiredWidth: Int
   ): Option[Expr] = {
-    chaininA match {
+    chainin match {
       case z @ IntCst(0) =>
         val typ = z.typ.asInstanceOf[TyAnyInt]
-        Some(C(0)(typ.withWidth(44)))
-      case TupleAccess(va @ VecAccesses(x: Param, indices), IntCst(0))
-          if indices == loopVarsA =>
+        Some(C(0)(typ.withWidth(desiredWidth)))
+      case TupleAccess(va @ VecAccesses(x: Param, indices), IntCst(0)) =>
+        val indicesMatchLoopVars = indices
+          .zip(loopVars)
+          .zip(loopLengths)
+          .forall({
+            // If the index is 0 and the loopVar goes from 0 to 0, that's fine too
+            case ((IntCst(0), _), 1) => true
+            case ((i1, i2), _)       => i1 == i2
+          })
+        if (!indicesMatchLoopVars) {
+          return None
+        }
         s.intermediates.get(x) match {
           case Some(
-                ForGenerateIntermediate(loopVars, _, _: AgilexMac2)
+                // TODO: Can you really have a dsp_sumof2 reading from a dsp_systolic, for example?
+                ForGenerateIntermediate(loopVars, _, _: AgilexDsp)
               ) if loopVars.length == indices.length =>
             va.typ match {
-              case TyTuple(TyAnyInt(w), TyAnyInt(44)) if w <= 44 =>
+              case TyTuple(TyAnyInt(w), TyAnyInt(w2))
+                  if w <= desiredWidth && w2 == desiredWidth =>
                 Some(VecAccesses(x, indices).__1.tchk())
               case _ =>
                 throw new AssertionError(
-                  s"output from $x has type ${x.typ}; expected a 2-tuple (i{w}, i44) with w <= 44"
+                  s"output from $x has type ${x.typ}; expected a 2-tuple (i{w}, i$desiredWidth) with w <= $desiredWidth"
                 )
             }
           case _ => None
@@ -353,10 +446,10 @@ case class DspSelection(scheduler: StmOutputScheduler) {
 private object VSumOf2Products {
   def unapply(
       e: Expr
-  ): Option[(Seq[Int], Seq[Param], Expr, Expr, Expr, Expr)] = {
+  ): Option[(Seq[Int], Seq[Param], Expr, Expr, Expr, Expr, Expr)] = {
     e match {
-      case VecBuilds(lengths, variables, SumOf2Products(ax, ay, bx, by)) =>
-        Some((lengths, variables, ax, ay, bx, by))
+      case VecBuilds(lengths, variables, SumOf2Products(ax, ay, bx, by, c)) =>
+        Some((lengths, variables, ax, ay, bx, by, c))
       case _ => None
     }
   }
@@ -365,13 +458,22 @@ private object VSumOf2Products {
 private object SumOf2Products {
   def unapply(
       e: Expr
-  ): Option[(Expr, Expr, Expr, Expr)] = {
+  ): Option[(Expr, Expr, Expr, Expr, Expr)] = {
     e match {
+      // TODO: Check similar cases where the terms are in a different order?
       case Sum(
+            chainin,
             Prod(PadOrIntCst(ax), PadTo(ay, _)),
             Prod(PadOrIntCst(bx), PadTo(by, _))
           ) =>
-        Some((ax, ay, bx, by))
+        Some((ax, ay, bx, by, chainin))
+      case sum @ Sum(
+            Prod(PadOrIntCst(ax), PadTo(ay, _)),
+            Prod(PadOrIntCst(bx), PadTo(by, _))
+          ) =>
+        // Use width 1 because i0 is not a valid type
+        val zTyp = sum.typ.asInstanceOf[TyAnyInt].withWidth(1)
+        Some((ax, ay, bx, by, C(0)(zTyp)))
       case _ =>
         None
     }
@@ -396,7 +498,9 @@ private object BasicMac {
       case Sum(Prod(PadOrIntCst(x), PadTo(y, _)), chainin) =>
         Some((x, y, chainin))
       case prod @ Prod(PadOrIntCst(x), PadTo(y, _)) =>
-        Some((x, y, C(0)(prod.typ)))
+        // Use width 1 because i0 is not a valid type
+        val zTyp = prod.typ.asInstanceOf[TyAnyInt].withWidth(1)
+        Some((x, y, C(0)(zTyp)))
       case _ =>
         None
     }

@@ -46,6 +46,7 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
             FunCall(f, C(3)(U8))().__0.tchk(),
             C(0)(U8),
             C(0)(U8),
+            chainin = C(0)(U0),
             pipeline = 0
           )
         ),
@@ -86,6 +87,7 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
             FunCall(f2, Tuple(C(3)(U8), y, z)())().__0.tchk(),
             C(0)(U8),
             C(0)(U8),
+            chainin = C(0)(U0),
             pipeline = 0
           )
         ),

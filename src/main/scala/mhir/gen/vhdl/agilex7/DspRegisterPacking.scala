@@ -61,7 +61,7 @@ object DspRegisterPacking {
               ForGenerateIntermediate(
                 vars,
                 bounds,
-                AgilexMadd(ax, ay, bx, by, pipeline)
+                AgilexMadd(ax, ay, bx, by, chainin, pipeline)
               )
             ) =>
           assert(pipeline >= 0)
@@ -80,7 +80,8 @@ object DspRegisterPacking {
               ay = shortenShiftRegister(s, ay, gobble),
               bx = shortenShiftRegister(s, bx, gobble),
               by = shortenShiftRegister(s, by, gobble),
-              pipeline + gobble
+              chainin = chainin,
+              pipeline = pipeline + gobble
             )
             x -> ForGenerateIntermediate(vars, bounds, newMadd)
           }

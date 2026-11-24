@@ -5,7 +5,8 @@ AY_WIDTH => 16,
 BX_WIDTH => 16,
 BY_WIDTH => 16,
 RESULT_WIDTH => 33,
-PIPELINE => 2)
+PIPELINE => 2,
+ENABLE_CHAININ => false)
 
 entity work.dsp_sumof2_unsigned
 generic map(
@@ -14,4 +15,5 @@ AY_WIDTH => 16,
 BX_WIDTH => 16,
 BY_WIDTH => 16,
 RESULT_WIDTH => 33,
-PIPELINE => 2)
+PIPELINE => 2,
+ENABLE_CHAININ => false)
