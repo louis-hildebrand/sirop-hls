@@ -102,11 +102,13 @@ private class IntermediateInsertion(
         }
         val body2 = subPass.getIntermediateAndMutateThis(body)
         val (locals, outsiders) = subPass.intermediates
-          .partition({ case (_, i: Intermediate) =>
+          .partition({ case (_, _: Intermediate) =>
             // If an Intermediate doesn't depend on the loop variables, move it out of the loop.
             // This makes it clear that there should only be one instance of that signal, not
             // one per loop instantiation.
-            i.freeVars.intersect(loopVars.toSet).nonEmpty
+            true
+          // TODO: This implementation is broken. How can I salvage it? I'd need to check the transitive dependencies.
+          // i.freeVars.intersect(loopVars.toSet).nonEmpty
           })
         this.intermediates ++= outsiders
         val body3 = BlockIntermediate(locals, body2)
