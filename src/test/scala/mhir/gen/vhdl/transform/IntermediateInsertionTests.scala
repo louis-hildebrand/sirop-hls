@@ -2,7 +2,7 @@ package mhir.gen.vhdl
 package transform
 
 import mhir.canonicalize._
-import mhir.gen.vhdl.agilex7.{AgilexMac1, AgilexMac2}
+import mhir.gen.vhdl.agilex7.AgilexMac2
 import mhir.gen.vhdl.ir._
 import mhir.ir._
 import mhir.typecheck._
@@ -220,13 +220,7 @@ class IntermediateInsertionTests extends AnyFunSuite {
           Some(ExprIntermediate(True)),
           ExprIntermediate(Not(b)().tchk())
         ),
-        mul1 -> ForGenerateIntermediate(
-          AgilexMac1(
-            StmData(p)().__0.__0.tchk(),
-            Sum(C(1)(U8), StmData(p)().__0.__1)().tchk(),
-            C(0)(U8)
-          )
-        ),
+        mul1 -> ExprIntermediate(C(0)(U8)),
         mul2 -> ForGenerateIntermediate(
           AgilexMac2(
             VecAccess(StmData(p)().__1, 0)().tchk(),
@@ -256,28 +250,15 @@ class IntermediateInsertionTests extends AnyFunSuite {
       .flatMap({ case (_, i) => i.intermediateDescendants :+ i })
       .collect({ case i: IpBlockInst => i })
       .toSeq
-    val mac1Count = ipBlocks.count(_.isInstanceOf[AgilexMac1])
-    assert(mac1Count == 1)
-    val mac1 = ipBlocks.collectFirst({ case i: AgilexMac1 => i }).get
-    mac1 match {
-      case AgilexMac1(
-            // Keep tuple access as-is
-            TupleAccess(TupleAccess(_: Param, IntCst(0)), IntCst(0)),
-            // Pull out sum
-            _: Param,
-            // Keep integer as-is
-            IntCst(0)
-          ) =>
-        ()
-      case i => fail(s"invalid mac1: $i")
-    }
-
+    assert(ipBlocks.length == 1)
     val mac2Count = ipBlocks.count(_.isInstanceOf[AgilexMac2])
     assert(mac2Count == 1)
     val mac2 = ipBlocks.collectFirst({ case i: AgilexMac2 => i }).get
     mac2 match {
       case AgilexMac2(
+            // Keep tuple access as-is
             VecAccess(TupleAccess(_: Param, IntCst(1)), IntCst(0)),
+            // Pull out sum
             _: Param,
             VecAccess(TupleAccess(_: Param, IntCst(1)), IntCst(2)),
             _: Param,
@@ -287,7 +268,5 @@ class IntermediateInsertionTests extends AnyFunSuite {
         ()
       case i => fail(s"invalid mac2: $i")
     }
-
-    assert(ipBlocks.length == 2)
   }
 }

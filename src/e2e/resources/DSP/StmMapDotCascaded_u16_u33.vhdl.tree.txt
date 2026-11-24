@@ -4,7 +4,6 @@
 │   ├── dsp_systolic_unsigned.vhd
 │   ├── dsp_systolic.vhd
 │   ├── foo.vhd
-│   ├── mac_fallback_unsigned.vhd
 │   ├── sbuild_1.vhd
 │   └── typedefs.vhd
 ├── foo.qpf

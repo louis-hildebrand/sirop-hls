@@ -1,6 +1,6 @@
 package mhir.gen.vhdl
 
-import mhir.gen.vhdl.agilex7.{AgilexMac1, AgilexMac2, AgilexMadd}
+import mhir.gen.vhdl.agilex7.{AgilexMac2, AgilexMadd}
 import mhir.gen.vhdl.ir._
 import mhir.ir._
 
@@ -20,10 +20,6 @@ object IpStats {
 
   private def describe(targetTyp: Type, i: Intermediate): Option[String] = {
     i match {
-      case mac: AgilexMac1 =>
-        val signed = mac.x.typ.isInstanceOf[TySInt]
-        val chainInEnabled = mac.chainin != C(0)()
-        Some(s"agilex7_mac1(signed=$signed, chainin=$chainInEnabled)")
       case mac: AgilexMac2 =>
         val signed = mac.ax.typ.isInstanceOf[TySInt]
         val pipeline = mac.pipeline

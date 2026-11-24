@@ -2,7 +2,7 @@ package mhir.gen.vhdl
 package transform
 
 import mhir.canonicalize._
-import mhir.gen.vhdl.agilex7.AgilexMac1
+import mhir.gen.vhdl.agilex7.AgilexMadd
 import mhir.gen.vhdl.ir._
 import mhir.ir._
 import mhir.typecheck._
@@ -41,10 +41,12 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
         ),
         f -> FunctionIntermediate(Seq(x), ListMap(), fBody),
         prod -> ForGenerateIntermediate(
-          AgilexMac1(
+          AgilexMadd(
             FunCall(f, w)().__0.tchk(),
             FunCall(f, C(3)(U8))().__0.tchk(),
-            C(0)(U8)
+            C(0)(U8),
+            C(0)(U8),
+            pipeline = 0
           )
         ),
         data -> ExprIntermediate(
@@ -79,10 +81,12 @@ class MakeFreeVarsIntoParamsTests extends AnyFunSuite {
         ),
         f2 -> FunctionIntermediate(Seq(x, y, z), ListMap(), f2Body),
         prod -> ForGenerateIntermediate(
-          AgilexMac1(
+          AgilexMadd(
             FunCall(f2, Tuple(w, y, z)())().__0.tchk(),
             FunCall(f2, Tuple(C(3)(U8), y, z)())().__0.tchk(),
-            C(0)(U8)
+            C(0)(U8),
+            C(0)(U8),
+            pipeline = 0
           )
         ),
         data -> ExprIntermediate(

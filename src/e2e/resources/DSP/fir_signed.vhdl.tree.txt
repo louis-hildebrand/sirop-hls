@@ -3,7 +3,6 @@
 │   ├── conversions.vhd
 │   ├── dsp_systolic_signed.vhd
 │   ├── dsp_systolic.vhd
-│   ├── mac_fallback_signed.vhd
 │   ├── sbuild_1.vhd
 │   ├── sbuild_2.vhd
 │   ├── top.vhd

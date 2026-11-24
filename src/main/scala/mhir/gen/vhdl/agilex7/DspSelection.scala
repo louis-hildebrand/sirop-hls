@@ -7,11 +7,9 @@ import mhir.gen.vhdl.ir._
 import mhir.ir._
 import mhir.logging.time
 import mhir.matchers.{TyVecs, VecAccesses, VecBuilds}
-import mhir.optimize.{InConsumer, PartialEvalPass, StmOutputScheduler}
+import mhir.optimize.{InConsumer, PartialEvalPass => PE, StmOutputScheduler}
 import mhir.typecheck.TypeCheck
 import org.slf4j.event.Level
-
-import scala.annotation.tailrec
 
 /** Maps multiplications to native Agilex 7 DSP blocks, where possible.
   *
@@ -29,11 +27,10 @@ case class DspSelection(scheduler: StmOutputScheduler) {
   def apply(s: GenStmBuild): GenStmBuild = {
     time("DSP selection", Level.DEBUG) {
       val s1 = this.moveZeroDelayOpsAfterRegister(s)
-      val s2 = this.recognizeBasicDsps(s1)
-      val s3 = this.combineDsps(s2)
+      val s2 = this.recognizeDspBlocks(s1)
       // TODO: Remove unnecessary chainout ports?
-      val s4 = DspRegisterPacking.apply(s3)
-      s4
+      val s3 = DspRegisterPacking.apply(s2)
+      s3
     }
   }
 
@@ -86,23 +83,34 @@ case class DspSelection(scheduler: StmOutputScheduler) {
       })
   }
 
-  /** Recognize simple cases of multiplication and addition.
-    *
-    * These basic cases may be combined into larger blocks later (i.e.,
-    * [[combineDsps]]).
-    *
-    * @example
-    *   turn `ax * ay + bx * by` into [[AgilexMadd]].
-    * @example
-    *   turn `ax * ay + b` into [[AgilexMac1]].
-    */
-  private def recognizeBasicDsps(s: GenStmBuild): GenStmBuild = {
-    val newIntermediates = s.intermediates.flatMap({
+  private def recognizeDspBlocks(s: GenStmBuild): GenStmBuild = {
+    val dependencyGraph = {
+      val nodes = s.intermediates.keySet
+      val edges = nodes.flatMap(x =>
+        s.intermediates(x).freeVars.intersect(nodes).map(y => x -> y)
+      )
+      DiGraph(nodes, edges)
+    }
+    val intermediatesInOrder = dependencyGraph.topologicalIshOrder()
+    intermediatesInOrder.foldLeft(s)({ case (s, x) =>
+      recognizeSumOf2Dsp(s, x)
+        .orElse(recognizeSystolicDsp(s, x))
+        .getOrElse(s)
+    })
+  }
+
+  private def recognizeSumOf2Dsp(
+      s: GenStmBuild,
+      x: Param
+  ): Option[GenStmBuild] = {
+    (s, x, s.intermediates(x)) match {
       case (
+            s,
             acc,
             ExprAccumulator(
               None,
               ExprIntermediate(
+                // TODO: Also handle chainin
                 VSumOf2Products(lengths, variables, ax, ay, bx, by)
               )
             )
@@ -118,223 +126,227 @@ case class DspSelection(scheduler: StmOutputScheduler) {
           val madd = AgilexMadd(ax, ay, bx, by, pipeline = 0)
           val bounds = lengths.map(_ - 1)
           val fgi = ForGenerateIntermediate(variables, bounds, madd)
-          Some(acc -> fgi)
+          Some(s.copy(intermediates = s.intermediates + (acc -> fgi)))
         } else {
           None
         }
+      case _ => None
+    }
+  }
+
+  private def recognizeSystolicDsp(
+      s: GenStmBuild,
+      x: Param
+  ): Option[GenStmBuild] = {
+    (s, x, s.intermediates(x)) match {
       case (
-            acc,
+            s,
+            macB,
             ExprAccumulator(
               None,
-              ExprIntermediate(VBasicMac(lengths, variables, x, y, chainin))
-            )
-          ) =>
-        val typesOk = (x.typ, y.typ, chainin.typ) match {
-          case (TySInt(wx), TySInt(wy), TySInt(wz)) =>
-            wx <= 18 && wy <= 19 && wz <= 64
-          case (TyUInt(wx), TyUInt(wy), TyUInt(wz)) =>
-            wx <= 18 && wy <= 18 && wz <= 64
-          case _ => false
-        }
-        if (typesOk) {
-          val mac = AgilexMac1(x, y, chainin)
-          val bounds = lengths.map(_ - 1)
-          val fgi = ForGenerateIntermediate(variables, bounds, mac)
-          Some(acc -> fgi)
-        } else {
-          None
-        }
-      case _ =>
-        None
-    })
-    GenStmBuild(
-      data = s.data,
-      valid = s.valid,
-      producers = s.producers,
-      intermediates = s.intermediates ++ newIntermediates
-    )
-  }
-
-  /** Combine chained [[AgilexMac1]] instances into individual [[AgilexMac2]]
-    * instances.
-    */
-  @tailrec
-  private def combineDsps(s: GenStmBuild): GenStmBuild = {
-    this.findDspsToCombine(s) match {
-      case Some((chainin, macA, macB)) =>
-        val afterCombining = combineDsps(s, chainin, macA, macB)
-        // TODO: So slow :(
-        val simplified = GenStmBuild(
-          data = PartialEvalPass.partialEval(afterCombining.data),
-          valid = PartialEvalPass.partialEval(afterCombining.valid),
-          producers = afterCombining.producers,
-          intermediates = afterCombining.intermediates.map({ case (x, i) =>
-            x -> i.map(PartialEvalPass.partialEval(_))
-          })
-        )
-        combineDsps(simplified)
-      case None =>
-        s // nothing left to merge
-    }
-  }
-
-  private def combineDsps(
-      s: GenStmBuild,
-      chainin: Expr,
-      macA: Param,
-      macB: Param
-  ): GenStmBuild = {
-    (s.intermediates(macA), s.intermediates(macB)) match {
-      case (
-            iA @ ForGenerateIntermediate(varsA, boundsA, AgilexMac1(ax, ay, _)),
-            iB @ ForGenerateIntermediate(varsB, boundsB, AgilexMac1(bx, by, _))
-          ) if boundsA == boundsB =>
-        val varsAB = varsA.map(_.freshCopy)
-        val newForGen = {
-          val subsA = varsA.zip(varsAB).toMap[Expr, Expr]
-          val subsB = varsB.zip(varsAB).toMap[Expr, Expr]
-          val newDsp = AgilexMac2(
-            ax.subPreserveType(subsA),
-            ay.subPreserveType(subsA),
-            bx.subPreserveType(subsB),
-            by.subPreserveType(subsB),
-            chainin.subPreserveType(subsA),
-            pipeline = 0
-          )
-          ForGenerateIntermediate(varsAB, boundsA, newDsp)
-        }
-        val TyVecs(bElemTyp: TyAnyInt, bLengths) = macB.typ
-        val newTyp = TyVecs(
-          TyTuple(bElemTyp /*result*/, bElemTyp.withWidth(44) /*chainout*/ ),
-          bLengths
-        )
-        val newParam = Param(macB.prefix)(newTyp)
-        val macBReplacement = VecBuilds(
-          bLengths.reverse,
-          varsAB,
-          VecAccesses(newParam, varsAB).__0
-        ).tchk()
-        val subs = Map[Expr, Expr](macB -> macBReplacement)
-        assert(
-          newForGen.freeVars == (iA.freeVars ++ iB.freeVars) - macA, {
-            val before = (iA.freeVars ++ iB.freeVars) - macA
-            val after = newForGen.freeVars
-            s"free variables changed: $before to $after"
-          }
-        )
-        GenStmBuild(
-          data = s.data.subPreserveType(subs),
-          valid = s.valid.subPreserveType(subs),
-          producers = s.producers.map({ case (x, (p, ready)) =>
-            x -> (p, ready.subPreserveType(subs))
-          }),
-          intermediates = s.intermediates
-            .-(macA)
-            .-(macB)
-            .map({ case (x, i) => x -> i.substitute(subs) })
-            .+(newParam -> newForGen)
-        )
-      case _ =>
-        throw new AssertionError(s"cannot combine DSPs $macA and $macB")
-    }
-  }
-
-  private def findDspsToCombine(
-      s: GenStmBuild
-  ): Option[(Expr, Param, Param)] = {
-    // Need to ensure the following conditions are met:
-    //  (C1) Don't merge two instances of agilex_mac1 if the intermediate result
-    //       is used elsewhere.
-    //       In other words, I want to be able to delete both agilex_mac1 blocks
-    //       immediately to be sure I don't accidentally increase the number of
-    //       multiplications.
-    //  (C2) The chainin port of an agilex_mac2 must be either
-    //        (a) open (i.e., 0), or
-    //        (b) connected to the chainout port of another agilex_mac1.
-    //  (C3) The width of the result cannot exceed 44 bits.
-    s.intermediates
-      .flatMap({
-        case (
-              macB,
-              ForGenerateIntermediate(
-                loopVarsB,
-                boundsB,
-                AgilexMac1(
+              ExprIntermediate(
+                VBasicMac(
+                  lengthsB,
+                  loopVarsB,
                   bx,
                   by,
                   chaininB @ VecAccesses(macA: Param, indicesB)
                 )
               )
             )
-            if !bx.freeVars.contains(macA) &&
-              !by.freeVars.contains(macA) &&
-              indicesB == loopVarsB =>
-          // (C2) Check chainin port
-          val (chaininA, loopVarsA) = s.intermediates.get(macA) match {
-            case Some(
-                  ForGenerateIntermediate(
-                    loopVarsA,
-                    boundsA,
-                    AgilexMac1(_, _, chaininA)
-                  )
-                ) if boundsA == boundsB =>
-              (Some(chaininA), Some(loopVarsA))
-            case _ => (None, None)
-          }
-          val chainin = chaininA
-            .zip(loopVarsA)
-            .flatMap({
-              case (z @ IntCst(0), _) =>
-                val typ = z.typ.asInstanceOf[TyAnyInt]
-                Some(C(0)(typ.withWidth(44)))
-              case (
-                    TupleAccess(va @ VecAccesses(x: Param, indices), IntCst(0)),
-                    loopVarsA
-                  ) if indices == loopVarsA =>
-                s.intermediates.get(x) match {
-                  case Some(
-                        ForGenerateIntermediate(loopVars, _, _: AgilexMac2)
-                      ) if loopVars.length == indices.length =>
-                    va.typ match {
-                      case TyTuple(TyAnyInt(w), TyAnyInt(44)) if w <= 44 =>
-                        Some(VecAccesses(x, indices).__1.tchk())
-                      case _ =>
-                        throw new AssertionError(
-                          s"output from $x has type ${x.typ}; expected a 2-tuple (i{w}, i44) with w <= 44"
-                        )
-                    }
-                  case _ => None
-                }
-              case _ => None
-            })
-            .headOption
-          // (C3) Check bitwidths
-          val bitwidthsOk = (chaininA.map(_.typ), chaininB.typ) match {
-            case (Some(TyAnyInt(wA)), TyAnyInt(wB)) => wA <= 44 && wB <= 44
-            case _                                  => false
-          }
-          // (C1) Check if macA is used elsewhere
-          // TODO: Create a dependency graph beforehand to avoid this O(n^2) behaviour?
-          //       DSP selection doesn't seem to be particularly slow at the
-          //       moment, so maybe it's not such a big deal
-          val usedElsewhere = (
-            s.data.freeVars.contains(macA) ||
-              s.valid.freeVars.contains(macA) ||
-              s.producers.exists({ case (_, (_, ready)) =>
-                ready.freeVars.contains(macA)
-              }) ||
-              s.intermediates.exists({ case (y, i) =>
-                y != macB && i.freeVars.contains(macA)
-              })
           )
-          if (!usedElsewhere && chainin.nonEmpty && bitwidthsOk) {
-            Some((chainin.get, macA, macB))
-          } else {
-            None
-          }
-        case _ => None
-      })
-      .headOption
+          if indicesB == loopVarsB
+            && !bx.freeVars.contains(macA)
+            && !by.freeVars.contains(macB) =>
+        // Need to ensure the following conditions are met:
+        //    (C1) Suppose macB looks like bx*by + macA and macA looks like
+        //         ax*ay + c.
+        //         Don't merge these into an agilex_mac2 instance if macA is
+        //         used elsewhere.
+        //         In other words, I want to be able to delete macA immediately
+        //         to be sure I don't accidentally increase the number of
+        //         multiplications.
+        //    (C2) The chainin port of an agilex_mac2 must be either
+        //          (a) open (i.e., 0), or
+        //          (b) connected to the chainout port of another DSP.
+        //    (C3) The width of the result cannot exceed 44 bits.
+        //    (C4) The loop bounds must be the same for macA and macB.
+        // ---------------------------------------------------------------------
+        // (C1) Check if macA is used elsewhere
+        // TODO: Create a dependency graph beforehand to avoid this O(n^2) behaviour?
+        //       DSP selection doesn't seem to be particularly slow at the
+        //       moment, so maybe it's not such a big deal.
+        //       The current dependency graph is not quite good enough because
+        //       it only includes intermediates---not producers, data, or valid.
+        val macAUsedElsewhere = (
+          s.data.freeVars.contains(macA) ||
+            s.valid.freeVars.contains(macA) ||
+            s.producers.exists({ case (_, (_, ready)) =>
+              ready.freeVars.contains(macA)
+            }) ||
+            s.intermediates.exists({ case (y, i) =>
+              y != macB && i.freeVars.contains(macA)
+            })
+        )
+        if (macAUsedElsewhere) {
+          return None
+        }
+        s.intermediates.get(macA) match {
+          case Some(
+                ExprAccumulator(
+                  None,
+                  ExprIntermediate(
+                    VBasicMac(lengthsA, loopVarsA, ax, ay, chaininA)
+                  )
+                )
+              ) =>
+            // (C4) Check loop bounds
+            if (lengthsA != lengthsB) {
+              return None
+            }
+            // (C3) Check bitwidths
+            val typesOk =
+              areTypesOkForSystolicDsp(chaininA, ax, ay, chaininB, bx, by, x)
+            if (!typesOk) {
+              return None
+            }
+            // (C2) The chainin port must be connected to another DSP, or else to zero
+            val chainin = getCombinedChainin(s, chaininA, loopVarsA) match {
+              case Some(x) => x
+              case None    => return None
+            }
+            val varsAB = loopVarsA.map(_.freshCopy)
+            val newForGen = {
+              val subsA = loopVarsA.zip(varsAB).toMap[Expr, Expr]
+              val subsB = loopVarsB.zip(varsAB).toMap[Expr, Expr]
+              val newDsp = AgilexMac2(
+                ax.subPreserveType(subsA),
+                ay.subPreserveType(subsA),
+                bx.subPreserveType(subsB),
+                by.subPreserveType(subsB),
+                chainin.subPreserveType(subsA),
+                pipeline = 0
+              )
+              val loopBounds = {
+                // e.g., if the vector length is 4 then the loop goes from 0 to 3
+                lengthsA.map(_ - 1)
+              }
+              ForGenerateIntermediate(varsAB, loopBounds, newDsp)
+            }
+            val TyVecs(bElemTyp: TyAnyInt, bLengths) = macB.typ
+            val newTyp = TyVecs(
+              // (result, chainout)
+              TyTuple(bElemTyp, bElemTyp.withWidth(44)),
+              bLengths
+            )
+            val newParam = Param(macB.prefix)(newTyp)
+            val macBReplacement = VecBuilds(
+              bLengths.reverse,
+              varsAB,
+              VecAccesses(newParam, varsAB).__0
+            ).tchk()
+            val subs = Map[Expr, Expr](macB -> macBReplacement)
+            val result = GenStmBuild(
+              // TODO: Won't partial evaluation slow things down too much?
+              data = PE.partialEval(s.data.subPreserveType(subs)),
+              valid = PE.partialEval(
+                s.valid.subPreserveType(subs)
+              ),
+              producers = s.producers.map({ case (x, (p, ready)) =>
+                val newReady = PE.partialEval(ready.subPreserveType(subs))
+                x -> (p, newReady)
+              }),
+              intermediates = s.intermediates
+                .-(macA)
+                .-(macB)
+                .map({ case (x, i) =>
+                  x -> i.substitute(subs).map(PE.partialEval(_))
+                })
+                .+(newParam -> newForGen)
+            )
+            assert(
+              result.freeVars == s.freeVars,
+              s"free variables changed: ${s.freeVars} to ${result.freeVars}"
+            )
+            Some(result)
+          case _ => None
+        }
+      case _ => None
+    }
+  }
+
+  private def areTypesOkForSystolicDsp(
+      chaininA: Expr,
+      ax: Expr,
+      ay: Expr,
+      chaininB: Expr,
+      bx: Expr,
+      by: Expr,
+      output: Expr
+  ): Boolean = {
+    // TODO: Also check output?
+    (
+      ax.typ,
+      ay.typ,
+      chaininA.typ,
+      bx.typ,
+      by.typ,
+      chaininB.typ,
+      output.typ
+    ) match {
+      // TODO: Make this less ugly by checking one type at a time, instead of
+      //       putting them into one big tuple?
+      case (
+            TySInt(wax),
+            TySInt(way),
+            TySInt(wac),
+            TySInt(wbx),
+            TySInt(wby),
+            TySInt(wbc),
+            TyVecs(TySInt(wout), _)
+          ) =>
+        wax <= 18 && way <= 19 && wbx <= 18 && wby <= 19 && wac <= 44 && wbc <= 44 && wout <= 44
+      case (
+            TyUInt(wax),
+            TyUInt(way),
+            TyUInt(wac),
+            TyUInt(wbx),
+            TyUInt(wby),
+            TyUInt(wbc),
+            TyVecs(TyUInt(wout), _)
+          ) =>
+        wax <= 18 && way <= 18 && wbx <= 18 && wby <= 19 && wac <= 44 && wbc <= 44 && wout <= 44
+      case _ => false
+    }
+  }
+
+  private def getCombinedChainin(
+      s: GenStmBuild,
+      chaininA: Expr,
+      loopVarsA: Seq[Param]
+  ): Option[Expr] = {
+    chaininA match {
+      case z @ IntCst(0) =>
+        val typ = z.typ.asInstanceOf[TyAnyInt]
+        Some(C(0)(typ.withWidth(44)))
+      case TupleAccess(va @ VecAccesses(x: Param, indices), IntCst(0))
+          if indices == loopVarsA =>
+        s.intermediates.get(x) match {
+          case Some(
+                ForGenerateIntermediate(loopVars, _, _: AgilexMac2)
+              ) if loopVars.length == indices.length =>
+            va.typ match {
+              case TyTuple(TyAnyInt(w), TyAnyInt(44)) if w <= 44 =>
+                Some(VecAccesses(x, indices).__1.tchk())
+              case _ =>
+                throw new AssertionError(
+                  s"output from $x has type ${x.typ}; expected a 2-tuple (i{w}, i44) with w <= 44"
+                )
+            }
+          case _ => None
+        }
+      case _ => None
+    }
   }
 }
 

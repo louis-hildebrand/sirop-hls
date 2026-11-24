@@ -4,7 +4,6 @@
 │   ├── dsp_sumof2_unsigned.vhd
 │   ├── dsp_sumof2.vhd
 │   ├── foo.vhd
-│   ├── mac_fallback_unsigned.vhd
 │   ├── sbuild_1.vhd
 │   └── typedefs.vhd
 ├── foo.qpf
