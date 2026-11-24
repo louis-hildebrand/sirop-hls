@@ -10,8 +10,6 @@ import mhir.sugar._
 import mhir.typecheck._
 import org.slf4j.event.Level
 
-import scala.annotation.tailrec
-
 /** Transformation that shrinks shift registers if parts of them are unused.
   *
   * @note
@@ -191,7 +189,6 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
         })
     }
 
-    @tailrec
     private def shrinkShiftRegister(
         stm: StmBuild,
         v: Param,
@@ -252,11 +249,14 @@ class EnabledShiftRegisterShrinker(delayCostModel: SimpleDelayCostModel)
       if (!ok) {
         stm
       } else if (producersToCopy.nonEmpty) {
-        shrinkShiftRegister(
-          this.copyProducers(stm, v, producersToCopy),
-          v,
-          newLen
-        )
+        stm
+        // TODO: Is this case important? It seems like a bad idea to make multiple copies of a
+        //       producer with different delays; it could mess up latency matching, for example.
+        // shrinkShiftRegister(
+        //   this.copyProducers(stm, v, producersToCopy),
+        //   v,
+        //   newLen
+        // )
       } else {
         val elemTyp = input.typ
         val newV = Param(v.prefix)(TyVec(elemTyp, C(newLen)()))
