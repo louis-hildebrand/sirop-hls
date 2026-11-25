@@ -3,6 +3,7 @@ package mhir.optimize
 import mhir.canonicalize._
 import mhir.ir._
 import mhir.optimize.{PartialEvalPass => PE}
+import mhir.parse.sirop.Parser
 import mhir.sugar._
 import mhir.testing.ParamStore
 import mhir.typecheck._
@@ -841,5 +842,23 @@ class PartialEvalPassTests extends AnyFunSuite {
     val actual = PE.partialEval(e)
     val expected = Undefined(TyVec(U8, 4))
     assert(actual == expected)
+  }
+
+  /** Used to debug the arithmetic simplifier.
+    */
+  test("(-1 + 2*x) / 2") {
+    val constVals = Map(Param("x", -1)(I32) -> C(4)(I32))
+    val src = "(-1:i32 +` 2:i32 *` x) /` 2:i32"
+    val original = Parser
+      .parse(src)
+      .body
+      .tchk(constVals.keys.map(x => x -> x.typ).toMap, constVals)
+      .subPreserveType(constVals.toMap[Expr, Expr])
+
+    val actualEval = mhir.eval.eval(original)
+    assert(actualEval == C(3)(I32))
+
+    val actualPartialEval = PartialEvalPass.partialEval(original)
+    assert(actualPartialEval == C(3)(I32))
   }
 }

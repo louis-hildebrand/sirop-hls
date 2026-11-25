@@ -149,6 +149,27 @@ case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
     }
   }
 
+  def topologicalIshOrder(): Seq[T] = {
+    if (nodes.isEmpty) {
+      Seq()
+    } else {
+      val nodeToRemove = outNeighbours.toSeq.find({ case (_, deps) =>
+        deps.isEmpty
+      }) match {
+        case Some((v, _)) => v
+        case None         =>
+          // All the remaining nodes have at least one dependency, so no proper topological
+          // order exists.
+          // Choose a node that's part of a cycle and remove it.
+          new DepthFirstSearch(this)
+            .findNodeInCycle(this.nodes.head)
+            // Surely a cycle exists; otherwise, there would be a node with no dependencies.
+            .get
+      }
+      nodeToRemove +: this.remove(nodeToRemove).topologicalIshOrder()
+    }
+  }
+
   @tailrec
   final def transitiveDependencies(xs: Set[T]): Set[T] = {
     val newXs = xs.union(xs.flatMap(x => outNeighbours(x)))
@@ -162,4 +183,30 @@ case class DiGraph[T](nodes: Set[T], edges: Set[(T, T)]) {
 
 object DiGraph {
   def apply[T](): DiGraph[T] = new DiGraph(nodes = Set(), edges = Set())
+}
+
+private class DepthFirstSearch[T](g: DiGraph[T]) {
+  private val visited = mutable.Set[T]()
+  private val finished = mutable.Set[T]()
+
+  def findNodeInCycle(v: T): Option[T] = {
+    // https://en.wikipedia.org/wiki/Cycle_(graph_theory)#Algorithm
+    if (finished(v)) {
+      // Cross edge
+      return None
+    }
+    if (visited(v)) {
+      // Back edge
+      return Some(v)
+    }
+    this.visited += v
+    for (u <- this.g.outNeighbours(v)) {
+      this.findNodeInCycle(u) match {
+        case Some(w) => return Some(w)
+        case None    => ()
+      }
+    }
+    this.finished += v
+    None
+  }
 }

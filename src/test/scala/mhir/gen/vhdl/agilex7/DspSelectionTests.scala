@@ -152,11 +152,7 @@ class DspSelectionTests extends AnyFunSuite {
                     -> numDoublesAtEnd,
                   // Simultaneously at the start and end of the chain
                   s"agilex7_mac2(signed=$signed, pipeline=$cappedPipeline, chainin=false, chainout=false)"
-                    -> numDoublesAtStartAndEnd,
-                  // End of the chain
-                  s"agilex7_mac1(signed=$signed, chainin=true)" -> numSinglesAtEnd,
-                  // Simultaneously at the start and end of the chain
-                  s"agilex7_mac1(signed=$signed, chainin=false)" -> numSinglesAtStartAndEnd
+                    -> numDoublesAtStartAndEnd
                 )
                   .filter({ case (_, n) => n > 0 })
                   .map({ case (k, v) => (prefix + k) -> v })
@@ -172,7 +168,7 @@ class DspSelectionTests extends AnyFunSuite {
 
   // ===== M18X18_SUMOF2 =======================================================
 
-  for (depth <- depths) {
+  for (depth <- depths.filter(_ > 1)) {
     for ((inTyp, outTyp) <- Seq((I16, I38), (U16, U38))) {
       for (pipeline <- pipelines) {
         for (loop <- loops) {
@@ -254,11 +250,8 @@ class DspSelectionTests extends AnyFunSuite {
                 val signed = inTyp.isInstanceOf[TySInt]
                 val cappedPipeline = math.min(3, pipeline)
                 Map(
-                  s"agilex7_madd(signed=$signed, pipeline=$cappedPipeline)" -> (depth / 2),
-                  // Leftovers
-                  s"agilex7_mac1(signed=$signed, chainin=false)" -> (depth % 2)
+                  s"agilex7_madd(signed=$signed, pipeline=$cappedPipeline)" -> (depth / 2)
                 )
-                  .filter({ case (_, n) => n > 0 })
                   .map({ case (k, v) => (prefix + k) -> v })
               }
               assert(actualStats == expectedStats)

@@ -17,10 +17,3 @@ BY_WIDTH => 16,
 RESULT_WIDTH => 44,
 PIPELINE => 3,
 ENABLE_CHAININ => true)
-
-entity work.mac_fallback_signed
-generic map(
-AX_WIDTH => 16,
-AY_WIDTH => 16,
-B_WIDTH => 44,
-RESULT_WIDTH => 44)

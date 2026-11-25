@@ -6,15 +6,15 @@
         truncate18(
           stage2 +` pad44(stage3_y_pipe[0:u0]) *` pad44(pipe3[0:u32])
         ),
-        (delay_buf[0:u32] && delay_buf[1:u32])
-          && (delay_buf[2:u32] && delay_buf[3:u33])
+        (latmatch_delay[0:u32] && latmatch_delay[1:u32])
+          && (latmatch_delay[2:u32] && latmatch_delay[3:u33])
       ),
       true
     ) {
-      (delay_buf: Vec[bool, 5]) = {
+      (latmatch_delay: Vec[bool, 5]) = {
         init: vbuild(5:u3) { (i : u32) => false },
         next: vbuild(5:u3) { (i : u3) =>
-          !(i ==` 4:u3) && delay_buf[1:u3 +` i]
+          !(i ==` 4:u3) && latmatch_delay[1:u3 +` i]
             || i ==` 4:u3 && (sdata(p_2)).1
         }
       },

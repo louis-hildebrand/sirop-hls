@@ -1,0 +1,37 @@
+> __handshake = false
+> __show_prefix = false
+>
+> input = StmCount(4:u8).StmMap(t => VecCount(5, 10 + 5 * t))
+> input
+[
+  [10:u8, 11:u8, 12:u8, 13:u8, 14:u8]v,
+  [15:u8, 16:u8, 17:u8, 18:u8, 19:u8]v,
+  [20:u8, 21:u8, 22:u8, 23:u8, 24:u8]v,
+  [25:u8, 26:u8, 27:u8, 28:u8, 29:u8]v
+]s
+>
+> input.StmCascade2()
+/// Extra whitespace has been manually added for legibility.
+/// The actual REPL output will not be aligned so nicely.
+/// test_repl: remove_whitespace
+[
+  [       10:u8,        11:u8, undefined:u8, undefined:u8, undefined:u8]v,
+  [       15:u8,        16:u8,        12:u8,        13:u8, undefined:u8]v,
+  [       20:u8,        21:u8,        17:u8,        18:u8,        14:u8]v,
+  [       25:u8,        26:u8,        22:u8,        23:u8,        19:u8]v,
+  [undefined:u8, undefined:u8,        27:u8,        28:u8,        24:u8]v,
+  [undefined:u8, undefined:u8, undefined:u8, undefined:u8,        29:u8]v
+]s
+>
+> // It works for even-length vectors too, of course
+> input.StmMap(v => v.VecTake(v.VecLength() - 1)).StmCascade2()
+/// Extra whitespace has been manually added for legibility.
+/// The actual REPL output will not be aligned so nicely.
+/// test_repl: remove_whitespace
+[
+  [       10:u8,        11:u8, undefined:u8, undefined:u8]v,
+  [       15:u8,        16:u8,        12:u8,        13:u8]v,
+  [       20:u8,        21:u8,        17:u8,        18:u8]v,
+  [       25:u8,        26:u8,        22:u8,        23:u8]v,
+  [undefined:u8, undefined:u8,        27:u8,        28:u8]v
+]s

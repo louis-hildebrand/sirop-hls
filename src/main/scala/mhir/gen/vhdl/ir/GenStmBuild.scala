@@ -24,4 +24,13 @@ case class GenStmBuild(
     intermediates: ListMap[Param, Intermediate],
     // TODO: Define some kind of ProducerIntermediate and then get rid of this list of producers?
     producers: Map[Param, (Param, Expr)]
-)
+) {
+
+  def freeVars: Set[Param] = {
+    this.data.freeVars
+      .++(this.valid.freeVars)
+      .++(this.intermediates.values.flatMap(_.freeVars))
+      .++(this.producers.flatMap({ case (_, (_, ready)) => ready.freeVars }))
+      .diff(this.intermediates.keySet ++ this.producers.keySet)
+  }
+}

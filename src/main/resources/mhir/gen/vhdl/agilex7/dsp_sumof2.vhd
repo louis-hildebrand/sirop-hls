@@ -11,7 +11,8 @@ entity dsp_sumof2 is
         BY_WIDTH        : natural;
         RESULT_WIDTH    : natural;
         PIPELINE        : natural;
-        USE_SIGNED      : boolean);
+        USE_SIGNED      : boolean;
+        ENABLE_CHAININ  : boolean);
     port(
         clk         : in    std_logic;
         ena         : in    std_logic;
@@ -19,6 +20,8 @@ entity dsp_sumof2 is
         ay          : in    std_logic_vector(AY_WIDTH-1 downto 0);
         bx          : in    std_logic_vector(BX_WIDTH-1 downto 0);
         by          : in    std_logic_vector(BY_WIDTH-1 downto 0);
+        chainin     : in    std_logic_vector(63 downto 0);
+        chainout    : out   std_logic_vector(63 downto 0);
         result      : out   std_logic_vector(RESULT_WIDTH-1 downto 0));
 
     pure function ite(c: boolean; t: string; f: string) return string is
@@ -102,10 +105,8 @@ begin
         BY_WIDTH                        => BY_WIDTH,
         BY_CLKEN                        => ite(PIPELINE >= 1, "0", "no_reg"),
         -- Chainin
-        USE_CHAINADDER                  => "false",
-        -- vopt produces the following error when CHAIN_INOUT_WIDTH is 0:
-        -- "Length of expected is 1; length of actual is 0."
-        CHAIN_INOUT_WIDTH               => 1,
+        USE_CHAINADDER                  => ite(ENABLE_CHAININ, "true", "false"),
+        CHAIN_INOUT_WIDTH               => 64,
         -- Output
         RESULT_A_WIDTH                  => CLIPPED_RESULT_WIDTH,
         RESULT_B_WIDTH                  => 0,
@@ -209,9 +210,9 @@ begin
         bx                  => bx,
         by                  => by,
         resulta             => clipped_result,
+        chainin             => chainin,
+        chainout            => chainout,
         -- Other parameters (never used)
-        chainin             => open,
-        chainout            => open,
         accumulate          => open,
         -- Quartus produces the following error when clr is left open:
         -- Error(15360): DSP block WYSIWYG primitive [...] has unconnected port

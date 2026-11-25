@@ -15,7 +15,7 @@ case class AgilexMac2(
     by: Expr,
     chainin: Expr,
     pipeline: Int
-) extends IpBlockInst {
+) extends AgilexDsp {
 
   assert(this.ax.typ.isInstanceOf[TyAnyInt])
   assert(this.ay.typ.isInstanceOf[TyAnyInt])

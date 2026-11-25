@@ -171,12 +171,21 @@ class EnabledLatencyMatcher(
                 } else if (this.handshake) {
                   increaseLatency(p, deltaDelay, head)
                 } else {
+                  logger.debug({
+                    val sbuildName = s0.nameAnnotation.getOrElse("sbuild")
+                    s"adding $deltaDelay cycles to producer ${x.name} in $sbuildName"
+                  })
                   producersToFuseWith += x
                   val uses = UnusedDataAnalysis(x).findUnused(s0)
                   uses match {
                     case AllUsed =>
                       PartialEvalPass.partialEval(
-                        StmDelay(p, deltaDelay, head)().tchk().lower
+                        StmDelay(
+                          p,
+                          deltaDelay,
+                          head,
+                          shiftRegName = "latmatch_delay"
+                        )().tchk().lower
                       )
                     case uses =>
                       assert(!this.handshake)
@@ -190,7 +199,8 @@ class EnabledLatencyMatcher(
                           StmDelay(
                             StmMap(p, transform, FunCall(transform, head)())(),
                             deltaDelay,
-                            FunCall(transform, head)()
+                            FunCall(transform, head)(),
+                            shiftRegName = "latmatch_delay"
                           )(),
                           inverseTransform,
                           head
@@ -199,7 +209,6 @@ class EnabledLatencyMatcher(
                           .lower
                           .asInstanceOf[StmBuild]
                           .fuseWithUnique()
-                          .asInstanceOf[StmBuild]
                           .fuseWithUnique()
                       )
                   }
