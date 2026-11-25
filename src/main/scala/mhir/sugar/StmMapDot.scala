@@ -320,17 +320,19 @@ case class StmMapDotCascaded2(
     s1: Expr,
     s2: Expr,
     delay: Expr,
+    chunkSize: Expr,
     targetTyp: Type = TyTuple()
 )(typ: Type = Missing)
-    extends ResolvedSyntaxSugar(s1, s2, delay)(typ) {
+    extends ResolvedSyntaxSugar(s1, s2, delay, chunkSize)(typ) {
 
   override def rebuild(
       typ: Type,
       newChildren: Seq[Expr]
   ): StmMapDotCascaded2 = {
     newChildren match {
-      case Seq(s1, s2, d) => StmMapDotCascaded2(s1, s2, d, this.targetTyp)(typ)
-      case _              => throw new BadRebuildError(this, newChildren)
+      case Seq(s1, s2, d, c) =>
+        StmMapDotCascaded2(s1, s2, d, c, this.targetTyp)(typ)
+      case _ => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -373,6 +375,20 @@ case class StmMapDotCascaded2(
         )
     }
     val delay = this.delay.tchk(context, constValues).expectUInt()
+    val chunkSize = {
+      val cs = this.chunkSize.tchk(context, constValues)
+      cs.typ match {
+        case TyTuple() =>
+          SmartDiv(SafeSum(m, C(1)())(), C(2)())().tchk()
+        case _: TyUInt =>
+          cs
+        case typ =>
+          throw new TypeError(
+            s"Chunk size in $className has type $typ." +
+              " Expected an unsigned integer or ()."
+          )
+      }
+    }
     val outElemTyp = this.targetTyp match {
       case TyTuple() =>
         (elemTyp1, elemTyp2) match {
@@ -401,72 +417,110 @@ case class StmMapDotCascaded2(
         TypeChecker.relevantBindings(constValues, elemTyp2, outElemTyp)
       )
     }
-    val outLen = SmartDiff(n, SmartDiv(SmartDiff(m, 1)(), 2)())().tchk()
-    this.rebuild(TyStm(outElemTyp, outLen), Seq(s1, s2, delay))
+    val outLen = SmartSum(n, C(1)(), SmartProd(C(-1)(), chunkSize)())().tchk()
+    this.rebuild(TyStm(outElemTyp, outLen), Seq(s1, s2, delay, chunkSize))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val TyStm(TyVec(t1: TyAnyInt, m), _) = this.s1.typ
-    m match {
-      case IntCst(mLong) if mLong > 0 =>
+    // TODO! Insist that this.chunkSize be small enough
+    val TyStm(TyVec(in1Int: TyAnyInt, mExpr), _) = this.s1.typ
+    val TyStm(TyVec(in2Int: TyAnyInt, _), _) = this.s2.typ
+    val TyStm(outInt, outLen) = this.typ
+    val mLong = mExpr match {
+      case IntCst(c) => c
+      case e =>
+        throw new TypeError(
+          s"$className is not applicable when the vectors have length $e."
+            + s" Only non-negative, constant lengths are supported."
+        )
+    }
+    val chunkSizeExpr = this.chunkSize.lower
+    val chunkSizeLong = if (chunkSizeExpr.freeVars.isEmpty) {
+      val IntCst(c) = mhir.eval.eval(chunkSizeExpr)
+      c
+    } else {
+      throw new TypeError(
+        s"Chunk size in $className is $chunkSizeExpr." +
+          " Expected a compile-time constant."
+      )
+    }
+    assert(mLong >= 0)
+    assert(chunkSizeLong >= 0)
+    // TODO: What if chunk size is 0?
+    mLong match {
+      case 0 =>
+        // TODO! Test this case
+        val TyStm(int, n) = this.typ
+        StmBuild(n, C(1)(), Undefined(int), C(0)(int), True, Map(), Map())()
+          .tchk()
+      case mLong =>
         val m = mLong.toInt
+        val chunkSize = chunkSizeLong.toInt
         val s1 = this.s1.lower
         val s2 = this.s2.lower
         val delay = this.delay.lower
-        val TyStm(int, outLen) = this.typ
-        val TyStm(TyVec(t2, _), _) = this.s2.typ
-        val p1 = Param("p1")(TyStm(TyVec(t1, m), -1))
-        val p2 = Param("p2")(TyStm(TyVec(t2, m), -1))
-        val stageVars = (0 until (m + 1) / 2)
-          .map(i => Param(s"stage$i")(int))
-        val pipeAxVars = (0 until (m + 1) / 2)
-          .map(i => Param(s"stage${i}_ax_pipe")(TyVec(t1, delay)))
-        val pipeAyVars = (0 until (m + 1) / 2)
-          .map(i => Param(s"stage${i}_ay_pipe")(TyVec(t2, delay)))
-        val pipeBxVars = (0 until (m + 1) / 2)
-          .map(i => Param(s"stage${i}_bx_pipe")(TyVec(t1, delay)))
-        val pipeByVars = (0 until (m + 1) / 2)
-          .map(i => Param(s"stage${i}_by_pipe")(TyVec(t2, delay)))
-        // IMPORTANT: stages must be an ordered sequence (not a Map!), since I
-        // extract the last element later on
+        val p1 = Param("p1")(TyStm(TyVec(in1Int, m), -1))
+        val p2 = Param("p2")(TyStm(TyVec(in2Int, m), -1))
+        val numStages = (m + 1) / 2
+        val stageVars = (0 until numStages)
+          .map(i => Param(s"stage$i")(outInt))
+        // The last chunk may need some extra delay!
+        val numChunks = (numStages + chunkSize - 1) / chunkSize
+        val lastChunkStartIndex = (numChunks - 1) * chunkSize
+        val lastChunkSize = numStages - lastChunkStartIndex
+        val lastChunkExtraDelay = chunkSize - lastChunkSize
+        val delayByStage = (0 until numStages)
+          .map({ i =>
+            val inLastChunk = i >= lastChunkStartIndex
+            if (inLastChunk) delay + lastChunkExtraDelay else delay
+          })
+        val pipeAxVars = (0 until numStages)
+          .map(i => Param(s"pipe_ax$i")(TyVec(in1Int, delayByStage(i))))
+        val pipeAyVars = (0 until numStages)
+          .map(i => Param(s"pipe_ay$i")(TyVec(in2Int, delayByStage(i))))
+        val pipeBxVars = (0 until numStages)
+          .map(i => Param(s"pipe_bx$i")(TyVec(in1Int, delayByStage(i))))
+        val pipeByVars = (0 until numStages)
+          .map(i => Param(s"pipe_by$i")(TyVec(in2Int, delayByStage(i))))
         val stages: Seq[(Param, (Expr, Expr, Expr))] = stageVars.zipWithIndex
           .map({ case (x, i) =>
             val ax = Mux(
-              delay === 0,
+              delayByStage(i) === 0,
               VecAccess(StmData(p1)(), C(2 * i)())(),
               VecAccess(pipeAxVars(i), C(0)())()
             )().tchk()
             val ay = Mux(
-              delay === 0,
+              delayByStage(i) === 0,
               VecAccess(StmData(p2)(), C(2 * i)())(),
               VecAccess(pipeAyVars(i), C(0)())()
             )().tchk()
             val bx = if (2 * i + 1 >= m) {
-              C(0)(t1)
+              C(0)(x.typ)
             } else {
               Mux(
-                delay === 0,
+                delayByStage(i) === 0,
                 VecAccess(StmData(p1)(), C(2 * i + 1)())(),
                 VecAccess(pipeBxVars(i), C(0)())()
               )().tchk()
             }
             val by = if (2 * i + 1 >= m) {
-              C(0)(t1)
+              C(0)(x.typ)
             } else {
               Mux(
-                delay === 0,
+                delayByStage(i) === 0,
                 VecAccess(StmData(p2)(), C(2 * i + 1)())(),
                 VecAccess(pipeByVars(i), C(0)())()
               )().tchk()
             }
-            val chainin = if (i == 0) C(0)() else stageVars(i - 1)
+            val chainin =
+              if (i % chunkSizeLong == 0) C(0)() else stageVars(i - 1)
             val next = SmartSum(
               chainin,
-              Prod(ReshapeData(ax, int)(), ReshapeData(ay, int)())(),
-              Prod(ReshapeData(bx, int)(), ReshapeData(by, int)())()
+              Prod(ReshapeData(ax, outInt)(), ReshapeData(ay, outInt)())(),
+              Prod(ReshapeData(bx, outInt)(), ReshapeData(by, outInt)())()
             )().tchk()
-            x -> (Undefined(int), next, Tuple()())
+            x -> (Undefined(outInt), next, Tuple()())
           })
         // TODO: Can't I just call StmDelay for this?
         val pipeAx = pipeAxVars.zipWithIndex
@@ -505,9 +559,7 @@ case class StmMapDotCascaded2(
             x -> (Undefined(x.typ), next, Tuple()())
           })
           .toMap
-        val (_, (_, lastStage, _)) = stages.last
-        val totDelay =
-          SafeSum(C(math.max(0, stages.length - 1))(), delay)().tchk().lower
+        val totDelay = SafeSum(C(chunkSize)(), delay)().tchk().lower
         // Extend the input streams so I don't get "attempt to read from an
         // empty stream" errors
         val s1Extended = Call(
@@ -524,17 +576,27 @@ case class StmMapDotCascaded2(
         val sink = Tuple(
           pipeAxVars ++ pipeAyVars ++ pipeBxVars ++ pipeByVars: _*
         )().tchk().lower
-        Call(
+        val sum = MaybeSum(
+          stageVars.zipWithIndex
+            .filter({ case (_, i) =>
+              // Last in chunk
+              (i + 1) % chunkSizeLong == 0 ||
+              // Last stage overall
+              i + 1 == stages.length
+            })
+            .map({ case (x, _) => x }): _*
+        )().tchk()
+        val result = Call(
           Param("StmDrop", -1)(Missing),
           Seq(),
           Seq(
             StmBuild(
               SafeSum(outLen, totDelay)(),
               C(1)(),
-              Undefined(int),
-              lastStage,
+              Undefined(outInt),
+              sum,
               True,
-              pipeAx ++ pipeAy ++ pipeBx ++ pipeBy ++ stages.init.toMap,
+              pipeAx ++ pipeAy ++ pipeBx ++ pipeBy ++ stages.toMap,
               Map[Param, (Expr, Expr, Expr)](
                 p1 -> (s1Extended, True, C(0)()),
                 p2 -> (s2Extended, True, C(0)())
@@ -545,16 +607,7 @@ case class StmMapDotCascaded2(
             totDelay
           )
         ).tchk().lower
-      case IntCst(0) =>
-        // TODO! Test this case
-        val TyStm(int, n) = this.typ
-        StmBuild(n, C(1)(), Undefined(int), C(0)(int), True, Map(), Map())()
-          .tchk()
-      case e =>
-        throw new TypeError(
-          s"$className is not applicable when the vectors have length $e."
-            + s" Only non-negative, constant lengths are supported."
-        )
+        result
     }
   }
 }

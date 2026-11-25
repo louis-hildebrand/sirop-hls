@@ -887,13 +887,13 @@ case class StmCascade(s: Expr)(typ: Type = Missing)
   }
 }
 
-case class StmCascade2(s: Expr)(typ: Type = Missing)
-    extends ResolvedSyntaxSugar(s)(typ) {
+case class StmCascade2(s: Expr, chunkSize: Expr)(typ: Type = Missing)
+    extends ResolvedSyntaxSugar(s, chunkSize)(typ) {
 
   override def rebuild(typ: Type, newChildren: Seq[Expr]): Expr = {
     newChildren match {
-      case Seq(s) => StmCascade2(s)(typ)
-      case _      => throw new BadRebuildError(this, newChildren)
+      case Seq(s, c) => StmCascade2(s, c)(typ)
+      case _         => throw new BadRebuildError(this, newChildren)
     }
   }
 
@@ -910,30 +910,89 @@ case class StmCascade2(s: Expr)(typ: Type = Missing)
             + s" Expected a stream of vectors."
         )
     }
-    val outLen = ToUnsigned(
-      SafeSum(n, SmartDiv(SafeSum(m, C(-1)())(), C(2)())())()
-    )().tchk()
-    this.rebuild(TyStm(TyVec(elemTyp, m), outLen), Seq(s))
+    val chunkSize = {
+      val cs = this.chunkSize.tchk(context, constValues)
+      cs.typ match {
+        case TyTuple() =>
+          SmartDiv(SafeSum(m, C(1)())(), C(2)())().tchk()
+        case _: TyUInt =>
+          cs
+        case typ =>
+          throw new TypeError(
+            s"Chunk size in $className has type $typ." +
+              " Expected an unsigned integer or ()."
+          )
+      }
+    }
+    val outLen =
+      ToUnsigned(SafeSum(n, chunkSize, C(-1)())())().tchk()
+    this.rebuild(TyStm(TyVec(elemTyp, m), outLen), Seq(s, chunkSize))
   }
 
   override def lowerSyntaxSugar(implicit c: Canonicalizer): Expr = {
     requireType()
-    val TyStm(TyVec(elemTyp, m), _) = this.s.typ
-    StmMap(
-      StmCascade(
-        StmMap(
-          s, {
-            val v = Param("v")(TyVec(elemTyp, m))
-            val paddedLen = SafeProd(SmartDiv(SafeSum(m, 1)(), 2)(), 2)()
-            val paddedV = VecTake(v, paddedLen)()
-            Function(v, VecSplit(paddedV, 2)())()
-          }
-        )
-      )(), {
-        val v = Param("v")()
-        Function(v, VecTake(VecJoin(v)(), m)())()
-      }
+    val s = this.s.lower
+    val TyStm(TyVec(TyData(elemTyp), mExpr), _) = s.typ
+    val mLong = if (mExpr.freeVars.isEmpty) {
+      val IntCst(mLong) = mhir.eval.eval(mExpr)
+      mLong
+    } else {
+      // TODO: Write error message
+      ???
+    }
+    if (mLong <= 0) {
+      // TODO: Write error message
+      ???
+    }
+    // TODO: Assert that this.chunkSize is small enough?
+    val chunkSizeExpr = this.chunkSize.lower
+    val chunkSizeLong = if (chunkSizeExpr.freeVars.isEmpty) {
+      val IntCst(cs) = mhir.eval.eval(chunkSizeExpr)
+      cs
+    } else {
+      // TODO: Write error message
+      ???
+    }
+    val TyStm(_, outLen) = this.typ
+    val m = mLong.toInt
+    val sExtended = Call(
+      Param("StmExtendBy", -1)(Missing),
+      Seq(),
+      Seq(s, C(chunkSizeLong - 1)())
     ).tchk().lower
+    val p = Param("p")(TyStm(TyVec(elemTyp, m), -1))
+    val pipeVars = (0 until m).map({ i =>
+      val delay = (i % (2 * chunkSizeLong)) / 2
+      if (delay == 0) {
+        None
+      } else {
+        Some(Param(s"pipe$i")(TyVec(elemTyp, C(delay)())))
+      }
+    })
+    StmBuild(
+      outLen,
+      C(1)(),
+      Undefined(TyVec(elemTyp, m)),
+      VecLiteral(pipeVars.zipWithIndex.map({
+        case (None, i)       => VecAccess(StmData(p)(), i)()
+        case (Some(pipe), _) => VecAccess(pipe, 0)()
+      }): _*)(),
+      True,
+      pipeVars.zipWithIndex
+        .collect({ case (Some(x), i) =>
+          x -> (
+            Undefined(x.typ),
+            VecShiftLeft(x, VecAccess(StmData(p)(), i)())()
+              .tchk()
+              .lower,
+            Tuple()()
+          )
+        })
+        .toMap,
+      Map[Param, (Expr, Expr, Expr)](
+        p -> (sExtended, True, C(0)())
+      )
+    )().tchk()
   }
 }
 

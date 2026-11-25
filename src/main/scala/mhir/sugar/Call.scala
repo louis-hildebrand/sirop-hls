@@ -381,8 +381,9 @@ case class Call(
         }
       case f @ Param("StmCascade2", -1) =>
         combinedArgs match {
-          case (Seq(), Seq(s)) => StmCascade2(s)()
-          case _               => error(f)
+          case (Seq(), Seq(s))    => StmCascade2(s, Tuple()())()
+          case (Seq(), Seq(s, c)) => StmCascade2(s, c)()
+          case _                  => error(f)
         }
       case f @ Param("StmMapDotCascaded", -1) =>
         combinedArgs match {
@@ -395,9 +396,13 @@ case class Call(
       case f @ Param("StmMapDotCascaded2", -1) =>
         combinedArgs match {
           case (Seq(), Seq(s1, s2, delay)) =>
-            StmMapDotCascaded2(s1, s2, delay)()
+            StmMapDotCascaded2(s1, s2, delay, Tuple()())()
+          case (Seq(), Seq(s1, s2, delay, chunkSize)) =>
+            StmMapDotCascaded2(s1, s2, delay, chunkSize)()
           case (Seq(typ), Seq(s1, s2, delay)) =>
-            StmMapDotCascaded2(s1, s2, delay, targetTyp = typ)()
+            StmMapDotCascaded2(s1, s2, delay, Tuple()(), targetTyp = typ)()
+          case (Seq(typ), Seq(s1, s2, delay, chunkSize)) =>
+            StmMapDotCascaded2(s1, s2, delay, chunkSize, targetTyp = typ)()
           case _ => error(f)
         }
       case f @ Param("StmMapDotTree", -1) =>

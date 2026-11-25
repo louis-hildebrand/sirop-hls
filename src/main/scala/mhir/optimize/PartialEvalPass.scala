@@ -287,6 +287,7 @@ object PartialEvalPass {
                   Mux(c, VecAccess(t, i)(), VecAccess(f, i)())()
                 )
               case (VecLiteral(elems @ _*), IntCst(i)) =>
+                // TODO: Avoid out-of-bounds exception here
                 elems(i.toInt)
               case (VecAccess(VecLiteral(elems @ _*), i), j: IntCst) =>
                 val newElems = elems.map(e => doPartialEval(VecAccess(e, j)()))
