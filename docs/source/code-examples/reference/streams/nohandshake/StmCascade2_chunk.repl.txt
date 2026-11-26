@@ -1,5 +1,6 @@
 > __handshake = false
 > __show_prefix = false
+> __print_width = 100
 >
 > input = StmCount(4:u8).StmMap(t => VecCount(7, 10 + 7 * t))
 > input

@@ -43,6 +43,7 @@ object Repl {
       handshake = true,
       showPrefix = false,
       ctrlCCount = 0,
+      printWidth = 80,
       variables = Map()
     )
     writer.println(s"Welcome to the Sirop REPL (v${Version()})!")
@@ -109,7 +110,7 @@ object Repl {
         (state, false)
       case ExprStmt(e) =>
         val result = eval(e, state)
-        writer.println(ExprPrinter.display(result))
+        writer.println(ExprPrinter.display(result, maxWidth = state.printWidth))
         (state, false)
       case TypeOfStmt(e) =>
         val checked = e.tchk(state.typingContext, state.env)
@@ -225,6 +226,16 @@ object Repl {
             throw new TypeError(
               s"value of $setting evaluated to $v." +
                 s" Expected true or false."
+            )
+        }
+      case "__print_width" =>
+        eval(newValue, state) match {
+          case IntCst(w) if w >= 0 && w < (1L << 31) =>
+            state.copy(printWidth = w.toInt)
+          case v =>
+            throw new TypeError(
+              s"value of $setting evaluated to $v." +
+                s" Expected an unsigned integer."
             )
         }
       case setting =>

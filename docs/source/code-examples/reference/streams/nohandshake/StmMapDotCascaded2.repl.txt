@@ -15,10 +15,6 @@
   undefined:i44,
   undefined:i44,
   undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
   undefined:i44
 ]s ++ [
   16:i44,
@@ -26,10 +22,6 @@
 ]s
 > StmMapDotCascaded2(u.StmCascade2(), v.StmCascade2(), /*delay*/ 1)
 [
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
   undefined:i44,
   undefined:i44,
   undefined:i44,
@@ -54,10 +46,6 @@
   undefined:i44,
   undefined:i44,
   undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
-  undefined:i44,
   undefined:i44
 ]s ++ [
   16:i44,
@@ -69,10 +57,6 @@
 > // But you can also specify the output type.
 > StmMapDotCascaded2:[i40](u.StmCascade2(), v.StmCascade2(), /*delay*/ 0)
 [
-  undefined:i40,
-  undefined:i40,
-  undefined:i40,
-  undefined:i40,
   undefined:i40,
   undefined:i40,
   undefined:i40,
